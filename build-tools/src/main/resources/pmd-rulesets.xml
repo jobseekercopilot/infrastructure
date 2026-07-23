@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ruleset name="job-seeker-copilot-pmd"
+         xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0
+         https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+
+    <description>
+        Job Seeker Copilot – PMD ruleset.
+        Catches common issues and code smells without being overly noisy.
+    </description>
+
+    <!-- Best practices – the most useful category -->
+    <rule ref="category/java/bestpractices.xml">
+        <exclude name="JUnitAssertionsShouldIncludeMessage"/>
+        <exclude name="JUnitTestContainsTooManyAsserts"/>
+        <exclude name="GuardLogStatement"/>
+    </rule>
+
+    <!-- Code style essentials -->
+    <rule ref="category/java/codestyle.xml">
+        <exclude name="AtLeastOneConstructor"/>
+        <exclude name="LocalVariableCouldBeFinal"/>
+        <exclude name="MethodArgumentCouldBeFinal"/>
+        <exclude name="OnlyOneReturn"/>
+        <exclude name="ShortClassName"/>
+        <exclude name="ShortVariable"/>
+        <exclude name="LongVariable"/>
+        <exclude name="CommentDefaultAccessModifier"/>
+        <exclude name="DefaultPackage"/>
+        <exclude name="ClassNamingConventions"/>
+        <!-- Allow method names starting with 'is' or 'has' for boolean getters -->
+    </rule>
+
+    <!-- Design – keep things testable and maintainable -->
+    <rule ref="category/java/design.xml">
+        <exclude name="LawOfDemeter"/>
+        <exclude name="LoosePackageCoupling"/>
+        <exclude name="DataClass"/>  <!-- DTOs are fine -->
+        <exclude name="ImmutableField"/>  <!-- often triggers on JPA entities -->
+        <exclude name="AvoidThrowingRawExceptionTypes"/>
+    </rule>
+
+    <!-- Error handling -->
+    <rule ref="category/java/errorprone.xml">
+        <exclude name="NullAssignment"/>  <!-- sometimes needed for JPA -->
+        <exclude name="DataflowAnomalyAnalysis"/>  <!-- noisy -->
+        <exclude name="BeanMembersShouldSerialize"/>
+        <exclude name="AvoidLiteralsInIfCondition"/>
+        <exclude name="MissingSerialVersionUID"/>
+    </rule>
+
+    <!-- Performance – quick wins -->
+    <rule ref="category/java/performance.xml">
+        <exclude name="AvoidInstantiatingObjectsInLoops"/>
+    </rule>
+
+    <!-- Security basics -->
+    <rule ref="category/java/security.xml"/>
+</ruleset>

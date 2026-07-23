@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate JSON
+        run: |
+          python3 -m json.tool config/services.json >/dev/null
+          python3 -m json.tool scripts/clients/config/service_dependencies.json >/dev/null
+      - name: Test workspace tooling
+        run: python3 -m unittest discover -s tests
+      - name: Compile Python
+        run: python3 -m compileall -q scripts
+      - name: Exercise bootstrap dry run
+        run: python3 scripts/workspace/bootstrap.py
+
+  build-tools:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+      - name: Validate inherited parent POM
+        run: mvn -B -Dcheckstyle.skip=true -f build-tools/pom.xml validate
+
+  compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Compose model
+        run: |
+          cp .env.example .env
+          cp .env.e2e.example .env.e2e
+          cp .env.live.example .env.live
+          docker compose --env-file .env -f docker-compose.yml config --quiet
+          docker compose --env-file .env.e2e -f docker-compose.yml -f docker-compose.e2e.yml config --quiet
+          docker compose --env-file .env.live -f docker-compose.yml -f docker-compose.live.yml config --quiet

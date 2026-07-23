@@ -1,0 +1,664 @@
+services:
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    ports:
+      - "9000:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer-data:/data
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD", "/portainer", "--version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: dozzle
+    ports:
+      - "9999:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD", "/dozzle", "healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  postcode-io-gateway:
+    build:
+      context: ./postcode-io-gateway
+      dockerfile: Dockerfile
+    container_name: postcode-io-gateway
+    ports:
+      - "8082:8082"
+    environment:
+      - SPRING_APPLICATION_NAME=postcode-io-gateway
+      - SERVER_PORT=8082
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  location-gateway:
+    build:
+      context: ./location-gateway
+      dockerfile: Dockerfile
+    container_name: location-gateway
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_APPLICATION_NAME=location-gateway
+      - SERVER_PORT=8081
+      - POSTCODE_IO_GATEWAY_URL=http://postcode-io-gateway:8082
+    depends_on:
+      postcode-io-gateway:
+        condition: service_healthy
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  authentication-service:
+    build:
+      context: ./authentication-service
+      dockerfile: Dockerfile
+    container_name: authentication-service
+    ports:
+      - "8084:8084"
+    environment:
+      - SPRING_APPLICATION_NAME=authentication-service
+      - SERVER_PORT=8084
+      - ENVIRONMENT_DATA_ENABLED=true
+    volumes:
+      - authentication-data:/app/data
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8084/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  user-profile-service:
+    build:
+      context: ./user-profile-service
+      dockerfile: Dockerfile
+    container_name: user-profile-service
+    ports:
+      - "8085:8085"
+    environment:
+      - SPRING_APPLICATION_NAME=user-profile-service
+      - SERVER_PORT=8085
+      - ENVIRONMENT_DATA_ENABLED=true
+    volumes:
+      - user-profile-data:/app/data
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8085/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  user-management-gateway:
+    build:
+      context: ./user-management-gateway
+      dockerfile: Dockerfile
+    container_name: user-management-gateway
+    ports:
+      - "8083:8083"
+      - "5005:5005"
+    environment:
+      JAVA_TOOL_OPTIONS: "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
+      SPRING_APPLICATION_NAME: "user-management-gateway"
+      SERVER_PORT: "8083"
+      AUTHENTICATION_SERVICE_URL: "http://authentication-service:8084"
+      USER_PROFILE_SERVICE_URL: "http://user-profile-service:8085"
+    depends_on:
+      authentication-service:
+        condition: service_healthy
+      user-profile-service:
+        condition: service_healthy
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  reed-gateway:
+    build:
+      context: ./reed-gateway
+      dockerfile: Dockerfile
+    container_name: reed-gateway
+    ports:
+      - "8087:8087"
+    environment:
+      - SPRING_APPLICATION_NAME=reed-gateway
+      - SERVER_PORT=8087
+      - REED_API_BASE_URL=https://www.reed.co.uk/api/1.0
+      - REED_API_KEY=${REED_API_KEY}
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8087/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  adzuna-gateway:
+    build:
+      context: ./adzuna-gateway
+      dockerfile: Dockerfile
+    container_name: adzuna-gateway
+    ports:
+      - "8101:8101"
+    environment:
+      - SPRING_APPLICATION_NAME=adzuna-gateway
+      - SERVER_PORT=8101
+      - ADZUNA_ENABLED=${ADZUNA_ENABLED:-true}
+      - ADZUNA_RESULTS_PER_PAGE=${ADZUNA_RESULTS_PER_PAGE:-50}
+      - ADZUNA_PAGES_PER_SEARCH=${ADZUNA_PAGES_PER_SEARCH:-1}
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8101/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  jsearch-gateway:
+    build:
+      context: ./jsearch-gateway
+      dockerfile: Dockerfile
+    container_name: jsearch-gateway
+    ports:
+      - "8102:8102"
+    environment:
+      - SPRING_APPLICATION_NAME=jsearch-gateway
+      - SERVER_PORT=8102
+      - JSEARCH_ENABLED=${JSEARCH_ENABLED:-true}
+      - JSEARCH_COUNTRY=${JSEARCH_COUNTRY:-gb}
+      - JSEARCH_LANGUAGE=${JSEARCH_LANGUAGE:-en}
+      - JSEARCH_PAGES_PER_SEARCH=${JSEARCH_PAGES_PER_SEARCH:-1}
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8102/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  system-data-service:
+    build:
+      context: ./system-data-service
+      dockerfile: Dockerfile
+    container_name: system-data-service
+    ports:
+      - "8103:8103"
+    environment:
+      - SPRING_APPLICATION_NAME=system-data-service
+      - SERVER_PORT=8103
+      - SYSTEM_DATA_REPOSITORY_DIRECTORY=/app/dataset-repository
+      - SYSTEM_DATA_ENVIRONMENT_MANAGEMENT_ENABLED=true
+      - ADZUNA_GATEWAY_URL=http://adzuna-gateway:8101
+      - JSEARCH_GATEWAY_URL=http://jsearch-gateway:8102
+      - REED_GATEWAY_URL=http://reed-gateway:8087
+      - POSTCODE_IO_GATEWAY_URL=http://postcode-io-gateway:8082
+      - LLM_GATEWAY_URL=http://llm-gateway:8090
+      - AUTHENTICATION_SERVICE_URL=http://authentication-service:8084
+      - USER_PROFILE_SERVICE_URL=http://user-profile-service:8085
+      - APPLICATION_TRACKER_SERVICE_URL=http://application-tracker-service:8088
+      - DOCUMENT_STORE_SERVICE_URL=http://document-store-service:8089
+      - PAYMENT_SERVICE_URL=http://payment-service:8099
+    volumes:
+      - ./system-data-service/dataset-repository:/app/dataset-repository
+    depends_on:
+      reed-gateway:
+        condition: service_healthy
+      adzuna-gateway:
+        condition: service_healthy
+      jsearch-gateway:
+        condition: service_healthy
+      postcode-io-gateway:
+        condition: service_healthy
+      authentication-service:
+        condition: service_healthy
+      user-profile-service:
+        condition: service_healthy
+      application-tracker-service:
+        condition: service_healthy
+      document-store-service:
+        condition: service_healthy
+      payment-service:
+        condition: service_healthy
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8103/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  job-service:
+    build:
+      context: ./job-service
+      dockerfile: Dockerfile
+    container_name: job-service
+    ports:
+      - "8086:8086"
+    environment:
+      - SPRING_APPLICATION_NAME=job-service
+      - SERVER_PORT=8086
+      - REED_GATEWAY_URL=http://reed-gateway:8087
+      - ADZUNA_GATEWAY_URL=http://adzuna-gateway:8101
+      - JSEARCH_GATEWAY_URL=http://jsearch-gateway:8102
+      - JOB_MATCHING_SERVICE_URL=http://job-matching-service:8097
+    depends_on:
+      reed-gateway:
+        condition: service_healthy
+      adzuna-gateway:
+        condition: service_healthy
+      jsearch-gateway:
+        condition: service_healthy
+      job-matching-service:
+        condition: service_healthy
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8086/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  job-matching-service:
+    build:
+      context: ./job-matching-service
+      dockerfile: Dockerfile
+    container_name: job-matching-service
+    ports:
+      - "8097:8097"
+    environment:
+      - SPRING_APPLICATION_NAME=job-matching-service
+      - SERVER_PORT=8097
+      - APPLICATION_TRACKER_SERVICE_BASE_URL=http://application-tracker-service:8088
+    depends_on:
+      application-tracker-service:
+        condition: service_healthy
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8097/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  job-finder-gateway:
+    build:
+      context: ./job-finder-gateway
+      dockerfile: Dockerfile
+    container_name: job-finder-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_APPLICATION_NAME=job-finder-gateway
+      - SERVER_PORT=8080
+      - JWT_SECRET=aVeryLongAndSecureSecretKeyThatIsAtLeast256BitsToSatisfyHMACSHAAlgorithmsForJWTTokensCreation123456
+      - JOB_SERVICE_URL=http://job-service:8086
+      - USER_MANAGEMENT_GATEWAY_URL=http://user-management-gateway:8083
+      - USER_PROFILE_SERVICE_URL=http://user-profile-service:8085
+    depends_on:
+      job-service:
+        condition: service_healthy
+      user-management-gateway:
+        condition: service_healthy
+      user-profile-service:
+        condition: service_healthy
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  llm-gateway:
+    build:
+      context: ./llm-gateway
+      dockerfile: Dockerfile
+    container_name: llm-gateway
+    ports:
+      - "8090:8090"
+    env_file:
+      - path: .env.local
+        required: false
+    environment:
+      - SERVER_PORT=8090
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8090/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  document-store-service:
+    build:
+      context: ./document-store-service
+      dockerfile: Dockerfile
+    container_name: document-store-service
+    ports:
+      - "8089:8089"
+    environment:
+      - SERVER_PORT=8089
+      - ENVIRONMENT_DATA_ENABLED=true
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8089/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  document-export-service:
+    build:
+      context: ./document-export-service
+      dockerfile: Dockerfile
+    container_name: document-export-service
+    ports:
+      - "8094:8094"
+    environment:
+      - SERVER_PORT=8094
+      - DOCUMENT_STORE_SERVICE_BASE_URL=http://document-store-service:8089
+    depends_on:
+      document-store-service:
+        condition: service_healthy
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8094/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  application-tracker-service:
+    build:
+      context: ./application-tracker-service
+      dockerfile: Dockerfile
+    container_name: application-tracker-service
+    ports:
+      - "8088:8088"
+    environment:
+      - SERVER_PORT=8088
+      - ENVIRONMENT_DATA_ENABLED=true
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8088/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  cv-cover-letter-service:
+    build:
+      context: ./cv-cover-letter-service
+      dockerfile: Dockerfile
+    container_name: cv-cover-letter-service
+    ports:
+      - "8091:8091"
+    environment:
+      - SERVER_PORT=8091
+      - LLM_GATEWAY_BASE_URL=http://llm-gateway:8090
+      - DOCUMENT_STORE_SERVICE_BASE_URL=http://document-store-service:8089
+      - APPLICATION_TRACKER_SERVICE_BASE_URL=http://application-tracker-service:8088
+      - PAYMENT_SERVICE_BASE_URL=http://payment-service:8099
+    depends_on:
+      llm-gateway:
+        condition: service_healthy
+      document-store-service:
+        condition: service_healthy
+      application-tracker-service:
+        condition: service_healthy
+      payment-service:
+        condition: service_healthy
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8091/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  document-generation-gateway:
+    build:
+      context: ./document-generation-gateway
+      dockerfile: Dockerfile
+    container_name: document-generation-gateway
+    ports:
+      - "8092:8092"
+    environment:
+      - SERVER_PORT=8092
+      - JWT_SECRET=aVeryLongAndSecureSecretKeyThatIsAtLeast256BitsToSatisfyHMACSHAAlgorithmsForJWTTokensCreation123456
+      - AUTHENTICATION_SERVICE_URL=http://authentication-service:8084
+      - USER_PROFILE_SERVICE_URL=http://user-profile-service:8085
+      - JOB_SERVICE_URL=http://job-service:8086
+      - CV_COVER_LETTER_SERVICE_URL=http://cv-cover-letter-service:8091
+      - DOCUMENT_EXPORT_SERVICE_URL=http://document-export-service:8094
+      - DOCUMENT_STORE_SERVICE_URL=http://document-store-service:8089
+    depends_on:
+      authentication-service:
+        condition: service_healthy
+      user-profile-service:
+        condition: service_healthy
+      job-service:
+        condition: service_healthy
+      cv-cover-letter-service:
+        condition: service_healthy
+      document-export-service:
+        condition: service_healthy
+      document-store-service:
+        condition: service_healthy
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8092/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  reporting-service:
+    build:
+      context: ./reporting-service
+      dockerfile: Dockerfile
+    container_name: reporting-service
+    ports:
+      - "8096:8096"
+    environment:
+      - SERVER_PORT=8096
+      - APPLICATION_TRACKER_SERVICE_BASE_URL=http://application-tracker-service:8088
+      - USER_PROFILE_SERVICE_URL=http://user-profile-service:8085
+    depends_on:
+      application-tracker-service:
+        condition: service_healthy
+      user-profile-service:
+        condition: service_healthy
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8096/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  reporting-gateway:
+    build:
+      context: ./reporting-gateway
+      dockerfile: Dockerfile
+    container_name: reporting-gateway
+    ports:
+      - "8095:8095"
+    environment:
+      - SERVER_PORT=8095
+      - REPORTING_SERVICE_URL=http://reporting-service:8096
+    depends_on:
+      reporting-service:
+        condition: service_healthy
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8095/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  payment-service:
+    build:
+      context: ./payment-service
+      dockerfile: Dockerfile
+    container_name: payment-service
+    ports:
+      - "8099:8099"
+    environment:
+      - SERVER_PORT=8099
+      - ENVIRONMENT_DATA_ENABLED=true
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8099/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  stripe-gateway:
+    build:
+      context: ./stripe-gateway
+      dockerfile: Dockerfile
+    container_name: stripe-gateway
+    ports:
+      - "8100:8100"
+    environment:
+      - SERVER_PORT=8100
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
+      - STRIPE_SUCCESS_URL=${STRIPE_SUCCESS_URL:-http://localhost:3000/payment/success}
+      - STRIPE_CANCEL_URL=${STRIPE_CANCEL_URL:-http://localhost:3000/payment/cancel}
+      - PAYMENT_SERVICE_URL=http://payment-service:8099
+    depends_on:
+      payment-service:
+        condition: service_healthy
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8100/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  payment-gateway:
+    build:
+      context: ./payment-gateway
+      dockerfile: Dockerfile
+    container_name: payment-gateway
+    ports:
+      - "8098:8098"
+    environment:
+      - SERVER_PORT=8098
+      - PAYMENT_SERVICE_URL=http://payment-service:8099
+      - STRIPE_GATEWAY_URL=http://stripe-gateway:8100
+    depends_on:
+      payment-service:
+        condition: service_healthy
+      stripe-gateway:
+        condition: service_healthy
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8098/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  job-seeker-copilot-client:
+    build:
+      context: ./job-seeker-copilot-client
+      dockerfile: Dockerfile
+    container_name: job-seeker-copilot-client
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - LOCATION_GATEWAY_URL=http://location-gateway:8081
+      - USER_MANAGEMENT_GATEWAY_URL=http://user-management-gateway:8083
+      - JOB_FINDER_GATEWAY_URL=http://job-finder-gateway:8080
+      - DOCUMENT_GENERATION_GATEWAY_URL=http://document-generation-gateway:8092
+      - DOCUMENT_STORE_SERVICE_URL=http://document-store-service:8089
+      - REPORTING_GATEWAY_URL=http://reporting-gateway:8095
+      - PAYMENT_GATEWAY_URL=http://payment-gateway:8098
+    depends_on:
+      location-gateway:
+        condition: service_healthy
+      user-management-gateway:
+        condition: service_healthy
+      job-finder-gateway:
+        condition: service_healthy
+      document-generation-gateway:
+        condition: service_healthy
+      reporting-gateway:
+        condition: service_healthy
+      payment-gateway:
+        condition: service_healthy
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/', res => process.exit(res.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  job-seeker-network:
+    driver: bridge
+
+volumes:
+  portainer-data:
+  authentication-data:
+  user-profile-data:

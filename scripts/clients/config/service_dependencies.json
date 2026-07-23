@@ -1,0 +1,239 @@
+{
+  "github": {
+    "owner": "jobseekercopilot",
+    "project_title": "Job Seeker Copilot",
+    "project_number": 1
+  },
+  "repositories": {
+    "job-service": {
+      "test_command": "mvn test"
+    },
+    "job-seeker-copilot-client": {
+      "test_command": "npm run build"
+    }
+  },
+  "services": {
+    "job-seeker-copilot-client": {
+      "type": "frontend",
+      "dependsOn": [
+        "location-gateway",
+        "job-finder-gateway",
+        "user-management-gateway",
+        "document-generation-gateway",
+        "reporting-gateway",
+        "payment-gateway"
+      ]
+    },
+
+    "location-gateway": {
+      "type": "gateway",
+      "openApiPort": 8081,
+      "frontendFacing": true,
+      "dependsOn": [
+        "postcode-io-gateway"
+      ]
+    },
+
+    "postcode-io-gateway": {
+      "type": "gateway",
+      "openApiPort": 8082,
+      "dependsOn": [
+        "system-data-service"
+      ]
+    },
+
+    "user-management-gateway": {
+      "type": "gateway",
+      "openApiPort": 8083,
+      "frontendFacing": true,
+      "dependsOn": [
+        "authentication-service",
+        "user-profile-service"
+      ]
+    },
+
+    "authentication-service": {
+      "type": "service",
+      "openApiPort": 8084,
+      "dependsOn": []
+    },
+
+    "user-profile-service": {
+      "type": "service",
+      "openApiPort": 8085,
+      "dependsOn": []
+    },
+
+    "job-finder-gateway": {
+      "type": "gateway",
+      "openApiPort": 8080,
+      "frontendFacing": true,
+      "dependsOn": [
+        "job-service",
+        "user-profile-service",
+        "application-tracker-service",
+        "document-store-service"
+      ]
+    },
+
+    "job-service": {
+      "type": "service",
+      "openApiPort": 8086,
+      "dependsOn": [
+        "reed-gateway",
+        "adzuna-gateway",
+        "jsearch-gateway",
+        "job-matching-service"
+      ]
+    },
+
+    "job-matching-service": {
+      "type": "service",
+      "openApiPort": 8097,
+      "dependsOn": [
+        "application-tracker-service"
+      ]
+    },
+
+    "reed-gateway": {
+      "type": "gateway",
+      "openApiPort": 8087,
+      "dependsOn": [
+        "system-data-service"
+      ]
+    },
+
+    "adzuna-gateway": {
+      "type": "gateway",
+      "openApiPort": 8101,
+      "dependsOn": [
+        "system-data-service"
+      ]
+    },
+
+    "jsearch-gateway": {
+      "type": "gateway",
+      "openApiPort": 8102,
+      "dependsOn": [
+        "system-data-service"
+      ]
+    },
+
+    "system-data-service": {
+      "type": "service",
+      "openApiPort": 8103,
+      "dependsOn": [
+        "adzuna-gateway",
+        "jsearch-gateway",
+        "reed-gateway",
+        "postcode-io-gateway",
+        "llm-gateway",
+        "authentication-service",
+        "user-profile-service",
+        "application-tracker-service",
+        "document-store-service",
+        "payment-service"
+      ]
+    },
+
+    "document-generation-gateway": {
+      "type": "gateway",
+      "openApiPort": 8092,
+      "frontendFacing": true,
+      "dependsOn": [
+        "job-service",
+        "user-profile-service",
+        "cv-cover-letter-service",
+        "document-export-service",
+        "document-store-service",
+        "authentication-service",
+        "application-tracker-service"
+      ]
+    },
+
+    "reporting-gateway": {
+      "type": "gateway",
+      "openApiPort": 8095,
+      "frontendFacing": true,
+      "dependsOn": [
+        "reporting-service"
+      ]
+    },
+
+    "payment-gateway": {
+      "type": "gateway",
+      "openApiPort": 8098,
+      "frontendFacing": true,
+      "dependsOn": [
+        "payment-service",
+        "stripe-gateway"
+      ]
+    },
+
+    "payment-service": {
+      "type": "service",
+      "openApiPort": 8099,
+      "dependsOn": []
+    },
+
+    "stripe-gateway": {
+      "type": "gateway",
+      "openApiPort": 8100,
+      "dependsOn": [
+        "system-data-service",
+        "payment-service"
+      ]
+    },
+
+    "reporting-service": {
+      "type": "service",
+      "openApiPort": 8096,
+      "dependsOn": [
+        "application-tracker-service",
+        "user-profile-service"
+      ]
+    },
+
+    "cv-cover-letter-service": {
+      "type": "service",
+      "generateClients": true,
+      "openApiPort": 8091,
+      "dependsOn": [
+        "document-store-service",
+        "application-tracker-service",
+        "llm-gateway",
+        "payment-service"
+      ]
+    },
+
+    "document-store-service": {
+      "type": "service",
+      "openApiPort": 8089,
+      "dependsOn": []
+    },
+
+    "document-export-service": {
+      "type": "service",
+      "openApiPort": 8094,
+      "dependsOn": [
+        "document-store-service"
+      ]
+    },
+
+    "application-tracker-service": {
+      "type": "service",
+      "openApiPort": 8088,
+      "dependsOn": [
+        "document-store-service"
+      ]
+    },
+
+    "llm-gateway": {
+      "type": "gateway",
+      "openApiPort": 8090,
+      "dependsOn": [
+        "system-data-service"
+      ]
+    }
+  }
+}

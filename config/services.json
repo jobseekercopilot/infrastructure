@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "owner": "jobseekercopilot",
+  "defaultRef": "develop",
+  "repositories": [
+    "authentication-service",
+    "user-profile-service",
+    "user-management-gateway",
+    "postcode-io-gateway",
+    "location-gateway",
+    "reed-gateway",
+    "adzuna-gateway",
+    "jsearch-gateway",
+    "system-data-service",
+    "job-service",
+    "job-matching-service",
+    "job-finder-gateway",
+    "llm-gateway",
+    "document-store-service",
+    "document-export-service",
+    "application-tracker-service",
+    "cv-cover-letter-service",
+    "document-generation-gateway",
+    "reporting-service",
+    "reporting-gateway",
+    "payment-service",
+    "stripe-gateway",
+    "payment-gateway",
+    "job-seeker-copilot-client",
+    "e2e"
+  ]
+}

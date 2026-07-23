@@ -1,0 +1,19 @@
+services:
+  authentication-service:
+    environment:
+      - SPRING_PROFILES_ACTIVE=local
+      - AUTH_DB_URL=jdbc:h2:file:/app/data/live/authentication;AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1
+
+  user-profile-service:
+    environment:
+      - SPRING_PROFILES_ACTIVE=local
+      - PROFILE_DB_URL=jdbc:h2:file:/app/data/live/user-profile;AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1
+
+  system-data-service:
+    environment:
+      - SPRING_PROFILES_ACTIVE=local
+      - SYSTEM_DATA_ENVIRONMENT_MANAGEMENT_ENABLED=false
+
+  job-seeker-copilot-client:
+    ports:
+      - "${LIVE_FRONTEND_PORT:-3000}:3000"

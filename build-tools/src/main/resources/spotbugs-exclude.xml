@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+    <!--
+        SpotBugs exclude filter for Job Seeker Copilot.
+        Excludes known false positives / acceptable patterns.
+    -->
+    <Match>
+        <!-- Lombok @Builder / @Data generates getters/setters that SpotBugs may flag -->
+        <Or>
+            <Bug pattern="EI_EXPOSE_REP"/>
+            <Bug pattern="EI_EXPOSE_REP2"/>
+        </Or>
+    </Match>
+    <Match>
+        <!-- JPA entities commonly have fields that aren't written in constructors -->
+        <Bug pattern="UWF_UNWRITTEN_PUBLIC_OR_PROTECTED_FIELD"/>
+    </Match>
+    <Match>
+        <!-- Spring Boot + JPA: entity fields accessed via reflection -->
+        <Bug pattern="NP_BOOLEAN_RETURN_NULL"/>
+    </Match>
+</FindBugsFilter>

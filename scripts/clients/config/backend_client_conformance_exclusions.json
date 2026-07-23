@@ -1,0 +1,122 @@
+[
+  {
+    "path": "adzuna-gateway/src/main/java/com/jobseekercopilot/adzunagateway/client/AdzunaApiClient.java",
+    "owner": "adzuna-gateway",
+    "reason": "External provider client for the third-party Adzuna API.",
+    "review": "Allowed exception: no project-owned OpenAPI producer exists."
+  },
+  {
+    "path": "jsearch-gateway/src/main/java/com/jobseekercopilot/jsearchgateway/client/JSearchApiClient.java",
+    "owner": "jsearch-gateway",
+    "reason": "External provider client for the third-party JSearch API.",
+    "review": "Allowed exception: no project-owned OpenAPI producer exists."
+  },
+  {
+    "path": "postcode-io-gateway/src/main/java/com/jobseekercopilot/postcodeiogateway/client/PostcodeIoApiClient.java",
+    "owner": "postcode-io-gateway",
+    "reason": "External provider client for the third-party postcodes.io API.",
+    "review": "Allowed exception: no project-owned OpenAPI producer exists."
+  },
+  {
+    "path": "reed-gateway/src/main/java/com/jobseekercopilot/reedgateway/client/ReedApiClient.java",
+    "owner": "reed-gateway",
+    "reason": "External provider client for the third-party Reed API.",
+    "review": "Allowed exception: no project-owned OpenAPI producer exists."
+  },
+  {
+    "path": "llm-gateway/src/main/java/com/jobseekercopilot/llmgateway/client/OpenAiClient.java",
+    "owner": "llm-gateway",
+    "reason": "External provider client for OpenAI-compatible generation APIs.",
+    "review": "Allowed exception: no project-owned OpenAPI producer exists."
+  },
+  {
+    "path": "stripe-gateway/src/main/java/com/jobseekercopilot/stripegateway/client/StripeApiClient.java",
+    "owner": "stripe-gateway",
+    "reason": "External provider client for Stripe Checkout.",
+    "review": "Allowed exception: no project-owned OpenAPI producer exists."
+  },
+  {
+    "path": "application-tracker-service/src/main/java/com/jobseekercopilot/applicationtracker/service/ApplicationRecordService.java",
+    "owner": "application-tracker-service",
+    "reason": "Manual document-store deactivation call during withdraw.",
+    "review": "Refactor with generated document-store client after endpoint-level withdraw cleanup tests are added."
+  },
+  {
+    "path": "cv-cover-letter-service/src/main/java/com/jobseekercopilot/cvcoverletter/service/PaymentBillingClient.java",
+    "owner": "cv-cover-letter-service",
+    "reason": "Manual payment-service billing client with specific 402 error translation.",
+    "review": "Refactor to generated PaymentControllerApi with tests preserving PaymentRequiredException behavior."
+  },
+  {
+    "path": "document-export-service/src/main/java/com/jobseekercopilot/documentexport/service/DocumentExportService.java",
+    "owner": "document-export-service",
+    "reason": "Manual document-store multipart upload/latest-file calls remain.",
+    "review": "Refactor after generated document-store contract and client support equivalent multipart behavior."
+  },
+  {
+    "path": "document-generation-gateway/src/main/java/com/jobseekercopilot/documentgenerationgateway/service/DocumentGenerationService.java",
+    "owner": "document-generation-gateway",
+    "reason": "High-risk orchestration proxy across auth, document generation, document store, application tracker and export APIs.",
+    "review": "Refactor behind adapters with tests for auth enrichment, multipart upload, downstream status passthrough and document linkage."
+  },
+  {
+    "path": "document-generation-gateway/src/main/java/com/jobseekercopilot/documentgenerationgateway/service/DocumentFileDownloadService.java",
+    "owner": "document-generation-gateway",
+    "reason": "Manual binary download proxy to document-store-service.",
+    "review": "Refactor only after verifying generated client preserves content headers and status mapping."
+  },
+  {
+    "path": "job-finder-gateway/src/main/java/com/jobseekercopilot/jobfindergateway/controller/JobSearchController.java",
+    "owner": "job-finder-gateway",
+    "reason": "Manual job/application proxy preserving downstream status bodies and cleanup side effects.",
+    "review": "Refactor behind adapters with controller tests for status passthrough and generated-document cleanup."
+  },
+  {
+    "path": "job-matching-service/src/main/java/com/jobseekercopilot/jobmatching/client/ApplicationTrackerClient.java",
+    "owner": "job-matching-service",
+    "reason": "Manual application-tracker lookup client.",
+    "review": "Refactor to generated ApplicationRecordsApi and generated ApplicationRecordResponse mapper."
+  },
+  {
+    "path": "job-service/src/main/java/com/jobseekercopilot/jobservice/service/AdzunaJobProviderAdapter.java",
+    "owner": "job-service",
+    "reason": "Manual internal call to adzuna-gateway.",
+    "review": "Refactor to generated AdzunaJobsApi and generated search DTOs."
+  },
+  {
+    "path": "job-service/src/main/java/com/jobseekercopilot/jobservice/service/JSearchJobProviderAdapter.java",
+    "owner": "job-service",
+    "reason": "Manual internal call to jsearch-gateway.",
+    "review": "Refactor to generated JSearchJobsApi and generated search DTOs."
+  },
+  {
+    "path": "job-service/src/main/java/com/jobseekercopilot/jobservice/service/JobMatchingClient.java",
+    "owner": "job-service",
+    "reason": "Manual internal call to job-matching-service.",
+    "review": "Refactor to generated JobMatchingApi while preserving enrichment fallback behavior."
+  },
+  {
+    "path": "payment-gateway/src/main/java/com/jobseekercopilot/paymentgateway/service/PaymentGatewayService.java",
+    "owner": "payment-gateway",
+    "reason": "Manual payment-service and stripe-gateway proxy client.",
+    "review": "Refactor to generated PaymentControllerApi and StripeControllerApi with existing status/error translation tests."
+  },
+  {
+    "path": "reporting-service/src/main/java/com/jobseekercopilot/reporting/service/ReportingService.java",
+    "owner": "reporting-service",
+    "reason": "Manual application-tracker reporting lookup.",
+    "review": "Refactor to generated ApplicationRecordsApi and generated ApplicationRecordResponse mapper."
+  },
+  {
+    "path": "stripe-gateway/src/main/java/com/jobseekercopilot/stripegateway/client/PaymentServiceClient.java",
+    "owner": "stripe-gateway",
+    "reason": "Manual payment-service Stripe confirmation client.",
+    "review": "Refactor to generated PaymentControllerApi after preserving webhook confirmation behavior in tests."
+  },
+  {
+    "path": "system-data-service/src/main/java/com/jobseekercopilot/systemdata/service/EnvironmentOrchestrationService.java",
+    "owner": "system-data-service",
+    "reason": "High-risk environment reset/seed/verify orchestration with broad internal state changes.",
+    "review": "Treat as a contract-hardening task with typed reset/seed/verify DTOs before replacing the HTTP client."
+  }
+]

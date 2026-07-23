@@ -1,0 +1,27 @@
+services:
+  adzuna-gateway:
+    environment:
+      - EXTERNAL_PROVIDER_MODE=LIVE
+
+  jsearch-gateway:
+    environment:
+      - EXTERNAL_PROVIDER_MODE=LIVE
+
+  reed-gateway:
+    environment:
+      - EXTERNAL_PROVIDER_MODE=LIVE
+
+  postcode-io-gateway:
+    environment:
+      - EXTERNAL_PROVIDER_MODE=LIVE
+
+  llm-gateway:
+    env_file:
+      - path: .env.local
+        required: false
+    environment:
+      - EXTERNAL_PROVIDER_MODE=LIVE
+
+  stripe-gateway:
+    environment:
+      - EXTERNAL_PROVIDER_MODE=FIXTURE
