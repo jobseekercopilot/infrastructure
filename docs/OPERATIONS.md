@@ -30,3 +30,19 @@ and record the response privately.
 Current Compose definitions and operational scripts were extracted from the
 legacy root and require the Infrastructure epic’s clean-room validation before
 they are treated as production-ready.
+
+## Private Maven package credentials
+
+Producer workflows publish their own package with a repository
+`GITHUB_TOKEN`. A different private repository cannot use its own
+`GITHUB_TOKEN` to read that repository-scoped Maven package.
+
+Cross-repository consumers use a dedicated classic token named
+`JSC_PACKAGE_READ_TOKEN` with `read:packages` and `repo`. Store it only as an
+Actions secret or an untracked local environment value. Maven settings refer to
+`${env.JSC_PACKAGE_READ_TOKEN}`; they never contain the credential itself.
+Container builds receive the settings file through a BuildKit secret.
+
+Do not reuse an interactive `gh` token, a publication token, a build argument,
+an image environment variable or a tracked settings file. Rotate the consumer
+token on a documented schedule and immediately after any suspected exposure.
