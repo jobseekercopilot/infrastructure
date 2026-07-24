@@ -35,7 +35,14 @@
       "sha256": "c493db389a3255c29cc250d14ede2e8a1a03c7efe22e340ccc009584ab4e225b",
       "consumers": [
         "document-generation-gateway"
-      ]
+      ],
+      "javaPackage": {
+        "groupId": "com.jobseekercopilot.clients",
+        "artifactId": "cv-cover-letter-service-client",
+        "version": "1.0.0-rev.68b4cf9d3f23",
+        "generator": "java-resttemplate",
+        "releaseState": "published"
+      }
     },
     {
       "service": "document-export-service",

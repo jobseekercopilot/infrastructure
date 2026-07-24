@@ -75,6 +75,18 @@ class ContractLockTests(unittest.TestCase):
             "classic-pat",
         )
         self.assertEqual(
+            services["cv-cover-letter-service"]["javaPackage"]["version"],
+            "1.0.0-rev.68b4cf9d3f23",
+        )
+        self.assertEqual(
+            services["cv-cover-letter-service"]["javaPackage"]["releaseState"],
+            "published",
+        )
+        self.assertEqual(
+            services["cv-cover-letter-service"]["revision"],
+            "68b4cf9d3f2395abd642180a204db3a67d9ae80e",
+        )
+        self.assertEqual(
             services["user-profile-service"]["javaPackage"]["version"],
             "1.0.0-rev.86c8510ed319",
         )
