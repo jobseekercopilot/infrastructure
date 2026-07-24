@@ -60,6 +60,10 @@ tracked by the Infrastructure epic.
 See `docs/ARCHITECTURE.md`, `docs/OPERATIONS.md`, and
 `docs/ROOT_EXTRACTION_AUDIT.md`.
 
+The approved cross-repository Job Search request path and responsibility
+boundaries are defined in
+[`docs/adr/0001-job-search-architecture-and-ownership.md`](docs/adr/0001-job-search-architecture-and-ownership.md).
+
 ## Licence
 
 Proprietary. See `LICENSE`.
