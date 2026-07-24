@@ -19,7 +19,10 @@ jobs:
       - name: Validate JSON
         run: |
           python3 -m json.tool config/services.json >/dev/null
+          python3 -m json.tool config/contracts-lock.json >/dev/null
           python3 -m json.tool scripts/clients/config/service_dependencies.json >/dev/null
+      - name: Validate contract and generated-client lock
+        run: python3 -m scripts.contracts.validate_lock
       - name: Test workspace tooling
         run: python3 -m unittest discover -s tests
       - name: Compile Python

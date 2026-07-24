@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "owner": "jobseekercopilot",
+  "registry": {
+    "type": "github-packages",
+    "mavenBaseUrl": "https://maven.pkg.github.com/jobseekercopilot"
+  },
+  "generators": {
+    "java-resttemplate": {
+      "name": "openapi-generator",
+      "version": "7.5.0",
+      "library": "resttemplate"
+    }
+  },
+  "contracts": [
+    {
+      "service": "application-tracker-service",
+      "repository": "jobseekercopilot/application-tracker-service",
+      "revision": "d9e6bc9fcbe4ef665334c58672c8062b1e4796aa",
+      "path": "contracts/openapi.json",
+      "contractVersion": "1.1.0",
+      "sha256": "549cebba300c2caf3403b9de01d3c34de84464a280a02183751e8a9583ad982a",
+      "consumers": [
+        "document-generation-gateway"
+      ]
+    },
+    {
+      "service": "cv-cover-letter-service",
+      "repository": "jobseekercopilot/cv-cover-letter-service",
+      "revision": "68b4cf9d3f2395abd642180a204db3a67d9ae80e",
+      "path": "contracts/openapi.json",
+      "contractVersion": "1.0.0",
+      "sha256": "c493db389a3255c29cc250d14ede2e8a1a03c7efe22e340ccc009584ab4e225b",
+      "consumers": [
+        "document-generation-gateway"
+      ]
+    },
+    {
+      "service": "document-export-service",
+      "repository": "jobseekercopilot/document-export-service",
+      "revision": "aa7f34693d81e55686c90441b105a195b614a545",
+      "path": "contracts/openapi.json",
+      "contractVersion": "1.0.0",
+      "sha256": "f33fcb0994db6689b001219b651a55d4d499cb94af32d3defab87f3fc56c3012",
+      "consumers": [
+        "document-generation-gateway"
+      ]
+    },
+    {
+      "service": "document-store-service",
+      "repository": "jobseekercopilot/document-store-service",
+      "revision": "fedcdbdec63795269c4e4c4f43fc32f38c6327b1",
+      "path": "contracts/openapi.json",
+      "contractVersion": "1.0.0",
+      "sha256": "410ab1a7a2e8a5a5ad374443ec834f6aef7f778f6936b3ef90c33f8e580cdbd9",
+      "consumers": [
+        "document-generation-gateway"
+      ]
+    },
+    {
+      "service": "user-profile-service",
+      "repository": "jobseekercopilot/user-profile-service",
+      "revision": "86c8510ed319a059b991e6f9f1e43b0e101c5d1f",
+      "path": "api/openapi.json",
+      "contractVersion": "1.0.0",
+      "sha256": "ffaaa16a169ab11d864f82440be9fcc7d5df2d4f2d63a3525d40bda497ea6598",
+      "consumers": [
+        "document-generation-gateway"
+      ],
+      "javaPackage": {
+        "groupId": "com.jobseekercopilot.clients",
+        "artifactId": "user-profile-service-client",
+        "version": "1.0.0-rev.86c8510ed319",
+        "generator": "java-resttemplate",
+        "releaseState": "pilot"
+      }
+    }
+  ]
+}

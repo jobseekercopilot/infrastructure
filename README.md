@@ -4,7 +4,7 @@ Private workspace orchestration for the Job Seeker Copilot repositories. This
 repository owns Docker Compose definitions, operational scripts, the shared
 Maven build configuration, safe environment examples, and full-stack operating
 documentation. Application source remains in the repositories owned by the
-`jobseekercopilot` GitHub organisation.
+`jobseekercopilot` GitHub account.
 
 ## Repository model
 
@@ -16,7 +16,7 @@ without mixing service histories into Infrastructure.
 
 ## Bootstrap
 
-Prerequisites: Git, GitHub CLI authenticated for the private organisation,
+Prerequisites: Git, GitHub CLI authenticated for the private account,
 Docker with Compose v2, Java 17, Maven, Node.js, npm, and Python 3.11+.
 
 ```bash
@@ -63,6 +63,10 @@ See `docs/ARCHITECTURE.md`, `docs/OPERATIONS.md`, and
 The approved cross-repository Job Search request path and responsibility
 boundaries are defined in
 [`docs/adr/0001-job-search-architecture-and-ownership.md`](docs/adr/0001-job-search-architecture-and-ownership.md).
+The producer-owned contract/package model and current compatible contract pins
+are defined by
+[`docs/adr/0002-versioned-contract-and-client-publication.md`](docs/adr/0002-versioned-contract-and-client-publication.md)
+and [`config/contracts-lock.json`](config/contracts-lock.json).
 
 ## Licence
 

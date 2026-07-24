@@ -19,6 +19,7 @@ TEST_DIR = SCRIPTS_ROOT / "test"
 
 E2E_DIR = PROJECT_ROOT / "e2e" / "playwright-cucumber"
 CONTRACTS_DIR = PROJECT_ROOT / "docs" / "contracts"
+CONTRACT_LOCK = PROJECT_ROOT / "config" / "contracts-lock.json"
 BACKEND_CLIENTS_DIR = PROJECT_ROOT / "generated-clients" / "backend"
 FRONTEND_DIR = PROJECT_ROOT / "job-seeker-copilot-client"
 FRONTEND_API_CLIENTS_DIR = FRONTEND_DIR / "src" / "generated" / "api"
