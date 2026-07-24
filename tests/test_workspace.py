@@ -87,6 +87,18 @@ class ContractLockTests(unittest.TestCase):
             "68b4cf9d3f2395abd642180a204db3a67d9ae80e",
         )
         self.assertEqual(
+            services["document-export-service"]["javaPackage"]["version"],
+            "1.0.0-rev.aa7f34693d81",
+        )
+        self.assertEqual(
+            services["document-export-service"]["javaPackage"]["releaseState"],
+            "published",
+        )
+        self.assertEqual(
+            services["document-export-service"]["revision"],
+            "aa7f34693d81e55686c90441b105a195b614a545",
+        )
+        self.assertEqual(
             services["user-profile-service"]["javaPackage"]["version"],
             "1.0.0-rev.86c8510ed319",
         )

@@ -53,7 +53,14 @@
       "sha256": "f33fcb0994db6689b001219b651a55d4d499cb94af32d3defab87f3fc56c3012",
       "consumers": [
         "document-generation-gateway"
-      ]
+      ],
+      "javaPackage": {
+        "groupId": "com.jobseekercopilot.clients",
+        "artifactId": "document-export-service-client",
+        "version": "1.0.0-rev.aa7f34693d81",
+        "generator": "java-resttemplate",
+        "releaseState": "published"
+      }
     },
     {
       "service": "document-store-service",
