@@ -117,6 +117,8 @@ deprecation warning and delegate to the new module.
 ### Generated Clients
 
 ```bash
+python -m scripts.contracts.validate_lock
+python -m scripts.contracts.validate_lock --verify-checkouts .
 python -m scripts.clients.export_openapi_contracts
 python -m scripts.clients.generate_backend_clients
 python -m scripts.clients.install_backend_clients
@@ -128,8 +130,15 @@ python -m scripts.clients.check_no_manual_system_data_fixture_clients
 
 Configuration:
 
+- `config/contracts-lock.json` is the reviewed source-revision, checksum,
+  generator and immutable-package lock for migrated contracts.
 - `scripts/clients/config/service_dependencies.json`
 - `scripts/clients/config/backend_client_conformance_exclusions.json`
+
+The export/generate/install commands below the lock validator are legacy
+workspace compatibility paths. They are retained until every consumer resolves
+producer-owned versioned packages; they are not an approved publication path
+for new clients.
 
 ### Data
 

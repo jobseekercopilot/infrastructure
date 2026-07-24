@@ -30,7 +30,9 @@ source.
 ## Target delivery model
 
 Development may build service images from the cloned source layout. Release
-profiles should consume digest-pinned images from the organisation registry.
+profiles should consume digest-pinned images from the account registry.
 Each service publishes a versioned API contract; consumers use versioned
 generated-client packages. Infrastructure pins the compatible repository,
-contract, and image set in a future lock manifest.
+contract, client package, and eventually image set. Contract and Java package
+pins are tracked in `config/contracts-lock.json`; image pins remain future
+INFRA-02 work.

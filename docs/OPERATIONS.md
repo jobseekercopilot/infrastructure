@@ -2,7 +2,7 @@
 
 ## Safe first run
 
-1. Authenticate `gh` for the private `jobseekercopilot` organisation.
+1. Authenticate `gh` for the private `jobseekercopilot` account.
 2. Run `python3 scripts/workspace/doctor.py`.
 3. Review `python3 scripts/workspace/bootstrap.py`.
 4. Run the same command with `--apply` to clone missing repositories.

@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from scripts.contracts.lock import load_contract_lock, validate_contract_lock
 from scripts.workspace.bootstrap import expected_remote, plan
 from scripts.workspace.catalog import load_catalog
 
@@ -61,6 +62,36 @@ class BootstrapPlanTests(unittest.TestCase):
                 "git@github.com:owner/service.git",
             ),
         )
+
+
+class ContractLockTests(unittest.TestCase):
+    def test_repository_lock_is_valid_and_traceable(self) -> None:
+        lock = load_contract_lock()
+        services = {contract["service"]: contract for contract in lock["contracts"]}
+
+        self.assertEqual(lock["generators"]["java-resttemplate"]["version"], "7.5.0")
+        self.assertEqual(
+            services["user-profile-service"]["javaPackage"]["version"],
+            "1.0.0-rev.86c8510ed319",
+        )
+        self.assertEqual(
+            services["user-profile-service"]["revision"],
+            "86c8510ed319a059b991e6f9f1e43b0e101c5d1f",
+        )
+
+    def test_package_version_must_match_contract_and_revision(self) -> None:
+        lock = load_contract_lock()
+        lock["contracts"][-1]["javaPackage"]["version"] = "1.0.0"
+
+        with self.assertRaisesRegex(ValueError, "first 12 source revision"):
+            validate_contract_lock(lock)
+
+    def test_unsafe_contract_path_is_rejected(self) -> None:
+        lock = load_contract_lock()
+        lock["contracts"][0]["path"] = "../openapi.json"
+
+        with self.assertRaisesRegex(ValueError, "repository-relative"):
+            validate_contract_lock(lock)
 
 
 if __name__ == "__main__":
