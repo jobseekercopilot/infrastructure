@@ -27,6 +27,17 @@
       ]
     },
     {
+      "service": "authentication-service",
+      "repository": "jobseekercopilot/authentication-service",
+      "revision": "2964aeb07b9861cce555d28cc58c6b9fab1f6107",
+      "path": "contracts/openapi.json",
+      "contractVersion": "1.0.0",
+      "sha256": "ce7f707b921a16fb8e53b580032bac4542334ed47f8f07c474e63ba2ecc4c812",
+      "consumers": [
+        "document-generation-gateway"
+      ]
+    },
+    {
       "service": "cv-cover-letter-service",
       "repository": "jobseekercopilot/cv-cover-letter-service",
       "revision": "68b4cf9d3f2395abd642180a204db3a67d9ae80e",

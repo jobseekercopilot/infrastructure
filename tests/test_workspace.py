@@ -75,6 +75,19 @@ class ContractLockTests(unittest.TestCase):
             "classic-pat",
         )
         self.assertEqual(
+            services["authentication-service"]["revision"],
+            "2964aeb07b9861cce555d28cc58c6b9fab1f6107",
+        )
+        self.assertEqual(
+            services["authentication-service"]["sha256"],
+            "ce7f707b921a16fb8e53b580032bac4542334ed47f8f07c474e63ba2ecc4c812",
+        )
+        self.assertEqual(
+            services["authentication-service"]["consumers"],
+            ["document-generation-gateway"],
+        )
+        self.assertNotIn("javaPackage", services["authentication-service"])
+        self.assertEqual(
             services["cv-cover-letter-service"]["javaPackage"]["version"],
             "1.0.0-rev.68b4cf9d3f23",
         )
