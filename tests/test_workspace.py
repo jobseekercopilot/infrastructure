@@ -71,8 +71,16 @@ class ContractLockTests(unittest.TestCase):
 
         self.assertEqual(lock["generators"]["java-resttemplate"]["version"], "7.5.0")
         self.assertEqual(
+            lock["registry"]["crossRepositoryCredential"],
+            "classic-pat",
+        )
+        self.assertEqual(
             services["user-profile-service"]["javaPackage"]["version"],
             "1.0.0-rev.86c8510ed319",
+        )
+        self.assertEqual(
+            services["user-profile-service"]["javaPackage"]["releaseState"],
+            "published",
         )
         self.assertEqual(
             services["user-profile-service"]["revision"],
@@ -91,6 +99,13 @@ class ContractLockTests(unittest.TestCase):
         lock["contracts"][0]["path"] = "../openapi.json"
 
         with self.assertRaisesRegex(ValueError, "repository-relative"):
+            validate_contract_lock(lock)
+
+    def test_maven_cross_repository_auth_cannot_claim_granular_access(self) -> None:
+        lock = load_contract_lock()
+        lock["registry"]["crossRepositoryCredential"] = "github-token"
+
+        with self.assertRaisesRegex(ValueError, "must be classic-pat"):
             validate_contract_lock(lock)
 
 

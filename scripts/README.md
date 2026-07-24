@@ -131,7 +131,8 @@ python -m scripts.clients.check_no_manual_system_data_fixture_clients
 Configuration:
 
 - `config/contracts-lock.json` is the reviewed source-revision, checksum,
-  generator and immutable-package lock for migrated contracts.
+  generator, immutable-package and Maven credential-model lock for migrated
+  contracts.
 - `scripts/clients/config/service_dependencies.json`
 - `scripts/clients/config/backend_client_conformance_exclusions.json`
 

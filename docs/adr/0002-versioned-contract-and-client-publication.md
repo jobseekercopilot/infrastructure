@@ -35,8 +35,17 @@ The initial Java convention is:
 - generated source and binaries remain disposable build output;
 - producer-local workflows use `GITHUB_TOKEN` with only `contents: read` and
   `packages: write`;
-- consumer workflows use `packages: read` and must be explicitly authorised
-  for the package.
+- a workflow in the producer repository may consume the package with its
+  repository `GITHUB_TOKEN`;
+- Maven and Gradle packages are repository-scoped. GitHub's granular
+  "Manage Actions access" repository grant and its corresponding REST endpoint
+  do not apply to this registry;
+- a different private repository therefore consumes the package with a
+  dedicated classic personal access token stored as its
+  `JSC_PACKAGE_READ_TOKEN` Actions secret. The token requires `read:packages`
+  and private-repository access (`repo`);
+- interactive GitHub CLI credentials and producer publication credentials are
+  never copied into consumer secrets.
 
 The version identifies contract bytes, not merely the workflow commit. A
 release must fail when the file at the locked source revision does not match
@@ -65,14 +74,28 @@ A consumer may migrate from generated source or `systemPath` only after a
 fresh, authorised environment resolves the immutable package and its normal
 build and container gates pass.
 
+For cross-repository CI and container builds, Maven settings obtain
+`JSC_PACKAGE_READ_TOKEN` from the environment. Container builds pass that
+settings file through a BuildKit secret mount, never a build argument, image
+layer, tracked file or workflow artifact. Pull-request workflows from forks do
+not receive the secret and must remain fail-closed or use a reviewed
+secret-free validation path.
+
+The classic token is an acknowledged constraint of the GitHub Maven registry.
+On a personal account, `repo` is broad across private repositories. It must be
+dedicated to package reads, stored only in consumers that need it, rotated on a
+documented schedule and revoked immediately if logs or artifacts expose it.
+Moving ownership to an organisation may improve secret distribution and audit,
+but does not make Maven packages granular.
+
 ## Consequences
 
 Contract provenance and package versions become reviewable across repositories,
-and a consumer no longer needs sibling checkouts or copied binaries. GitHub
-package access must be configured explicitly for each private consumer. The
-pilot does not by itself complete the TypeScript/npm convention, migrate every
-producer, or remove the legacy workspace scripts; those remain within INFRA-07
-and DOCGEN-03.
+and a consumer no longer needs sibling checkouts or copied binaries. Private
+cross-repository Maven access introduces a managed classic-token dependency;
+the producer's `GITHUB_TOKEN` cannot replace it. The pilot does not by itself
+complete the TypeScript/npm convention, migrate every producer, or remove the
+legacy workspace scripts; those remain within INFRA-07 and DOCGEN-03.
 
 Rollback pins the prior immutable package version and matching contract lock.
 Published versions are never replaced.

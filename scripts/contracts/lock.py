@@ -92,6 +92,15 @@ def validate_contract_lock(lock: dict) -> None:
         expected_registry = f"https://maven.pkg.github.com/{owner}"
         if registry.get("mavenBaseUrl") != expected_registry:
             errors.append(f"registry.mavenBaseUrl must be {expected_registry}")
+        if registry.get("mavenPermissionModel") != "repository-scoped":
+            errors.append(
+                "registry.mavenPermissionModel must be repository-scoped for Maven"
+            )
+        if registry.get("crossRepositoryCredential") != "classic-pat":
+            errors.append(
+                "registry.crossRepositoryCredential must be classic-pat for "
+                "private cross-repository Maven consumers"
+            )
 
     generators = lock.get("generators")
     if not isinstance(generators, dict) or not generators:

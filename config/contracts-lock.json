@@ -3,7 +3,9 @@
   "owner": "jobseekercopilot",
   "registry": {
     "type": "github-packages",
-    "mavenBaseUrl": "https://maven.pkg.github.com/jobseekercopilot"
+    "mavenBaseUrl": "https://maven.pkg.github.com/jobseekercopilot",
+    "mavenPermissionModel": "repository-scoped",
+    "crossRepositoryCredential": "classic-pat"
   },
   "generators": {
     "java-resttemplate": {
@@ -72,7 +74,7 @@
         "artifactId": "user-profile-service-client",
         "version": "1.0.0-rev.86c8510ed319",
         "generator": "java-resttemplate",
-        "releaseState": "pilot"
+        "releaseState": "published"
       }
     }
   ]
