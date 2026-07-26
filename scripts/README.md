@@ -13,8 +13,12 @@ python -m scripts.docker.stop_stack live
 
 - Compose project: `job-seeker-copilot-live`
 - Frontend: `http://localhost:3000`
-- H2 file-backed state: `authentication-service` at `/app/data/live/authentication`, `user-profile-service` at `/app/data/live/user-profile`
+- PostgreSQL state: dedicated Authentication, Document Store, and Payment
+  containers; Document Store bytes use the synthetic filesystem adapter.
+- H2 file-backed state: User Profile only, at
+  `/app/data/live/user-profile`.
 - Environment reset/seed is disabled in the live override.
+- This is local real-provider integration, not a production deployment.
 
 E2E stack:
 
@@ -27,8 +31,11 @@ python -m scripts.docker.stop_stack e2e
 - Compose project: `job-seeker-copilot-e2e`
 - Frontend: `http://localhost:3100`
 - System data service: `http://localhost:9103`
-- H2 file-backed state: `authentication-service` at `/app/data/e2e/authentication`, `user-profile-service` at `/app/data/e2e/user-profile`
-- In-memory H2 state is isolated by the distinct E2E containers for application tracker, document store, and payment.
+- PostgreSQL state: dedicated Authentication, Document Store, and Payment
+  containers; Document Store bytes use the synthetic filesystem adapter.
+- H2 file-backed state: User Profile only, at
+  `/app/data/e2e/user-profile`.
+- Application Tracker retains its isolated H2 E2E state.
 - Normal E2E gateway mode is `FIXTURE`.
 
 ## Dataset regeneration

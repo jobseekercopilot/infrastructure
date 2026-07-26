@@ -74,6 +74,23 @@ services:
       retries: 3
       start_period: 40s
 
+  authentication-postgres:
+    image: postgres:15.18-alpine
+    container_name: authentication-postgres
+    environment:
+      - POSTGRES_DB=authentication
+      - POSTGRES_USER=authentication
+      - POSTGRES_PASSWORD=${AUTH_DB_PASSWORD:?Generate the selected untracked environment file}
+    volumes:
+      - authentication-postgres-data:/var/lib/postgresql/data
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U authentication -d authentication"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
   authentication-service:
     build:
       context: ./authentication-service
@@ -85,8 +102,19 @@ services:
       - SPRING_APPLICATION_NAME=authentication-service
       - SERVER_PORT=8084
       - ENVIRONMENT_DATA_ENABLED=true
-    volumes:
-      - authentication-data:/app/data
+      - AUTH_DB_URL=jdbc:postgresql://authentication-postgres:5432/authentication
+      - AUTH_DB_USERNAME=authentication
+      - AUTH_DB_PASSWORD=${AUTH_DB_PASSWORD:?Generate the selected untracked environment file}
+      - JWT_PRIVATE_KEY_BASE64=${JWT_PRIVATE_KEY_BASE64:?Generate the selected untracked environment file}
+      - JWT_PUBLIC_KEY_BASE64=${JWT_PUBLIC_KEY_BASE64:?Generate the selected untracked environment file}
+      - JWT_ISSUER=${JWT_ISSUER:-job-seeker-copilot-authentication}
+      - JWT_AUDIENCE=${JWT_AUDIENCE:-job-seeker-copilot-services}
+      - JWT_KEY_ID=local-generated
+      - AUTH_SERVICE_TOKEN=${AUTH_SERVICE_TOKEN:?Generate the selected untracked environment file}
+      - AUTH_ENVIRONMENT_DATA_TOKEN=${ENVIRONMENT_DATA_TOKEN:?Generate the selected untracked environment file}
+    depends_on:
+      authentication-postgres:
+        condition: service_healthy
     networks:
       - job-seeker-network
     healthcheck:
@@ -131,6 +159,7 @@ services:
       SPRING_APPLICATION_NAME: "user-management-gateway"
       SERVER_PORT: "8083"
       AUTHENTICATION_SERVICE_URL: "http://authentication-service:8084"
+      AUTHENTICATION_SERVICE_TOKEN: "${AUTH_SERVICE_TOKEN:?Generate the selected untracked environment file}"
       USER_PROFILE_SERVICE_URL: "http://user-profile-service:8085"
     depends_on:
       authentication-service:
@@ -234,6 +263,8 @@ services:
       - APPLICATION_TRACKER_SERVICE_URL=http://application-tracker-service:8088
       - DOCUMENT_STORE_SERVICE_URL=http://document-store-service:8089
       - PAYMENT_SERVICE_URL=http://payment-service:8099
+      - SYSTEM_DATA_INTERNAL_CALLER_KEY=${SYSTEM_DATA_INTERNAL_CALLER_KEY:?Generate the selected untracked environment file}
+      - SYSTEM_DATA_DOWNSTREAM_ENVIRONMENT_DATA_TOKEN=${ENVIRONMENT_DATA_TOKEN:?Generate the selected untracked environment file}
     volumes:
       - ./system-data-service/dataset-repository:/app/dataset-repository
     depends_on:
@@ -307,6 +338,7 @@ services:
       - SPRING_APPLICATION_NAME=job-matching-service
       - SERVER_PORT=8097
       - APPLICATION_TRACKER_SERVICE_BASE_URL=http://application-tracker-service:8088
+      - APPLICATION_TRACKER_READER_TOKEN=${APPLICATION_TRACKER_READER_TOKEN:?Generate the selected untracked environment file}
     depends_on:
       application-tracker-service:
         condition: service_healthy
@@ -329,10 +361,14 @@ services:
     environment:
       - SPRING_APPLICATION_NAME=job-finder-gateway
       - SERVER_PORT=8080
-      - JWT_SECRET=aVeryLongAndSecureSecretKeyThatIsAtLeast256BitsToSatisfyHMACSHAAlgorithmsForJWTTokensCreation123456
+      - AUTH_JWKS_URI=http://authentication-service:8084/.well-known/jwks.json
+      - JOB_FINDER_JWT_ISSUER=${JWT_ISSUER:-job-seeker-copilot-authentication}
+      - JOB_FINDER_JWT_AUDIENCE=${JWT_AUDIENCE:-job-seeker-copilot-services}
       - JOB_SERVICE_URL=http://job-service:8086
       - USER_MANAGEMENT_GATEWAY_URL=http://user-management-gateway:8083
       - USER_PROFILE_SERVICE_URL=http://user-profile-service:8085
+      - APPLICATION_TRACKER_SERVICE_URL=http://application-tracker-service:8088
+      - DOCUMENT_STORE_SERVICE_URL=http://document-store-service:8089
     depends_on:
       job-service:
         condition: service_healthy
@@ -370,6 +406,23 @@ services:
       retries: 3
       start_period: 40s
 
+  document-store-postgres:
+    image: postgres:15.18-alpine
+    container_name: document-store-postgres
+    environment:
+      - POSTGRES_DB=document_store
+      - POSTGRES_USER=document_store
+      - POSTGRES_PASSWORD=${DOCUMENT_STORE_DATABASE_PASSWORD:?Generate the selected untracked environment file}
+    volumes:
+      - document-store-postgres-data:/var/lib/postgresql/data
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U document_store -d document_store"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
   document-store-service:
     build:
       context: ./document-store-service
@@ -380,6 +433,28 @@ services:
     environment:
       - SERVER_PORT=8089
       - ENVIRONMENT_DATA_ENABLED=true
+      - DOCUMENT_STORE_DATABASE_URL=jdbc:postgresql://document-store-postgres:5432/document_store
+      - DOCUMENT_STORE_DATABASE_USERNAME=document_store
+      - DOCUMENT_STORE_DATABASE_PASSWORD=${DOCUMENT_STORE_DATABASE_PASSWORD:?Generate the selected untracked environment file}
+      - DOCUMENT_STORE_DATABASE_SSL_MODE=disable
+      - DOCUMENT_STORE_OBJECT_PROVIDER=filesystem
+      - DOCUMENT_STORE_FILESYSTEM_ROOT=/app/data/objects
+      - DOCUMENT_STORE_ENCRYPTION_AT_REST_ENABLED=false
+      - DOCUMENT_STORE_BACKUP_ENCRYPTION_ENABLED=false
+      - AUTH_JWKS_URI=http://authentication-service:8084/.well-known/jwks.json
+      - DOCUMENT_STORE_JWT_ISSUER=${JWT_ISSUER:-job-seeker-copilot-authentication}
+      - DOCUMENT_STORE_JWT_AUDIENCE=${JWT_AUDIENCE:-job-seeker-copilot-services}
+      - DOCUMENT_STORE_PRODUCER_TOKEN=${DOCUMENT_STORE_PRODUCER_TOKEN:?Generate the selected untracked environment file}
+      - DOCUMENT_STORE_READER_TOKEN=${DOCUMENT_STORE_READER_TOKEN:?Generate the selected untracked environment file}
+      - ENVIRONMENT_DATA_TOKEN=${ENVIRONMENT_DATA_TOKEN:?Generate the selected untracked environment file}
+      - DOCUMENT_STORE_DATABASE_PRODUCTION_SAFETY_CHECK=false
+    volumes:
+      - document-store-objects:/app/data/objects
+    depends_on:
+      authentication-service:
+        condition: service_healthy
+      document-store-postgres:
+        condition: service_healthy
     networks:
       - job-seeker-network
     healthcheck:
@@ -399,6 +474,9 @@ services:
     environment:
       - SERVER_PORT=8094
       - DOCUMENT_STORE_SERVICE_BASE_URL=http://document-store-service:8089
+      - DOCUMENT_EXPORT_GATEWAY_TOKEN=${DOCUMENT_EXPORT_GATEWAY_TOKEN:?Generate the selected untracked environment file}
+      - DOCUMENT_STORE_PRODUCER_TOKEN=${DOCUMENT_STORE_PRODUCER_TOKEN:?Generate the selected untracked environment file}
+      - DOCUMENT_STORE_READER_TOKEN=${DOCUMENT_STORE_READER_TOKEN:?Generate the selected untracked environment file}
     depends_on:
       document-store-service:
         condition: service_healthy
@@ -421,6 +499,15 @@ services:
     environment:
       - SERVER_PORT=8088
       - ENVIRONMENT_DATA_ENABLED=true
+      - AUTH_JWKS_URI=http://authentication-service:8084/.well-known/jwks.json
+      - APPLICATION_TRACKER_JWT_ISSUER=${JWT_ISSUER:-job-seeker-copilot-authentication}
+      - APPLICATION_TRACKER_JWT_AUDIENCE=${JWT_AUDIENCE:-job-seeker-copilot-services}
+      - APPLICATION_TRACKER_PRODUCER_TOKEN=${APPLICATION_TRACKER_PRODUCER_TOKEN:?Generate the selected untracked environment file}
+      - APPLICATION_TRACKER_READER_TOKEN=${APPLICATION_TRACKER_READER_TOKEN:?Generate the selected untracked environment file}
+      - ENVIRONMENT_DATA_TOKEN=${ENVIRONMENT_DATA_TOKEN:?Generate the selected untracked environment file}
+    depends_on:
+      authentication-service:
+        condition: service_healthy
     networks:
       - job-seeker-network
     healthcheck:
@@ -443,6 +530,10 @@ services:
       - DOCUMENT_STORE_SERVICE_BASE_URL=http://document-store-service:8089
       - APPLICATION_TRACKER_SERVICE_BASE_URL=http://application-tracker-service:8088
       - PAYMENT_SERVICE_BASE_URL=http://payment-service:8099
+      - CV_COVER_LETTER_GATEWAY_TOKEN=${CV_COVER_LETTER_GATEWAY_TOKEN:?Generate the selected untracked environment file}
+      - DOCUMENT_STORE_PRODUCER_TOKEN=${DOCUMENT_STORE_PRODUCER_TOKEN:?Generate the selected untracked environment file}
+      - APPLICATION_TRACKER_PRODUCER_TOKEN=${APPLICATION_TRACKER_PRODUCER_TOKEN:?Generate the selected untracked environment file}
+      - CV_COVER_LETTER_TO_PAYMENT_SERVICE_TOKEN=${CV_COVER_LETTER_TO_PAYMENT_SERVICE_TOKEN:?Generate the selected untracked environment file}
     depends_on:
       llm-gateway:
         condition: service_healthy
@@ -470,13 +561,22 @@ services:
       - "8092:8092"
     environment:
       - SERVER_PORT=8092
-      - JWT_SECRET=aVeryLongAndSecureSecretKeyThatIsAtLeast256BitsToSatisfyHMACSHAAlgorithmsForJWTTokensCreation123456
+      - AUTH_JWKS_URI=http://authentication-service:8084/.well-known/jwks.json
+      - DOCUMENT_GENERATION_JWT_ISSUER=${JWT_ISSUER:-job-seeker-copilot-authentication}
+      - DOCUMENT_GENERATION_JWT_AUDIENCE=${JWT_AUDIENCE:-job-seeker-copilot-services}
+      - AUTH_SERVICE_TOKEN=${AUTH_SERVICE_TOKEN:?Generate the selected untracked environment file}
+      - APPLICATION_TRACKER_PRODUCER_TOKEN=${APPLICATION_TRACKER_PRODUCER_TOKEN:?Generate the selected untracked environment file}
+      - CV_COVER_LETTER_GATEWAY_TOKEN=${CV_COVER_LETTER_GATEWAY_TOKEN:?Generate the selected untracked environment file}
+      - DOCUMENT_EXPORT_GATEWAY_TOKEN=${DOCUMENT_EXPORT_GATEWAY_TOKEN:?Generate the selected untracked environment file}
+      - DOCUMENT_STORE_PRODUCER_TOKEN=${DOCUMENT_STORE_PRODUCER_TOKEN:?Generate the selected untracked environment file}
+      - DOCUMENT_STORE_READER_TOKEN=${DOCUMENT_STORE_READER_TOKEN:?Generate the selected untracked environment file}
       - AUTHENTICATION_SERVICE_URL=http://authentication-service:8084
       - USER_PROFILE_SERVICE_URL=http://user-profile-service:8085
       - JOB_SERVICE_URL=http://job-service:8086
       - CV_COVER_LETTER_SERVICE_URL=http://cv-cover-letter-service:8091
       - DOCUMENT_EXPORT_SERVICE_URL=http://document-export-service:8094
       - DOCUMENT_STORE_SERVICE_URL=http://document-store-service:8089
+      - APPLICATION_TRACKER_SERVICE_URL=http://application-tracker-service:8088
     depends_on:
       authentication-service:
         condition: service_healthy
@@ -546,6 +646,23 @@ services:
       retries: 3
       start_period: 40s
 
+  payment-postgres:
+    image: postgres:15.18-alpine
+    container_name: payment-postgres
+    environment:
+      - POSTGRES_DB=payment
+      - POSTGRES_USER=payment
+      - POSTGRES_PASSWORD=${PAYMENT_DATABASE_PASSWORD:?Generate the selected untracked environment file}
+    volumes:
+      - payment-postgres-data:/var/lib/postgresql/data
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U payment -d payment"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
   payment-service:
     build:
       context: ./payment-service
@@ -556,6 +673,16 @@ services:
     environment:
       - SERVER_PORT=8099
       - ENVIRONMENT_DATA_ENABLED=true
+      - PAYMENT_DATABASE_URL=jdbc:postgresql://payment-postgres:5432/payment
+      - PAYMENT_DATABASE_USERNAME=payment
+      - PAYMENT_DATABASE_PASSWORD=${PAYMENT_DATABASE_PASSWORD:?Generate the selected untracked environment file}
+      - PAYMENT_DATABASE_PRODUCTION_SAFETY_CHECK=false
+      - PAYMENT_GATEWAY_TO_PAYMENT_SERVICE_TOKEN=${PAYMENT_GATEWAY_TO_PAYMENT_SERVICE_TOKEN:?Generate the selected untracked environment file}
+      - CV_COVER_LETTER_TO_PAYMENT_SERVICE_TOKEN=${CV_COVER_LETTER_TO_PAYMENT_SERVICE_TOKEN:?Generate the selected untracked environment file}
+      - STRIPE_GATEWAY_TO_PAYMENT_SERVICE_TOKEN=${STRIPE_GATEWAY_TO_PAYMENT_SERVICE_TOKEN:?Generate the selected untracked environment file}
+    depends_on:
+      payment-postgres:
+        condition: service_healthy
     networks:
       - job-seeker-network
     healthcheck:
@@ -579,6 +706,8 @@ services:
       - STRIPE_SUCCESS_URL=${STRIPE_SUCCESS_URL:-http://localhost:3000/payment/success}
       - STRIPE_CANCEL_URL=${STRIPE_CANCEL_URL:-http://localhost:3000/payment/cancel}
       - PAYMENT_SERVICE_URL=http://payment-service:8099
+      - PAYMENT_GATEWAY_TO_STRIPE_GATEWAY_TOKEN=${PAYMENT_GATEWAY_TO_STRIPE_GATEWAY_TOKEN:?Generate the selected untracked environment file}
+      - STRIPE_GATEWAY_TO_PAYMENT_SERVICE_TOKEN=${STRIPE_GATEWAY_TO_PAYMENT_SERVICE_TOKEN:?Generate the selected untracked environment file}
     depends_on:
       payment-service:
         condition: service_healthy
@@ -602,6 +731,9 @@ services:
       - SERVER_PORT=8098
       - PAYMENT_SERVICE_URL=http://payment-service:8099
       - STRIPE_GATEWAY_URL=http://stripe-gateway:8100
+      - BFF_TO_PAYMENT_GATEWAY_TOKEN=${BFF_TO_PAYMENT_GATEWAY_TOKEN:?Generate the selected untracked environment file}
+      - PAYMENT_GATEWAY_TO_PAYMENT_SERVICE_TOKEN=${PAYMENT_GATEWAY_TO_PAYMENT_SERVICE_TOKEN:?Generate the selected untracked environment file}
+      - PAYMENT_GATEWAY_TO_STRIPE_GATEWAY_TOKEN=${PAYMENT_GATEWAY_TO_STRIPE_GATEWAY_TOKEN:?Generate the selected untracked environment file}
     depends_on:
       payment-service:
         condition: service_healthy
@@ -632,6 +764,7 @@ services:
       - DOCUMENT_STORE_SERVICE_URL=http://document-store-service:8089
       - REPORTING_GATEWAY_URL=http://reporting-gateway:8095
       - PAYMENT_GATEWAY_URL=http://payment-gateway:8098
+      - BFF_TO_PAYMENT_GATEWAY_TOKEN=${BFF_TO_PAYMENT_GATEWAY_TOKEN:?Generate the selected untracked environment file}
     depends_on:
       location-gateway:
         condition: service_healthy
@@ -660,5 +793,8 @@ networks:
 
 volumes:
   portainer-data:
-  authentication-data:
+  authentication-postgres-data:
+  document-store-postgres-data:
+  document-store-objects:
+  payment-postgres-data:
   user-profile-data:

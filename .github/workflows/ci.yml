@@ -20,7 +20,10 @@ jobs:
         run: |
           python3 -m json.tool config/services.json >/dev/null
           python3 -m json.tool config/contracts-lock.json >/dev/null
+          python3 -m json.tool config/runtime-environment.schema.json >/dev/null
           python3 -m json.tool scripts/clients/config/service_dependencies.json >/dev/null
+      - name: Reject tracked credential literals
+        run: python3 -m scripts.security.check_tracked_secrets
       - name: Validate contract and generated-client lock
         run: python3 -m scripts.contracts.validate_lock
       - name: Test workspace tooling
@@ -48,9 +51,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: Validate Compose model
         run: |
-          cp .env.example .env
-          cp .env.e2e.example .env.e2e
-          cp .env.live.example .env.live
+          python3 scripts/security/generate_profile_env.py --profile local --output .env
+          python3 scripts/security/generate_profile_env.py --profile e2e --output .env.e2e
+          python3 scripts/security/generate_profile_env.py --profile live-provider --output .env.live
           docker compose --env-file .env -f docker-compose.yml config --quiet
           docker compose --env-file .env.e2e -f docker-compose.yml -f docker-compose.e2e.yml config --quiet
           docker compose --env-file .env.live -f docker-compose.yml -f docker-compose.live.yml config --quiet
+          python3 scripts/security/validate_compose_runtime.py --profile local --env-file .env
+          python3 scripts/security/validate_compose_runtime.py --profile e2e --env-file .env.e2e --overlay docker-compose.e2e.yml
+          python3 scripts/security/validate_compose_runtime.py --profile live-provider --env-file .env.live --overlay docker-compose.live.yml

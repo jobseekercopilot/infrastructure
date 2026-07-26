@@ -1,0 +1,225 @@
+{
+  "schemaVersion": 1,
+  "scope": "INFRA-08 document ownership runtime slice",
+  "variables": [
+    {
+      "name": "JWT_PRIVATE_KEY_BASE64",
+      "owner": "Authentication Service",
+      "consumers": ["authentication-service"],
+      "classification": "secret",
+      "profiles": ["local", "e2e", "live-provider"],
+      "generator": "rsa-private-key"
+    },
+    {
+      "name": "JWT_PUBLIC_KEY_BASE64",
+      "owner": "Authentication Service",
+      "consumers": ["authentication-service"],
+      "classification": "configuration",
+      "profiles": ["local", "e2e", "live-provider"],
+      "generator": "rsa-public-key"
+    },
+    {
+      "name": "JWT_ISSUER",
+      "owner": "Authentication Service",
+      "consumers": [
+        "authentication-service",
+        "application-tracker-service",
+        "document-generation-gateway",
+        "document-store-service",
+        "job-finder-gateway"
+      ],
+      "classification": "configuration",
+      "profiles": ["local", "e2e", "live-provider"],
+      "example": "job-seeker-copilot-authentication"
+    },
+    {
+      "name": "JWT_AUDIENCE",
+      "owner": "Authentication Service",
+      "consumers": [
+        "authentication-service",
+        "application-tracker-service",
+        "document-generation-gateway",
+        "document-store-service",
+        "job-finder-gateway"
+      ],
+      "classification": "configuration",
+      "profiles": ["local", "e2e", "live-provider"],
+      "example": "job-seeker-copilot-services"
+    },
+    {
+      "name": "AUTH_DB_PASSWORD",
+      "owner": "Authentication Service",
+      "consumers": ["authentication-postgres", "authentication-service"],
+      "classification": "secret",
+      "profiles": ["local", "e2e", "live-provider"],
+      "generator": "random",
+      "minimumBytes": 32
+    },
+    {
+      "name": "DOCUMENT_STORE_DATABASE_PASSWORD",
+      "owner": "Document Store Service",
+      "consumers": ["document-store-postgres", "document-store-service"],
+      "classification": "secret",
+      "profiles": ["local", "e2e", "live-provider"],
+      "generator": "random",
+      "minimumBytes": 32
+    },
+    {
+      "name": "PAYMENT_DATABASE_PASSWORD",
+      "owner": "Payment Service",
+      "consumers": ["payment-postgres", "payment-service"],
+      "classification": "secret",
+      "profiles": ["local", "e2e", "live-provider"],
+      "generator": "random",
+      "minimumBytes": 32
+    },
+    {
+      "name": "AUTH_SERVICE_TOKEN",
+      "owner": "Authentication Service",
+      "consumers": [
+        "authentication-service",
+        "document-generation-gateway",
+        "user-management-gateway"
+      ],
+      "classification": "secret",
+      "profiles": ["local", "e2e", "live-provider"],
+      "generator": "random",
+      "minimumBytes": 32
+    },
+    {
+      "name": "ENVIRONMENT_DATA_TOKEN",
+      "owner": "System Data",
+      "consumers": [
+        "authentication-service",
+        "application-tracker-service",
+        "document-store-service",
+        "system-data-service"
+      ],
+      "classification": "secret",
+      "profiles": ["local", "e2e", "live-provider"],
+      "generator": "random",
+      "minimumBytes": 32
+    },
+    {
+      "name": "SYSTEM_DATA_INTERNAL_CALLER_KEY",
+      "owner": "System Data",
+      "consumers": ["system-data-service", "approved fixture operators"],
+      "classification": "secret",
+      "profiles": ["local", "e2e", "live-provider"],
+      "generator": "random",
+      "minimumBytes": 32
+    },
+    {
+      "name": "APPLICATION_TRACKER_PRODUCER_TOKEN",
+      "owner": "Application Tracker",
+      "consumers": [
+        "application-tracker-service",
+        "cv-cover-letter-service",
+        "document-generation-gateway"
+      ],
+      "classification": "secret",
+      "profiles": ["local", "e2e", "live-provider"],
+      "generator": "random",
+      "minimumBytes": 32
+    },
+    {
+      "name": "APPLICATION_TRACKER_READER_TOKEN",
+      "owner": "Application Tracker",
+      "consumers": ["application-tracker-service", "job-matching-service"],
+      "classification": "secret",
+      "profiles": ["local", "e2e", "live-provider"],
+      "generator": "random",
+      "minimumBytes": 32
+    },
+    {
+      "name": "DOCUMENT_STORE_PRODUCER_TOKEN",
+      "owner": "Document Store Service",
+      "consumers": [
+        "cv-cover-letter-service",
+        "document-export-service",
+        "document-generation-gateway",
+        "document-store-service"
+      ],
+      "classification": "secret",
+      "profiles": ["local", "e2e", "live-provider"],
+      "generator": "random",
+      "minimumBytes": 32
+    },
+    {
+      "name": "DOCUMENT_STORE_READER_TOKEN",
+      "owner": "Document Store Service",
+      "consumers": [
+        "document-export-service",
+        "document-generation-gateway",
+        "document-store-service"
+      ],
+      "classification": "secret",
+      "profiles": ["local", "e2e", "live-provider"],
+      "generator": "random",
+      "minimumBytes": 32
+    },
+    {
+      "name": "DOCUMENT_EXPORT_GATEWAY_TOKEN",
+      "owner": "Document Export Service",
+      "consumers": ["document-export-service", "document-generation-gateway"],
+      "classification": "secret",
+      "profiles": ["local", "e2e", "live-provider"],
+      "generator": "random",
+      "minimumBytes": 32
+    },
+    {
+      "name": "CV_COVER_LETTER_GATEWAY_TOKEN",
+      "owner": "CV and Cover Letter Service",
+      "consumers": ["cv-cover-letter-service", "document-generation-gateway"],
+      "classification": "secret",
+      "profiles": ["local", "e2e", "live-provider"],
+      "generator": "random",
+      "minimumBytes": 32
+    },
+    {
+      "name": "CV_COVER_LETTER_TO_PAYMENT_SERVICE_TOKEN",
+      "owner": "Payment Service",
+      "consumers": ["cv-cover-letter-service", "payment-service"],
+      "classification": "secret",
+      "profiles": ["local", "e2e", "live-provider"],
+      "generator": "random",
+      "minimumBytes": 32
+    },
+    {
+      "name": "BFF_TO_PAYMENT_GATEWAY_TOKEN",
+      "owner": "Payment Gateway",
+      "consumers": ["job-seeker-copilot-client", "payment-gateway"],
+      "classification": "secret",
+      "profiles": ["local", "e2e", "live-provider"],
+      "generator": "random",
+      "minimumBytes": 32
+    },
+    {
+      "name": "PAYMENT_GATEWAY_TO_PAYMENT_SERVICE_TOKEN",
+      "owner": "Payment Service",
+      "consumers": ["payment-gateway", "payment-service"],
+      "classification": "secret",
+      "profiles": ["local", "e2e", "live-provider"],
+      "generator": "random",
+      "minimumBytes": 32
+    },
+    {
+      "name": "PAYMENT_GATEWAY_TO_STRIPE_GATEWAY_TOKEN",
+      "owner": "Stripe Gateway",
+      "consumers": ["payment-gateway", "stripe-gateway"],
+      "classification": "secret",
+      "profiles": ["local", "e2e", "live-provider"],
+      "generator": "random",
+      "minimumBytes": 32
+    },
+    {
+      "name": "STRIPE_GATEWAY_TO_PAYMENT_SERVICE_TOKEN",
+      "owner": "Payment Service",
+      "consumers": ["payment-service", "stripe-gateway"],
+      "classification": "secret",
+      "profiles": ["local", "e2e", "live-provider"],
+      "generator": "random",
+      "minimumBytes": 32
+    }
+  ]
+}

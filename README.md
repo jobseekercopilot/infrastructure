@@ -31,12 +31,13 @@ checkout.
 
 ## Stack profiles
 
-Copy only the example needed for the profile:
+Generate a fresh ignored environment for the selected profile:
 
 ```bash
-cp .env.example .env
-cp .env.e2e.example .env.e2e
-cp .env.live.example .env.live
+python3 scripts/security/generate_profile_env.py --profile local --output .env
+python3 scripts/security/generate_profile_env.py --profile e2e --output .env.e2e
+python3 scripts/security/generate_profile_env.py \
+  --profile live-provider --output .env.live
 ```
 
 Then use the existing stack commands documented in `scripts/README.md`, or
@@ -48,6 +49,10 @@ docker compose --env-file .env.e2e -f docker-compose.yml -f docker-compose.e2e.y
 ```
 
 Do not use real provider or payment credentials for fixture/E2E execution.
+The live-provider overlay is local integration, not a production deployment
+profile. Runtime identity ownership, rotation, validation and remaining
+production controls are documented in
+[`docs/RUNTIME_ENVIRONMENTS.md`](docs/RUNTIME_ENVIRONMENTS.md).
 
 ## Current readiness
 
