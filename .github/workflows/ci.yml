@@ -47,6 +47,20 @@ jobs:
 
   compose:
     runs-on: ubuntu-latest
+    env:
+      REED_API_KEY: ci-placeholder
+      ADZUNA_APP_ID: ci-placeholder
+      ADZUNA_APP_KEY: ci-placeholder
+      JSEARCH_API_KEY: ci-placeholder
+      DATA_ACQUISITION_RUN_ID: ci-acquisition-001
+      DATA_ACQUISITION_CONFIRMATION: I UNDERSTAND LIVE PROVIDERS WILL BE CALLED
+      DATA_ACQUISITION_TERMS_APPROVAL_REFERENCE: CI-CONFIG-ONLY
+      DATA_ACQUISITION_PROVENANCE_REVIEWER: automated-config-policy
+      DATA_ACQUISITION_APPROVED_PROVIDERS: ADZUNA,JSEARCH,REED
+      DATA_ACQUISITION_DATASET_VERSION: 1.0.0-ci
+      DATA_ACQUISITION_ADZUNA_ENABLED: "true"
+      DATA_ACQUISITION_JSEARCH_ENABLED: "true"
+      DATA_ACQUISITION_REED_ENABLED: "true"
     steps:
       - uses: actions/checkout@v4
       - name: Validate Compose model
@@ -54,9 +68,12 @@ jobs:
           python3 scripts/security/generate_profile_env.py --profile local --output .env
           python3 scripts/security/generate_profile_env.py --profile e2e --output .env.e2e
           python3 scripts/security/generate_profile_env.py --profile live-provider --output .env.live
+          python3 scripts/security/generate_profile_env.py --profile data-acquisition --output .env.data-acquisition
           docker compose --env-file .env -f docker-compose.yml config --quiet
           docker compose --env-file .env.e2e -f docker-compose.yml -f docker-compose.e2e.yml config --quiet
           docker compose --env-file .env.live -f docker-compose.yml -f docker-compose.live.yml config --quiet
+          docker compose --env-file .env.data-acquisition -f docker-compose.data-acquisition.yml --profile "*" config --quiet
           python3 scripts/security/validate_compose_runtime.py --profile local --env-file .env
           python3 scripts/security/validate_compose_runtime.py --profile e2e --env-file .env.e2e --overlay docker-compose.e2e.yml
           python3 scripts/security/validate_compose_runtime.py --profile live-provider --env-file .env.live --overlay docker-compose.live.yml
+          python3 scripts/security/validate_compose_runtime.py --profile data-acquisition --env-file .env.data-acquisition --overlay docker-compose.data-acquisition.yml

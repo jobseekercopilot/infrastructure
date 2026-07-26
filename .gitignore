@@ -4,6 +4,7 @@
 !.env.example
 !.env.e2e.example
 !.env.live.example
+!.env.data-acquisition.example
 
 # Tooling and generated output
 .idea/
@@ -46,3 +47,6 @@ stripe-gateway/
 payment-gateway/
 job-seeker-copilot-client/
 e2e/
+
+# Operator-only live acquisition output is quarantined in the System Data checkout.
+quarantined-acquisitions/

@@ -1,27 +1,120 @@
 services:
   adzuna-gateway:
+    profiles: ["adzuna"]
+    build:
+      context: ./adzuna-gateway
+      dockerfile: Dockerfile
     environment:
-      - EXTERNAL_PROVIDER_MODE=LIVE
+      SPRING_PROFILES_ACTIVE: live-acquisition
+      SERVER_PORT: "8101"
+      EXTERNAL_PROVIDER_MODE: LIVE
+      ADZUNA_APP_ID: ${ADZUNA_APP_ID:-}
+      ADZUNA_APP_KEY: ${ADZUNA_APP_KEY:-}
+      ADZUNA_ENABLED: "true"
+      ADZUNA_RESULTS_PER_PAGE: ${ADZUNA_RESULTS_PER_PAGE:-20}
+      ADZUNA_PAGES_PER_SEARCH: ${ADZUNA_PAGES_PER_SEARCH:-1}
+    networks: [data-acquisition-network]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8101/actuator/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
 
   jsearch-gateway:
+    profiles: ["jsearch"]
+    build:
+      context: ./jsearch-gateway
+      dockerfile: Dockerfile
     environment:
-      - EXTERNAL_PROVIDER_MODE=LIVE
+      SPRING_PROFILES_ACTIVE: live-acquisition
+      SERVER_PORT: "8102"
+      EXTERNAL_PROVIDER_MODE: LIVE
+      JSEARCH_API_KEY: ${JSEARCH_API_KEY:-}
+      JSEARCH_ENABLED: "true"
+      JSEARCH_COUNTRY: ${JSEARCH_COUNTRY:-gb}
+      JSEARCH_LANGUAGE: ${JSEARCH_LANGUAGE:-en}
+      JSEARCH_PAGES_PER_SEARCH: ${JSEARCH_PAGES_PER_SEARCH:-1}
+    networks: [data-acquisition-network]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8102/actuator/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
 
   reed-gateway:
+    profiles: ["reed"]
+    build:
+      context: ./reed-gateway
+      dockerfile: Dockerfile
     environment:
-      - EXTERNAL_PROVIDER_MODE=LIVE
+      SPRING_PROFILES_ACTIVE: live-acquisition
+      SERVER_PORT: "8087"
+      EXTERNAL_PROVIDER_MODE: LIVE
+      REED_API_BASE_URL: https://www.reed.co.uk/api/1.0
+      REED_API_KEY: ${REED_API_KEY:-}
+    networks: [data-acquisition-network]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8087/actuator/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
 
   postcode-io-gateway:
+    profiles: ["postcode"]
+    build:
+      context: ./postcode-io-gateway
+      dockerfile: Dockerfile
     environment:
-      - EXTERNAL_PROVIDER_MODE=LIVE
+      SPRING_PROFILES_ACTIVE: live-acquisition
+      SERVER_PORT: "8082"
+      DEPLOYMENT_ENVIRONMENT_CLASS: LOCAL
+      EXTERNAL_PROVIDER_MODE: LIVE
+      PROVIDER_MODE_ENDPOINT_ENABLED: "false"
+    networks: [data-acquisition-network]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
 
-  llm-gateway:
-    env_file:
-      - path: .env.local
-        required: false
+  system-data-service:
+    build:
+      context: ./system-data-service
+      dockerfile: Dockerfile
     environment:
-      - EXTERNAL_PROVIDER_MODE=LIVE
+      SPRING_PROFILES_ACTIVE: live-acquisition
+      DATA_ACQUISITION_RUN_ID: ${DATA_ACQUISITION_RUN_ID:?Set a unique DATA_ACQUISITION_RUN_ID}
+      DATA_ACQUISITION_RETENTION_DAYS: ${DATA_ACQUISITION_RETENTION_DAYS:-14}
+      SYSTEM_DATA_REPOSITORY_DIRECTORY: /app/dataset-repository
+      SYSTEM_DATA_ACQUISITION_OUTPUT_DIRECTORY: /app/quarantine/${DATA_ACQUISITION_RUN_ID:?Set a unique DATA_ACQUISITION_RUN_ID}
+      SYSTEM_DATA_ENVIRONMENT_MANAGEMENT_ENABLED: "false"
+      SYSTEM_DATA_FIXTURES_ENABLED: "false"
+      SYSTEM_DATA_LIVE_ACQUISITION_ENABLED: "true"
+      SYSTEM_DATA_LIVE_ACQUISITION_EXECUTE: "true"
+      SYSTEM_DATA_LIVE_ACQUISITION_CONFIRMATION: ${DATA_ACQUISITION_CONFIRMATION:?Set the exact live-provider confirmation}
+      SYSTEM_DATA_LIVE_ACQUISITION_TERMS_APPROVAL_REFERENCE: ${DATA_ACQUISITION_TERMS_APPROVAL_REFERENCE:?Set the approved terms/change reference}
+      SYSTEM_DATA_LIVE_ACQUISITION_PROVENANCE_REVIEWER: ${DATA_ACQUISITION_PROVENANCE_REVIEWER:?Set the named provenance reviewer}
+      SYSTEM_DATA_LIVE_ACQUISITION_APPROVED_PROVIDERS: ${DATA_ACQUISITION_APPROVED_PROVIDERS:?Set the approved provider list}
+      SYSTEM_DATA_LIVE_ACQUISITION_MAXIMUM_OUTPUT_RECORDS: ${DATA_ACQUISITION_MAXIMUM_OUTPUT_RECORDS:-120}
+      SYSTEM_DATA_ACQUISITION_DATASET_ID: ${DATA_ACQUISITION_DATASET_ID:-live-provider-acquisition}
+      SYSTEM_DATA_ACQUISITION_DATASET_NAME: ${DATA_ACQUISITION_DATASET_NAME:-Quarantined live provider acquisition}
+      SYSTEM_DATA_ACQUISITION_DATASET_VERSION: ${DATA_ACQUISITION_DATASET_VERSION:?Set a new semantic dataset version}
+      SYSTEM_DATA_ACQUISITION_QUERIES: ${DATA_ACQUISITION_QUERIES:-Software Developer}
+      SYSTEM_DATA_ACQUISITION_LOCATIONS: ${DATA_ACQUISITION_LOCATIONS:-London}
+      SYSTEM_DATA_ACQUISITION_MAXIMUM_JOBS_PER_PROVIDER: ${DATA_ACQUISITION_MAXIMUM_JOBS_PER_PROVIDER:-20}
+      SYSTEM_DATA_ACQUISITION_ADZUNA_ENABLED: ${DATA_ACQUISITION_ADZUNA_ENABLED:-false}
+      SYSTEM_DATA_ACQUISITION_JSEARCH_ENABLED: ${DATA_ACQUISITION_JSEARCH_ENABLED:-false}
+      SYSTEM_DATA_ACQUISITION_REED_ENABLED: ${DATA_ACQUISITION_REED_ENABLED:-false}
+      SYSTEM_DATA_ACQUISITION_POSTCODE_ENABLED: ${DATA_ACQUISITION_POSTCODE_ENABLED:-false}
+      ADZUNA_GATEWAY_URL: http://adzuna-gateway:8101
+      JSEARCH_GATEWAY_URL: http://jsearch-gateway:8102
+      REED_GATEWAY_URL: http://reed-gateway:8087
+      POSTCODE_IO_GATEWAY_URL: http://postcode-io-gateway:8082
+    volumes:
+      - ./system-data-service/dataset-repository:/app/dataset-repository:ro
+      - ./system-data-service/quarantined-acquisitions:/app/quarantine
+    networks: [data-acquisition-network]
 
-  stripe-gateway:
-    environment:
-      - EXTERNAL_PROVIDER_MODE=FIXTURE
+networks:
+  data-acquisition-network:
+    driver: bridge

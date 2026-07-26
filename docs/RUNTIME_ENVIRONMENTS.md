@@ -15,9 +15,10 @@ is shorter than 32 bytes, or when the legacy `JWT_SECRET` boundary returns.
 
 | Profile | External activity | Local data boundary | Credential source |
 | --- | --- | --- | --- |
-| `local` | Disabled unless a service explicitly enables it | Dedicated local PostgreSQL containers and synthetic filesystem objects | Fresh ignored `.env` |
+| `local` | Fixture-only job, postcode, LLM and Stripe adapters | Dedicated local PostgreSQL containers and synthetic filesystem objects | Fresh ignored `.env` |
 | `e2e` | Fixture-only; live job, LLM, and payment providers are forbidden | Dedicated Compose project data and synthetic filesystem objects | Fresh ignored `.env.e2e` |
-| `live-provider` | Explicit real-provider integration from a local workstation | Local PostgreSQL/filesystem only; not production | Fresh ignored `.env.live`, then operator-injected provider credentials |
+| `live-provider` | Explicit live job-provider integration; LLM disabled and Stripe fixture-only | Local PostgreSQL/filesystem only; not production | Fresh ignored `.env.live`, then operator-injected job-provider credentials |
+| `data-acquisition` | Explicit approved live job-provider calls only | Separate project/network; read-only fixture source and quarantined run output | Fresh ignored `.env.data-acquisition`, then operator approval and provider credentials |
 | production | Outside these Compose profiles | Managed PostgreSQL plus private S3-compatible object storage and SSE-KMS | Approved deployment secret manager |
 
 The `live-provider` name is deliberate: it means local integration against a
@@ -33,6 +34,8 @@ python3 scripts/security/generate_profile_env.py --profile local --output .env
 python3 scripts/security/generate_profile_env.py --profile e2e --output .env.e2e
 python3 scripts/security/generate_profile_env.py \
   --profile live-provider --output .env.live
+python3 scripts/security/generate_profile_env.py \
+  --profile data-acquisition --output .env.data-acquisition
 ```
 
 The generator creates a new RSA-3072 signing pair and independently random
@@ -48,8 +51,11 @@ python3 scripts/security/validate_compose_runtime.py \
 ```
 
 The E2E and live-provider commands add their matching Compose overlay and
-validator `--overlay` argument. The validator renders the Compose model in
-memory and reports only pass/fail; it never prints credential values.
+validator `--overlay` argument. Data acquisition uses only its standalone
+Compose file and dedicated runner. The validator renders the Compose model in
+memory and reports only pass/fail; it never prints credential values. See
+[`MODE_ISOLATION.md`](MODE_ISOLATION.md) for the exact matrix and one-shot
+acquisition controls.
 
 ## Trust relationships
 

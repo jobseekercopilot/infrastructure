@@ -38,6 +38,8 @@ python3 scripts/security/generate_profile_env.py --profile local --output .env
 python3 scripts/security/generate_profile_env.py --profile e2e --output .env.e2e
 python3 scripts/security/generate_profile_env.py \
   --profile live-provider --output .env.live
+python3 scripts/security/generate_profile_env.py \
+  --profile data-acquisition --output .env.data-acquisition
 ```
 
 Then use the existing stack commands documented in `scripts/README.md`, or
@@ -49,9 +51,12 @@ docker compose --env-file .env.e2e -f docker-compose.yml -f docker-compose.e2e.y
 ```
 
 Do not use real provider or payment credentials for fixture/E2E execution.
-The live-provider overlay is local integration, not a production deployment
-profile. Runtime identity ownership, rotation, validation and remaining
-production controls are documented in
+The live-provider overlay permits job-provider integration only: LLM is
+disabled and Stripe stays fixture-backed. Data acquisition is a separate
+one-shot, quarantined operator workflow, not a normal stack. It is never run
+by automated verification. Mode boundaries are documented in
+[`docs/MODE_ISOLATION.md`](docs/MODE_ISOLATION.md). Runtime identity ownership,
+rotation, validation and remaining production controls are documented in
 [`docs/RUNTIME_ENVIRONMENTS.md`](docs/RUNTIME_ENVIRONMENTS.md).
 
 ## Current readiness

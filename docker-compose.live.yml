@@ -1,4 +1,30 @@
 services:
+  postcode-io-gateway:
+    environment:
+      - SPRING_PROFILES_ACTIVE=local
+      - DEPLOYMENT_ENVIRONMENT_CLASS=LOCAL
+      - EXTERNAL_PROVIDER_MODE=LIVE
+
+  reed-gateway:
+    environment:
+      - SPRING_PROFILES_ACTIVE=local
+      - EXTERNAL_PROVIDER_MODE=LIVE
+      - REED_API_BASE_URL=https://www.reed.co.uk/api/1.0
+      - REED_API_KEY=${REED_API_KEY:?Set REED_API_KEY in the ignored live-provider environment}
+
+  adzuna-gateway:
+    environment:
+      - SPRING_PROFILES_ACTIVE=local
+      - EXTERNAL_PROVIDER_MODE=LIVE
+      - ADZUNA_APP_ID=${ADZUNA_APP_ID:?Set ADZUNA_APP_ID in the ignored live-provider environment}
+      - ADZUNA_APP_KEY=${ADZUNA_APP_KEY:?Set ADZUNA_APP_KEY in the ignored live-provider environment}
+
+  jsearch-gateway:
+    environment:
+      - SPRING_PROFILES_ACTIVE=local
+      - EXTERNAL_PROVIDER_MODE=LIVE
+      - JSEARCH_API_KEY=${JSEARCH_API_KEY:?Set JSEARCH_API_KEY in the ignored live-provider environment}
+
   authentication-service:
     environment:
       - SPRING_PROFILES_ACTIVE=local
@@ -12,7 +38,22 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=local
       - SYSTEM_DATA_ENVIRONMENT_MANAGEMENT_ENABLED=false
+      - SYSTEM_DATA_FIXTURES_ENABLED=false
+
+  llm-gateway:
+    environment:
+      - SPRING_PROFILES_ACTIVE=local
+      - EXTERNAL_PROVIDER_MODE=DISABLED
+
+  stripe-gateway:
+    environment:
+      - SPRING_PROFILES_ACTIVE=local
+      - EXTERNAL_PROVIDER_MODE=FIXTURE
 
   job-seeker-copilot-client:
     ports:
       - "${LIVE_FRONTEND_PORT:-3000}:3000"
+
+networks:
+  job-seeker-network:
+    internal: false

@@ -44,14 +44,32 @@ class RuntimeEnvironmentSchemaTests(unittest.TestCase):
             self.assertTrue(variable["owner"])
             self.assertTrue(variable["consumers"])
 
+    def test_live_provider_credentials_have_single_gateway_ownership(self) -> None:
+        variables = {
+            variable["name"]: variable for variable in load_schema()["variables"]
+        }
+        expected = {
+            "REED_API_KEY": "reed-gateway",
+            "ADZUNA_APP_ID": "adzuna-gateway",
+            "ADZUNA_APP_KEY": "adzuna-gateway",
+            "JSEARCH_API_KEY": "jsearch-gateway",
+        }
+        for name, consumer in expected.items():
+            self.assertEqual(variables[name]["classification"], "secret")
+            self.assertEqual(variables[name]["consumers"], [consumer])
+            self.assertEqual(
+                variables[name]["profiles"],
+                ["live-provider", "data-acquisition"],
+            )
+
     def test_every_generated_variable_is_blank_in_each_tracked_template(self) -> None:
         schema = load_schema()
-        generated_names = {
-            variable["name"]
-            for variable in schema["variables"]
-            if variable.get("generator")
-        }
         for profile, template in PROFILE_TEMPLATES.items():
+            generated_names = {
+                variable["name"]
+                for variable in schema["variables"]
+                if variable.get("generator") and profile in variable["profiles"]
+            }
             values = {}
             for line in template.read_text(encoding="utf-8").splitlines():
                 if line and not line.startswith("#") and "=" in line:
@@ -141,12 +159,15 @@ class TrackedSecretPolicyTests(unittest.TestCase):
             path = Path(directory) / "compose.env"
             path.write_text(
                 "AUTH_SERVICE_TOKEN=literal-value\n"
-                "DOCUMENT_STORE_READER_TOKEN=${DOCUMENT_STORE_READER_TOKEN:?required}\n",
+                "DOCUMENT_STORE_READER_TOKEN=${DOCUMENT_STORE_READER_TOKEN:?required}\n"
+                "ADZUNA_APP_KEY: literal-value\n"
+                "JSEARCH_API_KEY: ${JSEARCH_API_KEY:-}\n",
                 encoding="utf-8",
             )
             result = findings((path,))
-        self.assertEqual(len(result), 1)
+        self.assertEqual(len(result), 2)
         self.assertIn("AUTH_SERVICE_TOKEN", result[0])
+        self.assertIn("ADZUNA_APP_KEY", result[1])
 
 
 if __name__ == "__main__":

@@ -20,6 +20,7 @@ PROFILE_TEMPLATES = {
     "local": ROOT / ".env.example",
     "e2e": ROOT / ".env.e2e.example",
     "live-provider": ROOT / ".env.live.example",
+    "data-acquisition": ROOT / ".env.data-acquisition.example",
 }
 
 
@@ -101,14 +102,22 @@ def generate_rsa_pair() -> tuple[str, str]:
 def generated_values(profile: str, schema: dict) -> dict[str, str]:
     if profile not in PROFILE_TEMPLATES:
         raise ValueError(f"unsupported profile: {profile}")
-    private_key, public_key = generate_rsa_pair()
-    result = {
-        "JWT_PRIVATE_KEY_BASE64": private_key,
-        "JWT_PUBLIC_KEY_BASE64": public_key,
+    profile_variables = [
+        variable for variable in schema["variables"] if profile in variable["profiles"]
+    ]
+    result: dict[str, str] = {}
+    rsa_names = {
+        variable["name"]
+        for variable in profile_variables
+        if variable.get("generator") in {"rsa-private-key", "rsa-public-key"}
     }
-    for variable in schema["variables"]:
-        if profile not in variable["profiles"]:
-            continue
+    if rsa_names:
+        private_key, public_key = generate_rsa_pair()
+        if "JWT_PRIVATE_KEY_BASE64" in rsa_names:
+            result["JWT_PRIVATE_KEY_BASE64"] = private_key
+        if "JWT_PUBLIC_KEY_BASE64" in rsa_names:
+            result["JWT_PUBLIC_KEY_BASE64"] = public_key
+    for variable in profile_variables:
         if variable.get("generator") != "random":
             continue
         minimum_bytes = variable.get("minimumBytes", 32)
@@ -152,8 +161,9 @@ def render(profile: str, template: Path, output: Path, force: bool = False) -> N
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Generate fresh untracked credentials for local, E2E, or local "
-            "live-provider validation. This does not provision production secrets."
+            "Generate a fresh untracked local, E2E, live-provider, or "
+            "data-acquisition environment. External provider credentials and "
+            "operator approvals remain blank."
         )
     )
     parser.add_argument(

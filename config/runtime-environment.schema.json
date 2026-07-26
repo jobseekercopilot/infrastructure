@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "scope": "INFRA-08 document ownership runtime slice",
+  "scope": "INFRA-08 runtime identity and INFRA-11 provider-mode isolation",
   "variables": [
     {
       "name": "JWT_PRIVATE_KEY_BASE64",
@@ -220,6 +220,34 @@
       "profiles": ["local", "e2e", "live-provider"],
       "generator": "random",
       "minimumBytes": 32
+    },
+    {
+      "name": "REED_API_KEY",
+      "owner": "Reed Gateway",
+      "consumers": ["reed-gateway"],
+      "classification": "secret",
+      "profiles": ["live-provider", "data-acquisition"]
+    },
+    {
+      "name": "ADZUNA_APP_ID",
+      "owner": "Adzuna Gateway",
+      "consumers": ["adzuna-gateway"],
+      "classification": "secret",
+      "profiles": ["live-provider", "data-acquisition"]
+    },
+    {
+      "name": "ADZUNA_APP_KEY",
+      "owner": "Adzuna Gateway",
+      "consumers": ["adzuna-gateway"],
+      "classification": "secret",
+      "profiles": ["live-provider", "data-acquisition"]
+    },
+    {
+      "name": "JSEARCH_API_KEY",
+      "owner": "JSearch Gateway",
+      "consumers": ["jsearch-gateway"],
+      "classification": "secret",
+      "profiles": ["live-provider", "data-acquisition"]
     }
   ]
 }

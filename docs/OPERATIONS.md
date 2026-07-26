@@ -15,16 +15,21 @@ switches an existing checkout.
 
 ## Profiles
 
+- `local`: deterministic fixture-backed development on an internal-only
+  network; destructive environment endpoints are disabled.
 - `e2e`: deterministic fixture-only validation; no real external activity.
-- `data-acquisition`: controlled fixture capture; review provider, privacy, and
-  retention rules before use.
-- `live`: real-provider integration. Use approved credentials and explicit
-  operational ownership. This remains a local live-provider profile and is not
-  production deployment evidence.
+- `data-acquisition`: separate one-shot live job-provider acquisition with
+  exact approval, quarantine, retention and teardown controls. It is never a
+  routine stack or automated test profile.
+- `live`: local job-provider integration. LLM remains disabled and Stripe
+  remains fixture-backed, so this profile cannot create paid AI content or
+  real charges. It is not production deployment evidence.
 
 The document path's current identity matrix, local PostgreSQL/object-storage
 boundary, validation commands, rotation procedure and production gaps are in
 [`RUNTIME_ENVIRONMENTS.md`](RUNTIME_ENVIRONMENTS.md).
+The complete crossover policy and acquisition procedure are in
+[`MODE_ISOLATION.md`](MODE_ISOLATION.md).
 
 ## Recovery
 

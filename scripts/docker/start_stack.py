@@ -20,13 +20,23 @@ def main() -> int:
     args = parser.parse_args()
 
     stack = stack_for(args.stack)
+    if not stack.startable:
+        parser.error(
+            "data-acquisition is one-shot live-provider work; use "
+            "python -m scripts.data.run_acquisition with explicit authorization"
+        )
+    validation = stack.validation_command()
+    print(f"Validating {stack.name} mode boundary")
+    if subprocess.run(validation, cwd=PROJECT_ROOT).returncode != 0:
+        return 1
     command = stack.compose_command() + ["up", "-d"]
     if args.build:
         command.append("--build")
 
     print("Starting stack")
     print(f"Project: {stack.project}")
-    print(f"Frontend: {stack.frontend_url}")
+    if stack.frontend_url:
+        print(f"Frontend: {stack.frontend_url}")
     print(" ".join(command))
     return subprocess.run(command, cwd=PROJECT_ROOT).returncode
 

@@ -42,6 +42,13 @@ services:
     environment:
       - SPRING_APPLICATION_NAME=postcode-io-gateway
       - SERVER_PORT=8082
+      - SPRING_PROFILES_ACTIVE=local
+      - DEPLOYMENT_ENVIRONMENT_CLASS=LOCAL
+      - EXTERNAL_PROVIDER_MODE=FIXTURE
+      - SYSTEM_DATA_SERVICE_URL=http://system-data-service:8103
+      - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.0.0}
+      - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
     networks:
       - job-seeker-network
     healthcheck:
@@ -101,7 +108,7 @@ services:
     environment:
       - SPRING_APPLICATION_NAME=authentication-service
       - SERVER_PORT=8084
-      - ENVIRONMENT_DATA_ENABLED=true
+      - ENVIRONMENT_DATA_ENABLED=false
       - AUTH_DB_URL=jdbc:postgresql://authentication-postgres:5432/authentication
       - AUTH_DB_USERNAME=authentication
       - AUTH_DB_PASSWORD=${AUTH_DB_PASSWORD:?Generate the selected untracked environment file}
@@ -134,7 +141,7 @@ services:
     environment:
       - SPRING_APPLICATION_NAME=user-profile-service
       - SERVER_PORT=8085
-      - ENVIRONMENT_DATA_ENABLED=true
+      - ENVIRONMENT_DATA_ENABLED=false
     volumes:
       - user-profile-data:/app/data
     networks:
@@ -185,8 +192,12 @@ services:
     environment:
       - SPRING_APPLICATION_NAME=reed-gateway
       - SERVER_PORT=8087
-      - REED_API_BASE_URL=https://www.reed.co.uk/api/1.0
-      - REED_API_KEY=${REED_API_KEY}
+      - SPRING_PROFILES_ACTIVE=local
+      - EXTERNAL_PROVIDER_MODE=FIXTURE
+      - SYSTEM_DATA_SERVICE_URL=http://system-data-service:8103
+      - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.0.0}
+      - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
     networks:
       - job-seeker-network
     healthcheck:
@@ -206,6 +217,12 @@ services:
     environment:
       - SPRING_APPLICATION_NAME=adzuna-gateway
       - SERVER_PORT=8101
+      - SPRING_PROFILES_ACTIVE=local
+      - EXTERNAL_PROVIDER_MODE=FIXTURE
+      - SYSTEM_DATA_SERVICE_URL=http://system-data-service:8103
+      - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.0.0}
+      - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
       - ADZUNA_ENABLED=${ADZUNA_ENABLED:-true}
       - ADZUNA_RESULTS_PER_PAGE=${ADZUNA_RESULTS_PER_PAGE:-50}
       - ADZUNA_PAGES_PER_SEARCH=${ADZUNA_PAGES_PER_SEARCH:-1}
@@ -228,6 +245,12 @@ services:
     environment:
       - SPRING_APPLICATION_NAME=jsearch-gateway
       - SERVER_PORT=8102
+      - SPRING_PROFILES_ACTIVE=local
+      - EXTERNAL_PROVIDER_MODE=FIXTURE
+      - SYSTEM_DATA_SERVICE_URL=http://system-data-service:8103
+      - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.0.0}
+      - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
       - JSEARCH_ENABLED=${JSEARCH_ENABLED:-true}
       - JSEARCH_COUNTRY=${JSEARCH_COUNTRY:-gb}
       - JSEARCH_LANGUAGE=${JSEARCH_LANGUAGE:-en}
@@ -251,8 +274,11 @@ services:
     environment:
       - SPRING_APPLICATION_NAME=system-data-service
       - SERVER_PORT=8103
+      - SPRING_PROFILES_ACTIVE=local
       - SYSTEM_DATA_REPOSITORY_DIRECTORY=/app/dataset-repository
-      - SYSTEM_DATA_ENVIRONMENT_MANAGEMENT_ENABLED=true
+      - SYSTEM_DATA_ENVIRONMENT_MANAGEMENT_ENABLED=false
+      - SYSTEM_DATA_FIXTURES_ENABLED=true
+      - SYSTEM_DATA_FIXTURE_ALLOWED_PROFILES=local
       - ADZUNA_GATEWAY_URL=http://adzuna-gateway:8101
       - JSEARCH_GATEWAY_URL=http://jsearch-gateway:8102
       - REED_GATEWAY_URL=http://reed-gateway:8087
@@ -392,11 +418,14 @@ services:
     container_name: llm-gateway
     ports:
       - "8090:8090"
-    env_file:
-      - path: .env.local
-        required: false
     environment:
       - SERVER_PORT=8090
+      - SPRING_PROFILES_ACTIVE=local
+      - EXTERNAL_PROVIDER_MODE=FIXTURE
+      - SYSTEM_DATA_SERVICE_URL=http://system-data-service:8103
+      - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.0.0}
+      - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
     networks:
       - job-seeker-network
     healthcheck:
@@ -432,7 +461,7 @@ services:
       - "8089:8089"
     environment:
       - SERVER_PORT=8089
-      - ENVIRONMENT_DATA_ENABLED=true
+      - ENVIRONMENT_DATA_ENABLED=false
       - DOCUMENT_STORE_DATABASE_URL=jdbc:postgresql://document-store-postgres:5432/document_store
       - DOCUMENT_STORE_DATABASE_USERNAME=document_store
       - DOCUMENT_STORE_DATABASE_PASSWORD=${DOCUMENT_STORE_DATABASE_PASSWORD:?Generate the selected untracked environment file}
@@ -498,7 +527,7 @@ services:
       - "8088:8088"
     environment:
       - SERVER_PORT=8088
-      - ENVIRONMENT_DATA_ENABLED=true
+      - ENVIRONMENT_DATA_ENABLED=false
       - AUTH_JWKS_URI=http://authentication-service:8084/.well-known/jwks.json
       - APPLICATION_TRACKER_JWT_ISSUER=${JWT_ISSUER:-job-seeker-copilot-authentication}
       - APPLICATION_TRACKER_JWT_AUDIENCE=${JWT_AUDIENCE:-job-seeker-copilot-services}
@@ -672,7 +701,7 @@ services:
       - "8099:8099"
     environment:
       - SERVER_PORT=8099
-      - ENVIRONMENT_DATA_ENABLED=true
+      - ENVIRONMENT_DATA_ENABLED=false
       - PAYMENT_DATABASE_URL=jdbc:postgresql://payment-postgres:5432/payment
       - PAYMENT_DATABASE_USERNAME=payment
       - PAYMENT_DATABASE_PASSWORD=${PAYMENT_DATABASE_PASSWORD:?Generate the selected untracked environment file}
@@ -701,8 +730,12 @@ services:
       - "8100:8100"
     environment:
       - SERVER_PORT=8100
-      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
-      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
+      - SPRING_PROFILES_ACTIVE=local
+      - EXTERNAL_PROVIDER_MODE=FIXTURE
+      - SYSTEM_DATA_SERVICE_URL=http://system-data-service:8103
+      - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.0.0}
+      - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
       - STRIPE_SUCCESS_URL=${STRIPE_SUCCESS_URL:-http://localhost:3000/payment/success}
       - STRIPE_CANCEL_URL=${STRIPE_CANCEL_URL:-http://localhost:3000/payment/cancel}
       - PAYMENT_SERVICE_URL=http://payment-service:8099
@@ -790,6 +823,7 @@ services:
 networks:
   job-seeker-network:
     driver: bridge
+    internal: true
 
 volumes:
   portainer-data:

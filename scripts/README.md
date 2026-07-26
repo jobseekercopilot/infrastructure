@@ -1,10 +1,23 @@
 # Scripts
 
-## Live and E2E stacks
+## Local, live-provider and E2E stacks
 
 Use Python entry points for stack operations.
 
-Live stack:
+Local fixture stack:
+
+```bash
+python -m scripts.docker.start_stack local --build
+python -m scripts.docker.stop_stack local
+```
+
+- Compose project: `job-seeker-copilot-local`
+- Frontend: `http://localhost:3000`
+- External egress is disabled at the Compose network.
+- Job, postcode, LLM and Stripe gateways use deterministic fixtures.
+- Environment reset/seed is disabled.
+
+Live job-provider stack:
 
 ```bash
 python -m scripts.docker.start_stack live --build
@@ -18,6 +31,7 @@ python -m scripts.docker.stop_stack live
 - H2 file-backed state: User Profile only, at
   `/app/data/live/user-profile`.
 - Environment reset/seed is disabled in the live override.
+- LLM is disabled and Stripe remains fixture-backed.
 - This is local real-provider integration, not a production deployment.
 
 E2E stack:
@@ -38,42 +52,52 @@ python -m scripts.docker.stop_stack e2e
 - Application Tracker retains its isolated H2 E2E state.
 - Normal E2E gateway mode is `FIXTURE`.
 
-## Dataset regeneration
-
-Run controlled acquisition only when live provider calls are intended:
+Normal stop preserves the selected project's state. To permanently reset only
+one disposable local/E2E project's named volumes, require both flags:
 
 ```bash
-set -a; . ./.env; set +a
-python -m scripts.docker.start_stack data-acquisition --build
-python -m scripts.data.generate_dataset \
-  --service-url http://localhost:9103 \
-  --dataset-id uk-software-developer-demo \
-  --version 1.0.0 \
-  --overwrite \
-  --queries "Software Developer" "Java Developer" "Backend Developer" "Full Stack Developer" "Junior Software Developer" "Software Engineer" "Angular Developer" "Spring Boot Developer" \
-  --locations Reading London Birmingham Manchester Leeds Bristol \
-  --providers ADZUNA JSEARCH REED \
-  --maximum-results-per-provider 5 \
-  --timeout-seconds 600
-python -m scripts.data.inspect_dataset --dataset-path system-data-service/dataset-repository/uk-software-developer-demo/1.0.0
-python -m scripts.docker.stop_stack data-acquisition
-python -m scripts.docker.start_stack e2e
-python -m scripts.demo.check_fixture_modes
+python -m scripts.docker.stop_stack e2e --delete-volumes --yes
 ```
 
-`--overwrite` is required to replace an existing version. Without it, generation still refuses to overwrite. When overwrite is used, the previous version is moved under `system-data-service/dataset-repository/<dataset-id>/backups/`.
+## Quarantined job-provider acquisition
 
-To capture deterministic demo LLM fixtures, temporarily run the data-acquisition stack with `llm-gateway` in live mode and make the explicit two-call capture:
+Data acquisition is a separate one-shot project, not an E2E overlay. It can
+make real job-provider calls and may incur provider costs. Generate its ignored
+environment, record the required approval/reviewer/run metadata, then use the
+guarded runner only when those calls are intended:
 
 ```bash
-python -m scripts.data.capture_llm_fixtures \
-  --dataset-path system-data-service/dataset-repository/uk-software-developer-demo/1.0.0 \
-  --llm-gateway-url http://localhost:9113 \
-  --job-id <selected-demo-job-id> \
+python3 scripts/security/generate_profile_env.py \
+  --profile data-acquisition \
+  --output .env.data-acquisition
+python3 -m scripts.data.run_acquisition \
+  --env-file .env.data-acquisition \
+  --authorize-live-provider-costs
+```
+
+The runner validates the rendered boundary, starts only approved gateway
+profiles, runs System Data as a non-web command, and always tears down its
+containers and network. The governed dataset repository is read-only. Output
+is retained under
+`system-data-service/quarantined-acquisitions/<run-id>` with a redacted audit
+record and is not runtime-eligible.
+
+Reject or remove an expired capture by exact run ID:
+
+```bash
+python3 -m scripts.data.purge_acquisition \
+  --run-id <run-id> \
+  --reason rejected \
+  --reviewer <name> \
   --yes
 ```
 
-This writes `llm-fixtures.json` into the dataset version. Return to fixture mode immediately afterwards with `python -m scripts.docker.start_stack e2e` and verify with `python -m scripts.demo.check_fixture_modes`.
+The former live LLM capture command is disabled. A future cost-bounded,
+quarantined replacement is tracked in
+[BACKLOG-LLM-02](https://github.com/jobseekercopilot/infrastructure/issues/29).
+No normal stack or acquisition command can inject an OpenAI credential or
+create paid AI content. See
+[`docs/MODE_ISOLATION.md`](../docs/MODE_ISOLATION.md).
 
 ## Demo preparation
 
@@ -176,7 +200,7 @@ responses. They do not contain Playwright/Cucumber implementation code.
 ### Docker
 
 ```bash
-python -m scripts.docker.rebuild_and_start_stack
+python -m scripts.docker.rebuild_and_start_stack e2e
 ```
 
 This helper installs generated backend clients, builds backend services, and

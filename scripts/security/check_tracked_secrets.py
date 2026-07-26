@@ -12,12 +12,14 @@ TRACKED_CONFIGURATION = (
     ROOT / ".env.example",
     ROOT / ".env.e2e.example",
     ROOT / ".env.live.example",
+    ROOT / ".env.data-acquisition.example",
     ROOT / "docker-compose.yml",
     ROOT / "docker-compose.e2e.yml",
     ROOT / "docker-compose.live.yml",
+    ROOT / "docker-compose.data-acquisition.yml",
 )
 SENSITIVE_NAME = re.compile(
-    r"(?:PASSWORD|PRIVATE_KEY|SECRET|TOKEN|CALLER_KEY|ACCESS_KEY)(?:_BASE64)?$"
+    r"(?:PASSWORD|PRIVATE_KEY|SECRET|TOKEN|CALLER_KEY|ACCESS_KEY|API_KEY|APP_KEY|APP_ID)(?:_BASE64)?$"
 )
 INTERPOLATION = re.compile(r"^\$\{[A-Z0-9_]+(?::[?+-].*)?\}$")
 
@@ -29,9 +31,14 @@ def findings(paths: tuple[Path, ...] = TRACKED_CONFIGURATION) -> list[str]:
             path.read_text(encoding="utf-8").splitlines(), start=1
         ):
             line = raw_line.strip().removeprefix("- ").strip()
-            if not line or line.startswith("#") or "=" not in line:
+            if not line or line.startswith("#"):
                 continue
-            name, value = line.split("=", 1)
+            if "=" in line:
+                name, value = line.split("=", 1)
+            elif ":" in line:
+                name, value = line.split(":", 1)
+            else:
+                continue
             name = name.strip()
             value = value.strip().strip("\"'")
             if not SENSITIVE_NAME.search(name) or not value:
