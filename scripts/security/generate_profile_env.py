@@ -62,7 +62,9 @@ def generate_rsa_pair() -> tuple[str, str]:
         subprocess.run(
             [
                 "openssl",
-                "pkey",
+                "pkcs8",
+                "-topk8",
+                "-nocrypt",
                 "-in",
                 str(private_pem_path),
                 "-outform",
