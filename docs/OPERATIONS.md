@@ -6,7 +6,8 @@
 2. Run `python3 scripts/workspace/doctor.py`.
 3. Review `python3 scripts/workspace/bootstrap.py`.
 4. Run the same command with `--apply` to clone missing repositories.
-5. Copy the required `.env.*.example`; keep real values untracked.
+5. Generate the selected ignored environment with
+   `scripts/security/generate_profile_env.py`; never populate tracked examples.
 6. Validate Compose before build or start.
 
 The bootstrap refuses unexpected existing directories and never pulls or
@@ -18,7 +19,12 @@ switches an existing checkout.
 - `data-acquisition`: controlled fixture capture; review provider, privacy, and
   retention rules before use.
 - `live`: real-provider integration. Use approved credentials and explicit
-  operational ownership.
+  operational ownership. This remains a local live-provider profile and is not
+  production deployment evidence.
+
+The document path's current identity matrix, local PostgreSQL/object-storage
+boundary, validation commands, rotation procedure and production gaps are in
+[`RUNTIME_ENVIRONMENTS.md`](RUNTIME_ENVIRONMENTS.md).
 
 ## Recovery
 

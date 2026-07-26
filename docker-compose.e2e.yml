@@ -1,4 +1,7 @@
 services:
+  authentication-postgres:
+    container_name: job-seeker-copilot-e2e-authentication-postgres
+
   portainer:
     container_name: job-seeker-copilot-e2e-portainer
     ports: !override
@@ -150,6 +153,9 @@ services:
       - ENVIRONMENT_DATA_ENABLED=true
       - ENVIRONMENT_DATA_ALLOWED_ENVIRONMENTS=e2e
 
+  document-store-postgres:
+    container_name: job-seeker-copilot-e2e-document-store-postgres
+
   document-export-service:
     container_name: job-seeker-copilot-e2e-document-export-service
     ports: !override
@@ -202,6 +208,9 @@ services:
       - SPRING_PROFILES_ACTIVE=e2e
       - ENVIRONMENT_DATA_ENABLED=true
       - ENVIRONMENT_DATA_ALLOWED_ENVIRONMENTS=e2e
+
+  payment-postgres:
+    container_name: job-seeker-copilot-e2e-payment-postgres
 
   stripe-gateway:
     container_name: job-seeker-copilot-e2e-stripe-gateway

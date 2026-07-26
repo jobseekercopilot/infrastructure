@@ -2,7 +2,6 @@ services:
   authentication-service:
     environment:
       - SPRING_PROFILES_ACTIVE=local
-      - AUTH_DB_URL=jdbc:h2:file:/app/data/live/authentication;AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1
 
   user-profile-service:
     environment:
