@@ -48,6 +48,11 @@ Infrastructure on its reviewed lock unless the change intentionally updates
 the fleet. `update-repositories.sh` refuses dirty work, so beta-hardening and
 feature branches cannot silently overwrite each other.
 
+The catalogue may temporarily declare a reviewed feature branch and exact
+revision when an Infrastructure checkpoint depends on an unmerged service PR.
+After that dependency is merged, update both the declared branch and lock back
+to `develop` in the same Infrastructure change.
+
 A service change that affects a contract must update its producer-owned
 OpenAPI file and client module first. A reviewed Infrastructure change then
 updates the contract lock and workspace lock together.

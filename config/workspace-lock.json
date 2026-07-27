@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogSchemaVersion": 2,
-  "generatedFrom": "jobseekercopilot organisation develop branches",
+  "generatedFrom": "declared Job Seeker Copilot repository branches",
   "repositories": [
     {"name": "authentication-service", "branch": "develop", "revision": "2964aeb07b9861cce555d28cc58c6b9fab1f6107"},
     {"name": "user-profile-service", "branch": "develop", "revision": "652639159dbef5349d48a95719a0e184ee31bbc9"},
@@ -26,7 +26,7 @@
     {"name": "payment-service", "branch": "develop", "revision": "0430cd09fd390a09d5445672504560ffde64cbe4"},
     {"name": "stripe-gateway", "branch": "develop", "revision": "d9aa6b338d21c6beee6e097a3c72a783cc295b7c"},
     {"name": "payment-gateway", "branch": "develop", "revision": "8d49a6477c302d9700758c52de9e85cb192a0580"},
-    {"name": "job-seeker-copilot-client", "branch": "develop", "revision": "1cf5436970820724468ed398e6c1e8009370204a"},
-    {"name": "e2e", "branch": "develop", "revision": "86b38fe1cdd5f2c764152225416d7f3a59a3dfef"}
+    {"name": "job-seeker-copilot-client", "branch": "feature/infra-14-session-job-search-smoke", "revision": "11b3922aad58a28471bfefc9e5ad62c24cbe41b8"},
+    {"name": "e2e", "branch": "feature/reproducible-local-environment-smoke", "revision": "129dacdffdb3d00e6090a16bfca4ac8f263cc61e"}
   ]
 }

@@ -340,7 +340,7 @@
     {
       "name": "job-seeker-copilot-client",
       "kind": "frontend",
-      "branch": "develop",
+      "branch": "feature/infra-14-session-job-search-smoke",
       "build": "npm",
       "composeServices": ["job-seeker-copilot-client"],
       "port": 3000,
@@ -357,7 +357,7 @@
     {
       "name": "e2e",
       "kind": "test",
-      "branch": "develop",
+      "branch": "feature/reproducible-local-environment-smoke",
       "build": "npm",
       "composeServices": [],
       "dependsOn": ["job-seeker-copilot-client"]
