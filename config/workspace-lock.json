@@ -27,6 +27,6 @@
     {"name": "stripe-gateway", "branch": "develop", "revision": "d9aa6b338d21c6beee6e097a3c72a783cc295b7c"},
     {"name": "payment-gateway", "branch": "develop", "revision": "8d49a6477c302d9700758c52de9e85cb192a0580"},
     {"name": "job-seeker-copilot-client", "branch": "feature/infra-14-session-job-search-smoke", "revision": "11b3922aad58a28471bfefc9e5ad62c24cbe41b8"},
-    {"name": "e2e", "branch": "feature/reproducible-local-environment-smoke", "revision": "129dacdffdb3d00e6090a16bfca4ac8f263cc61e"}
+    {"name": "e2e", "branch": "feature/reproducible-local-environment-smoke", "revision": "6e1f12d367a72944c5b33ad3d23dcb22b5194f68"}
   ]
 }
