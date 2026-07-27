@@ -344,7 +344,7 @@
       "build": "npm",
       "composeServices": ["job-seeker-copilot-client"],
       "port": 3000,
-      "health": "/health",
+      "health": "/",
       "dependsOn": [
         "location-gateway",
         "user-management-gateway",

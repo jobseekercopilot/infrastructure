@@ -86,6 +86,9 @@ class CatalogTests(unittest.TestCase):
         )
         self.assertIn("job-matching-service", catalog.repository_names)
         self.assertIn("e2e", catalog.repository_names)
+        self.assertEqual(
+            catalog.repository("job-seeker-copilot-client").health, "/"
+        )
         self.assertEqual(catalog.infrastructure_path, "infrastructure")
         self.assertEqual(catalog.project_title, "Job Seeker Copilot")
         self.assertEqual(catalog.project_number, 1)
