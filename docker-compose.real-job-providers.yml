@@ -1,0 +1,65 @@
+services:
+  reed-gateway:
+    environment:
+      EXTERNAL_PROVIDER_MODE: LIVE
+      REED_ENABLED: "true"
+      SPRING_CONFIG_IMPORT: optional:configtree:/run/secrets/
+    secrets:
+      - source: reed_api_key
+        target: REED_API_KEY
+    networks:
+      - job-seeker-network
+      - provider-egress-network
+
+  adzuna-gateway:
+    environment:
+      EXTERNAL_PROVIDER_MODE: LIVE
+      ADZUNA_ENABLED: "true"
+      SPRING_CONFIG_IMPORT: optional:configtree:/run/secrets/
+    secrets:
+      - source: adzuna_app_id
+        target: ADZUNA_APP_ID
+      - source: adzuna_app_key
+        target: ADZUNA_APP_KEY
+    networks:
+      - job-seeker-network
+      - provider-egress-network
+
+  jsearch-gateway:
+    environment:
+      EXTERNAL_PROVIDER_MODE: LIVE
+      JSEARCH_ENABLED: "true"
+      SPRING_CONFIG_IMPORT: optional:configtree:/run/secrets/
+    secrets:
+      - source: jsearch_api_key
+        target: JSEARCH_API_KEY
+    networks:
+      - job-seeker-network
+      - provider-egress-network
+
+  llm-gateway:
+    environment:
+      EXTERNAL_PROVIDER_MODE: FIXTURE
+
+  stripe-gateway:
+    environment:
+      EXTERNAL_PROVIDER_MODE: FIXTURE
+
+  job-seeker-copilot-client:
+    environment:
+      JOB_SEARCH_PROVIDER_MODE: REAL_PROVIDERS
+
+networks:
+  provider-egress-network:
+    driver: bridge
+    internal: false
+
+secrets:
+  reed_api_key:
+    environment: REED_API_KEY
+  adzuna_app_id:
+    environment: ADZUNA_APP_ID
+  adzuna_app_key:
+    environment: ADZUNA_APP_KEY
+  jsearch_api_key:
+    environment: JSEARCH_API_KEY

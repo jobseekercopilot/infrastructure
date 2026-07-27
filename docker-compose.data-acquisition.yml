@@ -2,7 +2,7 @@ services:
   adzuna-gateway:
     profiles: ["adzuna"]
     build:
-      context: ./adzuna-gateway
+      context: ../adzuna-gateway
       dockerfile: Dockerfile
     environment:
       SPRING_PROFILES_ACTIVE: live-acquisition
@@ -23,7 +23,7 @@ services:
   jsearch-gateway:
     profiles: ["jsearch"]
     build:
-      context: ./jsearch-gateway
+      context: ../jsearch-gateway
       dockerfile: Dockerfile
     environment:
       SPRING_PROFILES_ACTIVE: live-acquisition
@@ -44,7 +44,7 @@ services:
   reed-gateway:
     profiles: ["reed"]
     build:
-      context: ./reed-gateway
+      context: ../reed-gateway
       dockerfile: Dockerfile
     environment:
       SPRING_PROFILES_ACTIVE: live-acquisition
@@ -62,7 +62,7 @@ services:
   postcode-io-gateway:
     profiles: ["postcode"]
     build:
-      context: ./postcode-io-gateway
+      context: ../postcode-io-gateway
       dockerfile: Dockerfile
     environment:
       SPRING_PROFILES_ACTIVE: live-acquisition
@@ -79,7 +79,7 @@ services:
 
   system-data-service:
     build:
-      context: ./system-data-service
+      context: ../system-data-service
       dockerfile: Dockerfile
     environment:
       SPRING_PROFILES_ACTIVE: live-acquisition
@@ -111,8 +111,8 @@ services:
       REED_GATEWAY_URL: http://reed-gateway:8087
       POSTCODE_IO_GATEWAY_URL: http://postcode-io-gateway:8082
     volumes:
-      - ./system-data-service/dataset-repository:/app/dataset-repository:ro
-      - ./system-data-service/quarantined-acquisitions:/app/quarantine
+      - ../system-data-service/dataset-repository:/app/dataset-repository:ro
+      - ../system-data-service/quarantined-acquisitions:/app/quarantine
     networks: [data-acquisition-network]
 
 networks:

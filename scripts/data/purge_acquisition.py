@@ -12,11 +12,11 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from scripts.data.acquisition_policy import REVIEWER, safe_run_directory
-from scripts.lib.project_paths import PROJECT_ROOT
+from scripts.lib.project_paths import WORKSPACE_ROOT
 
 
 QUARANTINE_ROOT = (
-    PROJECT_ROOT / "system-data-service" / "quarantined-acquisitions"
+    WORKSPACE_ROOT / "system-data-service" / "quarantined-acquisitions"
 )
 
 

@@ -1,19 +1,17 @@
 #!/usr/bin/env python3
-"""Read-only prerequisites and workspace diagnostics."""
+"""Read-only prerequisites and sibling-workspace diagnostics."""
 
 from __future__ import annotations
 
+import json
+import argparse
+import platform
 import shutil
 import subprocess
-import sys
 from pathlib import Path
 
-WORKSPACE_ROOT = Path(__file__).resolve().parents[2]
-if str(WORKSPACE_ROOT) not in sys.path:
-    sys.path.insert(0, str(WORKSPACE_ROOT))
-
-from scripts.workspace.bootstrap import plan
-from scripts.workspace.catalog import ROOT, load_catalog
+from scripts.workspace.bootstrap import report_payload
+from scripts.workspace.catalog import WORKSPACE_ROOT, load_catalog, load_workspace_lock
 
 
 def command_ok(command: list[str]) -> bool:
@@ -28,28 +26,55 @@ def command_ok(command: list[str]) -> bool:
         return False
 
 
-def main() -> int:
-    checks = {
+def prerequisite_checks() -> dict[str, bool]:
+    return {
         "git": shutil.which("git") is not None,
         "gh": shutil.which("gh") is not None,
         "gh-auth": command_ok(["gh", "auth", "status"]),
         "docker": shutil.which("docker") is not None,
         "docker-compose": command_ok(["docker", "compose", "version"]),
-        "java": shutil.which("java") is not None,
+        "java-17+": command_ok(
+            ["sh", "-c", "java -version 2>&1 | grep -Eq 'version \"(1[7-9]|[2-9][0-9])'"]
+        ),
         "maven": shutil.which("mvn") is not None,
         "node": shutil.which("node") is not None,
         "npm": shutil.which("npm") is not None,
-        "python": shutil.which("python3") is not None,
+        "python-3.11+": tuple(map(int, platform.python_version_tuple()[:2]))
+        >= (3, 11),
+        "openssl": shutil.which("openssl") is not None,
+        "curl": shutil.which("curl") is not None,
     }
-    catalog = load_catalog()
-    missing, conflicts = plan(ROOT, catalog.owner, catalog.repositories)
 
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--prerequisites-only", action="store_true")
+    args = parser.parse_args()
+    checks = prerequisite_checks()
     for name, ok in checks.items():
         print(f"{'OK' if ok else 'MISSING'} {name}")
-    print(f"INFO catalog repositories={len(catalog.repositories)} missing={len(missing)} conflicts={len(conflicts)}")
-    for conflict in conflicts:
-        print(f"CONFLICT {conflict}")
-    return 0 if all(checks.values()) and not conflicts else 1
+    if args.prerequisites_only:
+        return 0 if all(checks.values()) else 1
+
+    catalog = load_catalog()
+    lock = load_workspace_lock(catalog)
+    report = report_payload(WORKSPACE_ROOT, catalog, lock)
+
+    print(
+        "INFO "
+        f"workspace={WORKSPACE_ROOT} "
+        f"repositories={len(catalog.repositories)} "
+        f"summary={json.dumps(report['summary'], sort_keys=True)}"
+    )
+    for state in report["repositories"]:
+        if state["status"] != "ready":
+            print(
+                f"{state['status'].upper()} {state['name']}: "
+                f"{state.get('detail') or state['path']}"
+            )
+    return 0 if all(checks.values()) and all(
+        state["status"] == "ready" for state in report["repositories"]
+    ) else 1
 
 
 if __name__ == "__main__":

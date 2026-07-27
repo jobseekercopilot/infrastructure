@@ -94,6 +94,20 @@ class RenderedModeIsolationTests(unittest.TestCase):
         for profile, model in self.models.items():
             validate_model(model, profile)
 
+    def test_application_healthchecks_use_portable_alpine_wget(self) -> None:
+        model = self.model("local")
+        healthchecks = {
+            service: configuration["healthcheck"]["test"]
+            for service, configuration in model["services"].items()
+            if "healthcheck" in configuration
+            and configuration["healthcheck"]["test"][0] == "CMD"
+            and "/actuator/health" in configuration["healthcheck"]["test"][-1]
+        }
+        self.assertTrue(healthchecks)
+        for service, command in healthchecks.items():
+            with self.subTest(service=service):
+                self.assertEqual(command[:4], ["CMD", "wget", "-q", "--spider"])
+
     def test_e2e_rejects_live_mode_before_startup(self) -> None:
         model = self.model("e2e")
         model["services"]["reed-gateway"]["environment"][
@@ -108,6 +122,25 @@ class RenderedModeIsolationTests(unittest.TestCase):
             model["networks"]["job-seeker-network"]["internal"] = False
             with self.assertRaisesRegex(ValueError, "no external egress"):
                 validate_model(model, profile)
+
+    def test_only_frontend_can_join_loopback_host_access_network(self) -> None:
+        for profile in ("local", "e2e"):
+            with self.subTest(profile=profile):
+                model = self.model(profile)
+                host_access_services = {
+                    service
+                    for service, configuration in model["services"].items()
+                    if "host-access" in configuration.get("networks", {})
+                }
+                self.assertEqual(
+                    host_access_services, {"job-seeker-copilot-client"}
+                )
+                self.assertEqual(
+                    model["networks"]["host-access"]["driver_opts"][
+                        "com.docker.network.bridge.host_binding_ipv4"
+                    ],
+                    "127.0.0.1",
+                )
 
     def test_e2e_rejects_live_credentials_and_obsolete_mock_switch(self) -> None:
         for service, variable, value in (
@@ -250,6 +283,59 @@ class RenderedModeIsolationTests(unittest.TestCase):
             "Authentication must use its isolated PostgreSQL service",
         ):
             validate_model(model, "e2e")
+
+    def test_user_profile_uses_isolated_postgres_in_local_fixture(self) -> None:
+        model = self.model("local")
+        user_profile = model["services"]["user-profile-service"]
+        database = model["services"]["user-profile-postgres"]
+        self.assertIn(
+            "user-profile-postgres:5432",
+            user_profile["environment"]["PROFILE_DB_URL"],
+        )
+        self.assertEqual(
+            user_profile["environment"]["PROFILE_DB_PASSWORD"],
+            database["environment"]["POSTGRES_PASSWORD"],
+        )
+        self.assertIn("user-profile-postgres-data", model["volumes"])
+
+    def test_job_service_uses_isolated_postgres_without_fixture_cycle(self) -> None:
+        for profile in ("local", "e2e", "live-provider"):
+            with self.subTest(profile=profile):
+                model = self.model(profile)
+                job_service = model["services"]["job-service"]
+                database = model["services"]["job-service-postgres"]
+                self.assertIn(
+                    "job-service-postgres:5432",
+                    job_service["environment"]["JOB_SERVICE_DATABASE_URL"],
+                )
+                self.assertEqual(
+                    job_service["environment"]["JOB_SERVICE_DATABASE_PASSWORD"],
+                    database["environment"]["POSTGRES_PASSWORD"],
+                )
+                self.assertNotIn(
+                    "depends_on",
+                    model["services"]["system-data-service"],
+                )
+
+    def test_document_generation_uses_isolated_postgres(self) -> None:
+        for profile in ("local", "e2e", "live-provider"):
+            with self.subTest(profile=profile):
+                model = self.model(profile)
+                gateway = model["services"]["document-generation-gateway"]
+                database = model["services"]["document-generation-postgres"]
+                self.assertIn(
+                    "document-generation-postgres:5432",
+                    gateway["environment"]["DOCUMENT_GENERATION_DATABASE_URL"],
+                )
+                self.assertEqual(
+                    gateway["environment"]["DOCUMENT_GENERATION_DATABASE_PASSWORD"],
+                    database["environment"]["POSTGRES_PASSWORD"],
+                )
+                self.assertEqual(
+                    gateway["depends_on"]["document-generation-postgres"]["condition"],
+                    "service_healthy",
+                )
+                self.assertIn("document-generation-postgres-data", model["volumes"])
 
     def test_reporting_gateway_service_and_tracker_reader_identities_are_exact(
         self,

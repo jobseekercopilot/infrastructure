@@ -15,14 +15,34 @@ from scripts.security.generate_profile_env import (
     load_schema,
     render,
 )
+from scripts.workspace.catalog import load_catalog
+from scripts.workspace.validate import validate_configuration_schema
 
 
 class RuntimeEnvironmentSchemaTests(unittest.TestCase):
+    def test_schema_covers_every_compose_and_template_variable(self) -> None:
+        findings = validate_configuration_schema(load_catalog())
+        self.assertTrue(findings)
+        self.assertTrue(all(finding.ok for finding in findings), findings)
+
+    def test_profile_requirements_only_reference_documented_variables(self) -> None:
+        schema = load_schema()
+        names = {variable["name"] for variable in schema["variables"]}
+        for profile, requirements in schema["profileRequirements"].items():
+            with self.subTest(profile=profile):
+                self.assertFalse(
+                    (set(requirements["required"]) | set(requirements["forbidden"]))
+                    - names
+                )
+
     def test_document_identity_variables_have_explicit_owners_and_consumers(self) -> None:
         schema = load_schema()
         variables = {variable["name"]: variable for variable in schema["variables"]}
         required = {
             "APPLICATION_TRACKER_DATABASE_PASSWORD",
+            "USER_PROFILE_DATABASE_PASSWORD",
+            "JOB_SERVICE_DATABASE_PASSWORD",
+            "DOCUMENT_GENERATION_DATABASE_PASSWORD",
             "AUTH_SERVICE_TOKEN",
             "ENVIRONMENT_DATA_TOKEN",
             "APPLICATION_TRACKER_PRODUCER_TOKEN",
@@ -30,9 +50,11 @@ class RuntimeEnvironmentSchemaTests(unittest.TestCase):
             "REPORTING_GATEWAY_SERVICE_TOKEN",
             "DOCUMENT_STORE_PRODUCER_TOKEN",
             "DOCUMENT_STORE_READER_TOKEN",
+            "DOCUMENT_STORE_RETENTION_ADMIN_TOKEN",
             "DOCUMENT_EXPORT_GATEWAY_TOKEN",
             "CV_COVER_LETTER_GATEWAY_TOKEN",
             "CV_COVER_LETTER_TO_PAYMENT_SERVICE_TOKEN",
+            "DOCUMENT_GENERATION_GATEWAY_TO_PAYMENT_SERVICE_TOKEN",
             "BFF_TO_PAYMENT_GATEWAY_TOKEN",
             "PAYMENT_GATEWAY_TO_PAYMENT_SERVICE_TOKEN",
             "PAYMENT_GATEWAY_TO_STRIPE_GATEWAY_TOKEN",

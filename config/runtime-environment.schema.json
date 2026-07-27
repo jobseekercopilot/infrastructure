@@ -1,6 +1,24 @@
 {
   "schemaVersion": 1,
-  "scope": "INFRA-08 runtime identity and INFRA-11 provider-mode isolation",
+  "scope": "INFRA-08 full fleet runtime configuration and INFRA-11 provider-mode isolation",
+  "profileRequirements": {
+    "local": {
+      "required": ["JWT_PRIVATE_KEY_BASE64", "JWT_PUBLIC_KEY_BASE64", "AUTH_DB_PASSWORD", "USER_PROFILE_DATABASE_PASSWORD", "JOB_SERVICE_DATABASE_PASSWORD", "DOCUMENT_GENERATION_DATABASE_PASSWORD", "DOCUMENT_STORE_DATABASE_PASSWORD", "APPLICATION_TRACKER_DATABASE_PASSWORD", "PAYMENT_DATABASE_PASSWORD", "AUTH_SERVICE_TOKEN", "ENVIRONMENT_DATA_TOKEN", "SYSTEM_DATA_INTERNAL_CALLER_KEY", "APPLICATION_TRACKER_PRODUCER_TOKEN", "APPLICATION_TRACKER_READER_TOKEN", "REPORTING_GATEWAY_SERVICE_TOKEN", "DOCUMENT_STORE_PRODUCER_TOKEN", "DOCUMENT_STORE_READER_TOKEN", "DOCUMENT_STORE_RETENTION_ADMIN_TOKEN", "DOCUMENT_EXPORT_GATEWAY_TOKEN", "CV_COVER_LETTER_GATEWAY_TOKEN", "CV_COVER_LETTER_TO_PAYMENT_SERVICE_TOKEN", "DOCUMENT_GENERATION_GATEWAY_TO_PAYMENT_SERVICE_TOKEN", "BFF_TO_PAYMENT_GATEWAY_TOKEN", "PAYMENT_GATEWAY_TO_PAYMENT_SERVICE_TOKEN", "PAYMENT_GATEWAY_TO_STRIPE_GATEWAY_TOKEN", "STRIPE_GATEWAY_TO_PAYMENT_SERVICE_TOKEN"],
+      "forbidden": ["REED_API_KEY", "ADZUNA_APP_ID", "ADZUNA_APP_KEY", "JSEARCH_API_KEY", "OPENAI_API_KEY", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"]
+    },
+    "e2e": {
+      "required": ["JWT_PRIVATE_KEY_BASE64", "JWT_PUBLIC_KEY_BASE64", "AUTH_DB_PASSWORD", "USER_PROFILE_DATABASE_PASSWORD", "JOB_SERVICE_DATABASE_PASSWORD", "DOCUMENT_GENERATION_DATABASE_PASSWORD", "DOCUMENT_STORE_DATABASE_PASSWORD", "APPLICATION_TRACKER_DATABASE_PASSWORD", "PAYMENT_DATABASE_PASSWORD", "AUTH_SERVICE_TOKEN", "ENVIRONMENT_DATA_TOKEN", "SYSTEM_DATA_INTERNAL_CALLER_KEY", "APPLICATION_TRACKER_PRODUCER_TOKEN", "APPLICATION_TRACKER_READER_TOKEN", "REPORTING_GATEWAY_SERVICE_TOKEN", "DOCUMENT_STORE_PRODUCER_TOKEN", "DOCUMENT_STORE_READER_TOKEN", "DOCUMENT_STORE_RETENTION_ADMIN_TOKEN", "DOCUMENT_EXPORT_GATEWAY_TOKEN", "CV_COVER_LETTER_GATEWAY_TOKEN", "CV_COVER_LETTER_TO_PAYMENT_SERVICE_TOKEN", "DOCUMENT_GENERATION_GATEWAY_TO_PAYMENT_SERVICE_TOKEN", "BFF_TO_PAYMENT_GATEWAY_TOKEN", "PAYMENT_GATEWAY_TO_PAYMENT_SERVICE_TOKEN", "PAYMENT_GATEWAY_TO_STRIPE_GATEWAY_TOKEN", "STRIPE_GATEWAY_TO_PAYMENT_SERVICE_TOKEN"],
+      "forbidden": ["REED_API_KEY", "ADZUNA_APP_ID", "ADZUNA_APP_KEY", "JSEARCH_API_KEY", "OPENAI_API_KEY", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"]
+    },
+    "live-provider": {
+      "required": ["REED_API_KEY", "ADZUNA_APP_ID", "ADZUNA_APP_KEY", "JSEARCH_API_KEY"],
+      "forbidden": ["OPENAI_API_KEY", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"]
+    },
+    "data-acquisition": {
+      "required": ["DATA_ACQUISITION_RUN_ID", "DATA_ACQUISITION_CONFIRMATION", "DATA_ACQUISITION_TERMS_APPROVAL_REFERENCE", "DATA_ACQUISITION_PROVENANCE_REVIEWER", "DATA_ACQUISITION_APPROVED_PROVIDERS"],
+      "forbidden": ["OPENAI_API_KEY", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"]
+    }
+  },
   "variables": [
     {
       "name": "JWT_PRIVATE_KEY_BASE64",
@@ -52,6 +70,33 @@
       "name": "AUTH_DB_PASSWORD",
       "owner": "Authentication Service",
       "consumers": ["authentication-postgres", "authentication-service"],
+      "classification": "secret",
+      "profiles": ["local", "e2e", "live-provider"],
+      "generator": "random",
+      "minimumBytes": 32
+    },
+    {
+      "name": "USER_PROFILE_DATABASE_PASSWORD",
+      "owner": "User Profile Service",
+      "consumers": ["user-profile-postgres", "user-profile-service"],
+      "classification": "secret",
+      "profiles": ["local", "e2e", "live-provider"],
+      "generator": "random",
+      "minimumBytes": 32
+    },
+    {
+      "name": "JOB_SERVICE_DATABASE_PASSWORD",
+      "owner": "Job Service",
+      "consumers": ["job-service-postgres", "job-service"],
+      "classification": "secret",
+      "profiles": ["local", "e2e", "live-provider"],
+      "generator": "random",
+      "minimumBytes": 32
+    },
+    {
+      "name": "DOCUMENT_GENERATION_DATABASE_PASSWORD",
+      "owner": "Document Generation Gateway",
+      "consumers": ["document-generation-postgres", "document-generation-gateway"],
       "classification": "secret",
       "profiles": ["local", "e2e", "live-provider"],
       "generator": "random",
@@ -186,6 +231,15 @@
       "minimumBytes": 32
     },
     {
+      "name": "DOCUMENT_STORE_RETENTION_ADMIN_TOKEN",
+      "owner": "Document Store Service",
+      "consumers": ["document-store-service"],
+      "classification": "secret",
+      "profiles": ["local", "e2e", "live-provider"],
+      "generator": "random",
+      "minimumBytes": 32
+    },
+    {
       "name": "DOCUMENT_EXPORT_GATEWAY_TOKEN",
       "owner": "Document Export Service",
       "consumers": ["document-export-service", "document-generation-gateway"],
@@ -207,6 +261,15 @@
       "name": "CV_COVER_LETTER_TO_PAYMENT_SERVICE_TOKEN",
       "owner": "Payment Service",
       "consumers": ["cv-cover-letter-service", "payment-service"],
+      "classification": "secret",
+      "profiles": ["local", "e2e", "live-provider"],
+      "generator": "random",
+      "minimumBytes": 32
+    },
+    {
+      "name": "DOCUMENT_GENERATION_GATEWAY_TO_PAYMENT_SERVICE_TOKEN",
+      "owner": "Payment Service",
+      "consumers": ["document-generation-gateway", "payment-service"],
       "classification": "secret",
       "profiles": ["local", "e2e", "live-provider"],
       "generator": "random",
@@ -275,6 +338,66 @@
       "consumers": ["jsearch-gateway"],
       "classification": "secret",
       "profiles": ["live-provider", "data-acquisition"]
-    }
+    },
+    {"name": "OPENAI_API_KEY", "owner": "LLM Gateway", "consumers": ["llm-gateway"], "classification": "secret", "profiles": []},
+    {"name": "STRIPE_SECRET_KEY", "owner": "Stripe Gateway", "consumers": ["stripe-gateway"], "classification": "secret", "profiles": []},
+    {"name": "STRIPE_WEBHOOK_SECRET", "owner": "Stripe Gateway", "consumers": ["stripe-gateway"], "classification": "secret", "profiles": []},
+    {"name": "FIXTURE_DATASET_ID", "owner": "System Data Service", "consumers": ["fixture gateways", "system-data-service"], "classification": "configuration", "profiles": ["local", "e2e"], "example": "uk-software-developer-demo"},
+    {"name": "FIXTURE_DATASET_VERSION", "owner": "System Data Service", "consumers": ["fixture gateways", "system-data-service"], "classification": "configuration", "profiles": ["local", "e2e"], "example": "1.0.0"},
+    {"name": "FIXTURE_SCENARIO", "owner": "System Data Service", "consumers": ["fixture gateways", "system-data-service"], "classification": "configuration", "profiles": ["local", "e2e"], "example": "DEMO_READY"},
+    {"name": "ADZUNA_ENABLED", "owner": "Job Service", "consumers": ["job-service"], "classification": "configuration", "profiles": ["local"], "example": "true"},
+    {"name": "ADZUNA_RESULTS_PER_PAGE", "owner": "Adzuna Gateway", "consumers": ["adzuna-gateway"], "classification": "configuration", "profiles": ["local", "data-acquisition"], "example": "20"},
+    {"name": "ADZUNA_PAGES_PER_SEARCH", "owner": "Adzuna Gateway", "consumers": ["adzuna-gateway"], "classification": "configuration", "profiles": ["local", "data-acquisition"], "example": "1"},
+    {"name": "JSEARCH_ENABLED", "owner": "Job Service", "consumers": ["job-service"], "classification": "configuration", "profiles": ["local"], "example": "true"},
+    {"name": "JSEARCH_COUNTRY", "owner": "JSearch Gateway", "consumers": ["jsearch-gateway"], "classification": "configuration", "profiles": ["local", "data-acquisition"], "example": "gb"},
+    {"name": "JSEARCH_LANGUAGE", "owner": "JSearch Gateway", "consumers": ["jsearch-gateway"], "classification": "configuration", "profiles": ["local", "data-acquisition"], "example": "en"},
+    {"name": "JSEARCH_PAGES_PER_SEARCH", "owner": "JSearch Gateway", "consumers": ["jsearch-gateway"], "classification": "configuration", "profiles": ["local", "data-acquisition"], "example": "1"},
+    {"name": "STRIPE_SUCCESS_URL", "owner": "Payment Gateway", "consumers": ["stripe-gateway"], "classification": "configuration", "profiles": ["local", "e2e", "live-provider"], "example": "http://localhost:3000/payment/success"},
+    {"name": "STRIPE_CANCEL_URL", "owner": "Payment Gateway", "consumers": ["stripe-gateway"], "classification": "configuration", "profiles": ["local", "e2e", "live-provider"], "example": "http://localhost:3000/payment/cancel"},
+    {"name": "LIVE_FRONTEND_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.live.yml"], "classification": "configuration", "profiles": ["live-provider"], "example": "3000"},
+    {"name": "DATA_ACQUISITION_RUN_ID", "owner": "System Data Service", "consumers": ["data-acquisition"], "classification": "configuration", "profiles": ["data-acquisition"], "example": ""},
+    {"name": "DATA_ACQUISITION_CONFIRMATION", "owner": "System Data Service", "consumers": ["data-acquisition"], "classification": "configuration", "profiles": ["data-acquisition"], "example": ""},
+    {"name": "DATA_ACQUISITION_TERMS_APPROVAL_REFERENCE", "owner": "System Data Service", "consumers": ["data-acquisition"], "classification": "configuration", "profiles": ["data-acquisition"], "example": ""},
+    {"name": "DATA_ACQUISITION_PROVENANCE_REVIEWER", "owner": "System Data Service", "consumers": ["data-acquisition"], "classification": "configuration", "profiles": ["data-acquisition"], "example": ""},
+    {"name": "DATA_ACQUISITION_APPROVED_PROVIDERS", "owner": "System Data Service", "consumers": ["data-acquisition"], "classification": "configuration", "profiles": ["data-acquisition"], "example": ""},
+    {"name": "DATA_ACQUISITION_RETENTION_DAYS", "owner": "System Data Service", "consumers": ["data-acquisition"], "classification": "configuration", "profiles": ["data-acquisition"], "example": "14"},
+    {"name": "DATA_ACQUISITION_DATASET_ID", "owner": "System Data Service", "consumers": ["data-acquisition"], "classification": "configuration", "profiles": ["data-acquisition"], "example": "uk-job-search"},
+    {"name": "DATA_ACQUISITION_DATASET_NAME", "owner": "System Data Service", "consumers": ["data-acquisition"], "classification": "configuration", "profiles": ["data-acquisition"], "example": "Approved job-provider acquisition"},
+    {"name": "DATA_ACQUISITION_DATASET_VERSION", "owner": "System Data Service", "consumers": ["data-acquisition"], "classification": "configuration", "profiles": ["data-acquisition"], "example": ""},
+    {"name": "DATA_ACQUISITION_QUERIES", "owner": "System Data Service", "consumers": ["data-acquisition"], "classification": "configuration", "profiles": ["data-acquisition"], "example": "software engineer"},
+    {"name": "DATA_ACQUISITION_LOCATIONS", "owner": "System Data Service", "consumers": ["data-acquisition"], "classification": "configuration", "profiles": ["data-acquisition"], "example": "London"},
+    {"name": "DATA_ACQUISITION_MAXIMUM_JOBS_PER_PROVIDER", "owner": "System Data Service", "consumers": ["data-acquisition"], "classification": "configuration", "profiles": ["data-acquisition"], "example": "100"},
+    {"name": "DATA_ACQUISITION_MAXIMUM_OUTPUT_RECORDS", "owner": "System Data Service", "consumers": ["data-acquisition"], "classification": "configuration", "profiles": ["data-acquisition"], "example": "300"},
+    {"name": "DATA_ACQUISITION_ADZUNA_ENABLED", "owner": "System Data Service", "consumers": ["data-acquisition"], "classification": "configuration", "profiles": ["data-acquisition"], "example": "false"},
+    {"name": "DATA_ACQUISITION_JSEARCH_ENABLED", "owner": "System Data Service", "consumers": ["data-acquisition"], "classification": "configuration", "profiles": ["data-acquisition"], "example": "false"},
+    {"name": "DATA_ACQUISITION_REED_ENABLED", "owner": "System Data Service", "consumers": ["data-acquisition"], "classification": "configuration", "profiles": ["data-acquisition"], "example": "false"},
+    {"name": "DATA_ACQUISITION_POSTCODE_ENABLED", "owner": "System Data Service", "consumers": ["data-acquisition"], "classification": "configuration", "profiles": ["data-acquisition"], "example": "false"},
+    {"name": "E2E_FRONTEND_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "3100"},
+    {"name": "E2E_PORTAINER_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9100"},
+    {"name": "E2E_DOZZLE_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9199"},
+    {"name": "E2E_LOCATION_GATEWAY_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9081"},
+    {"name": "E2E_POSTCODE_IO_GATEWAY_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9082"},
+    {"name": "E2E_SYSTEM_DATA_SERVICE_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9103"},
+    {"name": "E2E_AUTHENTICATION_SERVICE_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9084"},
+    {"name": "E2E_USER_PROFILE_SERVICE_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9085"},
+    {"name": "E2E_REED_GATEWAY_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9087"},
+    {"name": "E2E_ADZUNA_GATEWAY_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9101"},
+    {"name": "E2E_JSEARCH_GATEWAY_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9102"},
+    {"name": "E2E_JOB_SERVICE_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9086"},
+    {"name": "E2E_JOB_MATCHING_SERVICE_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9097"},
+    {"name": "E2E_JOB_FINDER_GATEWAY_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9080"},
+    {"name": "E2E_LLM_GATEWAY_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9090"},
+    {"name": "E2E_DOCUMENT_STORE_SERVICE_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9089"},
+    {"name": "E2E_DOCUMENT_EXPORT_SERVICE_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9094"},
+    {"name": "E2E_APPLICATION_TRACKER_SERVICE_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9088"},
+    {"name": "E2E_CV_COVER_LETTER_SERVICE_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9091"},
+    {"name": "E2E_DOCUMENT_GENERATION_GATEWAY_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9092"},
+    {"name": "E2E_REPORTING_SERVICE_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9096"},
+    {"name": "E2E_REPORTING_GATEWAY_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9095"},
+    {"name": "E2E_PAYMENT_SERVICE_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9099"},
+    {"name": "E2E_STRIPE_GATEWAY_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9100"},
+    {"name": "E2E_PAYMENT_GATEWAY_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9098"},
+    {"name": "E2E_USER_MANAGEMENT_GATEWAY_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9083"},
+    {"name": "E2E_USER_MANAGEMENT_DEBUG_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "5905"}
   ]
 }

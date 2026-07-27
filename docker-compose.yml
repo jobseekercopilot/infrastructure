@@ -1,7 +1,7 @@
 services:
   portainer:
-    image: portainer/portainer-ce:latest
-    container_name: portainer
+    image: portainer/portainer-ce:2.39.5
+    profiles: ["operator-tools"]
     ports:
       - "9000:9000"
     volumes:
@@ -17,8 +17,8 @@ services:
       start_period: 40s
 
   dozzle:
-    image: amir20/dozzle:latest
-    container_name: dozzle
+    image: amir20/dozzle:v10.6.12
+    profiles: ["operator-tools"]
     ports:
       - "9999:8080"
     volumes:
@@ -34,9 +34,8 @@ services:
 
   postcode-io-gateway:
     build:
-      context: ./postcode-io-gateway
+      context: ../postcode-io-gateway
       dockerfile: Dockerfile
-    container_name: postcode-io-gateway
     ports:
       - "8082:8082"
     environment:
@@ -52,7 +51,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8082/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -60,9 +59,8 @@ services:
 
   location-gateway:
     build:
-      context: ./location-gateway
+      context: ../location-gateway
       dockerfile: Dockerfile
-    container_name: location-gateway
     ports:
       - "8081:8081"
     environment:
@@ -75,7 +73,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8081/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -83,7 +81,6 @@ services:
 
   authentication-postgres:
     image: postgres:15.18-alpine
-    container_name: authentication-postgres
     environment:
       - POSTGRES_DB=authentication
       - POSTGRES_USER=authentication
@@ -100,9 +97,8 @@ services:
 
   authentication-service:
     build:
-      context: ./authentication-service
+      context: ../authentication-service
       dockerfile: Dockerfile
-    container_name: authentication-service
     ports:
       - "8084:8084"
     environment:
@@ -125,29 +121,53 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8084/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8084/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
 
+  user-profile-postgres:
+    image: postgres:15.18-alpine
+    environment:
+      - POSTGRES_DB=user_profile
+      - POSTGRES_USER=user_profile
+      - POSTGRES_PASSWORD=${USER_PROFILE_DATABASE_PASSWORD:?Generate the selected untracked environment file}
+    volumes:
+      - user-profile-postgres-data:/var/lib/postgresql/data
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user_profile -d user_profile"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
   user-profile-service:
     build:
-      context: ./user-profile-service
+      context: ../user-profile-service
       dockerfile: Dockerfile
-    container_name: user-profile-service
     ports:
       - "8085:8085"
     environment:
       - SPRING_APPLICATION_NAME=user-profile-service
       - SERVER_PORT=8085
       - ENVIRONMENT_DATA_ENABLED=false
-    volumes:
-      - user-profile-data:/app/data
+      - PROFILE_DB_URL=jdbc:postgresql://user-profile-postgres:5432/user_profile
+      - PROFILE_DB_USERNAME=user_profile
+      - PROFILE_DB_PASSWORD=${USER_PROFILE_DATABASE_PASSWORD:?Generate the selected untracked environment file}
+      - AUTH_JWKS_URI=http://authentication-service:8084/.well-known/jwks.json
+      - PROFILE_JWT_ISSUER=${JWT_ISSUER:-job-seeker-copilot-authentication}
+      - PROFILE_JWT_AUDIENCE=${JWT_AUDIENCE:-job-seeker-copilot-services}
+    depends_on:
+      authentication-service:
+        condition: service_healthy
+      user-profile-postgres:
+        condition: service_healthy
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8085/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8085/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -155,9 +175,8 @@ services:
 
   user-management-gateway:
     build:
-      context: ./user-management-gateway
+      context: ../user-management-gateway
       dockerfile: Dockerfile
-    container_name: user-management-gateway
     ports:
       - "8083:8083"
       - "5005:5005"
@@ -176,7 +195,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8083/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -184,9 +203,8 @@ services:
 
   reed-gateway:
     build:
-      context: ./reed-gateway
-      dockerfile: Dockerfile
-    container_name: reed-gateway
+      context: ../.cache/runtime-images/reed-gateway
+      dockerfile: ../../../infrastructure/docker/reed-gateway.runtime.Dockerfile
     ports:
       - "8087:8087"
     environment:
@@ -201,7 +219,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8087/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8087/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -209,9 +227,8 @@ services:
 
   adzuna-gateway:
     build:
-      context: ./adzuna-gateway
-      dockerfile: Dockerfile
-    container_name: adzuna-gateway
+      context: ../.cache/runtime-images/adzuna-gateway
+      dockerfile: ../../../infrastructure/docker/adzuna-gateway.runtime.Dockerfile
     ports:
       - "8101:8101"
     environment:
@@ -229,7 +246,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8101/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8101/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -237,9 +254,8 @@ services:
 
   jsearch-gateway:
     build:
-      context: ./jsearch-gateway
-      dockerfile: Dockerfile
-    container_name: jsearch-gateway
+      context: ../.cache/runtime-images/jsearch-gateway
+      dockerfile: ../../../infrastructure/docker/jsearch-gateway.runtime.Dockerfile
     ports:
       - "8102:8102"
     environment:
@@ -258,7 +274,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8102/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8102/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -266,9 +282,8 @@ services:
 
   system-data-service:
     build:
-      context: ./system-data-service
+      context: ../system-data-service
       dockerfile: Dockerfile
-    container_name: system-data-service
     ports:
       - "8103:8103"
     environment:
@@ -292,50 +307,53 @@ services:
       - SYSTEM_DATA_INTERNAL_CALLER_KEY=${SYSTEM_DATA_INTERNAL_CALLER_KEY:?Generate the selected untracked environment file}
       - SYSTEM_DATA_DOWNSTREAM_ENVIRONMENT_DATA_TOKEN=${ENVIRONMENT_DATA_TOKEN:?Generate the selected untracked environment file}
     volumes:
-      - ./system-data-service/dataset-repository:/app/dataset-repository
-    depends_on:
-      reed-gateway:
-        condition: service_healthy
-      adzuna-gateway:
-        condition: service_healthy
-      jsearch-gateway:
-        condition: service_healthy
-      postcode-io-gateway:
-        condition: service_healthy
-      authentication-service:
-        condition: service_healthy
-      user-profile-service:
-        condition: service_healthy
-      application-tracker-service:
-        condition: service_healthy
-      document-store-service:
-        condition: service_healthy
-      payment-service:
-        condition: service_healthy
+      - ../system-data-service/fixtures/datasets:/app/dataset-repository:ro
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8103/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8103/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
 
+  job-service-postgres:
+    image: postgres:15.18-alpine
+    environment:
+      - POSTGRES_DB=job_service
+      - POSTGRES_USER=job_service
+      - POSTGRES_PASSWORD=${JOB_SERVICE_DATABASE_PASSWORD:?Generate the selected untracked environment file}
+    volumes:
+      - job-service-postgres-data:/var/lib/postgresql/data
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U job_service -d job_service"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
   job-service:
     build:
-      context: ./job-service
+      context: ../job-service
       dockerfile: Dockerfile
-    container_name: job-service
     ports:
       - "8086:8086"
     environment:
       - SPRING_APPLICATION_NAME=job-service
       - SERVER_PORT=8086
+      - JOB_SERVICE_DATABASE_URL=jdbc:postgresql://job-service-postgres:5432/job_service
+      - JOB_SERVICE_DATABASE_USERNAME=job_service
+      - JOB_SERVICE_DATABASE_PASSWORD=${JOB_SERVICE_DATABASE_PASSWORD:?Generate the selected untracked environment file}
+      - JOB_SERVICE_DATABASE_SSL_MODE=disable
+      - JOB_SERVICE_DATABASE_PRODUCTION_SAFETY_CHECK=false
       - REED_GATEWAY_URL=http://reed-gateway:8087
       - ADZUNA_GATEWAY_URL=http://adzuna-gateway:8101
       - JSEARCH_GATEWAY_URL=http://jsearch-gateway:8102
       - JOB_MATCHING_SERVICE_URL=http://job-matching-service:8097
     depends_on:
+      job-service-postgres:
+        condition: service_healthy
       reed-gateway:
         condition: service_healthy
       adzuna-gateway:
@@ -347,7 +365,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8086/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8086/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -355,9 +373,8 @@ services:
 
   job-matching-service:
     build:
-      context: ./job-matching-service
+      context: ../job-matching-service
       dockerfile: Dockerfile
-    container_name: job-matching-service
     ports:
       - "8097:8097"
     environment:
@@ -371,7 +388,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8097/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8097/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -379,9 +396,8 @@ services:
 
   job-finder-gateway:
     build:
-      context: ./job-finder-gateway
+      context: ../job-finder-gateway
       dockerfile: Dockerfile
-    container_name: job-finder-gateway
     ports:
       - "8080:8080"
     environment:
@@ -405,7 +421,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -413,9 +429,8 @@ services:
 
   llm-gateway:
     build:
-      context: ./llm-gateway
+      context: ../llm-gateway
       dockerfile: Dockerfile
-    container_name: llm-gateway
     ports:
       - "8090:8090"
     environment:
@@ -426,10 +441,12 @@ services:
       - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
       - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.0.0}
       - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
+      - GENERATION_MODEL_ID=fixture-llm-synthetic-v1
+      - GENERATION_MODEL_DEPLOYMENT_VERSION=fixture-llm-synthetic-v1
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8090/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8090/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -437,7 +454,6 @@ services:
 
   document-store-postgres:
     image: postgres:15.18-alpine
-    container_name: document-store-postgres
     environment:
       - POSTGRES_DB=document_store
       - POSTGRES_USER=document_store
@@ -454,9 +470,8 @@ services:
 
   document-store-service:
     build:
-      context: ./document-store-service
+      context: ../document-store-service
       dockerfile: Dockerfile
-    container_name: document-store-service
     ports:
       - "8089:8089"
     environment:
@@ -475,6 +490,7 @@ services:
       - DOCUMENT_STORE_JWT_AUDIENCE=${JWT_AUDIENCE:-job-seeker-copilot-services}
       - DOCUMENT_STORE_PRODUCER_TOKEN=${DOCUMENT_STORE_PRODUCER_TOKEN:?Generate the selected untracked environment file}
       - DOCUMENT_STORE_READER_TOKEN=${DOCUMENT_STORE_READER_TOKEN:?Generate the selected untracked environment file}
+      - DOCUMENT_STORE_RETENTION_ADMIN_TOKEN=${DOCUMENT_STORE_RETENTION_ADMIN_TOKEN:?Generate the selected untracked environment file}
       - ENVIRONMENT_DATA_TOKEN=${ENVIRONMENT_DATA_TOKEN:?Generate the selected untracked environment file}
       - DOCUMENT_STORE_DATABASE_PRODUCTION_SAFETY_CHECK=false
     volumes:
@@ -487,7 +503,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8089/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8089/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -495,9 +511,8 @@ services:
 
   document-export-service:
     build:
-      context: ./document-export-service
+      context: ../document-export-service
       dockerfile: Dockerfile
-    container_name: document-export-service
     ports:
       - "8094:8094"
     environment:
@@ -512,7 +527,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8094/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8094/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -520,7 +535,6 @@ services:
 
   application-tracker-postgres:
     image: postgres:15.18-alpine
-    container_name: application-tracker-postgres
     environment:
       - POSTGRES_DB=application_tracker
       - POSTGRES_USER=application_tracker
@@ -537,9 +551,8 @@ services:
 
   application-tracker-service:
     build:
-      context: ./application-tracker-service
+      context: ../application-tracker-service
       dockerfile: Dockerfile
-    container_name: application-tracker-service
     ports:
       - "8088:8088"
     environment:
@@ -557,16 +570,20 @@ services:
       - APPLICATION_TRACKER_JWT_AUDIENCE=${JWT_AUDIENCE:-job-seeker-copilot-services}
       - APPLICATION_TRACKER_PRODUCER_TOKEN=${APPLICATION_TRACKER_PRODUCER_TOKEN:?Generate the selected untracked environment file}
       - APPLICATION_TRACKER_READER_TOKEN=${APPLICATION_TRACKER_READER_TOKEN:?Generate the selected untracked environment file}
+      - DOCUMENT_STORE_SERVICE_URL=http://document-store-service:8089
+      - DOCUMENT_STORE_READER_TOKEN=${DOCUMENT_STORE_READER_TOKEN:?Generate the selected untracked environment file}
       - ENVIRONMENT_DATA_TOKEN=${ENVIRONMENT_DATA_TOKEN:?Generate the selected untracked environment file}
     depends_on:
       authentication-service:
         condition: service_healthy
       application-tracker-postgres:
         condition: service_healthy
+      document-store-service:
+        condition: service_healthy
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8088/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8088/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -574,9 +591,8 @@ services:
 
   cv-cover-letter-service:
     build:
-      context: ./cv-cover-letter-service
+      context: ../cv-cover-letter-service
       dockerfile: Dockerfile
-    container_name: cv-cover-letter-service
     ports:
       - "8091:8091"
     environment:
@@ -601,17 +617,32 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8091/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8091/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
 
+  document-generation-postgres:
+    image: postgres:15.18-alpine
+    environment:
+      - POSTGRES_DB=document_generation
+      - POSTGRES_USER=document_generation
+      - POSTGRES_PASSWORD=${DOCUMENT_GENERATION_DATABASE_PASSWORD:?Generate the selected untracked environment file}
+    volumes:
+      - document-generation-postgres-data:/var/lib/postgresql/data
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U document_generation -d document_generation"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
   document-generation-gateway:
     build:
-      context: ./document-generation-gateway
-      dockerfile: Dockerfile
-    container_name: document-generation-gateway
+      context: ../.cache/runtime-images/document-generation-gateway
+      dockerfile: ../../../infrastructure/docker/document-generation-gateway.runtime.Dockerfile
     ports:
       - "8092:8092"
     environment:
@@ -625,6 +656,10 @@ services:
       - DOCUMENT_EXPORT_GATEWAY_TOKEN=${DOCUMENT_EXPORT_GATEWAY_TOKEN:?Generate the selected untracked environment file}
       - DOCUMENT_STORE_PRODUCER_TOKEN=${DOCUMENT_STORE_PRODUCER_TOKEN:?Generate the selected untracked environment file}
       - DOCUMENT_STORE_READER_TOKEN=${DOCUMENT_STORE_READER_TOKEN:?Generate the selected untracked environment file}
+      - DOCUMENT_GENERATION_GATEWAY_TO_PAYMENT_SERVICE_TOKEN=${DOCUMENT_GENERATION_GATEWAY_TO_PAYMENT_SERVICE_TOKEN:?Generate the selected untracked environment file}
+      - DOCUMENT_GENERATION_DATABASE_URL=jdbc:postgresql://document-generation-postgres:5432/document_generation
+      - DOCUMENT_GENERATION_DATABASE_USERNAME=document_generation
+      - DOCUMENT_GENERATION_DATABASE_PASSWORD=${DOCUMENT_GENERATION_DATABASE_PASSWORD:?Generate the selected untracked environment file}
       - AUTHENTICATION_SERVICE_URL=http://authentication-service:8084
       - USER_PROFILE_SERVICE_URL=http://user-profile-service:8085
       - JOB_SERVICE_URL=http://job-service:8086
@@ -633,6 +668,8 @@ services:
       - DOCUMENT_STORE_SERVICE_URL=http://document-store-service:8089
       - APPLICATION_TRACKER_SERVICE_URL=http://application-tracker-service:8088
     depends_on:
+      document-generation-postgres:
+        condition: service_healthy
       authentication-service:
         condition: service_healthy
       user-profile-service:
@@ -648,7 +685,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8092/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8092/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -656,9 +693,8 @@ services:
 
   reporting-service:
     build:
-      context: ./reporting-service
+      context: ../reporting-service
       dockerfile: Dockerfile
-    container_name: reporting-service
     ports:
       - "8096:8096"
     environment:
@@ -675,7 +711,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8096/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8096/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -683,9 +719,8 @@ services:
 
   reporting-gateway:
     build:
-      context: ./reporting-gateway
+      context: ../reporting-gateway
       dockerfile: Dockerfile
-    container_name: reporting-gateway
     ports:
       - "8095:8095"
     environment:
@@ -703,7 +738,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8095/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8095/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -711,7 +746,6 @@ services:
 
   payment-postgres:
     image: postgres:15.18-alpine
-    container_name: payment-postgres
     environment:
       - POSTGRES_DB=payment
       - POSTGRES_USER=payment
@@ -728,9 +762,8 @@ services:
 
   payment-service:
     build:
-      context: ./payment-service
+      context: ../payment-service
       dockerfile: Dockerfile
-    container_name: payment-service
     ports:
       - "8099:8099"
     environment:
@@ -742,6 +775,7 @@ services:
       - PAYMENT_DATABASE_PRODUCTION_SAFETY_CHECK=false
       - PAYMENT_GATEWAY_TO_PAYMENT_SERVICE_TOKEN=${PAYMENT_GATEWAY_TO_PAYMENT_SERVICE_TOKEN:?Generate the selected untracked environment file}
       - CV_COVER_LETTER_TO_PAYMENT_SERVICE_TOKEN=${CV_COVER_LETTER_TO_PAYMENT_SERVICE_TOKEN:?Generate the selected untracked environment file}
+      - DOCUMENT_GENERATION_GATEWAY_TO_PAYMENT_SERVICE_TOKEN=${DOCUMENT_GENERATION_GATEWAY_TO_PAYMENT_SERVICE_TOKEN:?Generate the selected untracked environment file}
       - STRIPE_GATEWAY_TO_PAYMENT_SERVICE_TOKEN=${STRIPE_GATEWAY_TO_PAYMENT_SERVICE_TOKEN:?Generate the selected untracked environment file}
     depends_on:
       payment-postgres:
@@ -749,7 +783,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8099/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8099/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -757,9 +791,8 @@ services:
 
   stripe-gateway:
     build:
-      context: ./stripe-gateway
+      context: ../stripe-gateway
       dockerfile: Dockerfile
-    container_name: stripe-gateway
     ports:
       - "8100:8100"
     environment:
@@ -781,7 +814,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8100/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8100/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -789,9 +822,8 @@ services:
 
   payment-gateway:
     build:
-      context: ./payment-gateway
+      context: ../payment-gateway
       dockerfile: Dockerfile
-    container_name: payment-gateway
     ports:
       - "8098:8098"
     environment:
@@ -809,7 +841,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8098/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8098/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -817,9 +849,8 @@ services:
 
   job-seeker-copilot-client:
     build:
-      context: ./job-seeker-copilot-client
+      context: ../job-seeker-copilot-client
       dockerfile: Dockerfile
-    container_name: job-seeker-copilot-client
     ports:
       - "3000:3000"
     environment:
@@ -827,6 +858,8 @@ services:
       - LOCATION_GATEWAY_URL=http://location-gateway:8081
       - USER_MANAGEMENT_GATEWAY_URL=http://user-management-gateway:8083
       - JOB_FINDER_GATEWAY_URL=http://job-finder-gateway:8080
+      - JOB_SEARCH_PROVIDER_MODE=FIXTURE
+      - DOCUMENT_GENERATION_MODE=FIXTURE_LLM
       - DOCUMENT_GENERATION_GATEWAY_URL=http://document-generation-gateway:8092
       - DOCUMENT_STORE_SERVICE_URL=http://document-store-service:8089
       - REPORTING_GATEWAY_URL=http://reporting-gateway:8095
@@ -847,6 +880,7 @@ services:
         condition: service_healthy
     networks:
       - job-seeker-network
+      - host-access
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/', res => process.exit(res.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))"]
       interval: 30s
@@ -858,12 +892,18 @@ networks:
   job-seeker-network:
     driver: bridge
     internal: true
+  host-access:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.host_binding_ipv4: "127.0.0.1"
 
 volumes:
   portainer-data:
   authentication-postgres-data:
+  user-profile-postgres-data:
+  job-service-postgres-data:
+  document-generation-postgres-data:
   document-store-postgres-data:
   document-store-objects:
   application-tracker-postgres-data:
   payment-postgres-data:
-  user-profile-data:

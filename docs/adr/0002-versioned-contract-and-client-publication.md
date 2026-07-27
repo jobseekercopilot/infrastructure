@@ -1,6 +1,6 @@
 # ADR 0002: Versioned contract and client publication
 
-Status: Accepted for the User Profile pilot
+Status: Accepted for publication; amended for local source development
 
 Date: 2026-07-24
 
@@ -81,6 +81,14 @@ layer, tracked file or workflow artifact. Pull-request workflows from forks do
 not receive the secret and must remain fail-closed or use a reviewed
 secret-free validation path.
 
+For the reproducible local-development profile, Infrastructure does not require
+the cross-repository package credential. It verifies the locked contract bytes,
+extracts the producer-owned client module from its recorded Git build revision,
+regenerates the client, and installs it into the workspace-local Maven cache.
+This preserves the same immutable Maven coordinates while proving that fresh
+private repository clones are sufficient. Published packages remain the
+release/CI distribution mechanism where credentials are intentionally supplied.
+
 The classic token is an acknowledged constraint of the GitHub Maven registry.
 On a personal account, `repo` is broad across private repositories. It must be
 dedicated to package reads, stored only in consumers that need it, rotated on a
@@ -91,9 +99,10 @@ but does not make Maven packages granular.
 ## Consequences
 
 Contract provenance and package versions become reviewable across repositories,
-and a consumer no longer needs sibling checkouts or copied binaries. Private
+and consumers never use copied binaries. Private
 cross-repository Maven access introduces a managed classic-token dependency;
-the producer's `GITHUB_TOKEN` cannot replace it. The pilot does not by itself
+the producer's `GITHUB_TOKEN` cannot replace it outside the source-development
+profile. The pilot does not by itself
 complete the TypeScript/npm convention, migrate every producer, or remove the
 legacy workspace scripts; those remain within INFRA-07 and DOCGEN-03.
 
