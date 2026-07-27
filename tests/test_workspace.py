@@ -8,15 +8,26 @@ from unittest.mock import patch
 
 from scripts.contracts.lock import load_contract_lock, validate_contract_lock
 from scripts.workspace.bootstrap import expected_remote, plan
-from scripts.workspace.catalog import load_catalog
+from scripts.workspace.catalog import load_catalog, load_workspace_lock
 
 
 class CatalogTests(unittest.TestCase):
     def test_repository_names_are_unique(self) -> None:
         catalog = load_catalog()
-        self.assertEqual(len(catalog.repositories), len(set(catalog.repositories)))
-        self.assertIn("job-matching-service", catalog.repositories)
-        self.assertIn("e2e", catalog.repositories)
+        self.assertEqual(
+            len(catalog.repository_names), len(set(catalog.repository_names))
+        )
+        self.assertIn("job-matching-service", catalog.repository_names)
+        self.assertIn("e2e", catalog.repository_names)
+        self.assertEqual(catalog.infrastructure_path, "infrastructure")
+        self.assertEqual(
+            {profile.name for profile in catalog.profiles},
+            {"basic-fixture", "full-fixture"},
+        )
+        self.assertEqual(
+            set(load_workspace_lock(catalog)),
+            set(catalog.repository_names),
+        )
 
     def test_invalid_catalog_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -24,10 +35,43 @@ class CatalogTests(unittest.TestCase):
             path.write_text(
                 json.dumps(
                     {
-                        "schemaVersion": 1,
-                        "owner": "jobseekercopilot",
-                        "defaultRef": "develop",
-                        "repositories": ["duplicate", "duplicate"],
+                        "schemaVersion": 2,
+                        "organisation": "jobseekercopilot",
+                        "workspace": {
+                            "layout": "sibling-repositories",
+                            "infrastructurePath": "infrastructure",
+                            "defaultBranch": "develop",
+                            "lock": "config/workspace-lock.json",
+                            "runtimeEnvironmentSchema": "config/runtime-environment.schema.json",
+                        },
+                        "profiles": {
+                            "basic-fixture": {
+                                "composeFiles": ["docker-compose.yml"],
+                                "composeProject": "test",
+                                "environmentProfile": "local",
+                                "frontendUrl": "http://localhost:3000",
+                                "services": ["duplicate"],
+                            }
+                        },
+                        "buildOrder": ["duplicate", "duplicate"],
+                        "repositories": [
+                            {
+                                "name": "duplicate",
+                                "kind": "service",
+                                "branch": "develop",
+                                "build": "maven",
+                                "composeServices": ["duplicate"],
+                                "dependsOn": [],
+                            },
+                            {
+                                "name": "duplicate",
+                                "kind": "service",
+                                "branch": "develop",
+                                "build": "maven",
+                                "composeServices": ["duplicate-two"],
+                                "dependsOn": [],
+                            },
+                        ],
                     }
                 ),
                 encoding="utf-8",
@@ -55,12 +99,13 @@ class BootstrapPlanTests(unittest.TestCase):
         self.assertEqual(len(conflicts), 1)
 
     def test_https_and_ssh_remotes_are_accepted(self) -> None:
-        self.assertEqual(
+        self.assertIn(
+            "https://github.com/owner/service.git",
             expected_remote("owner", "service"),
-            (
-                "https://github.com/owner/service.git",
-                "git@github.com:owner/service.git",
-            ),
+        )
+        self.assertIn(
+            "git@github.com:owner/service.git",
+            expected_remote("owner", "service"),
         )
 
 

@@ -1,32 +1,362 @@
 {
-  "schemaVersion": 1,
-  "owner": "jobseekercopilot",
-  "defaultRef": "develop",
-  "repositories": [
+  "schemaVersion": 2,
+  "organisation": "jobseekercopilot",
+  "workspace": {
+    "layout": "sibling-repositories",
+    "infrastructurePath": "infrastructure",
+    "defaultBranch": "develop",
+    "lock": "config/workspace-lock.json",
+    "runtimeEnvironmentSchema": "config/runtime-environment.schema.json"
+  },
+  "profiles": {
+    "basic-fixture": {
+      "description": "Registration, profile, location and fixture-backed job search.",
+      "composeFiles": ["docker-compose.yml"],
+      "composeProject": "job-seeker-copilot-basic",
+      "environmentProfile": "local",
+      "frontendUrl": "http://localhost:3000",
+      "services": [
+        "authentication-postgres",
+        "authentication-service",
+        "user-profile-service",
+        "user-management-gateway",
+        "application-tracker-postgres",
+        "application-tracker-service",
+        "system-data-service",
+        "postcode-io-gateway",
+        "location-gateway",
+        "reed-gateway",
+        "adzuna-gateway",
+        "jsearch-gateway",
+        "job-matching-service",
+        "job-service",
+        "job-finder-gateway",
+        "job-seeker-copilot-client"
+      ]
+    },
+    "full-fixture": {
+      "description": "The complete private-beta application with every external integration fixture-backed.",
+      "composeFiles": ["docker-compose.yml"],
+      "composeProject": "job-seeker-copilot-full",
+      "environmentProfile": "local",
+      "frontendUrl": "http://localhost:3000",
+      "services": "all-runtime"
+    }
+  },
+  "buildOrder": [
     "authentication-service",
     "user-profile-service",
-    "user-management-gateway",
     "postcode-io-gateway",
-    "location-gateway",
+    "application-tracker-service",
+    "document-store-service",
+    "payment-service",
     "reed-gateway",
     "adzuna-gateway",
     "jsearch-gateway",
-    "system-data-service",
-    "job-service",
-    "job-matching-service",
-    "job-finder-gateway",
     "llm-gateway",
-    "document-store-service",
-    "document-export-service",
-    "application-tracker-service",
-    "cv-cover-letter-service",
-    "document-generation-gateway",
-    "reporting-service",
-    "reporting-gateway",
-    "payment-service",
     "stripe-gateway",
+    "location-gateway",
+    "user-management-gateway",
+    "job-matching-service",
+    "job-service",
+    "document-export-service",
+    "cv-cover-letter-service",
+    "reporting-service",
     "payment-gateway",
+    "job-finder-gateway",
+    "document-generation-gateway",
+    "reporting-gateway",
+    "system-data-service",
     "job-seeker-copilot-client",
     "e2e"
+  ],
+  "repositories": [
+    {
+      "name": "authentication-service",
+      "kind": "service",
+      "branch": "develop",
+      "build": "maven",
+      "composeServices": ["authentication-service"],
+      "port": 8084,
+      "health": "/actuator/health",
+      "dependsOn": []
+    },
+    {
+      "name": "user-profile-service",
+      "kind": "service",
+      "branch": "develop",
+      "build": "maven",
+      "composeServices": ["user-profile-service"],
+      "port": 8085,
+      "health": "/actuator/health",
+      "dependsOn": []
+    },
+    {
+      "name": "user-management-gateway",
+      "kind": "gateway",
+      "branch": "develop",
+      "build": "maven",
+      "composeServices": ["user-management-gateway"],
+      "port": 8083,
+      "health": "/actuator/health",
+      "dependsOn": ["authentication-service", "user-profile-service"]
+    },
+    {
+      "name": "postcode-io-gateway",
+      "kind": "gateway",
+      "branch": "develop",
+      "build": "maven",
+      "composeServices": ["postcode-io-gateway"],
+      "port": 8082,
+      "health": "/actuator/health",
+      "dependsOn": ["system-data-service"]
+    },
+    {
+      "name": "location-gateway",
+      "kind": "gateway",
+      "branch": "develop",
+      "build": "maven",
+      "composeServices": ["location-gateway"],
+      "port": 8081,
+      "health": "/actuator/health",
+      "dependsOn": ["postcode-io-gateway"]
+    },
+    {
+      "name": "reed-gateway",
+      "kind": "gateway",
+      "branch": "develop",
+      "build": "maven",
+      "composeServices": ["reed-gateway"],
+      "port": 8087,
+      "health": "/actuator/health",
+      "dependsOn": ["system-data-service"]
+    },
+    {
+      "name": "adzuna-gateway",
+      "kind": "gateway",
+      "branch": "develop",
+      "build": "maven",
+      "composeServices": ["adzuna-gateway"],
+      "port": 8101,
+      "health": "/actuator/health",
+      "dependsOn": ["system-data-service"]
+    },
+    {
+      "name": "jsearch-gateway",
+      "kind": "gateway",
+      "branch": "develop",
+      "build": "maven",
+      "composeServices": ["jsearch-gateway"],
+      "port": 8102,
+      "health": "/actuator/health",
+      "dependsOn": ["system-data-service"]
+    },
+    {
+      "name": "system-data-service",
+      "kind": "service",
+      "branch": "develop",
+      "build": "maven",
+      "composeServices": ["system-data-service"],
+      "port": 8103,
+      "health": "/actuator/health",
+      "dependsOn": [
+        "authentication-service",
+        "user-profile-service",
+        "application-tracker-service",
+        "document-store-service",
+        "payment-service",
+        "postcode-io-gateway",
+        "reed-gateway",
+        "adzuna-gateway",
+        "jsearch-gateway"
+      ]
+    },
+    {
+      "name": "job-service",
+      "kind": "service",
+      "branch": "develop",
+      "build": "maven",
+      "composeServices": ["job-service"],
+      "port": 8086,
+      "health": "/actuator/health",
+      "dependsOn": [
+        "reed-gateway",
+        "adzuna-gateway",
+        "jsearch-gateway",
+        "job-matching-service"
+      ]
+    },
+    {
+      "name": "job-matching-service",
+      "kind": "service",
+      "branch": "develop",
+      "build": "maven",
+      "composeServices": ["job-matching-service"],
+      "port": 8097,
+      "health": "/actuator/health",
+      "dependsOn": ["application-tracker-service"]
+    },
+    {
+      "name": "job-finder-gateway",
+      "kind": "gateway",
+      "branch": "develop",
+      "build": "maven",
+      "composeServices": ["job-finder-gateway"],
+      "port": 8080,
+      "health": "/actuator/health",
+      "dependsOn": [
+        "job-service",
+        "user-management-gateway",
+        "user-profile-service"
+      ]
+    },
+    {
+      "name": "llm-gateway",
+      "kind": "gateway",
+      "branch": "develop",
+      "build": "maven",
+      "composeServices": ["llm-gateway"],
+      "port": 8090,
+      "health": "/actuator/health",
+      "dependsOn": ["system-data-service"]
+    },
+    {
+      "name": "document-store-service",
+      "kind": "service",
+      "branch": "develop",
+      "build": "maven",
+      "composeServices": ["document-store-service"],
+      "port": 8089,
+      "health": "/actuator/health",
+      "dependsOn": ["authentication-service"]
+    },
+    {
+      "name": "document-export-service",
+      "kind": "service",
+      "branch": "develop",
+      "build": "maven",
+      "composeServices": ["document-export-service"],
+      "port": 8094,
+      "health": "/actuator/health",
+      "dependsOn": ["document-store-service"]
+    },
+    {
+      "name": "application-tracker-service",
+      "kind": "service",
+      "branch": "develop",
+      "build": "maven",
+      "composeServices": ["application-tracker-service"],
+      "port": 8088,
+      "health": "/actuator/health",
+      "dependsOn": ["authentication-service"]
+    },
+    {
+      "name": "cv-cover-letter-service",
+      "kind": "service",
+      "branch": "develop",
+      "build": "maven",
+      "composeServices": ["cv-cover-letter-service"],
+      "port": 8091,
+      "health": "/actuator/health",
+      "dependsOn": [
+        "application-tracker-service",
+        "document-store-service",
+        "llm-gateway",
+        "payment-service"
+      ]
+    },
+    {
+      "name": "document-generation-gateway",
+      "kind": "gateway",
+      "branch": "develop",
+      "build": "maven",
+      "composeServices": ["document-generation-gateway"],
+      "port": 8092,
+      "health": "/actuator/health",
+      "dependsOn": [
+        "authentication-service",
+        "user-profile-service",
+        "job-service",
+        "application-tracker-service",
+        "document-store-service",
+        "document-export-service",
+        "cv-cover-letter-service"
+      ]
+    },
+    {
+      "name": "reporting-service",
+      "kind": "service",
+      "branch": "develop",
+      "build": "maven",
+      "composeServices": ["reporting-service"],
+      "port": 8096,
+      "health": "/actuator/health",
+      "dependsOn": ["application-tracker-service", "user-profile-service"]
+    },
+    {
+      "name": "reporting-gateway",
+      "kind": "gateway",
+      "branch": "develop",
+      "build": "maven",
+      "composeServices": ["reporting-gateway"],
+      "port": 8095,
+      "health": "/actuator/health",
+      "dependsOn": ["authentication-service", "reporting-service"]
+    },
+    {
+      "name": "payment-service",
+      "kind": "service",
+      "branch": "develop",
+      "build": "maven",
+      "composeServices": ["payment-service"],
+      "port": 8099,
+      "health": "/actuator/health",
+      "dependsOn": []
+    },
+    {
+      "name": "stripe-gateway",
+      "kind": "gateway",
+      "branch": "develop",
+      "build": "maven",
+      "composeServices": ["stripe-gateway"],
+      "port": 8100,
+      "health": "/actuator/health",
+      "dependsOn": ["payment-service", "system-data-service"]
+    },
+    {
+      "name": "payment-gateway",
+      "kind": "gateway",
+      "branch": "develop",
+      "build": "maven",
+      "composeServices": ["payment-gateway"],
+      "port": 8098,
+      "health": "/actuator/health",
+      "dependsOn": ["payment-service", "stripe-gateway"]
+    },
+    {
+      "name": "job-seeker-copilot-client",
+      "kind": "frontend",
+      "branch": "develop",
+      "build": "npm",
+      "composeServices": ["job-seeker-copilot-client"],
+      "port": 3000,
+      "health": "/health",
+      "dependsOn": [
+        "location-gateway",
+        "user-management-gateway",
+        "job-finder-gateway",
+        "document-generation-gateway",
+        "reporting-gateway",
+        "payment-gateway"
+      ]
+    },
+    {
+      "name": "e2e",
+      "kind": "test",
+      "branch": "develop",
+      "build": "npm",
+      "composeServices": [],
+      "dependsOn": ["job-seeker-copilot-client"]
+    }
   ]
 }

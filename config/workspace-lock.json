@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "catalogSchemaVersion": 2,
+  "generatedFrom": "jobseekercopilot organisation develop branches",
+  "repositories": [
+    {"name": "authentication-service", "branch": "develop", "revision": "2964aeb07b9861cce555d28cc58c6b9fab1f6107"},
+    {"name": "user-profile-service", "branch": "develop", "revision": "652639159dbef5349d48a95719a0e184ee31bbc9"},
+    {"name": "user-management-gateway", "branch": "develop", "revision": "e1d9f6cbc539086d8bfd59f48be9a0938e3f2c98"},
+    {"name": "postcode-io-gateway", "branch": "develop", "revision": "589268b9e9d7a507241db51a1dd2e85f057bdbd9"},
+    {"name": "location-gateway", "branch": "develop", "revision": "a5295787f01f21c2dd9cb79805d7989250dd96a7"},
+    {"name": "reed-gateway", "branch": "develop", "revision": "de37e7e52d43ae37d71205ff513c72f4f1e4c165"},
+    {"name": "adzuna-gateway", "branch": "develop", "revision": "52d58186348a12a598f60101064b0b015ff98125"},
+    {"name": "jsearch-gateway", "branch": "develop", "revision": "a37901d8833aeafc9ad42618acb61853f6c9486c"},
+    {"name": "system-data-service", "branch": "develop", "revision": "b0f79a61e7b7bb6ff2fbbc95e9c957811a2973c3"},
+    {"name": "job-service", "branch": "develop", "revision": "2cce83ddc057967b7a20d43c970499bffe0dd31f"},
+    {"name": "job-matching-service", "branch": "develop", "revision": "9f252e93c63913aa47c241edc5f37314408a444d"},
+    {"name": "job-finder-gateway", "branch": "develop", "revision": "640d18c8ac7bb3e4070b456567cdc0d386ef0968"},
+    {"name": "llm-gateway", "branch": "develop", "revision": "fb5c9815989d041daa49103dbb2a200afb2419fa"},
+    {"name": "document-store-service", "branch": "develop", "revision": "4180596ba5b23998ae6f001c4e624fbc395b4ce4"},
+    {"name": "document-export-service", "branch": "develop", "revision": "b71014fe72d5b3660a95e55facd3d627078d892f"},
+    {"name": "application-tracker-service", "branch": "develop", "revision": "b329ad95abb46afb8af78f92920b9968e41b790c"},
+    {"name": "cv-cover-letter-service", "branch": "develop", "revision": "8efee874ef50f8967326346023181de19c03b5e2"},
+    {"name": "document-generation-gateway", "branch": "develop", "revision": "1d03324c2b80fbe44ebb5faccbc158334969464a"},
+    {"name": "reporting-service", "branch": "develop", "revision": "af0ad1734ca36f3984c41c1e2187e6670a8440ec"},
+    {"name": "reporting-gateway", "branch": "develop", "revision": "5abc402b9264dd03a6cd85fc019bd7f57db18172"},
+    {"name": "payment-service", "branch": "develop", "revision": "0430cd09fd390a09d5445672504560ffde64cbe4"},
+    {"name": "stripe-gateway", "branch": "develop", "revision": "d9aa6b338d21c6beee6e097a3c72a783cc295b7c"},
+    {"name": "payment-gateway", "branch": "develop", "revision": "8d49a6477c302d9700758c52de9e85cb192a0580"},
+    {"name": "job-seeker-copilot-client", "branch": "develop", "revision": "1cf5436970820724468ed398e6c1e8009370204a"},
+    {"name": "e2e", "branch": "develop", "revision": "86b38fe1cdd5f2c764152225416d7f3a59a3dfef"}
+  ]
+}
