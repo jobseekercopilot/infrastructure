@@ -27,6 +27,7 @@ class RuntimeEnvironmentSchemaTests(unittest.TestCase):
             "ENVIRONMENT_DATA_TOKEN",
             "APPLICATION_TRACKER_PRODUCER_TOKEN",
             "APPLICATION_TRACKER_READER_TOKEN",
+            "REPORTING_GATEWAY_SERVICE_TOKEN",
             "DOCUMENT_STORE_PRODUCER_TOKEN",
             "DOCUMENT_STORE_READER_TOKEN",
             "DOCUMENT_EXPORT_GATEWAY_TOKEN",

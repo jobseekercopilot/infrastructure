@@ -665,6 +665,8 @@ services:
       - SERVER_PORT=8096
       - APPLICATION_TRACKER_SERVICE_BASE_URL=http://application-tracker-service:8088
       - USER_PROFILE_SERVICE_URL=http://user-profile-service:8085
+      - REPORTING_GATEWAY_SERVICE_TOKEN=${REPORTING_GATEWAY_SERVICE_TOKEN:?Generate the selected untracked environment file}
+      - APPLICATION_TRACKER_READER_TOKEN=${APPLICATION_TRACKER_READER_TOKEN:?Generate the selected untracked environment file}
     depends_on:
       application-tracker-service:
         condition: service_healthy
@@ -689,7 +691,13 @@ services:
     environment:
       - SERVER_PORT=8095
       - REPORTING_SERVICE_URL=http://reporting-service:8096
+      - AUTH_JWKS_URI=http://authentication-service:8084/.well-known/jwks.json
+      - REPORTING_GATEWAY_JWT_ISSUER=${JWT_ISSUER:-job-seeker-copilot-authentication}
+      - REPORTING_GATEWAY_JWT_AUDIENCE=${JWT_AUDIENCE:-job-seeker-copilot-services}
+      - REPORTING_GATEWAY_SERVICE_TOKEN=${REPORTING_GATEWAY_SERVICE_TOKEN:?Generate the selected untracked environment file}
     depends_on:
+      authentication-service:
+        condition: service_healthy
       reporting-service:
         condition: service_healthy
     networks:

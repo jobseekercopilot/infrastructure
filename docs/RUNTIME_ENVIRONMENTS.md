@@ -63,7 +63,10 @@ acquisition controls.
   credential, `AUTH_SERVICE_TOKEN`, and the System Data environment identity.
 - Application Tracker owns its dedicated PostgreSQL credential plus separate
   producer and reader credentials. Document Generation and CV/Cover Letter
-  receive producer access; Job Matching receives reader access.
+  receive producer access; Job Matching and Reporting receive reader access.
+- Reporting Service owns a dedicated Gateway-to-Service identity. Reporting
+  Gateway validates the platform access token, derives the report owner from
+  its subject and supplies that identity only to Reporting Service.
 - Document Store owns separate producer and reader credentials. CV/Cover
   Letter receives producer access; Export receives both because it reads and
   writes; Document Generation receives both for its current direct operations.

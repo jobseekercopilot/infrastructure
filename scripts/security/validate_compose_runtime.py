@@ -16,6 +16,7 @@ CORE_CREDENTIALS = (
     "ENVIRONMENT_DATA_TOKEN",
     "APPLICATION_TRACKER_PRODUCER_TOKEN",
     "APPLICATION_TRACKER_READER_TOKEN",
+    "REPORTING_GATEWAY_SERVICE_TOKEN",
     "DOCUMENT_STORE_PRODUCER_TOKEN",
     "DOCUMENT_STORE_READER_TOKEN",
     "DOCUMENT_EXPORT_GATEWAY_TOKEN",
@@ -290,6 +291,15 @@ def validate_runtime_model(model: dict, profile: str) -> None:
             (
                 ("application-tracker-service", "APPLICATION_TRACKER_READER_TOKEN"),
                 ("job-matching-service", "APPLICATION_TRACKER_READER_TOKEN"),
+                ("reporting-service", "APPLICATION_TRACKER_READER_TOKEN"),
+            ),
+        ),
+        "REPORTING_GATEWAY_SERVICE_TOKEN": require_shared(
+            model,
+            "REPORTING_GATEWAY_SERVICE_TOKEN",
+            (
+                ("reporting-gateway", "REPORTING_GATEWAY_SERVICE_TOKEN"),
+                ("reporting-service", "REPORTING_GATEWAY_SERVICE_TOKEN"),
             ),
         ),
         "DOCUMENT_STORE_PRODUCER_TOKEN": require_shared(
@@ -424,6 +434,9 @@ def validate_runtime_model(model: dict, profile: str) -> None:
             "DOCUMENT_STORE_JWT_ISSUER"
         ),
         environment(model, "job-finder-gateway").get("JOB_FINDER_JWT_ISSUER"),
+        environment(model, "reporting-gateway").get(
+            "REPORTING_GATEWAY_JWT_ISSUER"
+        ),
     }
     audiences = {
         authentication.get("JWT_AUDIENCE"),
@@ -437,6 +450,9 @@ def validate_runtime_model(model: dict, profile: str) -> None:
             "DOCUMENT_STORE_JWT_AUDIENCE"
         ),
         environment(model, "job-finder-gateway").get("JOB_FINDER_JWT_AUDIENCE"),
+        environment(model, "reporting-gateway").get(
+            "REPORTING_GATEWAY_JWT_AUDIENCE"
+        ),
     }
     if len(issuers) != 1 or None in issuers:
         raise ValueError("JWT issuer must match across producer and consumers")

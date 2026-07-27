@@ -26,7 +26,8 @@
         "application-tracker-service",
         "document-generation-gateway",
         "document-store-service",
-        "job-finder-gateway"
+        "job-finder-gateway",
+        "reporting-gateway"
       ],
       "classification": "configuration",
       "profiles": ["local", "e2e", "live-provider"],
@@ -40,7 +41,8 @@
         "application-tracker-service",
         "document-generation-gateway",
         "document-store-service",
-        "job-finder-gateway"
+        "job-finder-gateway",
+        "reporting-gateway"
       ],
       "classification": "configuration",
       "profiles": ["local", "e2e", "live-provider"],
@@ -137,7 +139,20 @@
     {
       "name": "APPLICATION_TRACKER_READER_TOKEN",
       "owner": "Application Tracker",
-      "consumers": ["application-tracker-service", "job-matching-service"],
+      "consumers": [
+        "application-tracker-service",
+        "job-matching-service",
+        "reporting-service"
+      ],
+      "classification": "secret",
+      "profiles": ["local", "e2e", "live-provider"],
+      "generator": "random",
+      "minimumBytes": 32
+    },
+    {
+      "name": "REPORTING_GATEWAY_SERVICE_TOKEN",
+      "owner": "Reporting Service",
+      "consumers": ["reporting-gateway", "reporting-service"],
       "classification": "secret",
       "profiles": ["local", "e2e", "live-provider"],
       "generator": "random",

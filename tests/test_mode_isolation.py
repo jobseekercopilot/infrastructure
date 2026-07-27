@@ -251,6 +251,42 @@ class RenderedModeIsolationTests(unittest.TestCase):
         ):
             validate_model(model, "e2e")
 
+    def test_reporting_gateway_service_and_tracker_reader_identities_are_exact(
+        self,
+    ) -> None:
+        model = self.model("e2e")
+        gateway = model["services"]["reporting-gateway"]["environment"]
+        reporting = model["services"]["reporting-service"]["environment"]
+        tracker = model["services"]["application-tracker-service"]["environment"]
+
+        self.assertEqual(
+            gateway["REPORTING_GATEWAY_SERVICE_TOKEN"],
+            reporting["REPORTING_GATEWAY_SERVICE_TOKEN"],
+        )
+        self.assertEqual(
+            reporting["APPLICATION_TRACKER_READER_TOKEN"],
+            tracker["APPLICATION_TRACKER_READER_TOKEN"],
+        )
+        self.assertEqual(
+            gateway["REPORTING_GATEWAY_JWT_ISSUER"],
+            model["services"]["authentication-service"]["environment"][
+                "JWT_ISSUER"
+            ],
+        )
+
+        for service, variable in (
+            ("reporting-service", "REPORTING_GATEWAY_SERVICE_TOKEN"),
+            ("reporting-service", "APPLICATION_TRACKER_READER_TOKEN"),
+            ("reporting-gateway", "REPORTING_GATEWAY_SERVICE_TOKEN"),
+        ):
+            with self.subTest(service=service, variable=variable):
+                mutated = self.model("e2e")
+                mutated["services"][service]["environment"][variable] = (
+                    "different-reporting-identity-value-32-bytes"
+                )
+                with self.assertRaises(ValueError):
+                    validate_model(mutated, "e2e")
+
     def test_local_and_live_profiles_keep_destructive_endpoints_disabled(self) -> None:
         for profile in ("local", "live-provider"):
             model = self.model(profile)
