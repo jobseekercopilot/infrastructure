@@ -179,13 +179,7 @@ services:
   reed-gateway:
     build:
       context: ../reed-gateway
-      dockerfile_inline: |
-        FROM eclipse-temurin:17-jre-alpine
-        WORKDIR /app
-        RUN apk add --no-cache curl
-        COPY target/reed-gateway-1.0.0.jar app.jar
-        EXPOSE 8087
-        ENTRYPOINT ["java", "-jar", "app.jar"]
+      dockerfile: ../infrastructure/docker/reed-gateway.runtime.Dockerfile
     ports:
       - "8087:8087"
     environment:
@@ -236,13 +230,7 @@ services:
   jsearch-gateway:
     build:
       context: ../jsearch-gateway
-      dockerfile_inline: |
-        FROM eclipse-temurin:17-jre-alpine
-        WORKDIR /app
-        RUN apk add --no-cache curl
-        COPY target/jsearch-gateway-1.0.0.jar app.jar
-        EXPOSE 8102
-        ENTRYPOINT ["java", "-jar", "app.jar"]
+      dockerfile: ../infrastructure/docker/jsearch-gateway.runtime.Dockerfile
     ports:
       - "8102:8102"
     environment:
@@ -602,13 +590,7 @@ services:
   document-generation-gateway:
     build:
       context: ../document-generation-gateway
-      dockerfile_inline: |
-        FROM eclipse-temurin:17-jre-alpine
-        WORKDIR /app
-        COPY target/document-generation-gateway-1.0.0.jar app.jar
-        RUN apk add --no-cache curl
-        EXPOSE 8092
-        ENTRYPOINT ["java", "-jar", "app.jar"]
+      dockerfile: ../infrastructure/docker/document-generation-gateway.runtime.Dockerfile
     ports:
       - "8092:8092"
     environment:
