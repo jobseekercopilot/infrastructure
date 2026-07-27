@@ -251,6 +251,25 @@ class RenderedModeIsolationTests(unittest.TestCase):
         ):
             validate_model(model, "e2e")
 
+    def test_user_profile_uses_isolated_postgres_in_runtime_profiles(self) -> None:
+        for profile in ("local", "e2e", "live-provider"):
+            with self.subTest(profile=profile):
+                model = self.model(profile)
+                user_profile = model["services"]["user-profile-service"]
+                database = model["services"]["user-profile-postgres"]
+                self.assertIn(
+                    "user-profile-postgres:5432",
+                    user_profile["environment"]["SPRING_DATASOURCE_URL"],
+                )
+                self.assertEqual(
+                    user_profile["environment"]["SPRING_DATASOURCE_PASSWORD"],
+                    database["environment"]["POSTGRES_PASSWORD"],
+                )
+                self.assertIn(
+                    "user-profile-postgres-data",
+                    self.models[profile]["volumes"],
+                )
+
     def test_reporting_gateway_service_and_tracker_reader_identities_are_exact(
         self,
     ) -> None:

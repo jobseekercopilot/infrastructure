@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 import io
 import json
-import os
 import shutil
 import subprocess
 import sys
@@ -26,6 +25,7 @@ from scripts.workspace.catalog import (
     Profile,
     load_catalog,
 )
+from scripts.workspace.runtime_env import controlled_environment
 from scripts.workspace.validate import compose_model, validate_workspace
 
 CACHE_ROOT = WORKSPACE_ROOT / ".cache"
@@ -33,24 +33,6 @@ MAVEN_REPOSITORY = CACHE_ROOT / "m2"
 NPM_CACHE = CACHE_ROOT / "npm"
 CLIENT_SOURCE_CACHE = CACHE_ROOT / "client-sources"
 RUNTIME_IMAGE_CACHE = CACHE_ROOT / "runtime-images"
-RUNTIME_ENVIRONMENT_SCHEMA = (
-    INFRASTRUCTURE_ROOT / "config/runtime-environment.schema.json"
-)
-
-
-def controlled_environment() -> dict[str, str]:
-    """Preserve tool settings but reject inherited application configuration."""
-    schema = json.loads(RUNTIME_ENVIRONMENT_SCHEMA.read_text(encoding="utf-8"))
-    application_variables = {
-        variable["name"] for variable in schema["variables"]
-    }
-    return {
-        name: value
-        for name, value in os.environ.items()
-        if name not in application_variables
-    }
-
-
 def fail_if_invalid() -> None:
     findings = validate_workspace(WORKSPACE_ROOT)
     failures = [finding for finding in findings if not finding.ok]

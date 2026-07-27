@@ -127,6 +127,22 @@ services:
       retries: 3
       start_period: 40s
 
+  user-profile-postgres:
+    image: postgres:15.18-alpine
+    environment:
+      - POSTGRES_DB=user_profile
+      - POSTGRES_USER=user_profile
+      - POSTGRES_PASSWORD=${USER_PROFILE_DATABASE_PASSWORD:?Generate the selected untracked environment file}
+    volumes:
+      - user-profile-postgres-data:/var/lib/postgresql/data
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user_profile -d user_profile"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
   user-profile-service:
     build:
       context: ../user-profile-service
@@ -137,8 +153,17 @@ services:
       - SPRING_APPLICATION_NAME=user-profile-service
       - SERVER_PORT=8085
       - ENVIRONMENT_DATA_ENABLED=false
-    volumes:
-      - user-profile-data:/app/data
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://user-profile-postgres:5432/user_profile
+      - SPRING_DATASOURCE_USERNAME=user_profile
+      - SPRING_DATASOURCE_PASSWORD=${USER_PROFILE_DATABASE_PASSWORD:?Generate the selected untracked environment file}
+      - AUTH_JWKS_URI=http://authentication-service:8084/.well-known/jwks.json
+      - PROFILE_JWT_ISSUER=${JWT_ISSUER:-job-seeker-copilot-authentication}
+      - PROFILE_JWT_AUDIENCE=${JWT_AUDIENCE:-job-seeker-copilot-services}
+    depends_on:
+      authentication-service:
+        condition: service_healthy
+      user-profile-postgres:
+        condition: service_healthy
     networks:
       - job-seeker-network
     healthcheck:
@@ -459,6 +484,7 @@ services:
       - DOCUMENT_STORE_JWT_AUDIENCE=${JWT_AUDIENCE:-job-seeker-copilot-services}
       - DOCUMENT_STORE_PRODUCER_TOKEN=${DOCUMENT_STORE_PRODUCER_TOKEN:?Generate the selected untracked environment file}
       - DOCUMENT_STORE_READER_TOKEN=${DOCUMENT_STORE_READER_TOKEN:?Generate the selected untracked environment file}
+      - DOCUMENT_STORE_RETENTION_ADMIN_TOKEN=${DOCUMENT_STORE_RETENTION_ADMIN_TOKEN:?Generate the selected untracked environment file}
       - ENVIRONMENT_DATA_TOKEN=${ENVIRONMENT_DATA_TOKEN:?Generate the selected untracked environment file}
       - DOCUMENT_STORE_DATABASE_PRODUCTION_SAFETY_CHECK=false
     volumes:
@@ -604,6 +630,7 @@ services:
       - DOCUMENT_EXPORT_GATEWAY_TOKEN=${DOCUMENT_EXPORT_GATEWAY_TOKEN:?Generate the selected untracked environment file}
       - DOCUMENT_STORE_PRODUCER_TOKEN=${DOCUMENT_STORE_PRODUCER_TOKEN:?Generate the selected untracked environment file}
       - DOCUMENT_STORE_READER_TOKEN=${DOCUMENT_STORE_READER_TOKEN:?Generate the selected untracked environment file}
+      - DOCUMENT_GENERATION_GATEWAY_TO_PAYMENT_SERVICE_TOKEN=${DOCUMENT_GENERATION_GATEWAY_TO_PAYMENT_SERVICE_TOKEN:?Generate the selected untracked environment file}
       - AUTHENTICATION_SERVICE_URL=http://authentication-service:8084
       - USER_PROFILE_SERVICE_URL=http://user-profile-service:8085
       - JOB_SERVICE_URL=http://job-service:8086
@@ -717,6 +744,7 @@ services:
       - PAYMENT_DATABASE_PRODUCTION_SAFETY_CHECK=false
       - PAYMENT_GATEWAY_TO_PAYMENT_SERVICE_TOKEN=${PAYMENT_GATEWAY_TO_PAYMENT_SERVICE_TOKEN:?Generate the selected untracked environment file}
       - CV_COVER_LETTER_TO_PAYMENT_SERVICE_TOKEN=${CV_COVER_LETTER_TO_PAYMENT_SERVICE_TOKEN:?Generate the selected untracked environment file}
+      - DOCUMENT_GENERATION_GATEWAY_TO_PAYMENT_SERVICE_TOKEN=${DOCUMENT_GENERATION_GATEWAY_TO_PAYMENT_SERVICE_TOKEN:?Generate the selected untracked environment file}
       - STRIPE_GATEWAY_TO_PAYMENT_SERVICE_TOKEN=${STRIPE_GATEWAY_TO_PAYMENT_SERVICE_TOKEN:?Generate the selected untracked environment file}
     depends_on:
       payment-postgres:
@@ -834,8 +862,8 @@ networks:
 volumes:
   portainer-data:
   authentication-postgres-data:
+  user-profile-postgres-data:
   document-store-postgres-data:
   document-store-objects:
   application-tracker-postgres-data:
   payment-postgres-data:
-  user-profile-data:

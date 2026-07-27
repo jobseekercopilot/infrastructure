@@ -21,6 +21,7 @@ from scripts.workspace.catalog import (
     load_catalog,
     load_workspace_lock,
 )
+from scripts.workspace.runtime_env import controlled_environment
 
 INTERPOLATION = re.compile(r"\$\{([A-Z][A-Z0-9_]*)")
 STAGED_RUNTIME_CONTEXTS = {
@@ -56,6 +57,7 @@ def compose_model(
     result = subprocess.run(
         command,
         cwd=INFRASTRUCTURE_ROOT,
+        env=controlled_environment(),
         check=False,
         capture_output=True,
         text=True,

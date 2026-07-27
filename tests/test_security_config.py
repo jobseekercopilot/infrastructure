@@ -40,6 +40,7 @@ class RuntimeEnvironmentSchemaTests(unittest.TestCase):
         variables = {variable["name"]: variable for variable in schema["variables"]}
         required = {
             "APPLICATION_TRACKER_DATABASE_PASSWORD",
+            "USER_PROFILE_DATABASE_PASSWORD",
             "AUTH_SERVICE_TOKEN",
             "ENVIRONMENT_DATA_TOKEN",
             "APPLICATION_TRACKER_PRODUCER_TOKEN",
@@ -47,9 +48,11 @@ class RuntimeEnvironmentSchemaTests(unittest.TestCase):
             "REPORTING_GATEWAY_SERVICE_TOKEN",
             "DOCUMENT_STORE_PRODUCER_TOKEN",
             "DOCUMENT_STORE_READER_TOKEN",
+            "DOCUMENT_STORE_RETENTION_ADMIN_TOKEN",
             "DOCUMENT_EXPORT_GATEWAY_TOKEN",
             "CV_COVER_LETTER_GATEWAY_TOKEN",
             "CV_COVER_LETTER_TO_PAYMENT_SERVICE_TOKEN",
+            "DOCUMENT_GENERATION_GATEWAY_TO_PAYMENT_SERVICE_TOKEN",
             "BFF_TO_PAYMENT_GATEWAY_TOKEN",
             "PAYMENT_GATEWAY_TO_PAYMENT_SERVICE_TOKEN",
             "PAYMENT_GATEWAY_TO_STRIPE_GATEWAY_TOKEN",
