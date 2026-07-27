@@ -518,6 +518,23 @@ services:
       retries: 3
       start_period: 40s
 
+  application-tracker-postgres:
+    image: postgres:15.18-alpine
+    container_name: application-tracker-postgres
+    environment:
+      - POSTGRES_DB=application_tracker
+      - POSTGRES_USER=application_tracker
+      - POSTGRES_PASSWORD=${APPLICATION_TRACKER_DATABASE_PASSWORD:?Generate the selected untracked environment file}
+    volumes:
+      - application-tracker-postgres-data:/var/lib/postgresql/data
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U application_tracker -d application_tracker"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
   application-tracker-service:
     build:
       context: ./application-tracker-service
@@ -528,6 +545,13 @@ services:
     environment:
       - SERVER_PORT=8088
       - ENVIRONMENT_DATA_ENABLED=false
+      - APPLICATION_TRACKER_DATABASE_URL=jdbc:postgresql://application-tracker-postgres:5432/application_tracker
+      - APPLICATION_TRACKER_DATABASE_USERNAME=application_tracker
+      - APPLICATION_TRACKER_DATABASE_PASSWORD=${APPLICATION_TRACKER_DATABASE_PASSWORD:?Generate the selected untracked environment file}
+      - APPLICATION_TRACKER_DATABASE_SSL_MODE=disable
+      - APPLICATION_TRACKER_DATABASE_PRODUCTION_SAFETY_CHECK=false
+      - APPLICATION_TRACKER_DATABASE_ENCRYPTION_AT_REST_ENABLED=false
+      - APPLICATION_TRACKER_DATABASE_BACKUP_ENCRYPTION_ENABLED=false
       - AUTH_JWKS_URI=http://authentication-service:8084/.well-known/jwks.json
       - APPLICATION_TRACKER_JWT_ISSUER=${JWT_ISSUER:-job-seeker-copilot-authentication}
       - APPLICATION_TRACKER_JWT_AUDIENCE=${JWT_AUDIENCE:-job-seeker-copilot-services}
@@ -536,6 +560,8 @@ services:
       - ENVIRONMENT_DATA_TOKEN=${ENVIRONMENT_DATA_TOKEN:?Generate the selected untracked environment file}
     depends_on:
       authentication-service:
+        condition: service_healthy
+      application-tracker-postgres:
         condition: service_healthy
     networks:
       - job-seeker-network
@@ -830,5 +856,6 @@ volumes:
   authentication-postgres-data:
   document-store-postgres-data:
   document-store-objects:
+  application-tracker-postgres-data:
   payment-postgres-data:
   user-profile-data:

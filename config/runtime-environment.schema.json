@@ -65,6 +65,18 @@
       "minimumBytes": 32
     },
     {
+      "name": "APPLICATION_TRACKER_DATABASE_PASSWORD",
+      "owner": "Application Tracker Service",
+      "consumers": [
+        "application-tracker-postgres",
+        "application-tracker-service"
+      ],
+      "classification": "secret",
+      "profiles": ["local", "e2e", "live-provider"],
+      "generator": "random",
+      "minimumBytes": 32
+    },
+    {
       "name": "PAYMENT_DATABASE_PASSWORD",
       "owner": "Payment Service",
       "consumers": ["payment-postgres", "payment-service"],

@@ -164,6 +164,9 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
 
+  application-tracker-postgres:
+    container_name: job-seeker-copilot-e2e-application-tracker-postgres
+
   application-tracker-service:
     container_name: job-seeker-copilot-e2e-application-tracker-service
     ports: !override

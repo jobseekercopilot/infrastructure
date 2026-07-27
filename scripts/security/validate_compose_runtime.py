@@ -460,6 +460,43 @@ def validate_runtime_model(model: dict, profile: str) -> None:
     ):
         raise ValueError("Document Store must use its isolated PostgreSQL service")
 
+    application_tracker = environment(model, "application-tracker-service")
+    application_tracker_postgres = environment(
+        model, "application-tracker-postgres"
+    )
+    application_tracker_password = application_tracker.get(
+        "APPLICATION_TRACKER_DATABASE_PASSWORD", ""
+    )
+    if (
+        len(application_tracker_password.encode("utf-8")) < 32
+        or application_tracker_password
+        != application_tracker_postgres.get("POSTGRES_PASSWORD")
+    ):
+        raise ValueError(
+            "Application Tracker database credential must match and contain 32 bytes"
+        )
+    if (
+        application_tracker.get(
+            "APPLICATION_TRACKER_DATABASE_PRODUCTION_SAFETY_CHECK"
+        )
+        != "false"
+    ):
+        raise ValueError(
+            "local profiles must explicitly disable Application Tracker "
+            "production storage attestation"
+        )
+    if application_tracker.get("APPLICATION_TRACKER_DATABASE_SSL_MODE") != "disable":
+        raise ValueError(
+            "local profiles must explicitly disable Application Tracker "
+            "database TLS"
+        )
+    if "application-tracker-postgres:5432" not in application_tracker.get(
+        "APPLICATION_TRACKER_DATABASE_URL", ""
+    ):
+        raise ValueError(
+            "Application Tracker must use its isolated PostgreSQL service"
+        )
+
     payment = environment(model, "payment-service")
     payment_postgres = environment(model, "payment-postgres")
     payment_password = payment.get("PAYMENT_DATABASE_PASSWORD", "")

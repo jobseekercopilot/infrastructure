@@ -174,6 +174,56 @@ class RenderedModeIsolationTests(unittest.TestCase):
         ):
             validate_model(model, "e2e")
 
+    def test_application_tracker_uses_isolated_postgres_in_runtime_profiles(
+        self,
+    ) -> None:
+        for profile in ("local", "e2e", "live-provider"):
+            with self.subTest(profile=profile):
+                model = self.model(profile)
+                tracker = model["services"]["application-tracker-service"]
+                database = model["services"]["application-tracker-postgres"]
+                self.assertIn(
+                    "application-tracker-postgres:5432",
+                    tracker["environment"]["APPLICATION_TRACKER_DATABASE_URL"],
+                )
+                self.assertEqual(
+                    tracker["environment"]["APPLICATION_TRACKER_DATABASE_PASSWORD"],
+                    database["environment"]["POSTGRES_PASSWORD"],
+                )
+                self.assertEqual(
+                    tracker["environment"][
+                        "APPLICATION_TRACKER_DATABASE_PRODUCTION_SAFETY_CHECK"
+                    ],
+                    "false",
+                )
+                self.assertEqual(
+                    tracker["environment"]["APPLICATION_TRACKER_DATABASE_SSL_MODE"],
+                    "disable",
+                )
+                self.assertIn(
+                    "application-tracker-postgres-data",
+                    self.models[profile]["volumes"],
+                )
+
+    def test_application_tracker_database_binding_fails_closed(self) -> None:
+        mutations = (
+            ("APPLICATION_TRACKER_DATABASE_PASSWORD", "different-database-secret"),
+            ("APPLICATION_TRACKER_DATABASE_PRODUCTION_SAFETY_CHECK", "true"),
+            ("APPLICATION_TRACKER_DATABASE_SSL_MODE", "verify-full"),
+            (
+                "APPLICATION_TRACKER_DATABASE_URL",
+                "jdbc:postgresql://shared-postgres:5432/application_tracker",
+            ),
+        )
+        for variable, value in mutations:
+            with self.subTest(variable=variable):
+                model = self.model("e2e")
+                model["services"]["application-tracker-service"]["environment"][
+                    variable
+                ] = value
+                with self.assertRaises(ValueError):
+                    validate_model(model, "e2e")
+
     def test_local_and_live_profiles_keep_destructive_endpoints_disabled(self) -> None:
         for profile in ("local", "live-provider"):
             model = self.model(profile)

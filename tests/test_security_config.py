@@ -22,6 +22,7 @@ class RuntimeEnvironmentSchemaTests(unittest.TestCase):
         schema = load_schema()
         variables = {variable["name"]: variable for variable in schema["variables"]}
         required = {
+            "APPLICATION_TRACKER_DATABASE_PASSWORD",
             "AUTH_SERVICE_TOKEN",
             "ENVIRONMENT_DATA_TOKEN",
             "APPLICATION_TRACKER_PRODUCER_TOKEN",

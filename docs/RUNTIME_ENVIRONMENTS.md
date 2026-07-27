@@ -61,9 +61,9 @@ acquisition controls.
 
 - Authentication owns the RSA signing key, issuer/audience, its database
   credential, `AUTH_SERVICE_TOKEN`, and the System Data environment identity.
-- Application Tracker owns separate producer and reader credentials. Document
-  Generation and CV/Cover Letter receive producer access; Job Matching receives
-  reader access.
+- Application Tracker owns its dedicated PostgreSQL credential plus separate
+  producer and reader credentials. Document Generation and CV/Cover Letter
+  receive producer access; Job Matching receives reader access.
 - Document Store owns separate producer and reader credentials. CV/Cover
   Letter receives producer access; Export receives both because it reads and
   writes; Document Generation receives both for its current direct operations.
@@ -108,9 +108,10 @@ approved overlap needed to validate already-issued short-lived tokens.
 ## Storage boundary
 
 Local and E2E use separate PostgreSQL containers for Authentication, Document
-Store, and Payment. Document bytes use the isolated filesystem adapter, and
-the Document Store and Payment production attestations are explicitly
-disabled. This is valid only for synthetic local evidence.
+Store, Application Tracker, and Payment. Document bytes use the isolated
+filesystem adapter, and the Document Store, Application Tracker, and Payment
+production attestations are explicitly disabled. This is valid only for
+synthetic local evidence.
 
 Production must re-enable the attestation and supply verified-full database
 TLS, managed database and backup encryption references, a private
