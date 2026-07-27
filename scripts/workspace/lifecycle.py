@@ -4,16 +4,19 @@
 from __future__ import annotations
 
 import argparse
+import io
 import json
-import os
+import shutil
 import subprocess
 import sys
+import tarfile
 import time
 import urllib.error
 import urllib.request
-from html import escape
 from pathlib import Path
+from xml.etree import ElementTree
 
+from scripts.contracts.lock import load_contract_lock, verify_checkout
 from scripts.security.generate_profile_env import render
 from scripts.workspace.catalog import (
     INFRASTRUCTURE_ROOT,
@@ -27,12 +30,7 @@ from scripts.workspace.validate import compose_model, validate_workspace
 CACHE_ROOT = WORKSPACE_ROOT / ".cache"
 MAVEN_REPOSITORY = CACHE_ROOT / "m2"
 NPM_CACHE = CACHE_ROOT / "npm"
-MAVEN_SETTINGS = CACHE_ROOT / "maven-settings.xml"
-GITHUB_PACKAGE_SERVERS = (
-    "github-user-profile",
-    "github-cv-cover-letter",
-    "github-document-export",
-)
+CLIENT_SOURCE_CACHE = CACHE_ROOT / "client-sources"
 
 
 def fail_if_invalid() -> None:
@@ -86,67 +84,90 @@ def run(command: list[str], cwd: Path, env: dict[str, str] | None = None) -> Non
     subprocess.run(command, cwd=cwd, env=env, check=True)
 
 
-def ensure_maven_settings() -> Path:
-    """Create ignored, owner-only Maven credentials from the validated gh login."""
-    try:
-        username = subprocess.run(
-            ["gh", "api", "user", "--jq", ".login"],
-            check=True,
-            capture_output=True,
-            text=True,
-        ).stdout.strip()
-        token = subprocess.run(
-            ["gh", "auth", "token"],
-            check=True,
-            capture_output=True,
-            text=True,
-        ).stdout.strip()
-    except (OSError, subprocess.CalledProcessError) as error:
-        raise RuntimeError(
-            "GitHub Packages authentication requires a working `gh auth login`"
-        ) from error
-    if not username or not token:
-        raise RuntimeError("GitHub CLI returned incomplete package credentials")
-
-    servers = "\n".join(
-        "    <server>\n"
-        f"      <id>{escape(server_id)}</id>\n"
-        f"      <username>{escape(username)}</username>\n"
-        f"      <password>{escape(token)}</password>\n"
-        "    </server>"
-        for server_id in GITHUB_PACKAGE_SERVERS
-    )
-    document = (
-        '<?xml version="1.0" encoding="UTF-8"?>\n'
-        '<settings xmlns="http://maven.apache.org/SETTINGS/1.2.0">\n'
-        "  <servers>\n"
-        f"{servers}\n"
-        "  </servers>\n"
-        "</settings>\n"
-    )
-    MAVEN_SETTINGS.parent.mkdir(parents=True, exist_ok=True)
-    descriptor = os.open(
-        MAVEN_SETTINGS,
-        os.O_WRONLY | os.O_CREAT | os.O_TRUNC,
-        0o600,
-    )
-    with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
-        handle.write(document)
-    MAVEN_SETTINGS.chmod(0o600)
-    return MAVEN_SETTINGS
-
-
 def maven_command(*goals: str) -> list[str]:
     MAVEN_REPOSITORY.mkdir(parents=True, exist_ok=True)
-    settings = ensure_maven_settings()
     return [
         "mvn",
         "-B",
-        "--settings",
-        str(settings),
+        "--no-transfer-progress",
         f"-Dmaven.repo.local={MAVEN_REPOSITORY}",
         *goals,
     ]
+
+
+def _pom_coordinates(path: Path) -> tuple[str, str, str]:
+    root = ElementTree.parse(path).getroot()
+    namespace = {"m": "http://maven.apache.org/POM/4.0.0"}
+
+    def value(name: str) -> str:
+        element = root.find(f"m:{name}", namespace)
+        return element.text.strip() if element is not None and element.text else ""
+
+    return value("groupId"), value("artifactId"), value("version")
+
+
+def _extract_client_source(contract: dict) -> Path:
+    package = contract["javaPackage"]
+    revision = package["buildRevision"]
+    destination = CLIENT_SOURCE_CACHE / contract["service"] / revision
+    marker = destination / ".complete"
+    if marker.is_file():
+        return destination / package["modulePath"]
+
+    if destination.exists():
+        if CLIENT_SOURCE_CACHE.resolve() not in destination.resolve().parents:
+            raise RuntimeError(f"unsafe client source cache path: {destination}")
+        shutil.rmtree(destination)
+    destination.mkdir(parents=True)
+
+    module_directory = str(Path(package["modulePath"]).parent)
+    archive = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(WORKSPACE_ROOT / contract["service"]),
+            "archive",
+            "--format=tar",
+            revision,
+            module_directory,
+            contract["path"],
+        ],
+        check=True,
+        capture_output=True,
+    ).stdout
+    with tarfile.open(fileobj=io.BytesIO(archive), mode="r:") as source:
+        source.extractall(destination, filter="data")
+    marker.write_text(f"{revision}\n", encoding="utf-8")
+    return destination / package["modulePath"]
+
+
+def install_source_clients() -> None:
+    """Build pinned producer-owned clients from Git, never from a user Maven cache."""
+    for contract in load_contract_lock()["contracts"]:
+        package = contract.get("javaPackage")
+        if package is None:
+            continue
+        verify_checkout(contract, WORKSPACE_ROOT)
+        pom = _extract_client_source(contract)
+        expected = (
+            package["groupId"],
+            package["artifactId"],
+            package["version"],
+        )
+        actual = _pom_coordinates(pom)
+        if actual != expected:
+            raise RuntimeError(
+                f"{contract['service']}: source client coordinates {actual} "
+                f"do not match lock {expected}"
+            )
+        run(
+            [
+                *maven_command("-DskipTests", "clean", "install"),
+                "-f",
+                str(pom),
+            ],
+            pom.parent,
+        )
 
 
 def build_repository(repository) -> None:
@@ -312,8 +333,14 @@ def main() -> int:
     try:
         if args.command in {"build", "test"}:
             fail_if_invalid()
+            selected = selected_repositories(catalog, profile)
+            if any(
+                repository.name == "document-generation-gateway"
+                for repository in selected
+            ):
+                install_source_clients()
             operation = build_repository if args.command == "build" else test_repository
-            for repository in selected_repositories(catalog, profile):
+            for repository in selected:
                 operation(repository)
         elif args.command == "start":
             start(profile, args.build)

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import stat
 import tempfile
 import unittest
 from pathlib import Path
@@ -10,7 +9,7 @@ from unittest.mock import patch
 from scripts.contracts.lock import load_contract_lock, validate_contract_lock
 from scripts.workspace.bootstrap import expected_remote, inspect_checkout, plan
 from scripts.workspace.catalog import load_catalog, load_workspace_lock
-from scripts.workspace.lifecycle import ensure_maven_settings, selected_repositories
+from scripts.workspace.lifecycle import selected_repositories
 
 
 class CatalogTests(unittest.TestCase):
@@ -51,31 +50,6 @@ class CatalogTests(unittest.TestCase):
         self.assertIn("payment-gateway", full)
         self.assertNotIn("e2e", full)
         self.assertLess(basic, full)
-
-    def test_maven_package_credentials_are_owner_only_and_not_logged(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            target = Path(directory) / "settings.xml"
-            responses = [
-                unittest.mock.Mock(stdout="jobseekercopilot\n"),
-                unittest.mock.Mock(stdout="secret-token\n"),
-            ]
-            with (
-                patch(
-                    "scripts.workspace.lifecycle.MAVEN_SETTINGS",
-                    target,
-                ),
-                patch(
-                    "scripts.workspace.lifecycle.subprocess.run",
-                    side_effect=responses,
-                ),
-            ):
-                result = ensure_maven_settings()
-
-            content = result.read_text(encoding="utf-8")
-            self.assertEqual(stat.S_IMODE(result.stat().st_mode), 0o600)
-            self.assertEqual(content.count("<server>"), 3)
-            self.assertIn("<username>jobseekercopilot</username>", content)
-            self.assertIn("<password>secret-token</password>", content)
 
     def test_compose_uses_sibling_contexts_without_global_container_names(self) -> None:
         infrastructure = Path(__file__).resolve().parents[1]
@@ -240,7 +214,7 @@ class ContractLockTests(unittest.TestCase):
         self.assertNotIn("javaPackage", services["authentication-service"])
         self.assertEqual(
             services["cv-cover-letter-service"]["javaPackage"]["version"],
-            "1.0.0-rev.68b4cf9d3f23",
+            "2.0.0-rev.87fc2393309a",
         )
         self.assertEqual(
             services["cv-cover-letter-service"]["javaPackage"]["releaseState"],
@@ -248,11 +222,11 @@ class ContractLockTests(unittest.TestCase):
         )
         self.assertEqual(
             services["cv-cover-letter-service"]["revision"],
-            "68b4cf9d3f2395abd642180a204db3a67d9ae80e",
+            "87fc2393309ad3007cba6ac27aa618fc3cc81aa9",
         )
         self.assertEqual(
             services["document-export-service"]["javaPackage"]["version"],
-            "1.0.0-rev.aa7f34693d81",
+            "2.0.0-rev.a35fff34f86b",
         )
         self.assertEqual(
             services["document-export-service"]["javaPackage"]["releaseState"],
@@ -260,7 +234,7 @@ class ContractLockTests(unittest.TestCase):
         )
         self.assertEqual(
             services["document-export-service"]["revision"],
-            "aa7f34693d81e55686c90441b105a195b614a545",
+            "a35fff34f86b77457df4b9e324000a32819d5aba",
         )
         self.assertEqual(
             services["user-profile-service"]["javaPackage"]["version"],

@@ -54,6 +54,12 @@ def _validate_java_package(
     version = _required_string(package, "version", f"{context}.javaPackage", errors)
     generator = _required_string(package, "generator", f"{context}.javaPackage", errors)
     state = _required_string(package, "releaseState", f"{context}.javaPackage", errors)
+    build_revision = _required_string(
+        package, "buildRevision", f"{context}.javaPackage", errors
+    )
+    module_path = _required_string(
+        package, "modulePath", f"{context}.javaPackage", errors
+    )
 
     expected_version = (
         f"{contract.get('contractVersion', '')}-rev."
@@ -75,6 +81,14 @@ def _validate_java_package(
             f"{context}.javaPackage.releaseState must be one of "
             f"{', '.join(sorted(PACKAGE_STATES))}"
         )
+    if not SHA_PATTERN.fullmatch(build_revision):
+        errors.append(
+            f"{context}.javaPackage.buildRevision must be a full lowercase Git SHA"
+        )
+    if module_path:
+        _validate_relative_path(module_path, f"{context}.javaPackage", errors)
+        if not module_path.endswith("/pom.xml"):
+            errors.append(f"{context}.javaPackage.modulePath must end with /pom.xml")
 
 
 def validate_contract_lock(lock: dict) -> None:
