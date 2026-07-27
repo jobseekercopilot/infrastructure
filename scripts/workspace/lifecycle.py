@@ -320,6 +320,39 @@ def http_ready(url: str) -> tuple[bool, str]:
         return False, str(error)
 
 
+def container_http_ready(
+    profile: Profile, service: str, port: int, path: str
+) -> tuple[bool, str]:
+    environment_file = ensure_environment(profile)
+    result = subprocess.run(
+        compose_command(
+            profile,
+            environment_file,
+            "exec",
+            "-T",
+            service,
+            "wget",
+            "-qO-",
+            f"http://127.0.0.1:{port}{path}",
+        ),
+        cwd=INFRASTRUCTURE_ROOT,
+        env=controlled_environment(),
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode:
+        detail = result.stderr.strip() or f"wget exit {result.returncode}"
+        return False, detail
+    if path.endswith("/actuator/health"):
+        try:
+            payload = json.loads(result.stdout)
+        except json.JSONDecodeError as error:
+            return False, str(error)
+        if payload.get("status") != "UP":
+            return False, f"health status {payload.get('status')}"
+    return True, "container HTTP 200"
+
+
 def health(profile: Profile, timeout_seconds: int) -> None:
     catalog = load_catalog()
     selected = selected_repositories(catalog, profile)
@@ -347,11 +380,17 @@ def health(profile: Profile, timeout_seconds: int) -> None:
         for repository in selected:
             if repository.port is None or repository.health is None:
                 continue
-            ok, detail = http_ready(
-                f"http://localhost:{repository.port}{repository.health}"
+            ok, detail = container_http_ready(
+                profile,
+                repository.compose_services[0],
+                repository.port,
+                repository.health,
             )
             if not ok:
                 failures.append(f"{repository.name}: {detail}")
+        frontend_ok, frontend_detail = http_ready(profile.frontend_url)
+        if not frontend_ok:
+            failures.append(f"frontend access: {frontend_detail}")
         if not failures:
             print(
                 f"{profile.name} ready: {len(expected_services)} application services"

@@ -123,6 +123,25 @@ class RenderedModeIsolationTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "no external egress"):
                 validate_model(model, profile)
 
+    def test_only_frontend_can_join_loopback_host_access_network(self) -> None:
+        for profile in ("local", "e2e"):
+            with self.subTest(profile=profile):
+                model = self.model(profile)
+                host_access_services = {
+                    service
+                    for service, configuration in model["services"].items()
+                    if "host-access" in configuration.get("networks", {})
+                }
+                self.assertEqual(
+                    host_access_services, {"job-seeker-copilot-client"}
+                )
+                self.assertEqual(
+                    model["networks"]["host-access"]["driver_opts"][
+                        "com.docker.network.bridge.host_binding_ipv4"
+                    ],
+                    "127.0.0.1",
+                )
+
     def test_e2e_rejects_live_credentials_and_obsolete_mock_switch(self) -> None:
         for service, variable, value in (
             ("reed-gateway", "REED_API_KEY", "credential"),
