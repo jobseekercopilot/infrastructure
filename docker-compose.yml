@@ -1,7 +1,7 @@
 services:
   portainer:
-    image: portainer/portainer-ce:latest
-    container_name: portainer
+    image: portainer/portainer-ce:2.39.5
+    profiles: ["operator-tools"]
     ports:
       - "9000:9000"
     volumes:
@@ -17,8 +17,8 @@ services:
       start_period: 40s
 
   dozzle:
-    image: amir20/dozzle:latest
-    container_name: dozzle
+    image: amir20/dozzle:v10.6.12
+    profiles: ["operator-tools"]
     ports:
       - "9999:8080"
     volumes:
@@ -36,7 +36,6 @@ services:
     build:
       context: ../postcode-io-gateway
       dockerfile: Dockerfile
-    container_name: postcode-io-gateway
     ports:
       - "8082:8082"
     environment:
@@ -62,7 +61,6 @@ services:
     build:
       context: ../location-gateway
       dockerfile: Dockerfile
-    container_name: location-gateway
     ports:
       - "8081:8081"
     environment:
@@ -83,7 +81,6 @@ services:
 
   authentication-postgres:
     image: postgres:15.18-alpine
-    container_name: authentication-postgres
     environment:
       - POSTGRES_DB=authentication
       - POSTGRES_USER=authentication
@@ -102,7 +99,6 @@ services:
     build:
       context: ../authentication-service
       dockerfile: Dockerfile
-    container_name: authentication-service
     ports:
       - "8084:8084"
     environment:
@@ -135,7 +131,6 @@ services:
     build:
       context: ../user-profile-service
       dockerfile: Dockerfile
-    container_name: user-profile-service
     ports:
       - "8085:8085"
     environment:
@@ -157,7 +152,6 @@ services:
     build:
       context: ../user-management-gateway
       dockerfile: Dockerfile
-    container_name: user-management-gateway
     ports:
       - "8083:8083"
       - "5005:5005"
@@ -186,7 +180,6 @@ services:
     build:
       context: ../reed-gateway
       dockerfile: Dockerfile
-    container_name: reed-gateway
     ports:
       - "8087:8087"
     environment:
@@ -211,7 +204,6 @@ services:
     build:
       context: ../adzuna-gateway
       dockerfile: Dockerfile
-    container_name: adzuna-gateway
     ports:
       - "8101:8101"
     environment:
@@ -239,7 +231,6 @@ services:
     build:
       context: ../jsearch-gateway
       dockerfile: Dockerfile
-    container_name: jsearch-gateway
     ports:
       - "8102:8102"
     environment:
@@ -268,7 +259,6 @@ services:
     build:
       context: ../system-data-service
       dockerfile: Dockerfile
-    container_name: system-data-service
     ports:
       - "8103:8103"
     environment:
@@ -325,7 +315,6 @@ services:
     build:
       context: ../job-service
       dockerfile: Dockerfile
-    container_name: job-service
     ports:
       - "8086:8086"
     environment:
@@ -357,7 +346,6 @@ services:
     build:
       context: ../job-matching-service
       dockerfile: Dockerfile
-    container_name: job-matching-service
     ports:
       - "8097:8097"
     environment:
@@ -381,7 +369,6 @@ services:
     build:
       context: ../job-finder-gateway
       dockerfile: Dockerfile
-    container_name: job-finder-gateway
     ports:
       - "8080:8080"
     environment:
@@ -415,7 +402,6 @@ services:
     build:
       context: ../llm-gateway
       dockerfile: Dockerfile
-    container_name: llm-gateway
     ports:
       - "8090:8090"
     environment:
@@ -437,7 +423,6 @@ services:
 
   document-store-postgres:
     image: postgres:15.18-alpine
-    container_name: document-store-postgres
     environment:
       - POSTGRES_DB=document_store
       - POSTGRES_USER=document_store
@@ -456,7 +441,6 @@ services:
     build:
       context: ../document-store-service
       dockerfile: Dockerfile
-    container_name: document-store-service
     ports:
       - "8089:8089"
     environment:
@@ -497,7 +481,6 @@ services:
     build:
       context: ../document-export-service
       dockerfile: Dockerfile
-    container_name: document-export-service
     ports:
       - "8094:8094"
     environment:
@@ -520,7 +503,6 @@ services:
 
   application-tracker-postgres:
     image: postgres:15.18-alpine
-    container_name: application-tracker-postgres
     environment:
       - POSTGRES_DB=application_tracker
       - POSTGRES_USER=application_tracker
@@ -539,7 +521,6 @@ services:
     build:
       context: ../application-tracker-service
       dockerfile: Dockerfile
-    container_name: application-tracker-service
     ports:
       - "8088:8088"
     environment:
@@ -576,7 +557,6 @@ services:
     build:
       context: ../cv-cover-letter-service
       dockerfile: Dockerfile
-    container_name: cv-cover-letter-service
     ports:
       - "8091:8091"
     environment:
@@ -611,7 +591,6 @@ services:
     build:
       context: ../document-generation-gateway
       dockerfile: Dockerfile
-    container_name: document-generation-gateway
     ports:
       - "8092:8092"
     environment:
@@ -658,7 +637,6 @@ services:
     build:
       context: ../reporting-service
       dockerfile: Dockerfile
-    container_name: reporting-service
     ports:
       - "8096:8096"
     environment:
@@ -685,7 +663,6 @@ services:
     build:
       context: ../reporting-gateway
       dockerfile: Dockerfile
-    container_name: reporting-gateway
     ports:
       - "8095:8095"
     environment:
@@ -711,7 +688,6 @@ services:
 
   payment-postgres:
     image: postgres:15.18-alpine
-    container_name: payment-postgres
     environment:
       - POSTGRES_DB=payment
       - POSTGRES_USER=payment
@@ -730,7 +706,6 @@ services:
     build:
       context: ../payment-service
       dockerfile: Dockerfile
-    container_name: payment-service
     ports:
       - "8099:8099"
     environment:
@@ -759,7 +734,6 @@ services:
     build:
       context: ../stripe-gateway
       dockerfile: Dockerfile
-    container_name: stripe-gateway
     ports:
       - "8100:8100"
     environment:
@@ -791,7 +765,6 @@ services:
     build:
       context: ../payment-gateway
       dockerfile: Dockerfile
-    container_name: payment-gateway
     ports:
       - "8098:8098"
     environment:
@@ -819,7 +792,6 @@ services:
     build:
       context: ../job-seeker-copilot-client
       dockerfile: Dockerfile
-    container_name: job-seeker-copilot-client
     ports:
       - "3000:3000"
     environment:
