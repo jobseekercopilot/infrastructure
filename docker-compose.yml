@@ -34,7 +34,7 @@ services:
 
   postcode-io-gateway:
     build:
-      context: ./postcode-io-gateway
+      context: ../postcode-io-gateway
       dockerfile: Dockerfile
     container_name: postcode-io-gateway
     ports:
@@ -60,7 +60,7 @@ services:
 
   location-gateway:
     build:
-      context: ./location-gateway
+      context: ../location-gateway
       dockerfile: Dockerfile
     container_name: location-gateway
     ports:
@@ -100,7 +100,7 @@ services:
 
   authentication-service:
     build:
-      context: ./authentication-service
+      context: ../authentication-service
       dockerfile: Dockerfile
     container_name: authentication-service
     ports:
@@ -133,7 +133,7 @@ services:
 
   user-profile-service:
     build:
-      context: ./user-profile-service
+      context: ../user-profile-service
       dockerfile: Dockerfile
     container_name: user-profile-service
     ports:
@@ -155,7 +155,7 @@ services:
 
   user-management-gateway:
     build:
-      context: ./user-management-gateway
+      context: ../user-management-gateway
       dockerfile: Dockerfile
     container_name: user-management-gateway
     ports:
@@ -184,7 +184,7 @@ services:
 
   reed-gateway:
     build:
-      context: ./reed-gateway
+      context: ../reed-gateway
       dockerfile: Dockerfile
     container_name: reed-gateway
     ports:
@@ -209,7 +209,7 @@ services:
 
   adzuna-gateway:
     build:
-      context: ./adzuna-gateway
+      context: ../adzuna-gateway
       dockerfile: Dockerfile
     container_name: adzuna-gateway
     ports:
@@ -237,7 +237,7 @@ services:
 
   jsearch-gateway:
     build:
-      context: ./jsearch-gateway
+      context: ../jsearch-gateway
       dockerfile: Dockerfile
     container_name: jsearch-gateway
     ports:
@@ -266,7 +266,7 @@ services:
 
   system-data-service:
     build:
-      context: ./system-data-service
+      context: ../system-data-service
       dockerfile: Dockerfile
     container_name: system-data-service
     ports:
@@ -292,7 +292,7 @@ services:
       - SYSTEM_DATA_INTERNAL_CALLER_KEY=${SYSTEM_DATA_INTERNAL_CALLER_KEY:?Generate the selected untracked environment file}
       - SYSTEM_DATA_DOWNSTREAM_ENVIRONMENT_DATA_TOKEN=${ENVIRONMENT_DATA_TOKEN:?Generate the selected untracked environment file}
     volumes:
-      - ./system-data-service/dataset-repository:/app/dataset-repository
+      - ../system-data-service/dataset-repository:/app/dataset-repository
     depends_on:
       reed-gateway:
         condition: service_healthy
@@ -323,7 +323,7 @@ services:
 
   job-service:
     build:
-      context: ./job-service
+      context: ../job-service
       dockerfile: Dockerfile
     container_name: job-service
     ports:
@@ -355,7 +355,7 @@ services:
 
   job-matching-service:
     build:
-      context: ./job-matching-service
+      context: ../job-matching-service
       dockerfile: Dockerfile
     container_name: job-matching-service
     ports:
@@ -379,7 +379,7 @@ services:
 
   job-finder-gateway:
     build:
-      context: ./job-finder-gateway
+      context: ../job-finder-gateway
       dockerfile: Dockerfile
     container_name: job-finder-gateway
     ports:
@@ -413,7 +413,7 @@ services:
 
   llm-gateway:
     build:
-      context: ./llm-gateway
+      context: ../llm-gateway
       dockerfile: Dockerfile
     container_name: llm-gateway
     ports:
@@ -454,7 +454,7 @@ services:
 
   document-store-service:
     build:
-      context: ./document-store-service
+      context: ../document-store-service
       dockerfile: Dockerfile
     container_name: document-store-service
     ports:
@@ -495,7 +495,7 @@ services:
 
   document-export-service:
     build:
-      context: ./document-export-service
+      context: ../document-export-service
       dockerfile: Dockerfile
     container_name: document-export-service
     ports:
@@ -537,7 +537,7 @@ services:
 
   application-tracker-service:
     build:
-      context: ./application-tracker-service
+      context: ../application-tracker-service
       dockerfile: Dockerfile
     container_name: application-tracker-service
     ports:
@@ -574,7 +574,7 @@ services:
 
   cv-cover-letter-service:
     build:
-      context: ./cv-cover-letter-service
+      context: ../cv-cover-letter-service
       dockerfile: Dockerfile
     container_name: cv-cover-letter-service
     ports:
@@ -609,7 +609,7 @@ services:
 
   document-generation-gateway:
     build:
-      context: ./document-generation-gateway
+      context: ../document-generation-gateway
       dockerfile: Dockerfile
     container_name: document-generation-gateway
     ports:
@@ -656,7 +656,7 @@ services:
 
   reporting-service:
     build:
-      context: ./reporting-service
+      context: ../reporting-service
       dockerfile: Dockerfile
     container_name: reporting-service
     ports:
@@ -683,7 +683,7 @@ services:
 
   reporting-gateway:
     build:
-      context: ./reporting-gateway
+      context: ../reporting-gateway
       dockerfile: Dockerfile
     container_name: reporting-gateway
     ports:
@@ -728,7 +728,7 @@ services:
 
   payment-service:
     build:
-      context: ./payment-service
+      context: ../payment-service
       dockerfile: Dockerfile
     container_name: payment-service
     ports:
@@ -757,7 +757,7 @@ services:
 
   stripe-gateway:
     build:
-      context: ./stripe-gateway
+      context: ../stripe-gateway
       dockerfile: Dockerfile
     container_name: stripe-gateway
     ports:
@@ -789,7 +789,7 @@ services:
 
   payment-gateway:
     build:
-      context: ./payment-gateway
+      context: ../payment-gateway
       dockerfile: Dockerfile
     container_name: payment-gateway
     ports:
@@ -817,7 +817,7 @@ services:
 
   job-seeker-copilot-client:
     build:
-      context: ./job-seeker-copilot-client
+      context: ../job-seeker-copilot-client
       dockerfile: Dockerfile
     container_name: job-seeker-copilot-client
     ports:

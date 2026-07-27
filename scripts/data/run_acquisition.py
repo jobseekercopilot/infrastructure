@@ -16,17 +16,17 @@ from scripts.data.acquisition_policy import (
     update_audit_manifest,
 )
 from scripts.docker.stack_config import stack_for
-from scripts.lib.project_paths import PROJECT_ROOT
+from scripts.lib.project_paths import INFRASTRUCTURE_ROOT, WORKSPACE_ROOT
 
 
 QUARANTINE_ROOT = (
-    PROJECT_ROOT / "system-data-service" / "quarantined-acquisitions"
+    WORKSPACE_ROOT / "system-data-service" / "quarantined-acquisitions"
 )
 
 
 def run(command: list[str]) -> int:
     try:
-        return subprocess.run(command, cwd=PROJECT_ROOT).returncode
+        return subprocess.run(command, cwd=INFRASTRUCTURE_ROOT).returncode
     except OSError:
         print(
             "A required local command could not be executed; no command "
@@ -46,7 +46,7 @@ def main() -> int:
     parser.add_argument(
         "--env-file",
         type=Path,
-        default=PROJECT_ROOT / ".env.data-acquisition",
+        default=INFRASTRUCTURE_ROOT / ".env.data-acquisition",
     )
     parser.add_argument(
         "--authorize-live-provider-costs",

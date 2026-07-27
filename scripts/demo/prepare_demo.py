@@ -12,7 +12,7 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from scripts.docker.stack_config import stack_for
-from scripts.lib.project_paths import PROJECT_ROOT
+from scripts.lib.project_paths import INFRASTRUCTURE_ROOT, WORKSPACE_ROOT
 
 DATASET_ID = "uk-software-developer-demo"
 DATASET_VERSION = "1.0.0"
@@ -21,13 +21,13 @@ SCENARIO = "DEMO_READY"
 
 def run(command: list[str]) -> None:
     print(" ".join(command))
-    result = subprocess.run(command, cwd=PROJECT_ROOT)
+    result = subprocess.run(command, cwd=INFRASTRUCTURE_ROOT)
     if result.returncode != 0:
         raise RuntimeError(f"Command failed: {' '.join(command)}")
 
 
 def dataset_path() -> Path:
-    return PROJECT_ROOT / "system-data-service" / "dataset-repository" / DATASET_ID / DATASET_VERSION
+    return WORKSPACE_ROOT / "system-data-service" / "dataset-repository" / DATASET_ID / DATASET_VERSION
 
 
 def dataset_summary() -> dict[str, object]:
