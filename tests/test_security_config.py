@@ -15,9 +15,26 @@ from scripts.security.generate_profile_env import (
     load_schema,
     render,
 )
+from scripts.workspace.catalog import load_catalog
+from scripts.workspace.validate import validate_configuration_schema
 
 
 class RuntimeEnvironmentSchemaTests(unittest.TestCase):
+    def test_schema_covers_every_compose_and_template_variable(self) -> None:
+        findings = validate_configuration_schema(load_catalog())
+        self.assertTrue(findings)
+        self.assertTrue(all(finding.ok for finding in findings), findings)
+
+    def test_profile_requirements_only_reference_documented_variables(self) -> None:
+        schema = load_schema()
+        names = {variable["name"] for variable in schema["variables"]}
+        for profile, requirements in schema["profileRequirements"].items():
+            with self.subTest(profile=profile):
+                self.assertFalse(
+                    (set(requirements["required"]) | set(requirements["forbidden"]))
+                    - names
+                )
+
     def test_document_identity_variables_have_explicit_owners_and_consumers(self) -> None:
         schema = load_schema()
         variables = {variable["name"]: variable for variable in schema["variables"]}
