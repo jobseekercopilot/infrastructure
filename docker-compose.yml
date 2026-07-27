@@ -617,6 +617,22 @@ services:
       retries: 3
       start_period: 40s
 
+  document-generation-postgres:
+    image: postgres:15.18-alpine
+    environment:
+      - POSTGRES_DB=document_generation
+      - POSTGRES_USER=document_generation
+      - POSTGRES_PASSWORD=${DOCUMENT_GENERATION_DATABASE_PASSWORD:?Generate the selected untracked environment file}
+    volumes:
+      - document-generation-postgres-data:/var/lib/postgresql/data
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U document_generation -d document_generation"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
   document-generation-gateway:
     build:
       context: ../.cache/runtime-images/document-generation-gateway
@@ -635,6 +651,9 @@ services:
       - DOCUMENT_STORE_PRODUCER_TOKEN=${DOCUMENT_STORE_PRODUCER_TOKEN:?Generate the selected untracked environment file}
       - DOCUMENT_STORE_READER_TOKEN=${DOCUMENT_STORE_READER_TOKEN:?Generate the selected untracked environment file}
       - DOCUMENT_GENERATION_GATEWAY_TO_PAYMENT_SERVICE_TOKEN=${DOCUMENT_GENERATION_GATEWAY_TO_PAYMENT_SERVICE_TOKEN:?Generate the selected untracked environment file}
+      - DOCUMENT_GENERATION_DATABASE_URL=jdbc:postgresql://document-generation-postgres:5432/document_generation
+      - DOCUMENT_GENERATION_DATABASE_USERNAME=document_generation
+      - DOCUMENT_GENERATION_DATABASE_PASSWORD=${DOCUMENT_GENERATION_DATABASE_PASSWORD:?Generate the selected untracked environment file}
       - AUTHENTICATION_SERVICE_URL=http://authentication-service:8084
       - USER_PROFILE_SERVICE_URL=http://user-profile-service:8085
       - JOB_SERVICE_URL=http://job-service:8086
@@ -643,6 +662,8 @@ services:
       - DOCUMENT_STORE_SERVICE_URL=http://document-store-service:8089
       - APPLICATION_TRACKER_SERVICE_URL=http://application-tracker-service:8088
     depends_on:
+      document-generation-postgres:
+        condition: service_healthy
       authentication-service:
         condition: service_healthy
       user-profile-service:
@@ -868,6 +889,7 @@ volumes:
   authentication-postgres-data:
   user-profile-postgres-data:
   job-service-postgres-data:
+  document-generation-postgres-data:
   document-store-postgres-data:
   document-store-objects:
   application-tracker-postgres-data:

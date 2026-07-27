@@ -42,6 +42,7 @@ class RuntimeEnvironmentSchemaTests(unittest.TestCase):
             "APPLICATION_TRACKER_DATABASE_PASSWORD",
             "USER_PROFILE_DATABASE_PASSWORD",
             "JOB_SERVICE_DATABASE_PASSWORD",
+            "DOCUMENT_GENERATION_DATABASE_PASSWORD",
             "AUTH_SERVICE_TOKEN",
             "ENVIRONMENT_DATA_TOKEN",
             "APPLICATION_TRACKER_PRODUCER_TOKEN",

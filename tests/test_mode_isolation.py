@@ -298,6 +298,26 @@ class RenderedModeIsolationTests(unittest.TestCase):
                     model["services"]["system-data-service"],
                 )
 
+    def test_document_generation_uses_isolated_postgres(self) -> None:
+        for profile in ("local", "e2e", "live-provider"):
+            with self.subTest(profile=profile):
+                model = self.model(profile)
+                gateway = model["services"]["document-generation-gateway"]
+                database = model["services"]["document-generation-postgres"]
+                self.assertIn(
+                    "document-generation-postgres:5432",
+                    gateway["environment"]["DOCUMENT_GENERATION_DATABASE_URL"],
+                )
+                self.assertEqual(
+                    gateway["environment"]["DOCUMENT_GENERATION_DATABASE_PASSWORD"],
+                    database["environment"]["POSTGRES_PASSWORD"],
+                )
+                self.assertEqual(
+                    gateway["depends_on"]["document-generation-postgres"]["condition"],
+                    "service_healthy",
+                )
+                self.assertIn("document-generation-postgres-data", model["volumes"])
+
     def test_reporting_gateway_service_and_tracker_reader_identities_are_exact(
         self,
     ) -> None:
