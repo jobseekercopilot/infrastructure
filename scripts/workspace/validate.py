@@ -24,6 +24,7 @@ from scripts.workspace.catalog import (
 
 INTERPOLATION = re.compile(r"\$\{([A-Z][A-Z0-9_]*)")
 STAGED_RUNTIME_CONTEXTS = {
+    "adzuna-gateway",
     "document-generation-gateway",
     "jsearch-gateway",
     "reed-gateway",

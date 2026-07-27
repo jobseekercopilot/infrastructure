@@ -195,6 +195,7 @@ def install_source_clients() -> None:
 
 
 RUNTIME_IMAGE_ARTIFACTS = {
+    "adzuna-gateway": "target/adzuna-gateway-1.0.0.jar",
     "document-generation-gateway": "target/document-generation-gateway-1.0.0.jar",
     "jsearch-gateway": "target/jsearch-gateway-1.0.0.jar",
     "reed-gateway": "target/reed-gateway-1.0.0.jar",

@@ -202,8 +202,8 @@ services:
 
   adzuna-gateway:
     build:
-      context: ../adzuna-gateway
-      dockerfile: Dockerfile
+      context: ../.cache/runtime-images/adzuna-gateway
+      dockerfile: ../../../infrastructure/docker/adzuna-gateway.runtime.Dockerfile
     ports:
       - "8101:8101"
     environment:
