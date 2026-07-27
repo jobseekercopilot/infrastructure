@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import argparse
 import platform
 import shutil
 import subprocess
@@ -25,8 +26,8 @@ def command_ok(command: list[str]) -> bool:
         return False
 
 
-def main() -> int:
-    checks = {
+def prerequisite_checks() -> dict[str, bool]:
+    return {
         "git": shutil.which("git") is not None,
         "gh": shutil.which("gh") is not None,
         "gh-auth": command_ok(["gh", "auth", "status"]),
@@ -43,12 +44,22 @@ def main() -> int:
         "openssl": shutil.which("openssl") is not None,
         "curl": shutil.which("curl") is not None,
     }
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--prerequisites-only", action="store_true")
+    args = parser.parse_args()
+    checks = prerequisite_checks()
+    for name, ok in checks.items():
+        print(f"{'OK' if ok else 'MISSING'} {name}")
+    if args.prerequisites_only:
+        return 0 if all(checks.values()) else 1
+
     catalog = load_catalog()
     lock = load_workspace_lock(catalog)
     report = report_payload(WORKSPACE_ROOT, catalog, lock)
 
-    for name, ok in checks.items():
-        print(f"{'OK' if ok else 'MISSING'} {name}")
     print(
         "INFO "
         f"workspace={WORKSPACE_ROOT} "

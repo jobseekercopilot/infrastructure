@@ -7,8 +7,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 from scripts.contracts.lock import load_contract_lock, validate_contract_lock
-from scripts.workspace.bootstrap import expected_remote, plan
+from scripts.workspace.bootstrap import expected_remote, inspect_checkout, plan
 from scripts.workspace.catalog import load_catalog, load_workspace_lock
+from scripts.workspace.lifecycle import selected_repositories
 
 
 class CatalogTests(unittest.TestCase):
@@ -28,6 +29,39 @@ class CatalogTests(unittest.TestCase):
             set(load_workspace_lock(catalog)),
             set(catalog.repository_names),
         )
+
+    def test_basic_and_full_profiles_have_distinct_source_scope(self) -> None:
+        catalog = load_catalog()
+        basic = {
+            repository.name
+            for repository in selected_repositories(
+                catalog, catalog.profile("basic-fixture")
+            )
+        }
+        full = {
+            repository.name
+            for repository in selected_repositories(
+                catalog, catalog.profile("full-fixture")
+            )
+        }
+        self.assertIn("job-seeker-copilot-client", basic)
+        self.assertIn("job-finder-gateway", basic)
+        self.assertNotIn("payment-gateway", basic)
+        self.assertIn("payment-gateway", full)
+        self.assertNotIn("e2e", full)
+        self.assertLess(basic, full)
+
+    def test_compose_uses_sibling_contexts_without_global_container_names(self) -> None:
+        infrastructure = Path(__file__).resolve().parents[1]
+        for name in (
+            "docker-compose.yml",
+            "docker-compose.e2e.yml",
+            "docker-compose.data-acquisition.yml",
+        ):
+            text = (infrastructure / name).read_text(encoding="utf-8")
+            self.assertNotIn("context: ./", text)
+            self.assertNotIn("container_name:", text)
+            self.assertNotIn(str(Path.home()), text)
 
     def test_invalid_catalog_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -107,6 +141,52 @@ class BootstrapPlanTests(unittest.TestCase):
             "git@github.com:owner/service.git",
             expected_remote("owner", "service"),
         )
+
+    def test_dirty_expected_checkout_fails_without_mutation(self) -> None:
+        catalog = load_catalog()
+        repository = catalog.repository("authentication-service")
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / repository.name
+            path.mkdir()
+            with (
+                patch(
+                    "scripts.workspace.bootstrap.remote_url",
+                    return_value=expected_remote(catalog.owner, repository.name)[0],
+                ),
+                patch(
+                    "scripts.workspace.bootstrap.git_value",
+                    side_effect=[repository.branch, "a" * 40],
+                ),
+                patch("scripts.workspace.bootstrap.is_clean", return_value=False),
+            ):
+                state = inspect_checkout(
+                    Path(directory), catalog.owner, repository, "b" * 40
+                )
+        self.assertEqual(state.status, "dirty")
+        self.assertIn("no mutation", state.detail or "")
+
+    def test_clean_revision_drift_requires_explicit_update(self) -> None:
+        catalog = load_catalog()
+        repository = catalog.repository("authentication-service")
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / repository.name
+            path.mkdir()
+            with (
+                patch(
+                    "scripts.workspace.bootstrap.remote_url",
+                    return_value=expected_remote(catalog.owner, repository.name)[0],
+                ),
+                patch(
+                    "scripts.workspace.bootstrap.git_value",
+                    side_effect=[repository.branch, "a" * 40],
+                ),
+                patch("scripts.workspace.bootstrap.is_clean", return_value=True),
+            ):
+                state = inspect_checkout(
+                    Path(directory), catalog.owner, repository, "b" * 40
+                )
+        self.assertEqual(state.status, "revision-drift")
+        self.assertIn("--update", state.detail or "")
 
 
 class ContractLockTests(unittest.TestCase):

@@ -13,6 +13,7 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.workspace-report.json
 target/
 node_modules/
 generated-clients/
