@@ -145,32 +145,33 @@ deprecation warning and delegate to the new module.
 
 ## Command Reference
 
-### Generated Clients
+### Workspace lifecycle
 
 ```bash
-python -m scripts.contracts.validate_lock
-python -m scripts.contracts.validate_lock --verify-checkouts .
-python -m scripts.clients.export_openapi_contracts
-python -m scripts.clients.generate_backend_clients
-python -m scripts.clients.install_backend_clients
-python -m scripts.clients.generate_frontend_clients
-python -m scripts.clients.generate_all_api_clients
-python -m scripts.clients.check_backend_client_conformance
-python -m scripts.clients.check_no_manual_system_data_fixture_clients
+./scripts/bootstrap.sh --profile basic-fixture
+./scripts/validate-workspace.sh
+./scripts/update-repositories.sh
+./scripts/build-all.sh --profile full-fixture
+./scripts/test-all.sh --profile full-fixture
+./scripts/start-local.sh --profile full-fixture --build
+./scripts/health-check.sh --profile full-fixture
+./scripts/status.sh --profile full-fixture
+./scripts/logs.sh --profile full-fixture
+./scripts/stop-local.sh --profile full-fixture
 ```
 
-Configuration:
+Authoritative configuration:
 
-- `config/contracts-lock.json` is the reviewed source-revision, checksum,
-  generator, immutable-package and Maven credential-model lock for migrated
-  contracts.
-- `scripts/clients/config/service_dependencies.json`
+- `config/services.json`: repositories, topology, profiles and GitHub Project.
+- `config/workspace-lock.json`: exact repository revisions.
+- `config/contracts-lock.json`: contract checksum, generator, immutable Maven
+  coordinates and producer-owned client build revisions.
 - `scripts/clients/config/backend_client_conformance_exclusions.json`
 
-The export/generate/install commands below the lock validator are legacy
-workspace compatibility paths. They are retained until every consumer resolves
-producer-owned versioned packages; they are not an approved publication path
-for new clients.
+`build-all.sh` reconstructs locked Java clients from producer Git history into
+the workspace-local `.cache/m2`. The old
+`python -m scripts.clients.install_backend_clients` copied-JAR path is retired
+and fails closed.
 
 ### Data
 
@@ -200,12 +201,12 @@ responses. They do not contain Playwright/Cucumber implementation code.
 ### Docker
 
 ```bash
-python -m scripts.docker.rebuild_and_start_stack e2e
+./scripts/start-local.sh --profile basic-fixture --build
 ```
 
-This helper installs generated backend clients, builds backend services, and
-rebuilds/starts the Docker Compose stack. It is intentionally not run by default
-during safe verification because it changes the local Docker environment.
+Use only the tracked lifecycle commands for the reproducible basic/full fixture
+profiles. Older stack helpers remain for mode-specific migration work and are
+not the onboarding path.
 
 ### Git
 
