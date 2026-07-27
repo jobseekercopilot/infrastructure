@@ -307,7 +307,7 @@ services:
       - SYSTEM_DATA_INTERNAL_CALLER_KEY=${SYSTEM_DATA_INTERNAL_CALLER_KEY:?Generate the selected untracked environment file}
       - SYSTEM_DATA_DOWNSTREAM_ENVIRONMENT_DATA_TOKEN=${ENVIRONMENT_DATA_TOKEN:?Generate the selected untracked environment file}
     volumes:
-      - ../system-data-service/dataset-repository:/app/dataset-repository
+      - ../system-data-service/fixtures/datasets:/app/dataset-repository:ro
     networks:
       - job-seeker-network
     healthcheck:
