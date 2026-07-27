@@ -5,11 +5,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import time
 import urllib.error
 import urllib.request
+from html import escape
 from pathlib import Path
 
 from scripts.security.generate_profile_env import render
@@ -25,6 +27,12 @@ from scripts.workspace.validate import compose_model, validate_workspace
 CACHE_ROOT = WORKSPACE_ROOT / ".cache"
 MAVEN_REPOSITORY = CACHE_ROOT / "m2"
 NPM_CACHE = CACHE_ROOT / "npm"
+MAVEN_SETTINGS = CACHE_ROOT / "maven-settings.xml"
+GITHUB_PACKAGE_SERVERS = (
+    "github-user-profile",
+    "github-cv-cover-letter",
+    "github-document-export",
+)
 
 
 def fail_if_invalid() -> None:
@@ -78,21 +86,73 @@ def run(command: list[str], cwd: Path, env: dict[str, str] | None = None) -> Non
     subprocess.run(command, cwd=cwd, env=env, check=True)
 
 
+def ensure_maven_settings() -> Path:
+    """Create ignored, owner-only Maven credentials from the validated gh login."""
+    try:
+        username = subprocess.run(
+            ["gh", "api", "user", "--jq", ".login"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        token = subprocess.run(
+            ["gh", "auth", "token"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+    except (OSError, subprocess.CalledProcessError) as error:
+        raise RuntimeError(
+            "GitHub Packages authentication requires a working `gh auth login`"
+        ) from error
+    if not username or not token:
+        raise RuntimeError("GitHub CLI returned incomplete package credentials")
+
+    servers = "\n".join(
+        "    <server>\n"
+        f"      <id>{escape(server_id)}</id>\n"
+        f"      <username>{escape(username)}</username>\n"
+        f"      <password>{escape(token)}</password>\n"
+        "    </server>"
+        for server_id in GITHUB_PACKAGE_SERVERS
+    )
+    document = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<settings xmlns="http://maven.apache.org/SETTINGS/1.2.0">\n'
+        "  <servers>\n"
+        f"{servers}\n"
+        "  </servers>\n"
+        "</settings>\n"
+    )
+    MAVEN_SETTINGS.parent.mkdir(parents=True, exist_ok=True)
+    descriptor = os.open(
+        MAVEN_SETTINGS,
+        os.O_WRONLY | os.O_CREAT | os.O_TRUNC,
+        0o600,
+    )
+    with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+        handle.write(document)
+    MAVEN_SETTINGS.chmod(0o600)
+    return MAVEN_SETTINGS
+
+
+def maven_command(*goals: str) -> list[str]:
+    MAVEN_REPOSITORY.mkdir(parents=True, exist_ok=True)
+    settings = ensure_maven_settings()
+    return [
+        "mvn",
+        "-B",
+        "--settings",
+        str(settings),
+        f"-Dmaven.repo.local={MAVEN_REPOSITORY}",
+        *goals,
+    ]
+
+
 def build_repository(repository) -> None:
     path = WORKSPACE_ROOT / repository.name
     if repository.build == "maven":
-        MAVEN_REPOSITORY.mkdir(parents=True, exist_ok=True)
-        run(
-            [
-                "mvn",
-                "-B",
-                f"-Dmaven.repo.local={MAVEN_REPOSITORY}",
-                "-DskipTests",
-                "clean",
-                "package",
-            ],
-            path,
-        )
+        run(maven_command("-DskipTests", "clean", "package"), path)
     elif repository.build == "npm":
         NPM_CACHE.mkdir(parents=True, exist_ok=True)
         run(["npm", "ci", "--cache", str(NPM_CACHE)], path)
@@ -104,16 +164,7 @@ def build_repository(repository) -> None:
 def test_repository(repository) -> None:
     path = WORKSPACE_ROOT / repository.name
     if repository.build == "maven":
-        MAVEN_REPOSITORY.mkdir(parents=True, exist_ok=True)
-        run(
-            [
-                "mvn",
-                "-B",
-                f"-Dmaven.repo.local={MAVEN_REPOSITORY}",
-                "test",
-            ],
-            path,
-        )
+        run(maven_command("test"), path)
     elif repository.build == "npm":
         NPM_CACHE.mkdir(parents=True, exist_ok=True)
         run(["npm", "ci", "--cache", str(NPM_CACHE)], path)
