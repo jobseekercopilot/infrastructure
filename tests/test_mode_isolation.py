@@ -140,6 +140,40 @@ class RenderedModeIsolationTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     validate_model(model, "e2e")
 
+    def test_app11_producer_consumer_pair_uses_the_internal_target_and_shared_identity(
+        self,
+    ) -> None:
+        model = self.model("e2e")
+        model["services"]["system-data-service"]["environment"][
+            "APPLICATION_TRACKER_SERVICE_URL"
+        ] = "https://application-tracker.example"
+        with self.assertRaisesRegex(
+            ValueError,
+            "APPLICATION_TRACKER_SERVICE_URL must be "
+            "http://application-tracker-service:8088",
+        ):
+            validate_model(model, "e2e")
+
+        model = self.model("e2e")
+        model["services"]["system-data-service"]["environment"][
+            "SYSTEM_DATA_DOWNSTREAM_ENVIRONMENT_DATA_TOKEN"
+        ] = "different-environment-data-identity-value"
+        with self.assertRaisesRegex(
+            ValueError,
+            "ENVIRONMENT_DATA_TOKEN does not match",
+        ):
+            validate_model(model, "e2e")
+
+        model = self.model("e2e")
+        model["services"]["application-tracker-service"]["environment"][
+            "SPRING_PROFILES_ACTIVE"
+        ] = "local"
+        with self.assertRaisesRegex(
+            ValueError,
+            "application-tracker-service:SPRING_PROFILES_ACTIVE must be e2e",
+        ):
+            validate_model(model, "e2e")
+
     def test_local_and_live_profiles_keep_destructive_endpoints_disabled(self) -> None:
         for profile in ("local", "live-provider"):
             model = self.model(profile)

@@ -120,6 +120,13 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
     if profile == "live-provider" and runtime_network.get("internal") is True:
         raise ValueError("live-provider requires deliberate job-provider egress")
 
+    require_value(
+        model,
+        "system-data-service",
+        "APPLICATION_TRACKER_SERVICE_URL",
+        "http://application-tracker-service:8088",
+    )
+
     if profile in {"local", "e2e"}:
         for service in FIXTURE_GATEWAYS:
             require_value(model, service, "EXTERNAL_PROVIDER_MODE", "FIXTURE")
@@ -171,6 +178,12 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
         require_value(
             model,
             "system-data-service",
+            "SPRING_PROFILES_ACTIVE",
+            "e2e",
+        )
+        require_value(
+            model,
+            "application-tracker-service",
             "SPRING_PROFILES_ACTIVE",
             "e2e",
         )

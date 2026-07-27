@@ -26,6 +26,21 @@ integration only. It does not enable paid LLM content or real Stripe charges.
 Production/AWS configuration remains a separate deployment workstream and is
 not inferred from these local profiles.
 
+## Application fixture boundary
+
+The isolated E2E model pairs the merged Application Tracker producer at
+`a217182` with the System Data consumer at `b0f79a6`. System Data pins producer
+OpenAPI `3.0.0`, sends seed envelope `2.0.0`, and supplies exact immutable CV
+and cover-letter document evidence.
+
+Compose exposes the producer only as
+`http://application-tracker-service:8088` on the internal stack network. Both
+services receive the same generated environment-data identity, both use the
+exact `e2e` profile, and Application Tracker allows fixture operations only in
+that profile. The rendered-model policy rejects an external producer target,
+identity mismatch, profile mismatch, or fixture enablement in local/live
+modes before Compose starts.
+
 ## Runtime start
 
 Generate an ignored environment and use the stack wrapper:
