@@ -55,6 +55,10 @@ updates the contract lock and workspace lock together.
 ## Local state and secrets
 
 - Generated environments are `.env.<profile>`, ignored and mode `0600`.
+- Lifecycle commands remove every application variable in the runtime schema from
+  their inherited shell environment. Compose receives application configuration
+  only from the selected generated environment file; tool settings such as
+  `PATH`, `HOME` and `DOCKER_HOST` remain available.
 - Maven and npm caches live at `<workspace>/.cache`; `~/.m2` is not used.
 - Generated clients are rebuilt from pinned producer Git history.
 - Fixture profiles forbid real job-provider, LLM and Stripe credentials.

@@ -9,10 +9,26 @@ from unittest.mock import patch
 from scripts.contracts.lock import load_contract_lock, validate_contract_lock
 from scripts.workspace.bootstrap import expected_remote, inspect_checkout, plan
 from scripts.workspace.catalog import load_catalog, load_workspace_lock
-from scripts.workspace.lifecycle import selected_repositories
+from scripts.workspace.lifecycle import controlled_environment, selected_repositories
 
 
 class CatalogTests(unittest.TestCase):
+    def test_runtime_commands_reject_inherited_application_configuration(self) -> None:
+        with patch.dict(
+            "os.environ",
+            {
+                "PATH": "/safe/tool/path",
+                "OPENAI_API_KEY": "must-not-leak",
+                "AUTH_SERVICE_TOKEN": "must-not-override-generated-value",
+            },
+            clear=True,
+        ):
+            environment = controlled_environment()
+
+        self.assertEqual(environment["PATH"], "/safe/tool/path")
+        self.assertNotIn("OPENAI_API_KEY", environment)
+        self.assertNotIn("AUTH_SERVICE_TOKEN", environment)
+
     def test_repository_names_are_unique(self) -> None:
         catalog = load_catalog()
         self.assertEqual(

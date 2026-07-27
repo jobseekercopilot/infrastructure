@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import io
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -31,6 +32,22 @@ CACHE_ROOT = WORKSPACE_ROOT / ".cache"
 MAVEN_REPOSITORY = CACHE_ROOT / "m2"
 NPM_CACHE = CACHE_ROOT / "npm"
 CLIENT_SOURCE_CACHE = CACHE_ROOT / "client-sources"
+RUNTIME_ENVIRONMENT_SCHEMA = (
+    INFRASTRUCTURE_ROOT / "config/runtime-environment.schema.json"
+)
+
+
+def controlled_environment() -> dict[str, str]:
+    """Preserve tool settings but reject inherited application configuration."""
+    schema = json.loads(RUNTIME_ENVIRONMENT_SCHEMA.read_text(encoding="utf-8"))
+    application_variables = {
+        variable["name"] for variable in schema["variables"]
+    }
+    return {
+        name: value
+        for name, value in os.environ.items()
+        if name not in application_variables
+    }
 
 
 def fail_if_invalid() -> None:
@@ -81,7 +98,12 @@ def ensure_environment(profile: Profile) -> Path:
 
 def run(command: list[str], cwd: Path, env: dict[str, str] | None = None) -> None:
     print(f"[{cwd.name}] {' '.join(command)}", flush=True)
-    subprocess.run(command, cwd=cwd, env=env, check=True)
+    subprocess.run(
+        command,
+        cwd=cwd,
+        env=controlled_environment() if env is None else env,
+        check=True,
+    )
 
 
 def maven_command(*goals: str) -> list[str]:
@@ -132,6 +154,7 @@ def _extract_client_source(contract: dict) -> Path:
             module_directory,
             contract["path"],
         ],
+        env=controlled_environment(),
         check=True,
         capture_output=True,
     ).stdout
@@ -238,6 +261,7 @@ def container_status(profile: Profile) -> list[dict]:
     result = subprocess.run(
         compose_command(profile, environment_file, "ps", "--format", "json"),
         cwd=INFRASTRUCTURE_ROOT,
+        env=controlled_environment(),
         check=True,
         capture_output=True,
         text=True,

@@ -37,6 +37,7 @@ GitHub Packages under ADR 0002.
 
 | Exception | Owner | Expiry condition | Migration |
 | --- | --- | --- | --- |
+| Reed and JSearch Compose builds package workspace-built JARs because their Docker build stages omit `docs/CREDENTIAL_OPERATIONS.md`, which their tests read. | Infrastructure | Both repository Dockerfiles copy their test inputs and the fixed revisions enter the workspace lock. | Verify each service-owned image build, restore `dockerfile: Dockerfile`, and remove both inline runtime Dockerfiles. |
 | Document Generation consumes historical 2.x client contracts while producers are now 3.x. | Document Generation + Infrastructure | Gateway is migrated and tested against current producer contracts. | Update gateway code, consumer versions and contract lock in one reviewed vertical change. |
 | Its local container packages the JAR produced by `build-all.sh` because the repository Dockerfile requires a package token. | Infrastructure | The gateway Dockerfile can reconstruct pinned clients from source or consume an approved release package credential. | Move the source-client build into the service-owned Docker build, then remove the Compose inline Dockerfile. |
 | Release profiles do not yet use digest-pinned GHCR images. | INFRA-05 owner | INFRA-05 is accepted. | Replace source build definitions in release-only profiles; retain source builds for development. |
