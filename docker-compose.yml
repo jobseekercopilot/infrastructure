@@ -178,8 +178,8 @@ services:
 
   reed-gateway:
     build:
-      context: ../reed-gateway
-      dockerfile: ../infrastructure/docker/reed-gateway.runtime.Dockerfile
+      context: ../.cache/runtime-images/reed-gateway
+      dockerfile: ../../../infrastructure/docker/reed-gateway.runtime.Dockerfile
     ports:
       - "8087:8087"
     environment:
@@ -229,8 +229,8 @@ services:
 
   jsearch-gateway:
     build:
-      context: ../jsearch-gateway
-      dockerfile: ../infrastructure/docker/jsearch-gateway.runtime.Dockerfile
+      context: ../.cache/runtime-images/jsearch-gateway
+      dockerfile: ../../../infrastructure/docker/jsearch-gateway.runtime.Dockerfile
     ports:
       - "8102:8102"
     environment:
@@ -589,8 +589,8 @@ services:
 
   document-generation-gateway:
     build:
-      context: ../document-generation-gateway
-      dockerfile: ../infrastructure/docker/document-generation-gateway.runtime.Dockerfile
+      context: ../.cache/runtime-images/document-generation-gateway
+      dockerfile: ../../../infrastructure/docker/document-generation-gateway.runtime.Dockerfile
     ports:
       - "8092:8092"
     environment:

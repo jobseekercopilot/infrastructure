@@ -59,6 +59,10 @@ updates the contract lock and workspace lock together.
   their inherited shell environment. Compose receives application configuration
   only from the selected generated environment file; tool settings such as
   `PATH`, `HOME` and `DOCKER_HOST` remain available.
+- Where a service intentionally excludes `target/` from its Docker context, the
+  build stages that checkout's current artifact into
+  `<workspace>/.cache/runtime-images`. These disposable contexts contain no
+  artifact from another workspace or from the user's Maven cache.
 - Maven and npm caches live at `<workspace>/.cache`; `~/.m2` is not used.
 - Generated clients are rebuilt from pinned producer Git history.
 - Fixture profiles forbid real job-provider, LLM and Stripe credentials.

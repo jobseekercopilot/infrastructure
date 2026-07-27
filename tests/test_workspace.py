@@ -9,7 +9,11 @@ from unittest.mock import patch
 from scripts.contracts.lock import load_contract_lock, validate_contract_lock
 from scripts.workspace.bootstrap import expected_remote, inspect_checkout, plan
 from scripts.workspace.catalog import load_catalog, load_workspace_lock
-from scripts.workspace.lifecycle import controlled_environment, selected_repositories
+from scripts.workspace.lifecycle import (
+    controlled_environment,
+    selected_repositories,
+    stage_runtime_image_contexts,
+)
 
 
 class CatalogTests(unittest.TestCase):
@@ -28,6 +32,34 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(environment["PATH"], "/safe/tool/path")
         self.assertNotIn("OPENAI_API_KEY", environment)
         self.assertNotIn("AUTH_SERVICE_TOKEN", environment)
+
+    def test_runtime_image_context_uses_current_workspace_artifact(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            source = (
+                workspace
+                / "jsearch-gateway"
+                / "target"
+                / "jsearch-gateway-1.0.0.jar"
+            )
+            source.parent.mkdir(parents=True)
+            source.write_bytes(b"locked-workspace-artifact")
+            with (
+                patch("scripts.workspace.lifecycle.WORKSPACE_ROOT", workspace),
+                patch(
+                    "scripts.workspace.lifecycle.RUNTIME_IMAGE_CACHE",
+                    workspace / ".cache/runtime-images",
+                ),
+            ):
+                stage_runtime_image_contexts({"jsearch-gateway"})
+
+            self.assertEqual(
+                (
+                    workspace
+                    / ".cache/runtime-images/jsearch-gateway/app.jar"
+                ).read_bytes(),
+                b"locked-workspace-artifact",
+            )
 
     def test_repository_names_are_unique(self) -> None:
         catalog = load_catalog()

@@ -32,6 +32,7 @@ CACHE_ROOT = WORKSPACE_ROOT / ".cache"
 MAVEN_REPOSITORY = CACHE_ROOT / "m2"
 NPM_CACHE = CACHE_ROOT / "npm"
 CLIENT_SOURCE_CACHE = CACHE_ROOT / "client-sources"
+RUNTIME_IMAGE_CACHE = CACHE_ROOT / "runtime-images"
 RUNTIME_ENVIRONMENT_SCHEMA = (
     INFRASTRUCTURE_ROOT / "config/runtime-environment.schema.json"
 )
@@ -193,6 +194,29 @@ def install_source_clients() -> None:
         )
 
 
+RUNTIME_IMAGE_ARTIFACTS = {
+    "document-generation-gateway": "target/document-generation-gateway-1.0.0.jar",
+    "jsearch-gateway": "target/jsearch-gateway-1.0.0.jar",
+    "reed-gateway": "target/reed-gateway-1.0.0.jar",
+}
+
+
+def stage_runtime_image_contexts(repository_names: set[str]) -> None:
+    """Stage current-workspace artifacts excluded by service build contexts."""
+    for repository_name, artifact_path in RUNTIME_IMAGE_ARTIFACTS.items():
+        if repository_name not in repository_names:
+            continue
+        source = WORKSPACE_ROOT / repository_name / artifact_path
+        if not source.is_file():
+            raise RuntimeError(
+                f"{repository_name}: expected built artifact is missing: {source}; "
+                "run the workspace build before building images"
+            )
+        destination = RUNTIME_IMAGE_CACHE / repository_name
+        destination.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, destination / "app.jar")
+
+
 def build_repository(repository) -> None:
     path = WORKSPACE_ROOT / repository.name
     if repository.build == "maven":
@@ -236,6 +260,10 @@ def compose_command(
 
 def start(profile: Profile, build: bool) -> None:
     fail_if_invalid()
+    if build:
+        stage_runtime_image_contexts(
+            {repository.name for repository in selected_repositories(load_catalog(), profile)}
+        )
     environment_file = ensure_environment(profile)
     command = compose_command(profile, environment_file, "up", "-d")
     if build:
@@ -366,6 +394,10 @@ def main() -> int:
             operation = build_repository if args.command == "build" else test_repository
             for repository in selected:
                 operation(repository)
+            if args.command == "build":
+                stage_runtime_image_contexts(
+                    {repository.name for repository in selected}
+                )
         elif args.command == "start":
             start(profile, args.build)
         elif args.command == "stop":
