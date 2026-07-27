@@ -33,6 +33,8 @@ MAVEN_REPOSITORY = CACHE_ROOT / "m2"
 NPM_CACHE = CACHE_ROOT / "npm"
 CLIENT_SOURCE_CACHE = CACHE_ROOT / "client-sources"
 RUNTIME_IMAGE_CACHE = CACHE_ROOT / "runtime-images"
+
+
 def fail_if_invalid() -> None:
     findings = validate_workspace(WORKSPACE_ROOT)
     failures = [finding for finding in findings if not finding.ok]
@@ -267,6 +269,29 @@ def stop(profile: Profile, delete_volumes: bool, confirmed: bool) -> None:
     run(command, INFRASTRUCTURE_ROOT)
 
 
+def parse_compose_status(text: str) -> list[dict]:
+    text = text.strip()
+    if not text:
+        return []
+    try:
+        parsed = json.loads(text)
+        if isinstance(parsed, list):
+            return parsed
+        if isinstance(parsed, dict):
+            return [parsed]
+    except json.JSONDecodeError:
+        pass
+    try:
+        parsed_lines = [
+            json.loads(line) for line in text.splitlines() if line.strip()
+        ]
+    except json.JSONDecodeError as error:
+        raise RuntimeError("unexpected Docker Compose status output") from error
+    if all(isinstance(item, dict) for item in parsed_lines):
+        return parsed_lines
+    raise RuntimeError("unexpected Docker Compose status output")
+
+
 def container_status(profile: Profile) -> list[dict]:
     environment_file = ensure_environment(profile)
     result = subprocess.run(
@@ -277,15 +302,7 @@ def container_status(profile: Profile) -> list[dict]:
         capture_output=True,
         text=True,
     )
-    text = result.stdout.strip()
-    if not text:
-        return []
-    parsed = json.loads(text)
-    if isinstance(parsed, list):
-        return parsed
-    if isinstance(parsed, dict):
-        return [parsed]
-    raise RuntimeError("unexpected Docker Compose status output")
+    return parse_compose_status(result.stdout)
 
 
 def http_ready(url: str) -> tuple[bool, str]:

@@ -11,12 +11,30 @@ from scripts.workspace.bootstrap import expected_remote, inspect_checkout, plan
 from scripts.workspace.catalog import load_catalog, load_workspace_lock
 from scripts.workspace.lifecycle import (
     controlled_environment,
+    parse_compose_status,
     selected_repositories,
     stage_runtime_image_contexts,
 )
 
 
 class CatalogTests(unittest.TestCase):
+    def test_compose_status_parser_supports_array_and_line_delimited_json(
+        self,
+    ) -> None:
+        expected = [
+            {"Service": "authentication-service", "State": "running"},
+            {"Service": "job-service", "State": "running"},
+        ]
+        self.assertEqual(parse_compose_status(json.dumps(expected)), expected)
+        self.assertEqual(
+            parse_compose_status("\n".join(json.dumps(item) for item in expected)),
+            expected,
+        )
+        with self.assertRaisesRegex(
+            RuntimeError, "unexpected Docker Compose status output"
+        ):
+            parse_compose_status('{"Service":"authentication-service"}\nnot-json')
+
     def test_runtime_commands_reject_inherited_application_configuration(self) -> None:
         with patch.dict(
             "os.environ",
