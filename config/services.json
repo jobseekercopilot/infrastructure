@@ -1,6 +1,10 @@
 {
   "schemaVersion": 2,
   "organisation": "jobseekercopilot",
+  "githubProject": {
+    "title": "Job Seeker Copilot",
+    "number": 1
+  },
   "workspace": {
     "layout": "sibling-repositories",
     "infrastructurePath": "infrastructure",

@@ -44,6 +44,8 @@ class Profile:
 @dataclass(frozen=True)
 class Catalog:
     organisation: str
+    project_title: str
+    project_number: int
     infrastructure_path: str
     default_branch: str
     lock_path: Path
@@ -92,6 +94,19 @@ def load_catalog(path: Path = DEFAULT_CATALOG) -> Catalog:
         raise ValueError("Catalog schemaVersion must be 2")
 
     organisation = _required_string(raw, "organisation", "catalog")
+    github_project = raw.get("githubProject")
+    if not isinstance(github_project, dict):
+        raise ValueError("catalog.githubProject must be an object")
+    project_title = _required_string(
+        github_project, "title", "catalog.githubProject"
+    )
+    project_number = github_project.get("number")
+    if (
+        not isinstance(project_number, int)
+        or isinstance(project_number, bool)
+        or project_number < 1
+    ):
+        raise ValueError("catalog.githubProject.number must be a positive integer")
     workspace = raw.get("workspace")
     if not isinstance(workspace, dict):
         raise ValueError("catalog.workspace must be an object")
@@ -233,6 +248,8 @@ def load_catalog(path: Path = DEFAULT_CATALOG) -> Catalog:
 
     return Catalog(
         organisation=organisation,
+        project_title=project_title,
+        project_number=project_number,
         infrastructure_path=infrastructure_path,
         default_branch=default_branch,
         lock_path=lock_path,

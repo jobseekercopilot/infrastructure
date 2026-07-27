@@ -14,10 +14,11 @@ from typing import Any
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from scripts.lib.project_paths import CLIENT_CONFIG_DIR, PROJECT_ROOT
+from scripts.lib.project_paths import PROJECT_ROOT, WORKSPACE_ROOT
+from scripts.workspace.catalog import DEFAULT_CATALOG, load_catalog
 
 
-CONFIG_PATH = CLIENT_CONFIG_DIR / "service_dependencies.json"
+CONFIG_PATH = DEFAULT_CATALOG
 EXPECTED_STATUSES = ("Ideas", "Backlog", "Ready", "In Progress", "Review", "Bugs", "Done")
 READY_STATUSES = ("Ready", "Backlog")
 PRIORITY_ORDER = {"Critical": 0, "High": 1, "Medium": 2, "Low": 3, "": 99, None: 99}
@@ -99,27 +100,34 @@ def load_config(path: Path = CONFIG_PATH) -> AppConfig:
         raise GitManagerError(f"Config file not found: {path}")
 
     raw = json.loads(path.read_text())
-    root_dir = Path(raw.get("root_dir", PROJECT_ROOT)).expanduser().resolve()
+    catalog = load_catalog(path)
+    root_dir = WORKSPACE_ROOT
 
-    github_raw = raw.get("github") or {}
-    missing = [key for key in ("owner", "project_title", "project_number") if key not in github_raw]
-    if missing:
-        raise GitManagerError(
-            "Missing github config keys: "
-            + ", ".join(missing)
-            + f"\nAdd them to {path}: github.owner, github.project_title, github.project_number"
+    github_raw = {
+        "owner": catalog.owner,
+        "project_title": catalog.project_title,
+        "project_number": catalog.project_number,
+    }
+    repositories = {
+        catalog.infrastructure_path: RepoConfig(
+            name=catalog.infrastructure_path,
+            path=root_dir / catalog.infrastructure_path,
+            test_command="python3 -m unittest discover -s tests",
         )
-
-    repositories = discover_repositories(root_dir)
-    configured_repos = raw.get("repositories") or {}
-    for name, value in configured_repos.items():
-        if isinstance(value, dict):
-            repo_path = root_dir / value.get("path", name)
-            test_command = value.get("test_command")
-        else:
-            repo_path = root_dir / name
-            test_command = None
-        repositories[name] = RepoConfig(name=name, path=repo_path, test_command=test_command)
+    }
+    for repository in catalog.repositories:
+        test_command = (
+            "mvn test"
+            if repository.build == "maven"
+            else "npm test -- --watch=false"
+            if repository.build == "npm"
+            else None
+        )
+        repositories[repository.name] = RepoConfig(
+            name=repository.name,
+            path=root_dir / repository.name,
+            test_command=test_command,
+        )
 
     return AppConfig(
         root_dir=root_dir,

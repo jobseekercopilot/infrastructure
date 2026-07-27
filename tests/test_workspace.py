@@ -21,6 +21,8 @@ class CatalogTests(unittest.TestCase):
         self.assertIn("job-matching-service", catalog.repository_names)
         self.assertIn("e2e", catalog.repository_names)
         self.assertEqual(catalog.infrastructure_path, "infrastructure")
+        self.assertEqual(catalog.project_title, "Job Seeker Copilot")
+        self.assertEqual(catalog.project_number, 1)
         self.assertEqual(
             {profile.name for profile in catalog.profiles},
             {"basic-fixture", "full-fixture"},
@@ -28,6 +30,13 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(
             set(load_workspace_lock(catalog)),
             set(catalog.repository_names),
+        )
+        self.assertFalse(
+            (
+                Path(__file__).resolve().parents[1]
+                / "scripts/clients/config/service_dependencies.json"
+            ).exists(),
+            "the authoritative catalogue must not have a competing manifest",
         )
 
     def test_basic_and_full_profiles_have_distinct_source_scope(self) -> None:
@@ -71,6 +80,10 @@ class CatalogTests(unittest.TestCase):
                     {
                         "schemaVersion": 2,
                         "organisation": "jobseekercopilot",
+                        "githubProject": {
+                            "title": "Job Seeker Copilot",
+                            "number": 1,
+                        },
                         "workspace": {
                             "layout": "sibling-repositories",
                             "infrastructurePath": "infrastructure",

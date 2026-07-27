@@ -29,7 +29,6 @@ BACKEND_CLIENTS_DIR = INFRASTRUCTURE_ROOT / "generated-clients" / "backend"
 FRONTEND_DIR = WORKSPACE_ROOT / "job-seeker-copilot-client"
 FRONTEND_API_CLIENTS_DIR = FRONTEND_DIR / "src" / "generated" / "api"
 
-SERVICE_DEPENDENCIES = CLIENT_CONFIG_DIR / "service_dependencies.json"
 BACKEND_CLIENT_CONFORMANCE_EXCLUSIONS = (
     CLIENT_CONFIG_DIR / "backend_client_conformance_exclusions.json"
 )
