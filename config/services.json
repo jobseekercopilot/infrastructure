@@ -167,7 +167,7 @@
     {
       "name": "system-data-service",
       "kind": "service",
-      "branch": "fix/serve-schema-valid-document-fixture",
+      "branch": "develop",
       "build": "maven",
       "composeServices": ["system-data-service"],
       "port": 8103,
@@ -226,7 +226,7 @@
     {
       "name": "llm-gateway",
       "kind": "gateway",
-      "branch": "fix/admit-cv-cover-letter-fixture-task",
+      "branch": "develop",
       "build": "maven",
       "composeServices": ["llm-gateway"],
       "port": 8090,
@@ -236,7 +236,7 @@
     {
       "name": "document-store-service",
       "kind": "service",
-      "branch": "fix/serialize-contract-date-times-with-offset",
+      "branch": "develop",
       "build": "maven",
       "composeServices": ["document-store-service"],
       "port": 8089,
@@ -256,7 +256,7 @@
     {
       "name": "application-tracker-service",
       "kind": "service",
-      "branch": "fix/manual-application-status-transitions",
+      "branch": "develop",
       "build": "maven",
       "composeServices": ["application-tracker-service"],
       "port": 8088,
@@ -281,7 +281,7 @@
     {
       "name": "document-generation-gateway",
       "kind": "gateway",
-      "branch": "fix/normalize-provider-date-for-generation",
+      "branch": "develop",
       "build": "maven",
       "composeServices": ["document-generation-gateway"],
       "port": 8092,
@@ -349,7 +349,7 @@
     {
       "name": "job-seeker-copilot-client",
       "kind": "frontend",
-      "branch": "feature/infra-14-session-job-search-smoke",
+      "branch": "develop",
       "build": "npm",
       "composeServices": ["job-seeker-copilot-client"],
       "port": 3000,
@@ -366,7 +366,7 @@
     {
       "name": "e2e",
       "kind": "test",
-      "branch": "feature/reproducible-local-environment-smoke",
+      "branch": "develop",
       "build": "npm",
       "composeServices": [],
       "dependsOn": ["job-seeker-copilot-client"]
