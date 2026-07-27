@@ -77,6 +77,9 @@ The producer-owned contract/package model and current compatible contract pins
 are defined by
 [`docs/adr/0002-versioned-contract-and-client-publication.md`](docs/adr/0002-versioned-contract-and-client-publication.md)
 and [`config/contracts-lock.json`](config/contracts-lock.json).
+The fail-closed beta artifact evidence contract and its current delivery
+boundaries are documented in
+[`docs/RELEASE_EVIDENCE.md`](docs/RELEASE_EVIDENCE.md).
 
 ## Licence
 

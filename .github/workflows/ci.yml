@@ -21,6 +21,8 @@ jobs:
           python3 -m json.tool config/services.json >/dev/null
           python3 -m json.tool config/contracts-lock.json >/dev/null
           python3 -m json.tool config/runtime-environment.schema.json >/dev/null
+          python3 -m json.tool config/release-policy.json >/dev/null
+          python3 -m json.tool config/release-evidence.schema.json >/dev/null
           python3 -m json.tool scripts/clients/config/service_dependencies.json >/dev/null
       - name: Reject tracked credential literals
         run: python3 -m scripts.security.check_tracked_secrets

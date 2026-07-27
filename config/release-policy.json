@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "evidence": {
+    "hashAlgorithm": "sha256",
+    "maximumAgeHours": 168,
+    "requireUtcTimestamps": true
+  },
+  "vulnerabilities": {
+    "blockedSeverities": [
+      "CRITICAL",
+      "HIGH"
+    ],
+    "maximumDatabaseAgeHours": 24
+  },
+  "licences": {
+    "prohibitedSpdxIds": [
+      "AGPL-3.0-only",
+      "AGPL-3.0-or-later",
+      "SSPL-1.0"
+    ],
+    "reviewRequiredValues": [
+      "NOASSERTION",
+      "UNKNOWN"
+    ]
+  },
+  "exceptions": {
+    "maximumLifetimeDays": 30,
+    "requiredFields": [
+      "owner",
+      "justification",
+      "expiresAt",
+      "compensatingControl"
+    ]
+  },
+  "secretScan": {
+    "requiredScope": "all-reachable-history",
+    "minimumCommitsScanned": 1,
+    "minimumBytesScanned": 1
+  }
+}
