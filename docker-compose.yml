@@ -153,9 +153,9 @@ services:
       - SPRING_APPLICATION_NAME=user-profile-service
       - SERVER_PORT=8085
       - ENVIRONMENT_DATA_ENABLED=false
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://user-profile-postgres:5432/user_profile
-      - SPRING_DATASOURCE_USERNAME=user_profile
-      - SPRING_DATASOURCE_PASSWORD=${USER_PROFILE_DATABASE_PASSWORD:?Generate the selected untracked environment file}
+      - PROFILE_DB_URL=jdbc:postgresql://user-profile-postgres:5432/user_profile
+      - PROFILE_DB_USERNAME=user_profile
+      - PROFILE_DB_PASSWORD=${USER_PROFILE_DATABASE_PASSWORD:?Generate the selected untracked environment file}
       - AUTH_JWKS_URI=http://authentication-service:8084/.well-known/jwks.json
       - PROFILE_JWT_ISSUER=${JWT_ISSUER:-job-seeker-copilot-authentication}
       - PROFILE_JWT_AUDIENCE=${JWT_AUDIENCE:-job-seeker-copilot-services}
@@ -308,25 +308,6 @@ services:
       - SYSTEM_DATA_DOWNSTREAM_ENVIRONMENT_DATA_TOKEN=${ENVIRONMENT_DATA_TOKEN:?Generate the selected untracked environment file}
     volumes:
       - ../system-data-service/dataset-repository:/app/dataset-repository
-    depends_on:
-      reed-gateway:
-        condition: service_healthy
-      adzuna-gateway:
-        condition: service_healthy
-      jsearch-gateway:
-        condition: service_healthy
-      postcode-io-gateway:
-        condition: service_healthy
-      authentication-service:
-        condition: service_healthy
-      user-profile-service:
-        condition: service_healthy
-      application-tracker-service:
-        condition: service_healthy
-      document-store-service:
-        condition: service_healthy
-      payment-service:
-        condition: service_healthy
     networks:
       - job-seeker-network
     healthcheck:
@@ -335,6 +316,22 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  job-service-postgres:
+    image: postgres:15.18-alpine
+    environment:
+      - POSTGRES_DB=job_service
+      - POSTGRES_USER=job_service
+      - POSTGRES_PASSWORD=${JOB_SERVICE_DATABASE_PASSWORD:?Generate the selected untracked environment file}
+    volumes:
+      - job-service-postgres-data:/var/lib/postgresql/data
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U job_service -d job_service"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
 
   job-service:
     build:
@@ -345,11 +342,18 @@ services:
     environment:
       - SPRING_APPLICATION_NAME=job-service
       - SERVER_PORT=8086
+      - JOB_SERVICE_DATABASE_URL=jdbc:postgresql://job-service-postgres:5432/job_service
+      - JOB_SERVICE_DATABASE_USERNAME=job_service
+      - JOB_SERVICE_DATABASE_PASSWORD=${JOB_SERVICE_DATABASE_PASSWORD:?Generate the selected untracked environment file}
+      - JOB_SERVICE_DATABASE_SSL_MODE=disable
+      - JOB_SERVICE_DATABASE_PRODUCTION_SAFETY_CHECK=false
       - REED_GATEWAY_URL=http://reed-gateway:8087
       - ADZUNA_GATEWAY_URL=http://adzuna-gateway:8101
       - JSEARCH_GATEWAY_URL=http://jsearch-gateway:8102
       - JOB_MATCHING_SERVICE_URL=http://job-matching-service:8097
     depends_on:
+      job-service-postgres:
+        condition: service_healthy
       reed-gateway:
         condition: service_healthy
       adzuna-gateway:
@@ -863,6 +867,7 @@ volumes:
   portainer-data:
   authentication-postgres-data:
   user-profile-postgres-data:
+  job-service-postgres-data:
   document-store-postgres-data:
   document-store-objects:
   application-tracker-postgres-data:

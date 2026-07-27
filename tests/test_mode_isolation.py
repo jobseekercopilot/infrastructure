@@ -251,23 +251,37 @@ class RenderedModeIsolationTests(unittest.TestCase):
         ):
             validate_model(model, "e2e")
 
-    def test_user_profile_uses_isolated_postgres_in_runtime_profiles(self) -> None:
+    def test_user_profile_uses_isolated_postgres_in_local_fixture(self) -> None:
+        model = self.model("local")
+        user_profile = model["services"]["user-profile-service"]
+        database = model["services"]["user-profile-postgres"]
+        self.assertIn(
+            "user-profile-postgres:5432",
+            user_profile["environment"]["PROFILE_DB_URL"],
+        )
+        self.assertEqual(
+            user_profile["environment"]["PROFILE_DB_PASSWORD"],
+            database["environment"]["POSTGRES_PASSWORD"],
+        )
+        self.assertIn("user-profile-postgres-data", model["volumes"])
+
+    def test_job_service_uses_isolated_postgres_without_fixture_cycle(self) -> None:
         for profile in ("local", "e2e", "live-provider"):
             with self.subTest(profile=profile):
                 model = self.model(profile)
-                user_profile = model["services"]["user-profile-service"]
-                database = model["services"]["user-profile-postgres"]
+                job_service = model["services"]["job-service"]
+                database = model["services"]["job-service-postgres"]
                 self.assertIn(
-                    "user-profile-postgres:5432",
-                    user_profile["environment"]["SPRING_DATASOURCE_URL"],
+                    "job-service-postgres:5432",
+                    job_service["environment"]["JOB_SERVICE_DATABASE_URL"],
                 )
                 self.assertEqual(
-                    user_profile["environment"]["SPRING_DATASOURCE_PASSWORD"],
+                    job_service["environment"]["JOB_SERVICE_DATABASE_PASSWORD"],
                     database["environment"]["POSTGRES_PASSWORD"],
                 )
-                self.assertIn(
-                    "user-profile-postgres-data",
-                    self.models[profile]["volumes"],
+                self.assertNotIn(
+                    "depends_on",
+                    model["services"]["system-data-service"],
                 )
 
     def test_reporting_gateway_service_and_tracker_reader_identities_are_exact(

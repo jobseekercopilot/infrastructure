@@ -41,6 +41,7 @@ class RuntimeEnvironmentSchemaTests(unittest.TestCase):
         required = {
             "APPLICATION_TRACKER_DATABASE_PASSWORD",
             "USER_PROFILE_DATABASE_PASSWORD",
+            "JOB_SERVICE_DATABASE_PASSWORD",
             "AUTH_SERVICE_TOKEN",
             "ENVIRONMENT_DATA_TOKEN",
             "APPLICATION_TRACKER_PRODUCER_TOKEN",
