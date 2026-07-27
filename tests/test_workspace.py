@@ -6,6 +6,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import yaml
+
 from scripts.contracts.lock import load_contract_lock, validate_contract_lock
 from scripts.workspace.bootstrap import expected_remote, inspect_checkout, plan
 from scripts.workspace.catalog import (
@@ -109,6 +111,38 @@ class CatalogTests(unittest.TestCase):
             real_providers.compose_files,
             ("docker-compose.yml", "docker-compose.real-job-providers.yml"),
         )
+        real_provider_overlay = yaml.safe_load(
+            (WORKSPACE_ROOT / "infrastructure"
+             / "docker-compose.real-job-providers.yml").read_text()
+        )
+        self.assertFalse(
+            real_provider_overlay["networks"]["provider-egress-network"]["internal"]
+        )
+        provider_secrets = {
+            "reed-gateway": {"REED_API_KEY"},
+            "adzuna-gateway": {"ADZUNA_APP_ID", "ADZUNA_APP_KEY"},
+            "jsearch-gateway": {"JSEARCH_API_KEY"},
+        }
+        for service, expected_targets in provider_secrets.items():
+            configuration = real_provider_overlay["services"][service]
+            self.assertEqual(
+                configuration["environment"]["SPRING_CONFIG_IMPORT"],
+                "optional:configtree:/run/secrets/",
+            )
+            self.assertTrue(
+                expected_targets.isdisjoint(configuration["environment"])
+            )
+            self.assertEqual(
+                {
+                    secret["target"]
+                    for secret in configuration["secrets"]
+                },
+                expected_targets,
+            )
+            self.assertEqual(
+                set(configuration["networks"]),
+                {"job-seeker-network", "provider-egress-network"},
+            )
         self.assertEqual(
             set(load_workspace_lock(catalog)),
             set(catalog.repository_names),
