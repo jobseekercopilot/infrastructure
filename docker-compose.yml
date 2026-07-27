@@ -441,6 +441,8 @@ services:
       - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
       - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.0.0}
       - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
+      - GENERATION_MODEL_ID=fixture-llm-synthetic-v1
+      - GENERATION_MODEL_DEPLOYMENT_VERSION=fixture-llm-synthetic-v1
     networks:
       - job-seeker-network
     healthcheck:
@@ -568,11 +570,15 @@ services:
       - APPLICATION_TRACKER_JWT_AUDIENCE=${JWT_AUDIENCE:-job-seeker-copilot-services}
       - APPLICATION_TRACKER_PRODUCER_TOKEN=${APPLICATION_TRACKER_PRODUCER_TOKEN:?Generate the selected untracked environment file}
       - APPLICATION_TRACKER_READER_TOKEN=${APPLICATION_TRACKER_READER_TOKEN:?Generate the selected untracked environment file}
+      - DOCUMENT_STORE_SERVICE_URL=http://document-store-service:8089
+      - DOCUMENT_STORE_READER_TOKEN=${DOCUMENT_STORE_READER_TOKEN:?Generate the selected untracked environment file}
       - ENVIRONMENT_DATA_TOKEN=${ENVIRONMENT_DATA_TOKEN:?Generate the selected untracked environment file}
     depends_on:
       authentication-service:
         condition: service_healthy
       application-tracker-postgres:
+        condition: service_healthy
+      document-store-service:
         condition: service_healthy
     networks:
       - job-seeker-network
@@ -853,6 +859,7 @@ services:
       - USER_MANAGEMENT_GATEWAY_URL=http://user-management-gateway:8083
       - JOB_FINDER_GATEWAY_URL=http://job-finder-gateway:8080
       - JOB_SEARCH_PROVIDER_MODE=FIXTURE
+      - DOCUMENT_GENERATION_MODE=FIXTURE_LLM
       - DOCUMENT_GENERATION_GATEWAY_URL=http://document-generation-gateway:8092
       - DOCUMENT_STORE_SERVICE_URL=http://document-store-service:8089
       - REPORTING_GATEWAY_URL=http://reporting-gateway:8095

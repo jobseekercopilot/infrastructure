@@ -167,7 +167,7 @@
     {
       "name": "system-data-service",
       "kind": "service",
-      "branch": "develop",
+      "branch": "fix/serve-schema-valid-document-fixture",
       "build": "maven",
       "composeServices": ["system-data-service"],
       "port": 8103,
@@ -226,7 +226,7 @@
     {
       "name": "llm-gateway",
       "kind": "gateway",
-      "branch": "develop",
+      "branch": "fix/admit-cv-cover-letter-fixture-task",
       "build": "maven",
       "composeServices": ["llm-gateway"],
       "port": 8090,
@@ -236,7 +236,7 @@
     {
       "name": "document-store-service",
       "kind": "service",
-      "branch": "develop",
+      "branch": "fix/serialize-contract-date-times-with-offset",
       "build": "maven",
       "composeServices": ["document-store-service"],
       "port": 8089,
@@ -256,7 +256,7 @@
     {
       "name": "application-tracker-service",
       "kind": "service",
-      "branch": "develop",
+      "branch": "fix/manual-application-status-transitions",
       "build": "maven",
       "composeServices": ["application-tracker-service"],
       "port": 8088,
@@ -281,7 +281,7 @@
     {
       "name": "document-generation-gateway",
       "kind": "gateway",
-      "branch": "develop",
+      "branch": "fix/normalize-provider-date-for-generation",
       "build": "maven",
       "composeServices": ["document-generation-gateway"],
       "port": 8092,
