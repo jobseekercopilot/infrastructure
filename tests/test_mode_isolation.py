@@ -94,6 +94,20 @@ class RenderedModeIsolationTests(unittest.TestCase):
         for profile, model in self.models.items():
             validate_model(model, profile)
 
+    def test_application_healthchecks_use_portable_alpine_wget(self) -> None:
+        model = self.model("local")
+        healthchecks = {
+            service: configuration["healthcheck"]["test"]
+            for service, configuration in model["services"].items()
+            if "healthcheck" in configuration
+            and configuration["healthcheck"]["test"][0] == "CMD"
+            and "/actuator/health" in configuration["healthcheck"]["test"][-1]
+        }
+        self.assertTrue(healthchecks)
+        for service, command in healthchecks.items():
+            with self.subTest(service=service):
+                self.assertEqual(command[:4], ["CMD", "wget", "-q", "--spider"])
+
     def test_e2e_rejects_live_mode_before_startup(self) -> None:
         model = self.model("e2e")
         model["services"]["reed-gateway"]["environment"][

@@ -51,7 +51,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8082/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -73,7 +73,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8081/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -121,7 +121,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8084/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8084/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -167,7 +167,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8085/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8085/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -195,7 +195,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8083/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -219,7 +219,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8087/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8087/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -246,7 +246,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8101/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8101/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -274,7 +274,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8102/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8102/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -311,7 +311,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8103/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8103/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -365,7 +365,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8086/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8086/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -388,7 +388,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8097/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8097/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -421,7 +421,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -444,7 +444,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8090/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8090/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -501,7 +501,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8089/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8089/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -525,7 +525,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8094/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8094/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -577,7 +577,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8088/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8088/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -611,7 +611,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8091/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8091/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -658,7 +658,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8092/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8092/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -684,7 +684,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8096/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8096/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -711,7 +711,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8095/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8095/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -756,7 +756,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8099/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8099/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -787,7 +787,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8100/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8100/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -814,7 +814,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8098/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8098/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
