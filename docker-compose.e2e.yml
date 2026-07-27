@@ -41,7 +41,6 @@ services:
       - SPRING_PROFILES_ACTIVE=e2e
       - ENVIRONMENT_DATA_ENABLED=true
       - ENVIRONMENT_DATA_ALLOWED_ENVIRONMENTS=e2e
-      - AUTH_DB_URL=jdbc:h2:file:/app/data/e2e/authentication;AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1
 
   user-profile-service:
     container_name: job-seeker-copilot-e2e-user-profile-service

@@ -113,6 +113,10 @@ filesystem adapter, and the Document Store, Application Tracker, and Payment
 production attestations are explicitly disabled. This is valid only for
 synthetic local evidence.
 
+The E2E overlay must not replace Authentication's PostgreSQL URL with an H2
+file target. The rendered trust-graph validator rejects any Authentication
+database URL that does not use the isolated `authentication-postgres` service.
+
 Production must re-enable the attestation and supply verified-full database
 TLS, managed database and backup encryption references, a private
 S3-compatible bucket, managed SSE-KMS, least-privilege credentials, public

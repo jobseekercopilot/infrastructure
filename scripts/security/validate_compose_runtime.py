@@ -401,6 +401,12 @@ def validate_runtime_model(model: dict, profile: str) -> None:
         raise ValueError(
             "Authentication database credential must match and contain 32 bytes"
         )
+    if "authentication-postgres:5432" not in authentication.get(
+        "AUTH_DB_URL", ""
+    ):
+        raise ValueError(
+            "Authentication must use its isolated PostgreSQL service"
+        )
     private_key = authentication.get("JWT_PRIVATE_KEY_BASE64", "")
     public_key = authentication.get("JWT_PUBLIC_KEY_BASE64", "")
     if not private_key or not public_key or private_key == public_key:

@@ -224,6 +224,33 @@ class RenderedModeIsolationTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     validate_model(model, "e2e")
 
+    def test_authentication_uses_isolated_postgres_in_runtime_profiles(
+        self,
+    ) -> None:
+        for profile in ("local", "e2e", "live-provider"):
+            with self.subTest(profile=profile):
+                model = self.model(profile)
+                authentication = model["services"]["authentication-service"]
+                database = model["services"]["authentication-postgres"]
+                self.assertIn(
+                    "authentication-postgres:5432",
+                    authentication["environment"]["AUTH_DB_URL"],
+                )
+                self.assertEqual(
+                    authentication["environment"]["AUTH_DB_PASSWORD"],
+                    database["environment"]["POSTGRES_PASSWORD"],
+                )
+
+        model = self.model("e2e")
+        model["services"]["authentication-service"]["environment"][
+            "AUTH_DB_URL"
+        ] = "jdbc:h2:file:/app/data/e2e/authentication"
+        with self.assertRaisesRegex(
+            ValueError,
+            "Authentication must use its isolated PostgreSQL service",
+        ):
+            validate_model(model, "e2e")
+
     def test_local_and_live_profiles_keep_destructive_endpoints_disabled(self) -> None:
         for profile in ("local", "live-provider"):
             model = self.model(profile)
