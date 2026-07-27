@@ -51,6 +51,8 @@ fast-forward to a newly reviewed lock.
   search.
 - `full-fixture`: every private-beta runtime component, with job providers,
   LLM and payments fixture-backed.
+- `real-job-providers`: the full application with Reed, Adzuna and JSearch
+  live while OpenAI and Stripe remain fixture-backed.
 
 ```bash
 ./scripts/start-local.sh --profile basic-fixture --build
@@ -61,8 +63,11 @@ fast-forward to a newly reviewed lock.
 ```
 
 Do not use real provider or payment credentials for fixture/E2E execution.
-The live-provider overlay permits job-provider integration only: LLM is
-disabled and Stripe stays fixture-backed. Data acquisition is a separate
+The real-provider profile reads provider credentials only from the
+workspace-root `config/.secrets.env`, which must have mode `0600`. It never
+copies credentials into a repository, image or browser bundle. Start-up fails
+with a variable name—not its value—when a required provider credential is
+missing. Data acquisition is a separate
 one-shot, quarantined operator workflow, not a normal stack. It is never run
 by automated verification. Mode boundaries are documented in
 [`docs/MODE_ISOLATION.md`](docs/MODE_ISOLATION.md). Runtime identity ownership,

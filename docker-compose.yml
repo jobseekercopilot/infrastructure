@@ -852,6 +852,7 @@ services:
       - LOCATION_GATEWAY_URL=http://location-gateway:8081
       - USER_MANAGEMENT_GATEWAY_URL=http://user-management-gateway:8083
       - JOB_FINDER_GATEWAY_URL=http://job-finder-gateway:8080
+      - JOB_SEARCH_PROVIDER_MODE=FIXTURE
       - DOCUMENT_GENERATION_GATEWAY_URL=http://document-generation-gateway:8092
       - DOCUMENT_STORE_SERVICE_URL=http://document-store-service:8089
       - REPORTING_GATEWAY_URL=http://reporting-gateway:8095

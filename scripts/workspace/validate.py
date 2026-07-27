@@ -40,7 +40,10 @@ class Finding:
 
 
 def compose_model(
-    catalog: Catalog, profile_name: str, environment_file: Path
+    catalog: Catalog,
+    profile_name: str,
+    environment_file: Path,
+    secret_environment_file: Path | None = None,
 ) -> dict:
     profile = catalog.profile(profile_name)
     command = [
@@ -51,6 +54,8 @@ def compose_model(
         "--env-file",
         str(environment_file),
     ]
+    if secret_environment_file is not None:
+        command.extend(("--env-file", str(secret_environment_file)))
     for compose_file in profile.compose_files:
         command.extend(("-f", compose_file))
     command.extend(("config", "--format", "json"))
@@ -235,7 +240,23 @@ def validate_workspace(
             environment_file,
         )
         for profile in catalog.profiles:
-            model = compose_model(catalog, profile.name, environment_file)
+            secret_environment_file = None
+            if profile.secret_environment_file is not None:
+                secret_environment_file = Path(directory) / ".secrets.env"
+                secret_environment_file.write_text(
+                    "REED_API_KEY=validation-only\n"
+                    "ADZUNA_APP_ID=validation-only\n"
+                    "ADZUNA_APP_KEY=validation-only\n"
+                    "JSEARCH_API_KEY=validation-only\n",
+                    encoding="utf-8",
+                )
+                secret_environment_file.chmod(0o600)
+            model = compose_model(
+                catalog,
+                profile.name,
+                environment_file,
+                secret_environment_file,
+            )
             findings.extend(validate_model(catalog, profile.name, model, workspace))
     return findings
 

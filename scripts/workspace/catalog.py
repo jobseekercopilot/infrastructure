@@ -37,6 +37,7 @@ class Profile:
     compose_files: tuple[str, ...]
     compose_project: str
     environment_profile: str
+    secret_environment_file: Path | None
     frontend_url: str
     services: tuple[str, ...] | str
 
@@ -240,6 +241,15 @@ def load_catalog(path: Path = DEFAULT_CATALOG) -> Catalog:
                 compose_project=_required_string(item, "composeProject", context),
                 environment_profile=_required_string(
                     item, "environmentProfile", context
+                ),
+                secret_environment_file=(
+                    _relative_file(
+                        infrastructure_root.parent,
+                        item["secretEnvironmentFile"],
+                        f"{context}.secretEnvironmentFile",
+                    )
+                    if "secretEnvironmentFile" in item
+                    else None
                 ),
                 frontend_url=_required_string(item, "frontendUrl", context),
                 services=services,

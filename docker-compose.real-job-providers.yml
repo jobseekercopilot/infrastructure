@@ -1,0 +1,31 @@
+services:
+  reed-gateway:
+    environment:
+      EXTERNAL_PROVIDER_MODE: LIVE
+      REED_ENABLED: "true"
+      REED_API_KEY: ${REED_API_KEY:?REED_API_KEY is missing — replacement required in workspace config/.secrets.env}
+
+  adzuna-gateway:
+    environment:
+      EXTERNAL_PROVIDER_MODE: LIVE
+      ADZUNA_ENABLED: "true"
+      ADZUNA_APP_ID: ${ADZUNA_APP_ID:?ADZUNA_APP_ID is missing from workspace config/.secrets.env}
+      ADZUNA_APP_KEY: ${ADZUNA_APP_KEY:?ADZUNA_APP_KEY is missing from workspace config/.secrets.env}
+
+  jsearch-gateway:
+    environment:
+      EXTERNAL_PROVIDER_MODE: LIVE
+      JSEARCH_ENABLED: "true"
+      JSEARCH_API_KEY: ${JSEARCH_API_KEY:?JSEARCH_API_KEY is missing from workspace config/.secrets.env}
+
+  llm-gateway:
+    environment:
+      EXTERNAL_PROVIDER_MODE: FIXTURE
+
+  stripe-gateway:
+    environment:
+      EXTERNAL_PROVIDER_MODE: FIXTURE
+
+  job-seeker-copilot-client:
+    environment:
+      JOB_SEARCH_PROVIDER_MODE: REAL

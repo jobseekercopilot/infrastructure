@@ -18,6 +18,10 @@ from xml.etree import ElementTree
 
 from scripts.contracts.lock import load_contract_lock, verify_checkout
 from scripts.security.generate_profile_env import render
+from scripts.security.provider_secrets import (
+    secret_files_inside_repositories,
+    validate_store,
+)
 from scripts.workspace.catalog import (
     INFRASTRUCTURE_ROOT,
     WORKSPACE_ROOT,
@@ -237,6 +241,8 @@ def compose_command(
         "--env-file",
         str(environment_file),
     ]
+    if profile.secret_environment_file is not None:
+        command.extend(("--env-file", str(profile.secret_environment_file)))
     for compose_file in profile.compose_files:
         command.extend(("-f", compose_file))
     command.extend(arguments)
@@ -244,6 +250,23 @@ def compose_command(
 
 
 def start(profile: Profile, build: bool) -> None:
+    if profile.secret_environment_file is not None:
+        repository_secret_files = secret_files_inside_repositories()
+        if repository_secret_files:
+            paths = ", ".join(
+                str(path.relative_to(WORKSPACE_ROOT))
+                for path in repository_secret_files
+            )
+            raise RuntimeError(
+                "real provider credentials are forbidden inside Git repositories: "
+                + paths
+            )
+        secret_failures = validate_store(
+            ("REED", "ADZUNA", "JSEARCH"),
+            profile.secret_environment_file,
+        )
+        if secret_failures:
+            raise RuntimeError("; ".join(secret_failures))
     fail_if_invalid()
     if build:
         stage_runtime_image_contexts(
@@ -410,7 +433,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--profile",
-        choices=("basic-fixture", "full-fixture"),
+        choices=("basic-fixture", "full-fixture", "real-job-providers"),
         default="basic-fixture",
     )
     parser.add_argument("--build", action="store_true")

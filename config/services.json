@@ -45,6 +45,15 @@
       "environmentProfile": "local",
       "frontendUrl": "http://localhost:3000",
       "services": "all-runtime"
+    },
+    "real-job-providers": {
+      "description": "The complete private-beta application with Reed, Adzuna and JSearch live while LLM and Stripe remain fixture-backed.",
+      "composeFiles": ["docker-compose.yml", "docker-compose.real-job-providers.yml"],
+      "composeProject": "job-seeker-copilot-real-jobs",
+      "environmentProfile": "local",
+      "secretEnvironmentFile": "config/.secrets.env",
+      "frontendUrl": "http://localhost:3000",
+      "services": "all-runtime"
     }
   },
   "buildOrder": [

@@ -8,7 +8,11 @@ from unittest.mock import patch
 
 from scripts.contracts.lock import load_contract_lock, validate_contract_lock
 from scripts.workspace.bootstrap import expected_remote, inspect_checkout, plan
-from scripts.workspace.catalog import load_catalog, load_workspace_lock
+from scripts.workspace.catalog import (
+    WORKSPACE_ROOT,
+    load_catalog,
+    load_workspace_lock,
+)
 from scripts.workspace.lifecycle import (
     controlled_environment,
     parse_compose_status,
@@ -94,7 +98,16 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(catalog.project_number, 1)
         self.assertEqual(
             {profile.name for profile in catalog.profiles},
-            {"basic-fixture", "full-fixture"},
+            {"basic-fixture", "full-fixture", "real-job-providers"},
+        )
+        real_providers = catalog.profile("real-job-providers")
+        self.assertEqual(
+            real_providers.secret_environment_file,
+            WORKSPACE_ROOT / "config" / ".secrets.env",
+        )
+        self.assertEqual(
+            real_providers.compose_files,
+            ("docker-compose.yml", "docker-compose.real-job-providers.yml"),
         )
         self.assertEqual(
             set(load_workspace_lock(catalog)),
