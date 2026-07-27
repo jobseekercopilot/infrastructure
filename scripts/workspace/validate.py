@@ -23,6 +23,11 @@ from scripts.workspace.catalog import (
 )
 
 INTERPOLATION = re.compile(r"\$\{([A-Z][A-Z0-9_]*)")
+STAGED_RUNTIME_CONTEXTS = {
+    "document-generation-gateway",
+    "jsearch-gateway",
+    "reed-gateway",
+}
 
 
 @dataclass(frozen=True)
@@ -110,7 +115,12 @@ def validate_model(
     for service, repository_name in owned_services.items():
         definition = services.get(service, {})
         build = definition.get("build")
-        expected_context = (workspace / repository_name).resolve()
+        if repository_name in STAGED_RUNTIME_CONTEXTS:
+            expected_context = (
+                workspace / ".cache/runtime-images" / repository_name
+            ).resolve()
+        else:
+            expected_context = (workspace / repository_name).resolve()
         if not isinstance(build, dict):
             context_failures.append(f"{service}: no source build")
         else:
@@ -119,7 +129,9 @@ def validate_model(
                 context_failures.append(
                     f"{service}: {actual_context} != {expected_context}"
                 )
-            dockerfile = expected_context / build.get("dockerfile", "Dockerfile")
+            dockerfile = (
+                expected_context / build.get("dockerfile", "Dockerfile")
+            ).resolve()
             if not dockerfile.is_file():
                 context_failures.append(f"{service}: missing {dockerfile}")
         if not definition.get("healthcheck"):
@@ -128,7 +140,7 @@ def validate_model(
         Finding(
             f"{profile_name}-source-contexts",
             not context_failures,
-            "all source contexts map to sibling repositories"
+            "all build contexts map to sibling sources or staged current-workspace artifacts"
             if not context_failures
             else "; ".join(context_failures),
         )
