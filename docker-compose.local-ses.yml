@@ -1,0 +1,49 @@
+services:
+  authentication-service:
+    environment:
+      - AUTH_ACCOUNT_EMAIL_DELIVERY_MODE=local-ses
+      - AUTH_ACCOUNT_EMAIL_SENDER=accounts@jobseekercopilot.com
+      - AUTH_ACCOUNT_EMAIL_SUPPORT_URL=https://jobseekercopilot.com/contact
+      - AUTH_ACCOUNT_EMAIL_SES_REGION=eu-west-2
+      - AUTH_ACCOUNT_EMAIL_SES_CONFIGURATION_SET=JobSeekerCopilotAccountEmails
+      - AUTH_ACCOUNT_EMAIL_SES_ENDPOINT=http://localstack:4566
+      - AWS_REGION=eu-west-2
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+    depends_on:
+      localstack:
+        condition: service_healthy
+
+  localstack:
+    image: localstack/localstack:4.14.0
+    ports:
+      - "127.0.0.1:4566:4566"
+    environment:
+      - SERVICES=ses
+      - AWS_DEFAULT_REGION=eu-west-2
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - PERSISTENCE=0
+      - EAGER_SERVICE_LOADING=1
+      - SKIP_SSL_CERT_DOWNLOAD=1
+      - DISABLE_EVENTS=1
+    volumes:
+      - ./localstack/init/ready.d:/etc/localstack/init/ready.d:ro
+    networks:
+      - job-seeker-network
+      - host-access
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          awslocal ses get-identity-verification-attributes
+          --identities accounts@jobseekercopilot.com
+          --query 'VerificationAttributes."accounts@jobseekercopilot.com".VerificationStatus'
+          --output text | grep -qx Success
+          && awslocal ses list-configuration-sets
+          --query 'ConfigurationSets[?Name==`JobSeekerCopilotAccountEmails`].Name'
+          --output text | grep -qw JobSeekerCopilotAccountEmails
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 5s

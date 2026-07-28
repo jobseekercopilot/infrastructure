@@ -41,6 +41,15 @@ runtime. Basic covers account registration/login, profile/location and
 fixture-backed job search. Full adds document, tracking, reporting, AI and
 payment components while retaining fixture providers.
 
+Use `full-local-ses` when the complete fixture-backed application should send
+account email through the production SES adapter to local, ephemeral LocalStack:
+
+```bash
+./scripts/start-local.sh --profile full-local-ses --build
+./scripts/health-check.sh --profile full-local-ses
+./scripts/stop-local.sh --profile full-local-ses
+```
+
 ## Two safe workstreams
 
 Create feature branches in the individual repository being changed. Keep

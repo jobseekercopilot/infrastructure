@@ -103,6 +103,7 @@ class CatalogTests(unittest.TestCase):
             {
                 "basic-fixture",
                 "full-fixture",
+                "full-local-ses",
                 "real-job-providers",
                 "nhs-jobs-fixture",
                 "nhs-jobs-development",

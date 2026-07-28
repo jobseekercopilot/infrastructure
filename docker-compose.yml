@@ -115,6 +115,13 @@ services:
       - JWT_KEY_ID=local-generated
       - AUTH_SERVICE_TOKEN=${AUTH_SERVICE_TOKEN:?Generate the selected untracked environment file}
       - AUTH_ENVIRONMENT_DATA_TOKEN=${ENVIRONMENT_DATA_TOKEN:?Generate the selected untracked environment file}
+      - AUTH_PASSWORD_RESET_TOKEN_LIFETIME=30m
+      - AUTH_PASSWORD_RESET_REQUEST_COOLDOWN=60s
+      - AUTH_ACCOUNT_EMAIL_DELIVERY_MODE=fixture
+      - AUTH_ACCOUNT_EMAIL_APPLICATION_BASE_URL=http://localhost:3000
+      - AUTH_ACCOUNT_EMAIL_SENDER=accounts@jobseekercopilot.com
+      - AUTH_ACCOUNT_EMAIL_SUPPORT_URL=https://jobseekercopilot.com/contact
+      - AUTH_ACCOUNT_EMAIL_SES_CONFIGURATION_SET=JobSeekerCopilotAccountEmails
     depends_on:
       authentication-postgres:
         condition: service_healthy
@@ -883,6 +890,9 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
+      - BFF_TRUSTED_PROXY_HOPS=0
+      - BFF_PASSWORD_RESET_RATE_WINDOW_MS=900000
+      - BFF_PASSWORD_RESET_RATE_MAXIMUM=5
       - LOCATION_GATEWAY_URL=http://location-gateway:8081
       - USER_MANAGEMENT_GATEWAY_URL=http://user-management-gateway:8083
       - JOB_FINDER_GATEWAY_URL=http://job-finder-gateway:8080

@@ -35,6 +35,12 @@ services:
       - SPRING_PROFILES_ACTIVE=local,e2e
       - ENVIRONMENT_DATA_ENABLED=true
       - ENVIRONMENT_DATA_ALLOWED_ENVIRONMENTS=e2e
+      - AUTH_ACCOUNT_EMAIL_DELIVERY_MODE=fixture
+      - AUTH_ACCOUNT_EMAIL_APPLICATION_BASE_URL=http://localhost:${E2E_FRONTEND_PORT:-3100}
+      - AUTH_ACCOUNT_EMAIL_FIXTURE_MAXIMUM_MESSAGES=1000
+    networks:
+      - job-seeker-network
+      - host-access
 
   user-profile-service:
     ports: !override
@@ -107,6 +113,9 @@ services:
       - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
       - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.0.0}
       - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
+    networks:
+      - job-seeker-network
+      - host-access
 
   job-service:
     ports: !override

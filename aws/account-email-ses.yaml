@@ -1,0 +1,99 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Authentication-owned SES resources for Job Seeker Copilot account emails.
+  This stack is intentionally separate from waitlist and contact email resources.
+
+Parameters:
+  VerifiedDomain:
+    Type: String
+    Default: jobseekercopilot.com
+    AllowedPattern: '^[A-Za-z0-9.-]+$'
+  AccountEmailSender:
+    Type: String
+    Default: accounts@jobseekercopilot.com
+    AllowedPattern: '^[^@]+@jobseekercopilot[.]com$'
+
+Resources:
+  AccountEmailConfigurationSet:
+    Type: AWS::SES::ConfigurationSet
+    Properties:
+      Name: JobSeekerCopilotAccountEmails
+
+  AccountEmailEvents:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: Job Seeker Copilot account-email delivery events
+      KmsMasterKeyId: alias/aws/sns
+      TopicName: job-seeker-copilot-account-email-events
+      Tags:
+        - Key: Purpose
+          Value: account-email-delivery
+
+  AccountEmailEventsPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref AccountEmailEvents
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowSesAccountEmailEvents
+            Effect: Allow
+            Principal:
+              Service: ses.amazonaws.com
+            Action: sns:Publish
+            Resource: !Ref AccountEmailEvents
+            Condition:
+              StringEquals:
+                AWS:SourceAccount: !Ref AWS::AccountId
+              ArnLike:
+                AWS:SourceArn: !Sub arn:${AWS::Partition}:ses:${AWS::Region}:${AWS::AccountId}:configuration-set/JobSeekerCopilotAccountEmails
+
+  AccountEmailEventDestination:
+    Type: AWS::SES::ConfigurationSetEventDestination
+    DependsOn: AccountEmailEventsPolicy
+    Properties:
+      ConfigurationSetName: !Ref AccountEmailConfigurationSet
+      EventDestination:
+        Name: account-email-events
+        Enabled: true
+        MatchingEventTypes:
+          - SEND
+          - REJECT
+          - BOUNCE
+          - COMPLAINT
+          - DELIVERY
+          - DELIVERY_DELAY
+        SnsDestination:
+          TopicARN: !Ref AccountEmailEvents
+
+  AuthenticationAccountEmailPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: >
+        Allows only Authentication Service account emails from the approved
+        sender through the dedicated configuration set.
+      ManagedPolicyName: JobSeekerCopilotAuthenticationAccountEmail
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: SendAuthenticationAccountEmail
+            Effect: Allow
+            Action:
+              - ses:SendEmail
+            Resource:
+              - !Sub arn:${AWS::Partition}:ses:${AWS::Region}:${AWS::AccountId}:identity/${VerifiedDomain}
+              - !Sub arn:${AWS::Partition}:ses:${AWS::Region}:${AWS::AccountId}:configuration-set/JobSeekerCopilotAccountEmails
+            Condition:
+              StringEquals:
+                ses:FromAddress: !Ref AccountEmailSender
+                ses:ApiVersion: '2010-12-01'
+
+Outputs:
+  ConfigurationSetName:
+    Value: !Ref AccountEmailConfigurationSet
+  DeliveryEventsTopicArn:
+    Value: !Ref AccountEmailEvents
+  AuthenticationAccountEmailPolicyArn:
+    Description: Attach this policy only to the hosted Authentication Service runtime role.
+    Value: !Ref AuthenticationAccountEmailPolicy

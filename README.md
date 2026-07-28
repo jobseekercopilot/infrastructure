@@ -51,6 +51,9 @@ fast-forward to a newly reviewed lock.
   search.
 - `full-fixture`: every private-beta runtime component, with job providers,
   LLM and payments fixture-backed.
+- `full-local-ses`: the same complete fixture-backed runtime, with account
+  email sent by the Authentication Service production SES adapter to pinned,
+  ephemeral LocalStack SES.
 - `real-job-providers`: the full application with Reed, Adzuna and JSearch
   live while OpenAI and Stripe remain fixture-backed.
 - `nhs-jobs-fixture`: only the NHS Jobs gateway in its deterministic fixture
