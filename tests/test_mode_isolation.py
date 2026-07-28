@@ -284,19 +284,41 @@ class RenderedModeIsolationTests(unittest.TestCase):
         ):
             validate_model(model, "e2e")
 
-    def test_user_profile_uses_isolated_postgres_in_local_fixture(self) -> None:
-        model = self.model("local")
-        user_profile = model["services"]["user-profile-service"]
-        database = model["services"]["user-profile-postgres"]
-        self.assertIn(
-            "user-profile-postgres:5432",
-            user_profile["environment"]["PROFILE_DB_URL"],
-        )
-        self.assertEqual(
-            user_profile["environment"]["PROFILE_DB_PASSWORD"],
-            database["environment"]["POSTGRES_PASSWORD"],
-        )
-        self.assertIn("user-profile-postgres-data", model["volumes"])
+        model = self.model("e2e")
+        model["services"]["authentication-service"]["environment"][
+            "SPRING_PROFILES_ACTIVE"
+        ] = "e2e"
+        with self.assertRaisesRegex(
+            ValueError,
+            "authentication-service:SPRING_PROFILES_ACTIVE must be local,e2e",
+        ):
+            validate_model(model, "e2e")
+
+    def test_user_profile_uses_isolated_postgres_in_fixture_profiles(self) -> None:
+        for profile in ("local", "e2e"):
+            with self.subTest(profile=profile):
+                model = self.model(profile)
+                user_profile = model["services"]["user-profile-service"]
+                database = model["services"]["user-profile-postgres"]
+                self.assertIn(
+                    "user-profile-postgres:5432",
+                    user_profile["environment"]["PROFILE_DB_URL"],
+                )
+                self.assertEqual(
+                    user_profile["environment"]["PROFILE_DB_PASSWORD"],
+                    database["environment"]["POSTGRES_PASSWORD"],
+                )
+                self.assertIn("user-profile-postgres-data", model["volumes"])
+
+        model = self.model("e2e")
+        model["services"]["user-profile-service"]["environment"][
+            "SPRING_PROFILES_ACTIVE"
+        ] = "e2e"
+        with self.assertRaisesRegex(
+            ValueError,
+            "user-profile-service:SPRING_PROFILES_ACTIVE must be local,environment-data",
+        ):
+            validate_model(model, "e2e")
 
     def test_job_service_uses_isolated_postgres_without_fixture_cycle(self) -> None:
         for profile in ("local", "e2e", "live-provider"):

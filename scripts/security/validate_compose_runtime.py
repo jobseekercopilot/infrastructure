@@ -160,14 +160,29 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
         expected = "true" if profile == "e2e" else "false"
         require_value(model, service, "ENVIRONMENT_DATA_ENABLED", expected)
         if profile == "e2e":
+            allowed_environment = (
+                "local" if service == "user-profile-service" else "e2e"
+            )
             require_value(
                 model,
                 service,
                 "ENVIRONMENT_DATA_ALLOWED_ENVIRONMENTS",
-                "e2e",
+                allowed_environment,
             )
 
     if profile == "e2e":
+        require_value(
+            model,
+            "authentication-service",
+            "SPRING_PROFILES_ACTIVE",
+            "local,e2e",
+        )
+        require_value(
+            model,
+            "user-profile-service",
+            "SPRING_PROFILES_ACTIVE",
+            "local,environment-data",
+        )
         for service in FIXTURE_GATEWAYS:
             require_value(model, service, "SPRING_PROFILES_ACTIVE", "e2e")
         require_value(
@@ -180,7 +195,7 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
             model,
             "system-data-service",
             "SPRING_PROFILES_ACTIVE",
-            "e2e",
+            "test",
         )
         require_value(
             model,
@@ -198,7 +213,7 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
             model,
             "system-data-service",
             "SYSTEM_DATA_ENVIRONMENT_ALLOWED_PROFILES",
-            "e2e",
+            "test",
         )
         require_value(
             model,
@@ -210,7 +225,7 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
             model,
             "system-data-service",
             "SYSTEM_DATA_FIXTURE_ALLOWED_PROFILES",
-            "e2e",
+            "test",
         )
     else:
         require_value(
@@ -247,6 +262,20 @@ def validate_runtime_model(model: dict, profile: str) -> None:
         if "JWT_SECRET" in service.get("environment", {}):
             raise ValueError(f"{service_name} still receives forbidden JWT_SECRET")
 
+    environment_data_consumers = (
+        ("authentication-service", "AUTH_ENVIRONMENT_DATA_TOKEN"),
+        ("application-tracker-service", "ENVIRONMENT_DATA_TOKEN"),
+        ("document-store-service", "ENVIRONMENT_DATA_TOKEN"),
+        (
+            "system-data-service",
+            "SYSTEM_DATA_DOWNSTREAM_ENVIRONMENT_DATA_TOKEN",
+        ),
+    )
+    if profile == "e2e":
+        environment_data_consumers += (
+            ("user-profile-service", "ENVIRONMENT_DATA_TOKEN"),
+        )
+
     credential_values = {
         "AUTH_SERVICE_TOKEN": require_shared(
             model,
@@ -260,15 +289,7 @@ def validate_runtime_model(model: dict, profile: str) -> None:
         "ENVIRONMENT_DATA_TOKEN": require_shared(
             model,
             "ENVIRONMENT_DATA_TOKEN",
-            (
-                ("authentication-service", "AUTH_ENVIRONMENT_DATA_TOKEN"),
-                ("application-tracker-service", "ENVIRONMENT_DATA_TOKEN"),
-                ("document-store-service", "ENVIRONMENT_DATA_TOKEN"),
-                (
-                    "system-data-service",
-                    "SYSTEM_DATA_DOWNSTREAM_ENVIRONMENT_DATA_TOKEN",
-                ),
-            ),
+            environment_data_consumers,
         ),
         "APPLICATION_TRACKER_PRODUCER_TOKEN": require_shared(
             model,

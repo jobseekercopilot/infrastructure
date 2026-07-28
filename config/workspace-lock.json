@@ -11,7 +11,7 @@
     {"name": "reed-gateway", "branch": "develop", "revision": "092a293aeea3e266aad84f6c99844944095dbe2b"},
     {"name": "adzuna-gateway", "branch": "develop", "revision": "f23f70163b245594a5b8c7b230ab01148751eefe"},
     {"name": "jsearch-gateway", "branch": "develop", "revision": "17edeef6f5f65362d40d92e7404f7f880c2d2cdf"},
-    {"name": "nhs-jobs-gateway", "branch": "agent/nhs-jobs-gateway-checkpoint", "revision": "d6379639ebfba1d28727ebdaf7d5806a778810aa"},
+    {"name": "nhs-jobs-gateway", "branch": "agent/nhs-jobs-gateway-checkpoint", "revision": "0ae97a5eee8473835904c942e6c931ebaee1c78c"},
     {"name": "system-data-service", "branch": "develop", "revision": "ea0af66d8ff8355e0ec275bed378bf0212a9d05c"},
     {"name": "job-service", "branch": "agent/nhs-jobs-vertical-slice", "revision": "d1e931ae36385ce1ba38a3063be1e0d499c9d515"},
     {"name": "job-matching-service", "branch": "develop", "revision": "9f252e93c63913aa47c241edc5f37314408a444d"},
@@ -28,6 +28,6 @@
     {"name": "stripe-gateway", "branch": "develop", "revision": "d9aa6b338d21c6beee6e097a3c72a783cc295b7c"},
     {"name": "payment-gateway", "branch": "develop", "revision": "8d49a6477c302d9700758c52de9e85cb192a0580"},
     {"name": "job-seeker-copilot-client", "branch": "agent/nhs-jobs-vertical-slice", "revision": "583de4b1f03f351b875747951dd5b19e72f1f31a"},
-    {"name": "e2e", "branch": "agent/nhs-jobs-strict-e2e", "revision": "97b61b77e148a65bcc56fc4f3e8c8b58144fa9cd"}
+    {"name": "e2e", "branch": "agent/nhs-jobs-strict-e2e", "revision": "fce50c9b5c2f13478ef722fd7fdeb74140229c2e"}
   ]
 }
