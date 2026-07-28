@@ -427,6 +427,7 @@ def health(profile: Profile, timeout_seconds: int) -> None:
 
 
 def main() -> int:
+    catalog = load_catalog()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "command",
@@ -434,7 +435,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--profile",
-        choices=("basic-fixture", "full-fixture", "real-job-providers"),
+        choices=tuple(profile.name for profile in catalog.profiles),
         default="basic-fixture",
     )
     parser.add_argument("--build", action="store_true")
@@ -443,7 +444,6 @@ def main() -> int:
     parser.add_argument("--timeout-seconds", type=int, default=600)
     parser.add_argument("--follow", action="store_true")
     args = parser.parse_args()
-    catalog = load_catalog()
     profile = catalog.profile(args.profile)
     try:
         if args.command in {"build", "test"}:
