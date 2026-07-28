@@ -28,6 +28,7 @@ STAGED_RUNTIME_CONTEXTS = {
     "adzuna-gateway",
     "document-generation-gateway",
     "jsearch-gateway",
+    "nhs-jobs-gateway",
     "reed-gateway",
 }
 

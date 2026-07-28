@@ -383,6 +383,7 @@
     {"name": "E2E_REED_GATEWAY_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9087"},
     {"name": "E2E_ADZUNA_GATEWAY_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9101"},
     {"name": "E2E_JSEARCH_GATEWAY_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9102"},
+    {"name": "E2E_NHS_JOBS_GATEWAY_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9131"},
     {"name": "E2E_JOB_SERVICE_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9086"},
     {"name": "E2E_JOB_MATCHING_SERVICE_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9097"},
     {"name": "E2E_JOB_FINDER_GATEWAY_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9080"},

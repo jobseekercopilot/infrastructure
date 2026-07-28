@@ -85,6 +85,16 @@ services:
       - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.0.0}
       - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
 
+  nhs-jobs-gateway:
+    ports: !override
+      - "${E2E_NHS_JOBS_GATEWAY_PORT:-9131}:8104"
+    environment:
+      - SPRING_PROFILES_ACTIVE=e2e
+      - EXTERNAL_PROVIDER_MODE=FIXTURE
+      - FIXTURE_DATASET_ID=nhs-jobs-checkpoint
+      - FIXTURE_DATASET_VERSION=1.0.0
+      - FIXTURE_SCENARIO=DEMO_READY
+
   system-data-service:
     ports: !override
       - "${E2E_SYSTEM_DATA_SERVICE_PORT:-9103}:8103"

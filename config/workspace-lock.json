@@ -11,6 +11,7 @@
     {"name": "reed-gateway", "branch": "develop", "revision": "092a293aeea3e266aad84f6c99844944095dbe2b"},
     {"name": "adzuna-gateway", "branch": "develop", "revision": "f23f70163b245594a5b8c7b230ab01148751eefe"},
     {"name": "jsearch-gateway", "branch": "develop", "revision": "17edeef6f5f65362d40d92e7404f7f880c2d2cdf"},
+    {"name": "nhs-jobs-gateway", "branch": "agent/nhs-jobs-gateway-checkpoint", "revision": "0b0d63ccdfffc4767359223bbc696b442962ffbb"},
     {"name": "system-data-service", "branch": "develop", "revision": "ea0af66d8ff8355e0ec275bed378bf0212a9d05c"},
     {"name": "job-service", "branch": "develop", "revision": "723a6344d194172155f8aea5bf333d9d6e9a415d"},
     {"name": "job-matching-service", "branch": "develop", "revision": "9f252e93c63913aa47c241edc5f37314408a444d"},

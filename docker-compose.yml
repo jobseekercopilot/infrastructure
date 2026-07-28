@@ -280,6 +280,30 @@ services:
       retries: 3
       start_period: 40s
 
+  nhs-jobs-gateway:
+    build:
+      context: ../.cache/runtime-images/nhs-jobs-gateway
+      dockerfile: ../../../infrastructure/docker/nhs-jobs-gateway.runtime.Dockerfile
+    ports:
+      - "8104:8104"
+    environment:
+      - SPRING_APPLICATION_NAME=nhs-jobs-gateway
+      - SERVER_PORT=8104
+      - SPRING_PROFILES_ACTIVE=local
+      - EXTERNAL_PROVIDER_MODE=FIXTURE
+      - FIXTURE_DATASET_ID=nhs-jobs-checkpoint
+      - FIXTURE_DATASET_VERSION=1.0.0
+      - FIXTURE_SCENARIO=DEMO_READY
+      - NHS_JOBS_ENABLED=true
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8104/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
   system-data-service:
     build:
       context: ../system-data-service

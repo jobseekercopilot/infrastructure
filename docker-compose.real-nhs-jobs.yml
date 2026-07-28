@@ -1,0 +1,15 @@
+services:
+  nhs-jobs-gateway:
+    environment:
+      EXTERNAL_PROVIDER_MODE: LIVE
+      NHS_JOBS_ENABLED: "true"
+      NHS_JOBS_BASE_URL: "https://www.jobs.nhs.uk"
+      NHS_JOBS_SEARCH_PATH: "/api/v1/search_xml"
+    networks:
+      - job-seeker-network
+      - nhs-jobs-egress-network
+
+networks:
+  nhs-jobs-egress-network:
+    driver: bridge
+    internal: false

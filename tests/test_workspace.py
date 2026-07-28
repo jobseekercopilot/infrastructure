@@ -100,7 +100,12 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(catalog.project_number, 1)
         self.assertEqual(
             {profile.name for profile in catalog.profiles},
-            {"basic-fixture", "full-fixture", "real-job-providers"},
+            {
+                "basic-fixture",
+                "full-fixture",
+                "real-job-providers",
+                "nhs-jobs-development",
+            },
         )
         real_providers = catalog.profile("real-job-providers")
         self.assertEqual(
@@ -143,6 +148,33 @@ class CatalogTests(unittest.TestCase):
                 set(configuration["networks"]),
                 {"job-seeker-network", "provider-egress-network"},
             )
+        nhs_development = catalog.profile("nhs-jobs-development")
+        self.assertEqual(
+            nhs_development.compose_files,
+            ("docker-compose.yml", "docker-compose.real-nhs-jobs.yml"),
+        )
+        self.assertEqual(
+            nhs_development.services,
+            ("nhs-jobs-gateway",),
+        )
+        nhs_overlay = yaml.safe_load(
+            (
+                WORKSPACE_ROOT
+                / "infrastructure"
+                / "docker-compose.real-nhs-jobs.yml"
+            ).read_text()
+        )
+        self.assertEqual(
+            set(nhs_overlay["services"]),
+            {"nhs-jobs-gateway"},
+        )
+        self.assertEqual(
+            set(nhs_overlay["services"]["nhs-jobs-gateway"]["networks"]),
+            {"job-seeker-network", "nhs-jobs-egress-network"},
+        )
+        self.assertFalse(
+            nhs_overlay["networks"]["nhs-jobs-egress-network"]["internal"]
+        )
         self.assertEqual(
             set(load_workspace_lock(catalog)),
             set(catalog.repository_names),

@@ -32,6 +32,7 @@
         "reed-gateway",
         "adzuna-gateway",
         "jsearch-gateway",
+        "nhs-jobs-gateway",
         "job-matching-service",
         "job-service",
         "job-finder-gateway",
@@ -54,6 +55,14 @@
       "secretEnvironmentFile": "config/.secrets.env",
       "frontendUrl": "http://localhost:3000",
       "services": "all-runtime"
+    },
+    "nhs-jobs-development": {
+      "description": "Isolated NHS Jobs gateway contract validation with no Job Service or browser integration.",
+      "composeFiles": ["docker-compose.yml", "docker-compose.real-nhs-jobs.yml"],
+      "composeProject": "job-seeker-copilot-nhs-jobs-development",
+      "environmentProfile": "local",
+      "frontendUrl": "http://localhost:8104",
+      "services": ["nhs-jobs-gateway"]
     }
   },
   "buildOrder": [
@@ -66,6 +75,7 @@
     "reed-gateway",
     "adzuna-gateway",
     "jsearch-gateway",
+    "nhs-jobs-gateway",
     "llm-gateway",
     "stripe-gateway",
     "location-gateway",
@@ -163,6 +173,16 @@
       "port": 8102,
       "health": "/actuator/health",
       "dependsOn": ["system-data-service"]
+    },
+    {
+      "name": "nhs-jobs-gateway",
+      "kind": "gateway",
+      "branch": "agent/nhs-jobs-gateway-checkpoint",
+      "build": "maven",
+      "composeServices": ["nhs-jobs-gateway"],
+      "port": 8104,
+      "health": "/actuator/health",
+      "dependsOn": []
     },
     {
       "name": "system-data-service",
