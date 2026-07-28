@@ -180,7 +180,7 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
             model,
             "system-data-service",
             "SPRING_PROFILES_ACTIVE",
-            "e2e",
+            "test",
         )
         require_value(
             model,
@@ -198,7 +198,7 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
             model,
             "system-data-service",
             "SYSTEM_DATA_ENVIRONMENT_ALLOWED_PROFILES",
-            "e2e",
+            "test",
         )
         require_value(
             model,
@@ -210,7 +210,7 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
             model,
             "system-data-service",
             "SYSTEM_DATA_FIXTURE_ALLOWED_PROFILES",
-            "e2e",
+            "test",
         )
     else:
         require_value(

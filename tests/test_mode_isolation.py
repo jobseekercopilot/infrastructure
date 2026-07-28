@@ -123,7 +123,7 @@ class RenderedModeIsolationTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "no external egress"):
                 validate_model(model, profile)
 
-    def test_only_frontend_can_join_loopback_host_access_network(self) -> None:
+    def test_only_approved_services_can_join_loopback_host_access_network(self) -> None:
         for profile in ("local", "e2e"):
             with self.subTest(profile=profile):
                 model = self.model(profile)
@@ -132,8 +132,17 @@ class RenderedModeIsolationTests(unittest.TestCase):
                     for service, configuration in model["services"].items()
                     if "host-access" in configuration.get("networks", {})
                 }
+                expected_services = (
+                    {"job-seeker-copilot-client"}
+                    if profile == "local"
+                    else {
+                        "job-seeker-copilot-client",
+                        "authentication-service",
+                        "system-data-service",
+                    }
+                )
                 self.assertEqual(
-                    host_access_services, {"job-seeker-copilot-client"}
+                    host_access_services, expected_services
                 )
                 self.assertEqual(
                     model["networks"]["host-access"]["driver_opts"][
