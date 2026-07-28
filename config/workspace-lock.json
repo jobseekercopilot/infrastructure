@@ -19,7 +19,7 @@
     {"name": "llm-gateway", "branch": "develop", "revision": "46a3b7b99a5c2271cdee68ee2059f33b02c84813"},
     {"name": "document-store-service", "branch": "develop", "revision": "2e4cb763f909781b8716da044b3d19eedaceb7c2"},
     {"name": "document-export-service", "branch": "develop", "revision": "b71014fe72d5b3660a95e55facd3d627078d892f"},
-    {"name": "application-tracker-service", "branch": "agent/nhs-jobs-source-evidence", "revision": "9815c4eb58ae8237b58d080a29acfa4ec05b8764"},
+    {"name": "application-tracker-service", "branch": "agent/nhs-jobs-source-evidence", "revision": "f23d1f33677e56e21138732e75c1d506d090222b"},
     {"name": "cv-cover-letter-service", "branch": "develop", "revision": "8efee874ef50f8967326346023181de19c03b5e2"},
     {"name": "document-generation-gateway", "branch": "develop", "revision": "048222e36d3e6add87487456c4837f8833c7df41"},
     {"name": "reporting-service", "branch": "agent/nhs-jobs-source-evidence", "revision": "21fc4e10ed6e902ff9e07cb8b67606d8e8828cf0"},
