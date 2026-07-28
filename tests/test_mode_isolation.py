@@ -316,6 +316,15 @@ class RenderedModeIsolationTests(unittest.TestCase):
                     "depends_on",
                     model["services"]["system-data-service"],
                 )
+                self.assertEqual(
+                    job_service["environment"]["NHS_JOBS_GATEWAY_URL"],
+                    "http://nhs-jobs-gateway:8104",
+                )
+                self.assertEqual(
+                    job_service["environment"]["NHS_JOBS_ENABLED"],
+                    "false",
+                )
+                self.assertIn("nhs-jobs-gateway", job_service["depends_on"])
 
     def test_document_generation_uses_isolated_postgres(self) -> None:
         for profile in ("local", "e2e", "live-provider"):

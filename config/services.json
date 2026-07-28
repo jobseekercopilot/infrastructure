@@ -71,6 +71,14 @@
       "environmentProfile": "local",
       "frontendUrl": "http://localhost:8104",
       "services": ["nhs-jobs-gateway"]
+    },
+    "nhs-jobs-vertical-slice": {
+      "description": "Full local application with NHS Jobs fixture results enabled for technical validation only.",
+      "composeFiles": ["docker-compose.yml", "docker-compose.nhs-jobs-fixture.yml"],
+      "composeProject": "job-seeker-copilot-nhs-jobs-vertical-slice",
+      "environmentProfile": "local",
+      "frontendUrl": "http://localhost:3101",
+      "services": "all-runtime"
     }
   },
   "buildOrder": [
@@ -215,7 +223,7 @@
     {
       "name": "job-service",
       "kind": "service",
-      "branch": "develop",
+      "branch": "agent/nhs-jobs-vertical-slice",
       "build": "maven",
       "composeServices": ["job-service"],
       "port": 8086,
@@ -224,6 +232,7 @@
         "reed-gateway",
         "adzuna-gateway",
         "jsearch-gateway",
+        "nhs-jobs-gateway",
         "job-matching-service"
       ]
     },
@@ -240,7 +249,7 @@
     {
       "name": "job-finder-gateway",
       "kind": "gateway",
-      "branch": "develop",
+      "branch": "agent/nhs-jobs-vertical-slice",
       "build": "maven",
       "composeServices": ["job-finder-gateway"],
       "port": 8080,
@@ -284,7 +293,7 @@
     {
       "name": "application-tracker-service",
       "kind": "service",
-      "branch": "develop",
+      "branch": "agent/nhs-jobs-source-evidence",
       "build": "maven",
       "composeServices": ["application-tracker-service"],
       "port": 8088,
@@ -327,7 +336,7 @@
     {
       "name": "reporting-service",
       "kind": "service",
-      "branch": "develop",
+      "branch": "agent/nhs-jobs-source-evidence",
       "build": "maven",
       "composeServices": ["reporting-service"],
       "port": 8096,
@@ -377,7 +386,7 @@
     {
       "name": "job-seeker-copilot-client",
       "kind": "frontend",
-      "branch": "develop",
+      "branch": "agent/nhs-jobs-vertical-slice",
       "build": "npm",
       "composeServices": ["job-seeker-copilot-client"],
       "port": 3000,

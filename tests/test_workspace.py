@@ -106,6 +106,7 @@ class CatalogTests(unittest.TestCase):
                 "real-job-providers",
                 "nhs-jobs-fixture",
                 "nhs-jobs-development",
+                "nhs-jobs-vertical-slice",
             },
         )
         real_providers = catalog.profile("real-job-providers")
@@ -168,6 +169,32 @@ class CatalogTests(unittest.TestCase):
             nhs_development.services,
             ("nhs-jobs-gateway",),
         )
+        nhs_vertical_slice = catalog.profile("nhs-jobs-vertical-slice")
+        self.assertEqual(
+            nhs_vertical_slice.compose_files,
+            ("docker-compose.yml", "docker-compose.nhs-jobs-fixture.yml"),
+        )
+        self.assertEqual(
+            nhs_vertical_slice.frontend_url,
+            "http://localhost:3101",
+        )
+        self.assertEqual(
+            nhs_vertical_slice.services,
+            "all-runtime",
+        )
+        self.assertEqual(
+            catalog.repository("job-service").dependencies,
+            (
+                "reed-gateway", "adzuna-gateway", "jsearch-gateway",
+                "nhs-jobs-gateway", "job-matching-service",
+            ),
+        )
+        fixture_overlay = (
+            WORKSPACE_ROOT / "infrastructure" / "docker-compose.nhs-jobs-fixture.yml"
+        ).read_text()
+        self.assertIn('NHS_JOBS_ENABLED: "true"', fixture_overlay)
+        self.assertIn("NHS_JOBS_GATEWAY_URL: http://nhs-jobs-gateway:8104", fixture_overlay)
+        self.assertIn('"127.0.0.1:3101:3000"', fixture_overlay)
         nhs_overlay = yaml.safe_load(
             (
                 WORKSPACE_ROOT

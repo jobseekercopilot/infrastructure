@@ -374,6 +374,8 @@ services:
       - REED_GATEWAY_URL=http://reed-gateway:8087
       - ADZUNA_GATEWAY_URL=http://adzuna-gateway:8101
       - JSEARCH_GATEWAY_URL=http://jsearch-gateway:8102
+      - NHS_JOBS_GATEWAY_URL=http://nhs-jobs-gateway:8104
+      - NHS_JOBS_ENABLED=false
       - JOB_MATCHING_SERVICE_URL=http://job-matching-service:8097
     depends_on:
       job-service-postgres:
@@ -383,6 +385,8 @@ services:
       adzuna-gateway:
         condition: service_healthy
       jsearch-gateway:
+        condition: service_healthy
+      nhs-jobs-gateway:
         condition: service_healthy
       job-matching-service:
         condition: service_healthy
