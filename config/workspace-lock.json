@@ -28,6 +28,6 @@
     {"name": "stripe-gateway", "branch": "develop", "revision": "d9aa6b338d21c6beee6e097a3c72a783cc295b7c"},
     {"name": "payment-gateway", "branch": "develop", "revision": "8d49a6477c302d9700758c52de9e85cb192a0580"},
     {"name": "job-seeker-copilot-client", "branch": "agent/nhs-jobs-vertical-slice", "revision": "583de4b1f03f351b875747951dd5b19e72f1f31a"},
-    {"name": "e2e", "branch": "agent/nhs-jobs-strict-e2e", "revision": "fce50c9b5c2f13478ef722fd7fdeb74140229c2e"}
+    {"name": "e2e", "branch": "agent/nhs-jobs-strict-e2e", "revision": "0968ac19721b786c90f2d1b8f38879f59d999a63"}
   ]
 }
