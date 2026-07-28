@@ -53,6 +53,9 @@ fast-forward to a newly reviewed lock.
   LLM and payments fixture-backed.
 - `real-job-providers`: the full application with Reed, Adzuna and JSearch
   live while OpenAI and Stripe remain fixture-backed.
+- `nhs-jobs-fixture`: only the NHS Jobs gateway in its deterministic fixture
+  mode, with no external provider traffic; use this for supported local and CI
+  contract validation.
 - `nhs-jobs-development`: only the NHS Jobs gateway, using its dedicated
   live-development overlay and provider egress network; it does not wire NHS
   Jobs into Job Service or the browser.
@@ -63,6 +66,9 @@ fast-forward to a newly reviewed lock.
 ./scripts/status.sh --profile basic-fixture
 ./scripts/logs.sh --profile basic-fixture
 ./scripts/stop-local.sh --profile basic-fixture
+./scripts/start-local.sh --profile nhs-jobs-fixture --build
+./scripts/health-check.sh --profile nhs-jobs-fixture
+./scripts/stop-local.sh --profile nhs-jobs-fixture
 ./scripts/start-local.sh --profile nhs-jobs-development --build
 ```
 

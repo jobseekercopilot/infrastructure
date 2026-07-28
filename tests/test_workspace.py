@@ -104,6 +104,7 @@ class CatalogTests(unittest.TestCase):
                 "basic-fixture",
                 "full-fixture",
                 "real-job-providers",
+                "nhs-jobs-fixture",
                 "nhs-jobs-development",
             },
         )
@@ -148,6 +149,16 @@ class CatalogTests(unittest.TestCase):
                 set(configuration["networks"]),
                 {"job-seeker-network", "provider-egress-network"},
             )
+        nhs_fixture = catalog.profile("nhs-jobs-fixture")
+        self.assertEqual(
+            nhs_fixture.compose_files,
+            ("docker-compose.yml",),
+        )
+        self.assertEqual(
+            nhs_fixture.services,
+            ("nhs-jobs-gateway",),
+        )
+        self.assertEqual(nhs_fixture.frontend_url, "http://localhost:8104")
         nhs_development = catalog.profile("nhs-jobs-development")
         self.assertEqual(
             nhs_development.compose_files,

@@ -412,9 +412,13 @@ def health(profile: Profile, timeout_seconds: int) -> None:
             )
             if not ok:
                 failures.append(f"{repository.name}: {detail}")
-        frontend_ok, frontend_detail = http_ready(profile.frontend_url)
-        if not frontend_ok:
-            failures.append(f"frontend access: {frontend_detail}")
+        if any(
+            repository.name == "job-seeker-copilot-client"
+            for repository in selected
+        ):
+            frontend_ok, frontend_detail = http_ready(profile.frontend_url)
+            if not frontend_ok:
+                failures.append(f"frontend access: {frontend_detail}")
         if not failures:
             print(
                 f"{profile.name} ready: {len(expected_services)} application services"

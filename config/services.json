@@ -56,6 +56,14 @@
       "frontendUrl": "http://localhost:3000",
       "services": "all-runtime"
     },
+    "nhs-jobs-fixture": {
+      "description": "Isolated NHS Jobs gateway fixture validation with no external provider traffic.",
+      "composeFiles": ["docker-compose.yml"],
+      "composeProject": "job-seeker-copilot-nhs-jobs-fixture",
+      "environmentProfile": "local",
+      "frontendUrl": "http://localhost:8104",
+      "services": ["nhs-jobs-gateway"]
+    },
     "nhs-jobs-development": {
       "description": "Isolated NHS Jobs gateway contract validation with no Job Service or browser integration.",
       "composeFiles": ["docker-compose.yml", "docker-compose.real-nhs-jobs.yml"],
