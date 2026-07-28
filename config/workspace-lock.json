@@ -26,7 +26,7 @@
     {"name": "payment-service", "branch": "develop", "revision": "0430cd09fd390a09d5445672504560ffde64cbe4"},
     {"name": "stripe-gateway", "branch": "develop", "revision": "d9aa6b338d21c6beee6e097a3c72a783cc295b7c"},
     {"name": "payment-gateway", "branch": "develop", "revision": "8d49a6477c302d9700758c52de9e85cb192a0580"},
-    {"name": "job-seeker-copilot-client", "branch": "develop", "revision": "756ad5d83341fe300665073279f57a4d2b930152"},
+    {"name": "job-seeker-copilot-client", "branch": "develop", "revision": "af1afe75ab25aa8b04b6350a0a2d8392c9ebf381"},
     {"name": "e2e", "branch": "develop", "revision": "543e56f1ffed85d2bd32bca443c0c9ebed2ba58f"}
   ]
 }
