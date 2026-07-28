@@ -4,6 +4,10 @@ services:
       NHS_JOBS_ENABLED: "true"
       NHS_JOBS_GATEWAY_URL: http://nhs-jobs-gateway:8104
 
+  application-tracker-service:
+    environment:
+      NHS_JOBS_SOURCE_MODE: FIXTURE
+
   job-seeker-copilot-client:
     ports: !override
       - "127.0.0.1:3101:3000"

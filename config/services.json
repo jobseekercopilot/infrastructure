@@ -403,7 +403,7 @@
     {
       "name": "e2e",
       "kind": "test",
-      "branch": "develop",
+      "branch": "agent/nhs-jobs-strict-e2e",
       "build": "npm",
       "composeServices": [],
       "dependsOn": ["job-seeker-copilot-client"]

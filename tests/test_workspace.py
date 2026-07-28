@@ -194,6 +194,7 @@ class CatalogTests(unittest.TestCase):
         ).read_text()
         self.assertIn('NHS_JOBS_ENABLED: "true"', fixture_overlay)
         self.assertIn("NHS_JOBS_GATEWAY_URL: http://nhs-jobs-gateway:8104", fixture_overlay)
+        self.assertIn("NHS_JOBS_SOURCE_MODE: FIXTURE", fixture_overlay)
         self.assertIn('"127.0.0.1:3101:3000"', fixture_overlay)
         nhs_overlay = yaml.safe_load(
             (
