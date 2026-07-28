@@ -113,8 +113,11 @@ def require_no_live_credentials(model: dict) -> None:
 
 
 def validate_runtime_modes(model: dict, profile: str) -> None:
+    e2e = profile in {"e2e", "e2e-local-ses"}
+    local_ses = profile in {"local-ses", "e2e-local-ses"}
+    local_runtime = profile in {"local", "local-ses"}
     runtime_network = model.get("networks", {}).get("job-seeker-network", {})
-    if profile in {"local", "e2e"} and runtime_network.get("internal") is not True:
+    if (local_runtime or e2e) and runtime_network.get("internal") is not True:
         raise ValueError(
             f"{profile} must use an internal-only network with no external egress"
         )
@@ -128,7 +131,7 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
         "http://application-tracker-service:8088",
     )
 
-    if profile in {"local", "e2e"}:
+    if local_runtime or e2e:
         for service in FIXTURE_GATEWAYS:
             require_value(model, service, "EXTERNAL_PROVIDER_MODE", "FIXTURE")
         require_no_live_credentials(model)
@@ -157,9 +160,9 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
         raise ValueError(f"unsupported runtime profile: {profile}")
 
     for service in ENVIRONMENT_DATA_SERVICES:
-        expected = "true" if profile == "e2e" else "false"
+        expected = "true" if e2e else "false"
         require_value(model, service, "ENVIRONMENT_DATA_ENABLED", expected)
-        if profile == "e2e":
+        if e2e:
             require_value(
                 model,
                 service,
@@ -167,7 +170,45 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
                 "e2e",
             )
 
-    if profile == "e2e":
+    authentication = environment(model, "authentication-service")
+    if local_ses:
+        required = {
+            "AUTH_ACCOUNT_EMAIL_DELIVERY_MODE": "local-ses",
+            "AUTH_ACCOUNT_EMAIL_SES_ENDPOINT": "http://localstack:4566",
+            "AUTH_ACCOUNT_EMAIL_SES_REGION": "eu-west-2",
+            "AWS_REGION": "eu-west-2",
+            "AWS_ACCESS_KEY_ID": "test",
+            "AWS_SECRET_ACCESS_KEY": "test",
+        }
+        for variable, expected in required.items():
+            require_value(model, "authentication-service", variable, expected)
+        localstack = model.get("services", {}).get("localstack", {})
+        if localstack.get("image") != "localstack/localstack:4.14.0":
+            raise ValueError("local-ses requires the pinned LocalStack image")
+        if environment(model, "localstack").get("SERVICES") != "ses":
+            raise ValueError("LocalStack must emulate SES only")
+        if set(localstack.get("networks", {})) != {"job-seeker-network", "host-access"}:
+            raise ValueError("LocalStack may use only the application and loopback-bound networks")
+        ports = localstack.get("ports", [])
+        if len(ports) != 1 or ports[0].get("host_ip") != "127.0.0.1":
+            raise ValueError("LocalStack must publish its gateway to loopback only")
+        if any(
+            mount.get("type") == "volume"
+            for mount in localstack.get("volumes", [])
+            if isinstance(mount, dict)
+        ):
+            raise ValueError("LocalStack state must not use a persistent volume")
+    else:
+        require_value(
+            model,
+            "authentication-service",
+            "AUTH_ACCOUNT_EMAIL_DELIVERY_MODE",
+            "fixture",
+        )
+        if "localstack" in model.get("services", {}):
+            raise ValueError("fixture profiles must not start LocalStack")
+
+    if e2e:
         for service in FIXTURE_GATEWAYS:
             require_value(model, service, "SPRING_PROFILES_ACTIVE", "e2e")
         require_value(
@@ -180,7 +221,7 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
             model,
             "system-data-service",
             "SPRING_PROFILES_ACTIVE",
-            "e2e",
+            "test",
         )
         require_value(
             model,
@@ -198,7 +239,7 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
             model,
             "system-data-service",
             "SYSTEM_DATA_ENVIRONMENT_ALLOWED_PROFILES",
-            "e2e",
+            "test",
         )
         require_value(
             model,
@@ -210,7 +251,7 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
             model,
             "system-data-service",
             "SYSTEM_DATA_FIXTURE_ALLOWED_PROFILES",
-            "e2e",
+            "test",
         )
     else:
         require_value(
@@ -219,14 +260,14 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
             "SYSTEM_DATA_ENVIRONMENT_MANAGEMENT_ENABLED",
             "false",
         )
-        expected_fixtures = "true" if profile == "local" else "false"
+        expected_fixtures = "true" if local_runtime else "false"
         require_value(
             model,
             "system-data-service",
             "SYSTEM_DATA_FIXTURES_ENABLED",
             expected_fixtures,
         )
-        if profile == "local":
+        if local_runtime:
             require_value(
                 model,
                 "system-data-service",
@@ -740,7 +781,14 @@ def main() -> int:
     parser.add_argument(
         "--profile",
         required=True,
-        choices=("local", "e2e", "live-provider", "data-acquisition"),
+        choices=(
+            "local",
+            "local-ses",
+            "e2e",
+            "e2e-local-ses",
+            "live-provider",
+            "data-acquisition",
+        ),
     )
     parser.add_argument("--env-file", type=Path, required=True)
     parser.add_argument("--overlay", type=Path, action="append", default=[])

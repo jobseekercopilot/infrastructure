@@ -46,6 +46,14 @@
       "frontendUrl": "http://localhost:3000",
       "services": "all-runtime"
     },
+    "full-local-ses": {
+      "description": "The complete fixture-backed private-beta application with account email sent through the production SES adapter to LocalStack.",
+      "composeFiles": ["docker-compose.yml", "docker-compose.local-ses.yml"],
+      "composeProject": "job-seeker-copilot-full-local-ses",
+      "environmentProfile": "local",
+      "frontendUrl": "http://localhost:3000",
+      "services": "all-runtime"
+    },
     "real-job-providers": {
       "description": "The complete private-beta application with Reed, Adzuna and JSearch live while LLM and Stripe remain fixture-backed.",
       "composeFiles": ["docker-compose.yml", "docker-compose.real-job-providers.yml"],

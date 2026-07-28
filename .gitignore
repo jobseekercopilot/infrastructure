@@ -22,6 +22,10 @@ docs/contracts/
 *.class
 *.log
 
+# LocalStack state and captured-message exports are always disposable.
+localstack/state/
+localstack/sent-messages/
+
 # Service repositories cloned by scripts/workspace/bootstrap.py
 authentication-service/
 user-profile-service/
