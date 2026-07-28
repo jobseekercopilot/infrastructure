@@ -40,6 +40,25 @@ class RenderedModeIsolationTests(unittest.TestCase):
             render(profile, PROFILE_TEMPLATES[profile], env_file)
             cls.models[profile] = compose_model(env_file, overlays, profile)
 
+        local_ses_env = directory / "local-ses.env"
+        render("local", PROFILE_TEMPLATES["local"], local_ses_env)
+        cls.models["local-ses"] = compose_model(
+            local_ses_env,
+            [Path("docker-compose.local-ses.yml")],
+            "local-ses",
+        )
+
+        e2e_local_ses_env = directory / "e2e-local-ses.env"
+        render("e2e", PROFILE_TEMPLATES["e2e"], e2e_local_ses_env)
+        cls.models["e2e-local-ses"] = compose_model(
+            e2e_local_ses_env,
+            [
+                Path("docker-compose.e2e.yml"),
+                Path("docker-compose.local-ses.yml"),
+            ],
+            "e2e-local-ses",
+        )
+
         live_env = directory / "live.env"
         render("live-provider", PROFILE_TEMPLATES["live-provider"], live_env)
         with patch.dict(
@@ -90,9 +109,33 @@ class RenderedModeIsolationTests(unittest.TestCase):
     def model(self, profile: str) -> dict:
         return copy.deepcopy(self.models[profile])
 
-    def test_all_four_rendered_modes_pass_the_policy(self) -> None:
+    def test_all_six_rendered_modes_pass_the_policy(self) -> None:
         for profile, model in self.models.items():
             validate_model(model, profile)
+
+    def test_local_ses_profile_keeps_localstack_isolated_and_ephemeral(self) -> None:
+        model = self.model("local-ses")
+        localstack = model["services"]["localstack"]
+        self.assertEqual(localstack["image"], "localstack/localstack:4.14.0")
+        self.assertEqual(
+            set(localstack["networks"]),
+            {"job-seeker-network", "host-access"},
+        )
+        self.assertEqual(localstack["environment"]["SERVICES"], "ses")
+        self.assertEqual(localstack["ports"][0]["host_ip"], "127.0.0.1")
+        self.assertFalse(any(
+            mount.get("type") == "volume"
+            for mount in localstack["volumes"]
+        ))
+        authentication = model["services"]["authentication-service"]["environment"]
+        self.assertEqual(
+            authentication["AUTH_ACCOUNT_EMAIL_DELIVERY_MODE"],
+            "local-ses",
+        )
+        self.assertEqual(
+            authentication["AUTH_ACCOUNT_EMAIL_SES_ENDPOINT"],
+            "http://localstack:4566",
+        )
 
     def test_application_healthchecks_use_portable_alpine_wget(self) -> None:
         model = self.model("local")

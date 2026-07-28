@@ -433,7 +433,12 @@ def main() -> int:
     )
     parser.add_argument(
         "--profile",
-        choices=("basic-fixture", "full-fixture", "real-job-providers"),
+        choices=(
+            "basic-fixture",
+            "full-fixture",
+            "full-local-ses",
+            "real-job-providers",
+        ),
         default="basic-fixture",
     )
     parser.add_argument("--build", action="store_true")

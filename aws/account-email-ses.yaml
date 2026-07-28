@@ -87,6 +87,7 @@ Resources:
             Condition:
               StringEquals:
                 ses:FromAddress: !Ref AccountEmailSender
+                ses:ApiVersion: '2010-12-01'
 
 Outputs:
   ConfigurationSetName:

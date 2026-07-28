@@ -100,7 +100,12 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(catalog.project_number, 1)
         self.assertEqual(
             {profile.name for profile in catalog.profiles},
-            {"basic-fixture", "full-fixture", "real-job-providers"},
+            {
+                "basic-fixture",
+                "full-fixture",
+                "full-local-ses",
+                "real-job-providers",
+            },
         )
         real_providers = catalog.profile("real-job-providers")
         self.assertEqual(
