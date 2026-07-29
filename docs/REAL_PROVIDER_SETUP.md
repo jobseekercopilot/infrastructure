@@ -8,7 +8,9 @@ provider credentials.
 The `real-providers` profile extends `real-job-providers` with real OpenAI CV and
 cover-letter generation. It reuses the same Compose project so switching the
 running environment preserves local application data. Stripe remains
-fixture-backed.
+fixture-backed. Both profiles also reuse the existing owner-only
+`.env.real-job-providers` base environment, so service identities and local
+PostgreSQL data do not drift when OpenAI is enabled.
 
 ## Local secret boundary
 
@@ -73,14 +75,35 @@ Once validation passes, start the real providers using the normal lifecycle
 command:
 
 ```bash
-python3 scripts/workspace/lifecycle.py \
-  --profile real-providers \
-  start
+./scripts/start-local.sh --profile real-providers --build
+./scripts/health-check.sh --profile real-providers
+./scripts/status.sh --profile real-providers
 ```
 
-Starting `real-job-providers` validates all four variables and fails with only
-the missing variable name. `REED_API_KEY` must contain a replacement credential;
-the previously tracked value is permanently ineligible for reuse.
+The lifecycle always resolves the combined runtime in this exact order:
+
+1. `docker-compose.yml`
+2. `docker-compose.real-job-providers.yml`
+3. `docker-compose.real-openai.yml`
+
+Do not append `docker-compose.live.yml` before or after these files. It is a
+separate legacy job-only overlay and, if applied later, resets
+`llm-gateway:EXTERNAL_PROVIDER_MODE` to `DISABLED`. The `real-providers`
+preflight rejects a resolved model unless Reed, Adzuna and JSearch are live,
+the LLM is `LIVE`, Stripe is `FIXTURE`, and only the four live gateways join
+the dedicated provider-egress network.
+
+Starting `real-job-providers` validates the four job-provider credential names.
+Starting `real-providers` validates those names plus the complete OpenAI
+decision. Either command fails with only the missing variable name.
+`REED_API_KEY` must contain a replacement credential; the previously tracked
+value is permanently ineligible for reuse.
+
+Stop the combined runtime without deleting retained local data:
+
+```bash
+./scripts/stop-local.sh --profile real-providers
+```
 
 Adzuna requires its application ID and key in the query string of the
 TLS-encrypted outbound request to `api.adzuna.com`. This is the sole approved

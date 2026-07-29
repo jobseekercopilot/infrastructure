@@ -12,17 +12,49 @@ Bootstrap refuses unexpected directories, remotes, branches, revision drift
 and dirty checkouts. `./scripts/update-repositories.sh` is the only supported
 update path and only fast-forwards clean expected branches.
 
-## Profiles
+## Workspace lifecycle profiles
 
-- `local`: deterministic fixture-backed development on an internal-only
-  network; destructive environment endpoints are disabled.
-- `e2e`: deterministic fixture-only validation; no real external activity.
-- `data-acquisition`: separate one-shot live job-provider acquisition with
-  exact approval, quarantine, retention and teardown controls. It is never a
-  routine stack or automated test profile.
-- `live`: local job-provider integration. LLM remains disabled and Stripe
-  remains fixture-backed, so this profile cannot create paid AI content or
-  real charges. It is not production deployment evidence.
+- `basic-fixture`: registration, profile, location and fixture-backed job
+  search.
+- `full-fixture`: the complete deterministic private-beta runtime.
+- `full-local-ses`: the complete fixture runtime with account email delivered
+  to pinned local SES.
+- `real-job-providers`: the complete runtime with Reed, Adzuna and JSearch
+  live; OpenAI and Stripe remain fixture-backed.
+- `real-providers`: the complete runtime with the three job providers and
+  OpenAI live; Stripe and payments remain fixture-backed.
+
+The two real-provider profiles share the owner-only
+`.env.real-job-providers` file and the same Compose project. Provider
+credentials are resolved separately from the workspace-root
+`config/.secrets.env`; lifecycle output contains variable names and paths, not
+credential values.
+
+For `real-providers`, the only supported Compose order is base, real job
+providers, then real OpenAI:
+
+```text
+docker-compose.yml
+docker-compose.real-job-providers.yml
+docker-compose.real-openai.yml
+```
+
+Use the lifecycle wrappers rather than assembling that command manually:
+
+```bash
+./scripts/start-local.sh --profile real-providers --build
+./scripts/status.sh --profile real-providers
+./scripts/health-check.sh --profile real-providers
+./scripts/stop-local.sh --profile real-providers
+```
+
+Never add `docker-compose.live.yml` to this sequence. That older job-only
+overlay deliberately configures the LLM as `DISABLED` and is rejected by the
+combined real-provider trust-boundary validation.
+
+The older `local`, `e2e`, `live` and one-shot `data-acquisition` names belong
+to the dedicated isolation/test helpers under `scripts/docker` and
+`scripts/data`; they are not workspace lifecycle profile names.
 
 The document path's current identity matrix, local PostgreSQL/object-storage
 boundary, validation commands, rotation procedure and production gaps are in

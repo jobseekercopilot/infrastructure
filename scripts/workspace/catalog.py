@@ -37,6 +37,7 @@ class Profile:
     compose_files: tuple[str, ...]
     compose_project: str
     environment_profile: str
+    environment_file: Path
     secret_environment_file: Path | None
     secret_providers: tuple[str, ...]
     frontend_url: str
@@ -229,6 +230,9 @@ def load_catalog(path: Path = DEFAULT_CATALOG) -> Catalog:
             raise ValueError(
                 f"{context}.secretProviders and secretEnvironmentFile must be configured together"
             )
+        environment_file = item.get("environmentFile", f".env.{name}")
+        if not isinstance(environment_file, str) or not environment_file.strip():
+            raise ValueError(f"{context}.environmentFile must be a non-empty string")
         if services != "all-runtime":
             if not isinstance(services, list) or not services:
                 raise ValueError(
@@ -252,6 +256,11 @@ def load_catalog(path: Path = DEFAULT_CATALOG) -> Catalog:
                 compose_project=_required_string(item, "composeProject", context),
                 environment_profile=_required_string(
                     item, "environmentProfile", context
+                ),
+                environment_file=_relative_file(
+                    infrastructure_root,
+                    environment_file.strip(),
+                    f"{context}.environmentFile",
                 ),
                 secret_environment_file=(
                     _relative_file(

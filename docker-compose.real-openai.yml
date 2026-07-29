@@ -31,7 +31,3 @@ services:
 secrets:
   openai_api_key:
     environment: OPENAI_API_KEY
-
-networks:
-  job-seeker-network:
-    internal: false
