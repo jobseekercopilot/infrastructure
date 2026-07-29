@@ -252,6 +252,16 @@ class CatalogTests(unittest.TestCase):
             ],
         )
         self.assertEqual(
+            low_memory_services["payment-service"]["mem_limit"],
+            "512m",
+        )
+        self.assertIn(
+            "-Xmx160m",
+            low_memory_services["payment-service"]["environment"][
+                "JAVA_TOOL_OPTIONS"
+            ],
+        )
+        self.assertEqual(
             low_memory_services["job-seeker-copilot-client"]["environment"][
                 "NODE_OPTIONS"
             ],

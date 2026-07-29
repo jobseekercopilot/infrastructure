@@ -53,7 +53,9 @@ The lifecycle limits Compose to one concurrent operation for this profile.
 Every runtime container has an explicit memory ceiling, Java and Node heaps are
 bounded, and local PostgreSQL instances use reduced buffers and connection
 limits. These limits are part of the checked-in profile; no temporary overlay
-or shell setting is required.
+or shell setting is required. Payment Service retains the small-service
+160 MiB Java heap with a 512 MiB container ceiling because retained-ledger
+cold-start reconciliation needs additional bounded native-memory headroom.
 
 Never add `docker-compose.live.yml` to this sequence. That older job-only
 overlay deliberately configures the LLM as `DISABLED` and is rejected by the

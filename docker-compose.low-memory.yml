@@ -73,6 +73,10 @@ services:
     <<: *java-small
   payment-service:
     <<: *java-small
+    # Ledger reconciliation and Hibernate metadata briefly exceed the shared
+    # small-service ceiling during a cold retained-data startup. Keep the
+    # bounded 160 MiB heap, but leave enough native headroom to avoid OOM kill.
+    mem_limit: 512m
   stripe-gateway:
     <<: *java-small
   payment-gateway:
