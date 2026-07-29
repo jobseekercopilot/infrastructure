@@ -444,6 +444,7 @@ def validate_runtime_model(model: dict, profile: str) -> None:
                 ("authentication-service", "AUTH_ENVIRONMENT_DATA_TOKEN"),
                 ("application-tracker-service", "ENVIRONMENT_DATA_TOKEN"),
                 ("document-store-service", "ENVIRONMENT_DATA_TOKEN"),
+                ("payment-service", "ENVIRONMENT_DATA_TOKEN"),
                 (
                     "system-data-service",
                     "SYSTEM_DATA_DOWNSTREAM_ENVIRONMENT_DATA_TOKEN",

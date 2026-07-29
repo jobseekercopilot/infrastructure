@@ -504,6 +504,16 @@ class RenderedModeIsolationTests(unittest.TestCase):
             validate_model(model, "e2e")
 
         model = self.model("e2e")
+        model["services"]["payment-service"]["environment"][
+            "ENVIRONMENT_DATA_TOKEN"
+        ] = "different-environment-data-identity-value"
+        with self.assertRaisesRegex(
+            ValueError,
+            "ENVIRONMENT_DATA_TOKEN does not match",
+        ):
+            validate_model(model, "e2e")
+
+        model = self.model("e2e")
         model["services"]["application-tracker-service"]["environment"][
             "SPRING_PROFILES_ACTIVE"
         ] = "local"
