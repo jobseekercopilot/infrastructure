@@ -38,6 +38,7 @@ class Profile:
     compose_project: str
     environment_profile: str
     secret_environment_file: Path | None
+    secret_providers: tuple[str, ...]
     frontend_url: str
     services: tuple[str, ...] | str
 
@@ -216,8 +217,18 @@ def load_catalog(path: Path = DEFAULT_CATALOG) -> Catalog:
             raise ValueError(f"{context} must be an object")
         files = item.get("composeFiles")
         services = item.get("services")
+        secret_providers = item.get("secretProviders", [])
         if not isinstance(files, list) or not files:
             raise ValueError(f"{context}.composeFiles must be a non-empty list")
+        if not isinstance(secret_providers, list) or any(
+            not isinstance(provider, str) or not provider
+            for provider in secret_providers
+        ):
+            raise ValueError(f"{context}.secretProviders must be a string list")
+        if bool(secret_providers) != ("secretEnvironmentFile" in item):
+            raise ValueError(
+                f"{context}.secretProviders and secretEnvironmentFile must be configured together"
+            )
         if services != "all-runtime":
             if not isinstance(services, list) or not services:
                 raise ValueError(
@@ -251,6 +262,7 @@ def load_catalog(path: Path = DEFAULT_CATALOG) -> Catalog:
                     if "secretEnvironmentFile" in item
                     else None
                 ),
+                secret_providers=tuple(secret_providers),
                 frontend_url=_required_string(item, "frontendUrl", context),
                 services=services,
             )

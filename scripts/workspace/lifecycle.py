@@ -262,7 +262,7 @@ def start(profile: Profile, build: bool) -> None:
                 + paths
             )
         secret_failures = validate_store(
-            ("REED", "ADZUNA", "JSEARCH"),
+            profile.secret_providers,
             profile.secret_environment_file,
         )
         if secret_failures:

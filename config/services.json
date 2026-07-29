@@ -60,6 +60,21 @@
       "composeProject": "job-seeker-copilot-real-jobs",
       "environmentProfile": "local",
       "secretEnvironmentFile": "config/.secrets.env",
+      "secretProviders": ["REED", "ADZUNA", "JSEARCH"],
+      "frontendUrl": "http://localhost:3000",
+      "services": "all-runtime"
+    },
+    "real-providers": {
+      "description": "The complete private-beta application with real job providers and real OpenAI document generation while Stripe remains fixture-backed.",
+      "composeFiles": [
+        "docker-compose.yml",
+        "docker-compose.real-job-providers.yml",
+        "docker-compose.real-openai.yml"
+      ],
+      "composeProject": "job-seeker-copilot-real-jobs",
+      "environmentProfile": "local",
+      "secretEnvironmentFile": "config/.secrets.env",
+      "secretProviders": ["REED", "ADZUNA", "JSEARCH", "OPENAI"],
       "frontendUrl": "http://localhost:3000",
       "services": "all-runtime"
     }

@@ -105,6 +105,7 @@ class CatalogTests(unittest.TestCase):
                 "full-fixture",
                 "full-local-ses",
                 "real-job-providers",
+                "real-providers",
             },
         )
         real_providers = catalog.profile("real-job-providers")
@@ -115,6 +116,23 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(
             real_providers.compose_files,
             ("docker-compose.yml", "docker-compose.real-job-providers.yml"),
+        )
+        self.assertEqual(
+            real_providers.secret_providers,
+            ("REED", "ADZUNA", "JSEARCH"),
+        )
+        real_openai = catalog.profile("real-providers")
+        self.assertEqual(
+            real_openai.compose_files,
+            (
+                "docker-compose.yml",
+                "docker-compose.real-job-providers.yml",
+                "docker-compose.real-openai.yml",
+            ),
+        )
+        self.assertEqual(
+            real_openai.secret_providers,
+            ("REED", "ADZUNA", "JSEARCH", "OPENAI"),
         )
         real_provider_overlay = yaml.safe_load(
             (WORKSPACE_ROOT / "infrastructure"
@@ -148,6 +166,29 @@ class CatalogTests(unittest.TestCase):
                 set(configuration["networks"]),
                 {"job-seeker-network", "provider-egress-network"},
             )
+        openai_overlay = yaml.safe_load(
+            (WORKSPACE_ROOT / "infrastructure"
+             / "docker-compose.real-openai.yml").read_text()
+        )
+        self.assertEqual(
+            openai_overlay["services"]["llm-gateway"]["environment"][
+                "EXTERNAL_PROVIDER_MODE"
+            ],
+            "LIVE",
+        )
+        self.assertEqual(
+            openai_overlay["services"]["job-seeker-copilot-client"][
+                "environment"
+            ]["DOCUMENT_GENERATION_MODE"],
+            "REAL_LLM",
+        )
+        self.assertEqual(
+            {
+                secret["target"]
+                for secret in openai_overlay["services"]["llm-gateway"]["secrets"]
+            },
+            {"OPENAI_API_KEY"},
+        )
         self.assertEqual(
             set(load_workspace_lock(catalog)),
             set(catalog.repository_names),
