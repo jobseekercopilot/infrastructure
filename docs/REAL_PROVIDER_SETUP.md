@@ -71,6 +71,12 @@ python3 scripts/security/provider_secrets.py \
   --check-repositories
 ```
 
+In a clean sibling workspace, first run
+`./scripts/bootstrap.sh --profile full-fixture`. That materialises the exact
+locked `develop` revisions and builds every runtime source without using live
+credentials. Then add the reviewed owner-only provider settings and start the
+real profile below.
+
 Once validation passes, start the real providers using the normal lifecycle
 command:
 
@@ -85,6 +91,12 @@ The lifecycle always resolves the combined runtime in this exact order:
 1. `docker-compose.yml`
 2. `docker-compose.real-job-providers.yml`
 3. `docker-compose.real-openai.yml`
+4. `docker-compose.low-memory.yml`
+
+The final overlay carries the reviewed resource-constrained settings used for
+manual beta validation. The lifecycle also limits Compose to one concurrent
+operation, so `start-local.sh --profile real-providers --build` does not depend
+on a temporary low-memory file or a caller-provided parallelism setting.
 
 Do not append `docker-compose.live.yml` before or after these files. It is a
 separate legacy job-only overlay and, if applied later, resets

@@ -31,12 +31,13 @@ credentials are resolved separately from the workspace-root
 credential values.
 
 For `real-providers`, the only supported Compose order is base, real job
-providers, then real OpenAI:
+providers, real OpenAI, then the reviewed low-memory runtime limits:
 
 ```text
 docker-compose.yml
 docker-compose.real-job-providers.yml
 docker-compose.real-openai.yml
+docker-compose.low-memory.yml
 ```
 
 Use the lifecycle wrappers rather than assembling that command manually:
@@ -47,6 +48,12 @@ Use the lifecycle wrappers rather than assembling that command manually:
 ./scripts/health-check.sh --profile real-providers
 ./scripts/stop-local.sh --profile real-providers
 ```
+
+The lifecycle limits Compose to one concurrent operation for this profile.
+Every runtime container has an explicit memory ceiling, Java and Node heaps are
+bounded, and local PostgreSQL instances use reduced buffers and connection
+limits. These limits are part of the checked-in profile; no temporary overlay
+or shell setting is required.
 
 Never add `docker-compose.live.yml` to this sequence. That older job-only
 overlay deliberately configures the LLM as `DISABLED` and is rejected by the

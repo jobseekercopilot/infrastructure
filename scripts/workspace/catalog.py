@@ -36,6 +36,7 @@ class Profile:
     name: str
     compose_files: tuple[str, ...]
     compose_project: str
+    compose_parallel_limit: int | None
     environment_profile: str
     environment_file: Path
     secret_environment_file: Path | None
@@ -219,6 +220,7 @@ def load_catalog(path: Path = DEFAULT_CATALOG) -> Catalog:
         files = item.get("composeFiles")
         services = item.get("services")
         secret_providers = item.get("secretProviders", [])
+        compose_parallel_limit = item.get("composeParallelLimit")
         if not isinstance(files, list) or not files:
             raise ValueError(f"{context}.composeFiles must be a non-empty list")
         if not isinstance(secret_providers, list) or any(
@@ -229,6 +231,14 @@ def load_catalog(path: Path = DEFAULT_CATALOG) -> Catalog:
         if bool(secret_providers) != ("secretEnvironmentFile" in item):
             raise ValueError(
                 f"{context}.secretProviders and secretEnvironmentFile must be configured together"
+            )
+        if compose_parallel_limit is not None and (
+            not isinstance(compose_parallel_limit, int)
+            or isinstance(compose_parallel_limit, bool)
+            or compose_parallel_limit < 1
+        ):
+            raise ValueError(
+                f"{context}.composeParallelLimit must be a positive integer"
             )
         environment_file = item.get("environmentFile", f".env.{name}")
         if not isinstance(environment_file, str) or not environment_file.strip():
@@ -254,6 +264,7 @@ def load_catalog(path: Path = DEFAULT_CATALOG) -> Catalog:
                 name=name,
                 compose_files=tuple(files),
                 compose_project=_required_string(item, "composeProject", context),
+                compose_parallel_limit=compose_parallel_limit,
                 environment_profile=_required_string(
                     item, "environmentProfile", context
                 ),

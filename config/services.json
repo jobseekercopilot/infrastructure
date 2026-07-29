@@ -70,9 +70,11 @@
       "composeFiles": [
         "docker-compose.yml",
         "docker-compose.real-job-providers.yml",
-        "docker-compose.real-openai.yml"
+        "docker-compose.real-openai.yml",
+        "docker-compose.low-memory.yml"
       ],
       "composeProject": "job-seeker-copilot-real-jobs",
+      "composeParallelLimit": 1,
       "environmentProfile": "local",
       "environmentFile": ".env.real-job-providers",
       "secretEnvironmentFile": "config/.secrets.env",

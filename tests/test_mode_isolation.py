@@ -123,6 +123,7 @@ class RenderedModeIsolationTests(unittest.TestCase):
             [
                 Path("docker-compose.real-job-providers.yml"),
                 Path("docker-compose.real-openai.yml"),
+                Path("docker-compose.low-memory.yml"),
             ],
             "real-providers",
             cls.real_providers_secrets,
@@ -290,6 +291,7 @@ class RenderedModeIsolationTests(unittest.TestCase):
                 Path("docker-compose.real-job-providers.yml"),
                 Path("docker-compose.real-openai.yml"),
                 Path("docker-compose.live.yml"),
+                Path("docker-compose.low-memory.yml"),
             ],
             "real-providers",
             self.real_providers_secrets,
@@ -355,6 +357,8 @@ class RenderedModeIsolationTests(unittest.TestCase):
                 "docker-compose.real-job-providers.yml",
                 "--overlay",
                 "docker-compose.real-openai.yml",
+                "--overlay",
+                "docker-compose.low-memory.yml",
             ],
         ), redirect_stdout(output):
             self.assertEqual(validate_compose_runtime(), 0)

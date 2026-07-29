@@ -954,13 +954,15 @@ def main() -> int:
         expected = (
             (ROOT / "docker-compose.real-job-providers.yml").resolve(),
             (ROOT / "docker-compose.real-openai.yml").resolve(),
+            (ROOT / "docker-compose.low-memory.yml").resolve(),
         )
         actual = tuple(path.resolve() for path in args.overlay)
         if actual != expected:
             parser.error(
                 "real-providers requires overlays in exact order: "
                 "docker-compose.real-job-providers.yml then "
-                "docker-compose.real-openai.yml"
+                "docker-compose.real-openai.yml then "
+                "docker-compose.low-memory.yml"
             )
         if args.secret_env_file is None:
             parser.error("real-providers requires --secret-env-file")

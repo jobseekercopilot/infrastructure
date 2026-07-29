@@ -73,8 +73,11 @@ Both real-provider profiles reuse the owner-only
 from the workspace-root `config/.secrets.env`, which must have mode `0600`.
 The lifecycle applies `docker-compose.yml`, then
 `docker-compose.real-job-providers.yml`, then—only for `real-providers`—
-`docker-compose.real-openai.yml`. Never append `docker-compose.live.yml`: that
-legacy job-only overlay resets the LLM gateway to `DISABLED`.
+`docker-compose.real-openai.yml` and `docker-compose.low-memory.yml`. The
+combined profile uses one Compose operation at a time and checked-in runtime
+memory ceilings; it does not require a temporary resource overlay. Never append
+`docker-compose.live.yml`: that legacy job-only overlay resets the LLM gateway
+to `DISABLED`.
 
 Credentials are never copied into a repository, image or browser bundle.
 Start-up fails with a variable name—not its value—when a required provider

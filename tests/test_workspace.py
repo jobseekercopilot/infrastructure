@@ -138,8 +138,10 @@ class CatalogTests(unittest.TestCase):
                 "docker-compose.yml",
                 "docker-compose.real-job-providers.yml",
                 "docker-compose.real-openai.yml",
+                "docker-compose.low-memory.yml",
             ),
         )
+        self.assertEqual(real_openai.compose_parallel_limit, 1)
         self.assertEqual(
             real_openai.secret_providers,
             ("REED", "ADZUNA", "JSEARCH", "OPENAI"),
@@ -150,6 +152,8 @@ class CatalogTests(unittest.TestCase):
             [
                 "docker",
                 "compose",
+                "--parallel",
+                "1",
                 "-p",
                 "job-seeker-copilot-real-jobs",
                 "--env-file",
@@ -162,6 +166,8 @@ class CatalogTests(unittest.TestCase):
                 "docker-compose.real-job-providers.yml",
                 "-f",
                 "docker-compose.real-openai.yml",
+                "-f",
+                "docker-compose.low-memory.yml",
                 "ps",
             ],
         )
@@ -219,6 +225,41 @@ class CatalogTests(unittest.TestCase):
                 for secret in openai_overlay["services"]["llm-gateway"]["secrets"]
             },
             {"OPENAI_API_KEY"},
+        )
+        base_services = yaml.safe_load(
+            (WORKSPACE_ROOT / "infrastructure" / "docker-compose.yml").read_text()
+        )["services"]
+        low_memory_services = yaml.safe_load(
+            (
+                WORKSPACE_ROOT
+                / "infrastructure"
+                / "docker-compose.low-memory.yml"
+            ).read_text()
+        )["services"]
+        runtime_services = {
+            name
+            for name, configuration in base_services.items()
+            if not configuration.get("profiles")
+        }
+        self.assertEqual(set(low_memory_services), runtime_services)
+        self.assertTrue(
+            all("mem_limit" in service for service in low_memory_services.values())
+        )
+        self.assertIn(
+            "-Xmx240m",
+            low_memory_services["llm-gateway"]["environment"][
+                "JAVA_TOOL_OPTIONS"
+            ],
+        )
+        self.assertEqual(
+            low_memory_services["job-seeker-copilot-client"]["environment"][
+                "NODE_OPTIONS"
+            ],
+            "--max-old-space-size=192",
+        )
+        self.assertIn(
+            "shared_buffers=32MB",
+            low_memory_services["document-generation-postgres"]["command"],
         )
         self.assertEqual(
             set(load_workspace_lock(catalog)),
@@ -303,6 +344,9 @@ class CatalogTests(unittest.TestCase):
                 WORKSPACE_ROOT
                 / "infrastructure"
                 / "docker-compose.real-openai.yml",
+                WORKSPACE_ROOT
+                / "infrastructure"
+                / "docker-compose.low-memory.yml",
             ],
             "real-providers",
             secret_env_file=WORKSPACE_ROOT / "config" / ".secrets.env",

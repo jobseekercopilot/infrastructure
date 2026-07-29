@@ -99,11 +99,12 @@ def validate_runtime_boundary(profile: Profile, environment_file: Path) -> None:
         "docker-compose.yml",
         "docker-compose.real-job-providers.yml",
         "docker-compose.real-openai.yml",
+        "docker-compose.low-memory.yml",
     )
     if profile.compose_files != expected_files:
         raise RuntimeError(
             "real-providers Compose order must be base, real job providers, "
-            "then real OpenAI"
+            "real OpenAI, then low memory"
         )
     model = compose_security_model(
         environment_file,
@@ -266,11 +267,17 @@ def compose_command(
     command = [
         "docker",
         "compose",
-        "-p",
-        profile.compose_project,
-        "--env-file",
-        str(environment_file),
     ]
+    if profile.compose_parallel_limit is not None:
+        command.extend(("--parallel", str(profile.compose_parallel_limit)))
+    command.extend(
+        (
+            "-p",
+            profile.compose_project,
+            "--env-file",
+            str(environment_file),
+        )
+    )
     if profile.secret_environment_file is not None:
         command.extend(("--env-file", str(profile.secret_environment_file)))
     for compose_file in profile.compose_files:
