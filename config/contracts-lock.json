@@ -91,20 +91,20 @@
     {
       "service": "user-profile-service",
       "repository": "jobseekercopilot/user-profile-service",
-      "revision": "86c8510ed319a059b991e6f9f1e43b0e101c5d1f",
+      "revision": "03d24c68342f86d573623541a4f8506acdf1b047",
       "path": "api/openapi.json",
-      "contractVersion": "1.0.0",
-      "sha256": "ffaaa16a169ab11d864f82440be9fcc7d5df2d4f2d63a3525d40bda497ea6598",
+      "contractVersion": "2.0.0",
+      "sha256": "962254757585bfd1339df0ffdd3196a4b0b720f8dc16bc0f6c439dedb84771b8",
       "consumers": [
         "document-generation-gateway"
       ],
       "javaPackage": {
         "groupId": "com.jobseekercopilot.clients",
         "artifactId": "user-profile-service-client",
-        "version": "1.0.0-rev.86c8510ed319",
+        "version": "2.0.0-rev.03d24c68342f",
         "generator": "java-resttemplate",
-        "releaseState": "published",
-        "buildRevision": "652639159dbef5349d48a95719a0e184ee31bbc9",
+        "releaseState": "pilot",
+        "buildRevision": "b6f33a3a0bdd3571eb8736b0f30fe146c220d689",
         "modulePath": "api/client/pom.xml"
       }
     }
