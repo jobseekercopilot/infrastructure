@@ -36,8 +36,11 @@ class Profile:
     name: str
     compose_files: tuple[str, ...]
     compose_project: str
+    compose_parallel_limit: int | None
     environment_profile: str
+    environment_file: Path
     secret_environment_file: Path | None
+    secret_providers: tuple[str, ...]
     frontend_url: str
     services: tuple[str, ...] | str
 
@@ -216,8 +219,30 @@ def load_catalog(path: Path = DEFAULT_CATALOG) -> Catalog:
             raise ValueError(f"{context} must be an object")
         files = item.get("composeFiles")
         services = item.get("services")
+        secret_providers = item.get("secretProviders", [])
+        compose_parallel_limit = item.get("composeParallelLimit")
         if not isinstance(files, list) or not files:
             raise ValueError(f"{context}.composeFiles must be a non-empty list")
+        if not isinstance(secret_providers, list) or any(
+            not isinstance(provider, str) or not provider
+            for provider in secret_providers
+        ):
+            raise ValueError(f"{context}.secretProviders must be a string list")
+        if bool(secret_providers) != ("secretEnvironmentFile" in item):
+            raise ValueError(
+                f"{context}.secretProviders and secretEnvironmentFile must be configured together"
+            )
+        if compose_parallel_limit is not None and (
+            not isinstance(compose_parallel_limit, int)
+            or isinstance(compose_parallel_limit, bool)
+            or compose_parallel_limit < 1
+        ):
+            raise ValueError(
+                f"{context}.composeParallelLimit must be a positive integer"
+            )
+        environment_file = item.get("environmentFile", f".env.{name}")
+        if not isinstance(environment_file, str) or not environment_file.strip():
+            raise ValueError(f"{context}.environmentFile must be a non-empty string")
         if services != "all-runtime":
             if not isinstance(services, list) or not services:
                 raise ValueError(
@@ -239,8 +264,14 @@ def load_catalog(path: Path = DEFAULT_CATALOG) -> Catalog:
                 name=name,
                 compose_files=tuple(files),
                 compose_project=_required_string(item, "composeProject", context),
+                compose_parallel_limit=compose_parallel_limit,
                 environment_profile=_required_string(
                     item, "environmentProfile", context
+                ),
+                environment_file=_relative_file(
+                    infrastructure_root,
+                    environment_file.strip(),
+                    f"{context}.environmentFile",
                 ),
                 secret_environment_file=(
                     _relative_file(
@@ -251,6 +282,7 @@ def load_catalog(path: Path = DEFAULT_CATALOG) -> Catalog:
                     if "secretEnvironmentFile" in item
                     else None
                 ),
+                secret_providers=tuple(secret_providers),
                 frontend_url=_required_string(item, "frontendUrl", context),
                 services=services,
             )

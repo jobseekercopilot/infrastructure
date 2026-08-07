@@ -56,6 +56,8 @@ fast-forward to a newly reviewed lock.
   ephemeral LocalStack SES.
 - `real-job-providers`: the full application with Reed, Adzuna and JSearch
   live while OpenAI and Stripe remain fixture-backed.
+- `real-providers`: the same full application with Reed, Adzuna, JSearch and
+  OpenAI live while Stripe and payments remain fixture-backed.
 
 ```bash
 ./scripts/start-local.sh --profile basic-fixture --build
@@ -66,11 +68,20 @@ fast-forward to a newly reviewed lock.
 ```
 
 Do not use real provider or payment credentials for fixture/E2E execution.
-The real-provider profile reads provider credentials only from the
-workspace-root `config/.secrets.env`, which must have mode `0600`. It never
-copies credentials into a repository, image or browser bundle. Start-up fails
-with a variable name—not its value—when a required provider credential is
-missing. Data acquisition is a separate
+Both real-provider profiles reuse the owner-only
+`.env.real-job-providers` base environment and read provider credentials only
+from the workspace-root `config/.secrets.env`, which must have mode `0600`.
+The lifecycle applies `docker-compose.yml`, then
+`docker-compose.real-job-providers.yml`, then—only for `real-providers`—
+`docker-compose.real-openai.yml` and `docker-compose.low-memory.yml`. The
+combined profile uses one Compose operation at a time and checked-in runtime
+memory ceilings; it does not require a temporary resource overlay. Never append
+`docker-compose.live.yml`: that legacy job-only overlay resets the LLM gateway
+to `DISABLED`.
+
+Credentials are never copied into a repository, image or browser bundle.
+Start-up fails with a variable name—not its value—when a required provider
+credential is missing. Data acquisition is a separate
 one-shot, quarantined operator workflow, not a normal stack. It is never run
 by automated verification. Mode boundaries are documented in
 [`docs/MODE_ISOLATION.md`](docs/MODE_ISOLATION.md). Runtime identity ownership,

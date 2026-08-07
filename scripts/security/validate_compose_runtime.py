@@ -7,10 +7,16 @@ import argparse
 import json
 import re
 import subprocess
+import sys
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from scripts.workspace.runtime_env import controlled_environment
+
+
 CORE_CREDENTIALS = (
     "AUTH_SERVICE_TOKEN",
     "ENVIRONMENT_DATA_TOKEN",
@@ -45,6 +51,15 @@ LIVE_CREDENTIALS = {
     "reed-gateway": ("REED_API_KEY",),
     "adzuna-gateway": ("ADZUNA_APP_ID", "ADZUNA_APP_KEY"),
     "jsearch-gateway": ("JSEARCH_API_KEY",),
+}
+REAL_PROVIDER_SECRET_BINDINGS = {
+    "reed-gateway": {"reed_api_key": "REED_API_KEY"},
+    "adzuna-gateway": {
+        "adzuna_app_id": "ADZUNA_APP_ID",
+        "adzuna_app_key": "ADZUNA_APP_KEY",
+    },
+    "jsearch-gateway": {"jsearch_api_key": "JSEARCH_API_KEY"},
+    "llm-gateway": {"openai_api_key": "OPENAI_API_KEY"},
 }
 ENVIRONMENT_DATA_SERVICES = (
     "authentication-service",
@@ -112,14 +127,89 @@ def require_no_live_credentials(model: dict) -> None:
         raise ValueError("llm-gateway must not receive the obsolete LLM_MOCK_MODE")
 
 
+def service_networks(service: dict) -> set[str]:
+    networks = service.get("networks", {})
+    if isinstance(networks, dict):
+        return set(networks)
+    if isinstance(networks, list):
+        return set(networks)
+    raise ValueError("Compose service networks must render as a mapping or list")
+
+
+def validate_real_provider_secret_bindings(model: dict) -> None:
+    services = model.get("services", {})
+    provider_network = model.get("networks", {}).get(
+        "provider-egress-network"
+    )
+    if not isinstance(provider_network, dict) or (
+        provider_network.get("internal", False) is not False
+    ):
+        raise ValueError(
+            "real-providers requires the explicit external provider-egress-network"
+        )
+    actual_egress = {
+        name
+        for name, service in services.items()
+        if "provider-egress-network" in service_networks(service)
+    }
+    expected_egress = set(REAL_PROVIDER_SECRET_BINDINGS)
+    if actual_egress != expected_egress:
+        raise ValueError(
+            "provider-egress-network must contain only Reed, Adzuna, JSearch "
+            "and LLM gateways"
+        )
+
+    declared_secrets = model.get("secrets", {})
+    for service_name, expected_bindings in REAL_PROVIDER_SECRET_BINDINGS.items():
+        service = services.get(service_name, {})
+        require_value(
+            model,
+            service_name,
+            "SPRING_CONFIG_IMPORT",
+            "optional:configtree:/run/secrets/",
+        )
+        service_environment = environment(model, service_name)
+        for target in expected_bindings.values():
+            if target in service_environment:
+                raise ValueError(
+                    f"{service_name}:{target} must be mounted as an owned secret, "
+                    "not injected into the environment"
+                )
+        actual_bindings = {
+            secret.get("source"): secret.get("target")
+            for secret in service.get("secrets", [])
+            if isinstance(secret, dict)
+        }
+        if actual_bindings != expected_bindings:
+            raise ValueError(
+                f"{service_name} must receive exactly its owned provider secrets"
+            )
+        for source, target in expected_bindings.items():
+            definition = declared_secrets.get(source, {})
+            if definition.get("environment") != target:
+                raise ValueError(
+                    f"{source} must resolve only from the {target} environment source"
+                )
+            if any(key in definition for key in ("value", "content")):
+                raise ValueError(
+                    f"{source} must not embed a credential value in the Compose model"
+                )
+
+
 def validate_runtime_modes(model: dict, profile: str) -> None:
     e2e = profile in {"e2e", "e2e-local-ses"}
     local_ses = profile in {"local-ses", "e2e-local-ses"}
     local_runtime = profile in {"local", "local-ses"}
+    real_providers = profile == "real-providers"
     runtime_network = model.get("networks", {}).get("job-seeker-network", {})
     if (local_runtime or e2e) and runtime_network.get("internal") is not True:
         raise ValueError(
             f"{profile} must use an internal-only network with no external egress"
+        )
+    if real_providers and runtime_network.get("internal") is not True:
+        raise ValueError(
+            "real-providers must keep the application network internal and use "
+            "only the dedicated provider-egress-network for external calls"
         )
     if profile == "live-provider" and runtime_network.get("internal") is True:
         raise ValueError("live-provider requires deliberate job-provider egress")
@@ -156,6 +246,54 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
                 raise ValueError(
                     f"{service}:{variable} is forbidden in the job-provider-only live stack"
                 )
+    elif real_providers:
+        for service in LIVE_CREDENTIALS:
+            require_value(model, service, "EXTERNAL_PROVIDER_MODE", "LIVE")
+        require_value(
+            model,
+            "postcode-io-gateway",
+            "EXTERNAL_PROVIDER_MODE",
+            "FIXTURE",
+        )
+        require_value(model, "llm-gateway", "EXTERNAL_PROVIDER_MODE", "LIVE")
+        require_value(model, "stripe-gateway", "EXTERNAL_PROVIDER_MODE", "FIXTURE")
+        require_value(
+            model,
+            "stripe-gateway",
+            "SYSTEM_DATA_SERVICE_URL",
+            "http://system-data-service:8103",
+        )
+        require_value(
+            model,
+            "payment-gateway",
+            "STRIPE_GATEWAY_URL",
+            "http://stripe-gateway:8100",
+        )
+        require_value(
+            model,
+            "job-seeker-copilot-client",
+            "JOB_SEARCH_PROVIDER_MODE",
+            "REAL_PROVIDERS",
+        )
+        require_value(
+            model,
+            "job-seeker-copilot-client",
+            "DOCUMENT_GENERATION_MODE",
+            "REAL_LLM",
+        )
+        validate_real_provider_secret_bindings(model)
+        stripe = environment(model, "stripe-gateway")
+        for variable in ("STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"):
+            if stripe.get(variable):
+                raise ValueError(
+                    f"stripe-gateway:{variable} is forbidden in real-providers"
+                )
+        if "provider-egress-network" in service_networks(
+            model["services"]["stripe-gateway"]
+        ):
+            raise ValueError(
+                "fixture Stripe Gateway must not join provider-egress-network"
+            )
     else:
         raise ValueError(f"unsupported runtime profile: {profile}")
 
@@ -260,14 +398,15 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
             "SYSTEM_DATA_ENVIRONMENT_MANAGEMENT_ENABLED",
             "false",
         )
-        expected_fixtures = "true" if local_runtime else "false"
+        uses_local_fixtures = local_runtime or real_providers
+        expected_fixtures = "true" if uses_local_fixtures else "false"
         require_value(
             model,
             "system-data-service",
             "SYSTEM_DATA_FIXTURES_ENABLED",
             expected_fixtures,
         )
-        if local_runtime:
+        if uses_local_fixtures:
             require_value(
                 model,
                 "system-data-service",
@@ -305,6 +444,7 @@ def validate_runtime_model(model: dict, profile: str) -> None:
                 ("authentication-service", "AUTH_ENVIRONMENT_DATA_TOKEN"),
                 ("application-tracker-service", "ENVIRONMENT_DATA_TOKEN"),
                 ("document-store-service", "ENVIRONMENT_DATA_TOKEN"),
+                ("payment-service", "ENVIRONMENT_DATA_TOKEN"),
                 (
                     "system-data-service",
                     "SYSTEM_DATA_DOWNSTREAM_ENVIRONMENT_DATA_TOKEN",
@@ -756,13 +896,20 @@ def validate_model(model: dict, profile: str) -> None:
     validate_runtime_model(model, profile)
 
 
-def compose_model(env_file: Path, overlays: list[Path], profile: str) -> dict:
+def compose_model(
+    env_file: Path,
+    overlays: list[Path],
+    profile: str,
+    secret_env_file: Path | None = None,
+) -> dict:
     command = [
         "docker",
         "compose",
         "--env-file",
         str(env_file),
     ]
+    if secret_env_file is not None:
+        command.extend(("--env-file", str(secret_env_file)))
     if profile != "data-acquisition":
         command.extend(("-f", str(ROOT / "docker-compose.yml")))
     for overlay in overlays:
@@ -770,7 +917,13 @@ def compose_model(env_file: Path, overlays: list[Path], profile: str) -> dict:
     if profile == "data-acquisition":
         command.extend(("--profile", "*"))
     command.extend(("config", "--format", "json"))
-    result = subprocess.run(command, check=False, capture_output=True, text=True)
+    result = subprocess.run(
+        command,
+        check=False,
+        capture_output=True,
+        text=True,
+        env=controlled_environment(),
+    )
     if result.returncode != 0:
         raise RuntimeError("Docker Compose model could not be rendered")
     return json.loads(result.stdout)
@@ -787,16 +940,39 @@ def main() -> int:
             "e2e",
             "e2e-local-ses",
             "live-provider",
+            "real-providers",
             "data-acquisition",
         ),
     )
     parser.add_argument("--env-file", type=Path, required=True)
+    parser.add_argument("--secret-env-file", type=Path)
     parser.add_argument("--overlay", type=Path, action="append", default=[])
     args = parser.parse_args()
     if args.profile == "data-acquisition" and len(args.overlay) != 1:
         parser.error("data-acquisition requires exactly one standalone Compose file")
+    if args.profile == "real-providers":
+        expected = (
+            (ROOT / "docker-compose.real-job-providers.yml").resolve(),
+            (ROOT / "docker-compose.real-openai.yml").resolve(),
+            (ROOT / "docker-compose.low-memory.yml").resolve(),
+        )
+        actual = tuple(path.resolve() for path in args.overlay)
+        if actual != expected:
+            parser.error(
+                "real-providers requires overlays in exact order: "
+                "docker-compose.real-job-providers.yml then "
+                "docker-compose.real-openai.yml then "
+                "docker-compose.low-memory.yml"
+            )
+        if args.secret_env_file is None:
+            parser.error("real-providers requires --secret-env-file")
     validate_model(
-        compose_model(args.env_file, args.overlay, args.profile),
+        compose_model(
+            args.env_file,
+            args.overlay,
+            args.profile,
+            args.secret_env_file,
+        ),
         args.profile,
     )
     print(f"{args.profile} Compose trust graph is valid; no values were printed.")

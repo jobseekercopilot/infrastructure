@@ -16,10 +16,14 @@ from scripts.workspace.catalog import (
     load_workspace_lock,
 )
 from scripts.workspace.lifecycle import (
+    compose_command,
     controlled_environment,
+    environment_path,
+    main as lifecycle_main,
     parse_compose_status,
     selected_repositories,
     stage_runtime_image_contexts,
+    validate_runtime_boundary,
 )
 
 
@@ -105,9 +109,14 @@ class CatalogTests(unittest.TestCase):
                 "full-fixture",
                 "full-local-ses",
                 "real-job-providers",
+                "real-providers",
             },
         )
         real_providers = catalog.profile("real-job-providers")
+        expected_real_environment = (
+            WORKSPACE_ROOT / "infrastructure" / ".env.real-job-providers"
+        )
+        self.assertEqual(real_providers.environment_file, expected_real_environment)
         self.assertEqual(
             real_providers.secret_environment_file,
             WORKSPACE_ROOT / "config" / ".secrets.env",
@@ -115,6 +124,52 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(
             real_providers.compose_files,
             ("docker-compose.yml", "docker-compose.real-job-providers.yml"),
+        )
+        self.assertEqual(
+            real_providers.secret_providers,
+            ("REED", "ADZUNA", "JSEARCH"),
+        )
+        real_openai = catalog.profile("real-providers")
+        self.assertEqual(real_openai.environment_file, expected_real_environment)
+        self.assertEqual(environment_path(real_openai), expected_real_environment)
+        self.assertEqual(
+            real_openai.compose_files,
+            (
+                "docker-compose.yml",
+                "docker-compose.real-job-providers.yml",
+                "docker-compose.real-openai.yml",
+                "docker-compose.low-memory.yml",
+            ),
+        )
+        self.assertEqual(real_openai.compose_parallel_limit, 1)
+        self.assertEqual(
+            real_openai.secret_providers,
+            ("REED", "ADZUNA", "JSEARCH", "OPENAI"),
+        )
+        command = compose_command(real_openai, expected_real_environment, "ps")
+        self.assertEqual(
+            command,
+            [
+                "docker",
+                "compose",
+                "--parallel",
+                "1",
+                "-p",
+                "job-seeker-copilot-real-jobs",
+                "--env-file",
+                str(expected_real_environment),
+                "--env-file",
+                str(WORKSPACE_ROOT / "config" / ".secrets.env"),
+                "-f",
+                "docker-compose.yml",
+                "-f",
+                "docker-compose.real-job-providers.yml",
+                "-f",
+                "docker-compose.real-openai.yml",
+                "-f",
+                "docker-compose.low-memory.yml",
+                "ps",
+            ],
         )
         real_provider_overlay = yaml.safe_load(
             (WORKSPACE_ROOT / "infrastructure"
@@ -148,6 +203,74 @@ class CatalogTests(unittest.TestCase):
                 set(configuration["networks"]),
                 {"job-seeker-network", "provider-egress-network"},
             )
+        openai_overlay = yaml.safe_load(
+            (WORKSPACE_ROOT / "infrastructure"
+             / "docker-compose.real-openai.yml").read_text()
+        )
+        self.assertEqual(
+            openai_overlay["services"]["llm-gateway"]["environment"][
+                "EXTERNAL_PROVIDER_MODE"
+            ],
+            "LIVE",
+        )
+        self.assertEqual(
+            openai_overlay["services"]["job-seeker-copilot-client"][
+                "environment"
+            ]["DOCUMENT_GENERATION_MODE"],
+            "REAL_LLM",
+        )
+        self.assertEqual(
+            {
+                secret["target"]
+                for secret in openai_overlay["services"]["llm-gateway"]["secrets"]
+            },
+            {"OPENAI_API_KEY"},
+        )
+        base_services = yaml.safe_load(
+            (WORKSPACE_ROOT / "infrastructure" / "docker-compose.yml").read_text()
+        )["services"]
+        low_memory_services = yaml.safe_load(
+            (
+                WORKSPACE_ROOT
+                / "infrastructure"
+                / "docker-compose.low-memory.yml"
+            ).read_text()
+        )["services"]
+        runtime_services = {
+            name
+            for name, configuration in base_services.items()
+            if not configuration.get("profiles")
+        }
+        self.assertEqual(set(low_memory_services), runtime_services)
+        self.assertTrue(
+            all("mem_limit" in service for service in low_memory_services.values())
+        )
+        self.assertIn(
+            "-Xmx240m",
+            low_memory_services["llm-gateway"]["environment"][
+                "JAVA_TOOL_OPTIONS"
+            ],
+        )
+        self.assertEqual(
+            low_memory_services["payment-service"]["mem_limit"],
+            "512m",
+        )
+        self.assertIn(
+            "-Xmx160m",
+            low_memory_services["payment-service"]["environment"][
+                "JAVA_TOOL_OPTIONS"
+            ],
+        )
+        self.assertEqual(
+            low_memory_services["job-seeker-copilot-client"]["environment"][
+                "NODE_OPTIONS"
+            ],
+            "--max-old-space-size=192",
+        )
+        self.assertIn(
+            "shared_buffers=32MB",
+            low_memory_services["document-generation-postgres"]["command"],
+        )
         self.assertEqual(
             set(load_workspace_lock(catalog)),
             set(catalog.repository_names),
@@ -159,6 +282,86 @@ class CatalogTests(unittest.TestCase):
             ).exists(),
             "the authoritative catalogue must not have a competing manifest",
         )
+
+    def test_real_providers_lifecycle_dispatch_accepts_operational_commands(
+        self,
+    ) -> None:
+        profile = load_catalog().profile("real-providers")
+        dispatches = (
+            (
+                "start",
+                "scripts.workspace.lifecycle.start",
+                (profile, False),
+            ),
+            (
+                "stop",
+                "scripts.workspace.lifecycle.stop",
+                (profile, False, False),
+            ),
+            (
+                "health",
+                "scripts.workspace.lifecycle.health",
+                (profile, 600),
+            ),
+        )
+        for command, target, expected in dispatches:
+            with self.subTest(command=command), patch(
+                "sys.argv",
+                ["lifecycle", command, "--profile", "real-providers"],
+            ), patch(target) as operation:
+                self.assertEqual(lifecycle_main(), 0)
+                operation.assert_called_once_with(*expected)
+
+        environment_file = profile.environment_file
+        with patch(
+            "sys.argv",
+            ["lifecycle", "status", "--profile", "real-providers"],
+        ), patch(
+            "scripts.workspace.lifecycle.ensure_environment",
+            return_value=environment_file,
+        ), patch("scripts.workspace.lifecycle.run") as run:
+            self.assertEqual(lifecycle_main(), 0)
+        status_command = run.call_args.args[0]
+        self.assertEqual(status_command[-1], "ps")
+        self.assertEqual(
+            status_command[status_command.index("--env-file") + 1],
+            str(environment_file),
+        )
+        self.assertIn(
+            str(WORKSPACE_ROOT / "config" / ".secrets.env"),
+            status_command,
+        )
+
+    def test_real_providers_startup_preflight_uses_catalogued_overlay_order(
+        self,
+    ) -> None:
+        profile = load_catalog().profile("real-providers")
+        rendered = {"services": {}}
+        with patch(
+            "scripts.workspace.lifecycle.compose_security_model",
+            return_value=rendered,
+        ) as compose, patch(
+            "scripts.workspace.lifecycle.validate_security_model"
+        ) as validate:
+            validate_runtime_boundary(profile, profile.environment_file)
+
+        compose.assert_called_once_with(
+            profile.environment_file,
+            [
+                WORKSPACE_ROOT
+                / "infrastructure"
+                / "docker-compose.real-job-providers.yml",
+                WORKSPACE_ROOT
+                / "infrastructure"
+                / "docker-compose.real-openai.yml",
+                WORKSPACE_ROOT
+                / "infrastructure"
+                / "docker-compose.low-memory.yml",
+            ],
+            "real-providers",
+            secret_env_file=WORKSPACE_ROOT / "config" / ".secrets.env",
+        )
+        validate.assert_called_once_with(rendered, "real-providers")
 
     def test_basic_and_full_profiles_have_distinct_source_scope(self) -> None:
         catalog = load_catalog()
@@ -372,15 +575,15 @@ class ContractLockTests(unittest.TestCase):
         )
         self.assertEqual(
             services["user-profile-service"]["javaPackage"]["version"],
-            "1.0.0-rev.86c8510ed319",
+            "2.0.0-rev.03d24c68342f",
         )
         self.assertEqual(
             services["user-profile-service"]["javaPackage"]["releaseState"],
-            "published",
+            "pilot",
         )
         self.assertEqual(
             services["user-profile-service"]["revision"],
-            "86c8510ed319a059b991e6f9f1e43b0e101c5d1f",
+            "03d24c68342f86d573623541a4f8506acdf1b047",
         )
 
     def test_package_version_must_match_contract_and_revision(self) -> None:

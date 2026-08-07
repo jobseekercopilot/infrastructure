@@ -247,7 +247,17 @@ def validate_workspace(
                     "REED_API_KEY=validation-only\n"
                     "ADZUNA_APP_ID=validation-only\n"
                     "ADZUNA_APP_KEY=validation-only\n"
-                    "JSEARCH_API_KEY=validation-only\n",
+                    "JSEARCH_API_KEY=validation-only\n"
+                    "OPENAI_API_KEY=validation-only-key-with-enough-characters\n"
+                    "OPENAI_ENDPOINT=https://api.openai.com/v1/chat/completions\n"
+                    "OPENAI_ORGANIZATION_ID=org-validation\n"
+                    "OPENAI_PROJECT_ID=proj_validation\n"
+                    "OPENAI_DATA_REGION=GLOBAL\n"
+                    "OPENAI_DATA_CONTROL_MODE=STANDARD_30_DAY_ABUSE_MONITORING\n"
+                    "OPENAI_DATA_SHARING_MODE=DISABLED\n"
+                    "OPENAI_PRIVACY_DECISION_ID=privacy-decision/validation\n"
+                    "OPENAI_PRIVACY_OWNER=Validation owner\n"
+                    "OPENAI_PRIVACY_REVIEW_ON=2026-10-25\n",
                     encoding="utf-8",
                 )
                 secret_environment_file.chmod(0o600)

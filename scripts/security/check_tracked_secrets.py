@@ -16,6 +16,9 @@ TRACKED_CONFIGURATION = (
     ROOT / "docker-compose.yml",
     ROOT / "docker-compose.e2e.yml",
     ROOT / "docker-compose.live.yml",
+    ROOT / "docker-compose.real-job-providers.yml",
+    ROOT / "docker-compose.real-openai.yml",
+    ROOT / "docker-compose.low-memory.yml",
     ROOT / "docker-compose.data-acquisition.yml",
 )
 SENSITIVE_NAME = re.compile(

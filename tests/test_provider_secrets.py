@@ -66,3 +66,22 @@ class ProviderSecretStoreTests(unittest.TestCase):
             findings = secret_files_inside_repositories(workspace)
 
         self.assertEqual([], findings)
+
+    def test_openai_validation_requires_the_complete_live_decision(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            store = Path(directory) / ".secrets.env"
+            store.write_text(
+                "OPENAI_API_KEY=not-a-real-secret\n",
+                encoding="utf-8",
+            )
+            store.chmod(0o600)
+            with patch(
+                "scripts.security.provider_secrets.SECRET_FILE",
+                store,
+            ):
+                failures = validate_store(("OPENAI",), store)
+
+        self.assertNotIn("OPENAI_ORGANIZATION_ID is MISSING", failures)
+        self.assertNotIn("OPENAI_PROJECT_ID is MISSING", failures)
+        self.assertIn("OPENAI_PRIVACY_DECISION_ID is MISSING", failures)
+        self.assertNotIn("not-a-real-secret", "\n".join(failures))

@@ -776,6 +776,7 @@ services:
     environment:
       - SERVER_PORT=8099
       - ENVIRONMENT_DATA_ENABLED=false
+      - ENVIRONMENT_DATA_TOKEN=${ENVIRONMENT_DATA_TOKEN:?Generate the selected untracked environment file}
       - PAYMENT_DATABASE_URL=jdbc:postgresql://payment-postgres:5432/payment
       - PAYMENT_DATABASE_USERNAME=payment
       - PAYMENT_DATABASE_PASSWORD=${PAYMENT_DATABASE_PASSWORD:?Generate the selected untracked environment file}

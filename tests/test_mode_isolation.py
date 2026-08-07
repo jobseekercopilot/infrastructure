@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import copy
 import json
-import os
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
@@ -23,7 +22,19 @@ from scripts.docker.stack_config import stack_for
 from scripts.docker.start_stack import main as start_stack
 from scripts.docker.stop_stack import main as stop_stack
 from scripts.security.generate_profile_env import PROFILE_TEMPLATES, render
-from scripts.security.validate_compose_runtime import compose_model, validate_model
+from scripts.security.validate_compose_runtime import (
+    compose_model,
+    main as validate_compose_runtime,
+    validate_model,
+)
+
+
+def write_environment(path: Path, values: dict[str, str]) -> None:
+    path.write_text(
+        "\n".join(f"{name}={value}" for name, value in values.items()) + "\n",
+        encoding="utf-8",
+    )
+    path.chmod(0o600)
 
 
 class RenderedModeIsolationTests(unittest.TestCase):
@@ -61,20 +72,62 @@ class RenderedModeIsolationTests(unittest.TestCase):
 
         live_env = directory / "live.env"
         render("live-provider", PROFILE_TEMPLATES["live-provider"], live_env)
-        with patch.dict(
-            os.environ,
+        live_secrets = directory / "live-secrets.env"
+        write_environment(
+            live_secrets,
             {
                 "REED_API_KEY": "test-reed-key",
                 "ADZUNA_APP_ID": "test-adzuna-id",
                 "ADZUNA_APP_KEY": "test-adzuna-key",
                 "JSEARCH_API_KEY": "test-jsearch-key",
             },
-        ):
-            cls.models["live-provider"] = compose_model(
-                live_env,
-                [Path("docker-compose.live.yml")],
-                "live-provider",
-            )
+        )
+        cls.models["live-provider"] = compose_model(
+            live_env,
+            [Path("docker-compose.live.yml")],
+            "live-provider",
+            live_secrets,
+        )
+
+        cls.real_providers_env = directory / "real-providers.env"
+        render(
+            "local",
+            PROFILE_TEMPLATES["local"],
+            cls.real_providers_env,
+        )
+        cls.real_provider_credentials = {
+            "REED_API_KEY": "synthetic-reed-credential",
+            "ADZUNA_APP_ID": "synthetic-adzuna-application",
+            "ADZUNA_APP_KEY": "synthetic-adzuna-credential",
+            "JSEARCH_API_KEY": "synthetic-jsearch-credential",
+            "OPENAI_API_KEY": "synthetic-openai-credential-with-enough-characters",
+        }
+        cls.real_providers_secrets = directory / "real-providers-secrets.env"
+        write_environment(
+            cls.real_providers_secrets,
+            {
+                **cls.real_provider_credentials,
+                "OPENAI_ENDPOINT": "https://api.openai.com/v1/chat/completions",
+                "OPENAI_DATA_REGION": "GLOBAL",
+                "OPENAI_DATA_CONTROL_MODE": (
+                    "STANDARD_30_DAY_ABUSE_MONITORING"
+                ),
+                "OPENAI_DATA_SHARING_MODE": "DISABLED",
+                "OPENAI_PRIVACY_DECISION_ID": "privacy-decision/test",
+                "OPENAI_PRIVACY_OWNER": "Test owner",
+                "OPENAI_PRIVACY_REVIEW_ON": "2026-10-25",
+            },
+        )
+        cls.models["real-providers"] = compose_model(
+            cls.real_providers_env,
+            [
+                Path("docker-compose.real-job-providers.yml"),
+                Path("docker-compose.real-openai.yml"),
+                Path("docker-compose.low-memory.yml"),
+            ],
+            "real-providers",
+            cls.real_providers_secrets,
+        )
 
         acquisition_env = directory / "acquisition.env"
         render(
@@ -82,8 +135,9 @@ class RenderedModeIsolationTests(unittest.TestCase):
             PROFILE_TEMPLATES["data-acquisition"],
             acquisition_env,
         )
-        with patch.dict(
-            os.environ,
+        acquisition_inputs = directory / "acquisition-inputs.env"
+        write_environment(
+            acquisition_inputs,
             {
                 "DATA_ACQUISITION_RUN_ID": "audit-20260726-001",
                 "DATA_ACQUISITION_CONFIRMATION": CONFIRMATION,
@@ -95,12 +149,13 @@ class RenderedModeIsolationTests(unittest.TestCase):
                 "ADZUNA_APP_ID": "test-adzuna-id",
                 "ADZUNA_APP_KEY": "test-adzuna-key",
             },
-        ):
-            cls.models["data-acquisition"] = compose_model(
-                acquisition_env,
-                [Path("docker-compose.data-acquisition.yml")],
-                "data-acquisition",
-            )
+        )
+        cls.models["data-acquisition"] = compose_model(
+            acquisition_env,
+            [Path("docker-compose.data-acquisition.yml")],
+            "data-acquisition",
+            acquisition_inputs,
+        )
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -109,9 +164,212 @@ class RenderedModeIsolationTests(unittest.TestCase):
     def model(self, profile: str) -> dict:
         return copy.deepcopy(self.models[profile])
 
-    def test_all_six_rendered_modes_pass_the_policy(self) -> None:
+    def test_all_seven_rendered_modes_pass_the_policy(self) -> None:
         for profile, model in self.models.items():
             validate_model(model, profile)
+
+    def test_combined_real_providers_keep_egress_and_fixture_payments_bounded(
+        self,
+    ) -> None:
+        model = self.model("real-providers")
+        services = model["services"]
+        self.assertTrue(model["networks"]["job-seeker-network"]["internal"])
+        self.assertFalse(
+            model["networks"]["provider-egress-network"].get("internal", False)
+        )
+        egress_services = {
+            name
+            for name, service in services.items()
+            if "provider-egress-network" in service.get("networks", {})
+        }
+        self.assertEqual(
+            egress_services,
+            {
+                "reed-gateway",
+                "adzuna-gateway",
+                "jsearch-gateway",
+                "llm-gateway",
+            },
+        )
+        for gateway in ("reed-gateway", "adzuna-gateway", "jsearch-gateway"):
+            self.assertEqual(
+                services[gateway]["environment"]["EXTERNAL_PROVIDER_MODE"],
+                "LIVE",
+            )
+        self.assertEqual(
+            services["llm-gateway"]["environment"]["EXTERNAL_PROVIDER_MODE"],
+            "LIVE",
+        )
+        self.assertEqual(
+            services["stripe-gateway"]["environment"]["EXTERNAL_PROVIDER_MODE"],
+            "FIXTURE",
+        )
+        self.assertEqual(
+            services["stripe-gateway"]["environment"]["SYSTEM_DATA_SERVICE_URL"],
+            "http://system-data-service:8103",
+        )
+        self.assertEqual(
+            services["payment-gateway"]["environment"]["STRIPE_GATEWAY_URL"],
+            "http://stripe-gateway:8100",
+        )
+        self.assertNotIn(
+            "provider-egress-network",
+            services["stripe-gateway"].get("networks", {}),
+        )
+        self.assertEqual(
+            services["payment-service"]["environment"][
+                "PAYMENT_DATABASE_PRODUCTION_SAFETY_CHECK"
+            ],
+            "false",
+        )
+        self.assertEqual(
+            services["job-seeker-copilot-client"]["environment"][
+                "JOB_SEARCH_PROVIDER_MODE"
+            ],
+            "REAL_PROVIDERS",
+        )
+        self.assertEqual(
+            services["job-seeker-copilot-client"]["environment"][
+                "DOCUMENT_GENERATION_MODE"
+            ],
+            "REAL_LLM",
+        )
+
+    def test_combined_real_provider_secrets_are_owned_and_value_free(
+        self,
+    ) -> None:
+        model = self.model("real-providers")
+        expected = {
+            "reed-gateway": {"reed_api_key": "REED_API_KEY"},
+            "adzuna-gateway": {
+                "adzuna_app_id": "ADZUNA_APP_ID",
+                "adzuna_app_key": "ADZUNA_APP_KEY",
+            },
+            "jsearch-gateway": {"jsearch_api_key": "JSEARCH_API_KEY"},
+            "llm-gateway": {"openai_api_key": "OPENAI_API_KEY"},
+        }
+        for service_name, bindings in expected.items():
+            service = model["services"][service_name]
+            self.assertEqual(
+                service["environment"]["SPRING_CONFIG_IMPORT"],
+                "optional:configtree:/run/secrets/",
+            )
+            self.assertEqual(
+                {
+                    secret["source"]: secret["target"]
+                    for secret in service["secrets"]
+                },
+                bindings,
+            )
+            for source, target in bindings.items():
+                self.assertEqual(
+                    model["secrets"][source]["environment"],
+                    target,
+                )
+                self.assertNotIn(target, service["environment"])
+
+        rendered = json.dumps(model, sort_keys=True)
+        for credential in self.real_provider_credentials.values():
+            self.assertNotIn(credential, rendered)
+
+    def test_combined_real_providers_cannot_resolve_openai_as_disabled(
+        self,
+    ) -> None:
+        model = self.model("real-providers")
+        model["services"]["llm-gateway"]["environment"][
+            "EXTERNAL_PROVIDER_MODE"
+        ] = "DISABLED"
+        with self.assertRaisesRegex(
+            ValueError,
+            "llm-gateway:EXTERNAL_PROVIDER_MODE must be LIVE",
+        ):
+            validate_model(model, "real-providers")
+
+        unsafe_order = compose_model(
+            self.real_providers_env,
+            [
+                Path("docker-compose.real-job-providers.yml"),
+                Path("docker-compose.real-openai.yml"),
+                Path("docker-compose.live.yml"),
+                Path("docker-compose.low-memory.yml"),
+            ],
+            "real-providers",
+            self.real_providers_secrets,
+        )
+        self.assertEqual(
+            unsafe_order["services"]["llm-gateway"]["environment"][
+                "EXTERNAL_PROVIDER_MODE"
+            ],
+            "DISABLED",
+        )
+        with self.assertRaises(ValueError):
+            validate_model(unsafe_order, "real-providers")
+
+    def test_combined_real_providers_fail_closed_on_boundary_crossover(
+        self,
+    ) -> None:
+        model = self.model("real-providers")
+        model["services"]["stripe-gateway"]["environment"][
+            "EXTERNAL_PROVIDER_MODE"
+        ] = "LIVE"
+        with self.assertRaisesRegex(
+            ValueError,
+            "stripe-gateway:EXTERNAL_PROVIDER_MODE must be FIXTURE",
+        ):
+            validate_model(model, "real-providers")
+
+        model = self.model("real-providers")
+        model["services"]["payment-service"]["networks"][
+            "provider-egress-network"
+        ] = None
+        with self.assertRaisesRegex(ValueError, "provider-egress-network"):
+            validate_model(model, "real-providers")
+
+        model = self.model("real-providers")
+        model["services"]["llm-gateway"]["environment"].pop(
+            "SPRING_CONFIG_IMPORT"
+        )
+        with self.assertRaisesRegex(ValueError, "SPRING_CONFIG_IMPORT"):
+            validate_model(model, "real-providers")
+
+        model = self.model("real-providers")
+        model["services"]["llm-gateway"]["environment"][
+            "OPENAI_API_KEY"
+        ] = "must-not-be-an-environment-value"
+        with self.assertRaisesRegex(ValueError, "mounted as an owned secret"):
+            validate_model(model, "real-providers")
+
+    def test_combined_validator_output_never_contains_provider_values(
+        self,
+    ) -> None:
+        output = StringIO()
+        with patch(
+            "sys.argv",
+            [
+                "validate_compose_runtime",
+                "--profile",
+                "real-providers",
+                "--env-file",
+                str(self.real_providers_env),
+                "--secret-env-file",
+                str(self.real_providers_secrets),
+                "--overlay",
+                "docker-compose.real-job-providers.yml",
+                "--overlay",
+                "docker-compose.real-openai.yml",
+                "--overlay",
+                "docker-compose.low-memory.yml",
+            ],
+        ), redirect_stdout(output):
+            self.assertEqual(validate_compose_runtime(), 0)
+        text = output.getvalue()
+        self.assertEqual(
+            text,
+            "real-providers Compose trust graph is valid; "
+            "no values were printed.\n",
+        )
+        for credential in self.real_provider_credentials.values():
+            self.assertNotIn(credential, text)
 
     def test_local_ses_profile_keeps_localstack_isolated_and_ephemeral(self) -> None:
         model = self.model("local-ses")
@@ -242,6 +500,16 @@ class RenderedModeIsolationTests(unittest.TestCase):
         model = self.model("e2e")
         model["services"]["system-data-service"]["environment"][
             "SYSTEM_DATA_DOWNSTREAM_ENVIRONMENT_DATA_TOKEN"
+        ] = "different-environment-data-identity-value"
+        with self.assertRaisesRegex(
+            ValueError,
+            "ENVIRONMENT_DATA_TOKEN does not match",
+        ):
+            validate_model(model, "e2e")
+
+        model = self.model("e2e")
+        model["services"]["payment-service"]["environment"][
+            "ENVIRONMENT_DATA_TOKEN"
         ] = "different-environment-data-identity-value"
         with self.assertRaisesRegex(
             ValueError,

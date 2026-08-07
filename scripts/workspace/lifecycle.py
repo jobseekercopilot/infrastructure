@@ -22,6 +22,10 @@ from scripts.security.provider_secrets import (
     secret_files_inside_repositories,
     validate_store,
 )
+from scripts.security.validate_compose_runtime import (
+    compose_model as compose_security_model,
+    validate_model as validate_security_model,
+)
 from scripts.workspace.catalog import (
     INFRASTRUCTURE_ROOT,
     WORKSPACE_ROOT,
@@ -30,7 +34,7 @@ from scripts.workspace.catalog import (
     load_catalog,
 )
 from scripts.workspace.runtime_env import controlled_environment
-from scripts.workspace.validate import compose_model, validate_workspace
+from scripts.workspace.validate import validate_workspace
 
 CACHE_ROOT = WORKSPACE_ROOT / ".cache"
 MAVEN_REPOSITORY = CACHE_ROOT / "m2"
@@ -70,7 +74,7 @@ def selected_repositories(catalog: Catalog, profile: Profile):
 
 
 def environment_path(profile: Profile) -> Path:
-    return INFRASTRUCTURE_ROOT / f".env.{profile.name}"
+    return profile.environment_file
 
 
 def ensure_environment(profile: Profile) -> Path:
@@ -81,8 +85,35 @@ def ensure_environment(profile: Profile) -> Path:
             INFRASTRUCTURE_ROOT / ".env.example",
             output,
         )
-        print(f"Generated safe fixture configuration: {output}")
+        print(f"Generated owner-only base runtime configuration: {output}")
     return output
+
+
+def validate_runtime_boundary(profile: Profile, environment_file: Path) -> None:
+    """Fail closed on the combined real-provider trust boundary before startup."""
+    if profile.name != "real-providers":
+        return
+    if profile.secret_environment_file is None:
+        raise RuntimeError("real-providers requires the catalogued secret store")
+    expected_files = (
+        "docker-compose.yml",
+        "docker-compose.real-job-providers.yml",
+        "docker-compose.real-openai.yml",
+        "docker-compose.low-memory.yml",
+    )
+    if profile.compose_files != expected_files:
+        raise RuntimeError(
+            "real-providers Compose order must be base, real job providers, "
+            "real OpenAI, then low memory"
+        )
+    model = compose_security_model(
+        environment_file,
+        [INFRASTRUCTURE_ROOT / path for path in profile.compose_files[1:]],
+        "real-providers",
+        secret_env_file=profile.secret_environment_file,
+    )
+    validate_security_model(model, "real-providers")
+    print("real-providers runtime boundary is valid; no values were printed.")
 
 
 def run(command: list[str], cwd: Path, env: dict[str, str] | None = None) -> None:
@@ -236,11 +267,17 @@ def compose_command(
     command = [
         "docker",
         "compose",
-        "-p",
-        profile.compose_project,
-        "--env-file",
-        str(environment_file),
     ]
+    if profile.compose_parallel_limit is not None:
+        command.extend(("--parallel", str(profile.compose_parallel_limit)))
+    command.extend(
+        (
+            "-p",
+            profile.compose_project,
+            "--env-file",
+            str(environment_file),
+        )
+    )
     if profile.secret_environment_file is not None:
         command.extend(("--env-file", str(profile.secret_environment_file)))
     for compose_file in profile.compose_files:
@@ -262,7 +299,7 @@ def start(profile: Profile, build: bool) -> None:
                 + paths
             )
         secret_failures = validate_store(
-            ("REED", "ADZUNA", "JSEARCH"),
+            profile.secret_providers,
             profile.secret_environment_file,
         )
         if secret_failures:
@@ -273,6 +310,7 @@ def start(profile: Profile, build: bool) -> None:
             {repository.name for repository in selected_repositories(load_catalog(), profile)}
         )
     environment_file = ensure_environment(profile)
+    validate_runtime_boundary(profile, environment_file)
     command = compose_command(profile, environment_file, "up", "-d")
     if build:
         command.append("--build")
@@ -426,6 +464,7 @@ def health(profile: Profile, timeout_seconds: int) -> None:
 
 
 def main() -> int:
+    catalog = load_catalog()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "command",
@@ -433,12 +472,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--profile",
-        choices=(
-            "basic-fixture",
-            "full-fixture",
-            "full-local-ses",
-            "real-job-providers",
-        ),
+        choices=tuple(profile.name for profile in catalog.profiles),
         default="basic-fixture",
     )
     parser.add_argument("--build", action="store_true")
@@ -447,7 +481,6 @@ def main() -> int:
     parser.add_argument("--timeout-seconds", type=int, default=600)
     parser.add_argument("--follow", action="store_true")
     args = parser.parse_args()
-    catalog = load_catalog()
     profile = catalog.profile(args.profile)
     try:
         if args.command in {"build", "test"}:
@@ -484,7 +517,7 @@ def main() -> int:
                 command.append("--follow")
             run(command, INFRASTRUCTURE_ROOT)
         return 0
-    except (RuntimeError, subprocess.CalledProcessError) as error:
+    except (RuntimeError, ValueError, subprocess.CalledProcessError) as error:
         print(f"ERROR: {error}", file=sys.stderr)
         return 1
 
