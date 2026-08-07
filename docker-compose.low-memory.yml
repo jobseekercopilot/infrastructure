@@ -64,6 +64,11 @@ services:
     <<: *java-small
   document-store-service:
     <<: *java-small
+    # Retained document reads and a create request can briefly push native
+    # memory above the shared 384 MiB ceiling even with the bounded 160 MiB
+    # heap. Keep the heap small, but leave enough native headroom to prevent
+    # the store being OOM-killed during the generation hand-off.
+    mem_limit: 512m
   application-tracker-service:
     <<: *java-small
     mem_limit: 512m
