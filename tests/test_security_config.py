@@ -211,5 +211,28 @@ class TrackedSecretPolicyTests(unittest.TestCase):
         self.assertIn("ADZUNA_APP_KEY", result[1])
 
 
+class ComposeCiBoundaryTests(unittest.TestCase):
+    def test_live_inputs_are_passed_by_explicit_private_env_file(self) -> None:
+        workflow = (ROOT / ".github/workflows/ci.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("umask 077", workflow)
+        self.assertIn("> .env.ci-runtime", workflow)
+        self.assertEqual(workflow.count("--secret-env-file .env.ci-runtime"), 2)
+        self.assertEqual(
+            workflow.count("--env-file .env.ci-runtime"),
+            2,
+        )
+        for name in (
+            "REED_API_KEY",
+            "ADZUNA_APP_ID",
+            "ADZUNA_APP_KEY",
+            "JSEARCH_API_KEY",
+            "DATA_ACQUISITION_RUN_ID",
+            "DATA_ACQUISITION_CONFIRMATION",
+        ):
+            self.assertIn(f'"{name}=${{{name}}}"', workflow)
+
+
 if __name__ == "__main__":
     unittest.main()
