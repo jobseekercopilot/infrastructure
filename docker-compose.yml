@@ -724,11 +724,15 @@ services:
     environment:
       - SERVER_PORT=8096
       - APPLICATION_TRACKER_SERVICE_BASE_URL=http://application-tracker-service:8088
+      - DOCUMENT_STORE_SERVICE_URL=http://document-store-service:8089
       - USER_PROFILE_SERVICE_URL=http://user-profile-service:8085
       - REPORTING_GATEWAY_SERVICE_TOKEN=${REPORTING_GATEWAY_SERVICE_TOKEN:?Generate the selected untracked environment file}
       - APPLICATION_TRACKER_READER_TOKEN=${APPLICATION_TRACKER_READER_TOKEN:?Generate the selected untracked environment file}
+      - DOCUMENT_STORE_READER_TOKEN=${DOCUMENT_STORE_READER_TOKEN:?Generate the selected untracked environment file}
     depends_on:
       application-tracker-service:
+        condition: service_healthy
+      document-store-service:
         condition: service_healthy
       user-profile-service:
         condition: service_healthy

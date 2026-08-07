@@ -502,6 +502,7 @@ def validate_runtime_model(model: dict, profile: str) -> None:
                 ("document-store-service", "DOCUMENT_STORE_READER_TOKEN"),
                 ("document-generation-gateway", "DOCUMENT_STORE_READER_TOKEN"),
                 ("document-export-service", "DOCUMENT_STORE_READER_TOKEN"),
+                ("reporting-service", "DOCUMENT_STORE_READER_TOKEN"),
             ),
         ),
         "DOCUMENT_EXPORT_GATEWAY_TOKEN": require_shared(
