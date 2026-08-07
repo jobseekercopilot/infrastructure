@@ -690,6 +690,45 @@ class RenderedModeIsolationTests(unittest.TestCase):
                 )
                 self.assertEqual(store["DOCUMENT_STORE_PURGE_ENABLED"], "false")
 
+    def test_authentication_account_lifecycle_dependencies_are_bounded(self) -> None:
+        for profile in ("local", "e2e", "live-provider"):
+            with self.subTest(profile=profile):
+                model = self.model(profile)
+                authentication = model["services"]["authentication-service"]
+                environment = authentication["environment"]
+
+                self.assertEqual(
+                    environment["USER_PROFILE_SERVICE_URL"],
+                    "http://user-profile-service:8085",
+                )
+                self.assertEqual(
+                    environment["APPLICATION_TRACKER_SERVICE_URL"],
+                    "http://application-tracker-service:8088",
+                )
+                self.assertEqual(
+                    environment["DOCUMENT_STORE_SERVICE_URL"],
+                    "http://document-store-service:8089",
+                )
+                self.assertEqual(
+                    environment["AUTH_ACCOUNT_LIFECYCLE_RECENT_AUTHENTICATION_AGE"],
+                    "15m",
+                )
+                self.assertEqual(
+                    environment["AUTH_ACCOUNT_LIFECYCLE_COMPLETED_RETENTION"],
+                    "365d",
+                )
+                self.assertEqual(
+                    environment["AUTH_ACCOUNT_LIFECYCLE_CONNECT_TIMEOUT"],
+                    "2s",
+                )
+                self.assertEqual(
+                    environment["AUTH_ACCOUNT_LIFECYCLE_READ_TIMEOUT"],
+                    "5s",
+                )
+                self.assertNotIn("user-profile-service", authentication["depends_on"])
+                self.assertNotIn("application-tracker-service", authentication["depends_on"])
+                self.assertNotIn("document-store-service", authentication["depends_on"])
+
     def test_document_store_purge_cannot_be_enabled_in_local_profiles(self) -> None:
         for profile in ("local", "e2e", "live-provider"):
             with self.subTest(profile=profile):

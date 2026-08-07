@@ -160,6 +160,12 @@ This repository does not yet contain that evidence and the Compose profiles
 are not production deployments. Setting `DOCUMENT_STORE_PURGE_ENABLED=true` in
 one of them is rejected by the runtime validator.
 
+Account deletion does not relax this gate. Authentication coordinates
+recoverable DOC-09 deletion with short-lived signed lifecycle tokens and keeps
+unfinished operations retryable. The base deployment supplies explicit
+Profile, Tracker and Store service URLs plus bounded connect/read timeouts;
+none of these settings enables irreversible purge.
+
 ## Incident response
 
 If a credential, signing key, environment file, request body, or token appears
