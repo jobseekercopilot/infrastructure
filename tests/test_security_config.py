@@ -54,6 +54,8 @@ class RuntimeEnvironmentSchemaTests(unittest.TestCase):
             "DOCUMENT_EXPORT_GATEWAY_TOKEN",
             "CV_COVER_LETTER_GATEWAY_TOKEN",
             "CV_COVER_LETTER_TO_PAYMENT_SERVICE_TOKEN",
+            "REJECTED_GENERATION_OPERATOR_TOKEN",
+            "REJECTED_GENERATION_QUARANTINE_KEY_BASE64",
             "DOCUMENT_GENERATION_GATEWAY_TO_PAYMENT_SERVICE_TOKEN",
             "BFF_TO_PAYMENT_GATEWAY_TOKEN",
             "PAYMENT_GATEWAY_TO_PAYMENT_SERVICE_TOKEN",
@@ -121,6 +123,21 @@ class RuntimeEnvironmentSchemaTests(unittest.TestCase):
         random_values = [values[name] for name in random_names]
         self.assertEqual(len(random_values), len(set(random_values)))
         self.assertTrue(all(len(value.encode("utf-8")) >= 32 for value in random_values))
+
+    def test_generated_rejected_generation_key_decodes_to_exactly_32_bytes(self) -> None:
+        schema = load_schema()
+        with patch(
+            "scripts.security.generate_profile_env.generate_rsa_pair",
+            return_value=("private-key", "public-key"),
+        ):
+            values = generated_values("local", schema)
+        self.assertEqual(
+            32,
+            len(base64.b64decode(
+                values["REJECTED_GENERATION_QUARANTINE_KEY_BASE64"],
+                validate=True,
+            )),
+        )
 
     def test_generated_rsa_pair_uses_java_compatible_der_encodings(self) -> None:
         private_key, public_key = generate_rsa_pair()

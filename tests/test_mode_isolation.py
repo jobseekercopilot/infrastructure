@@ -168,6 +168,71 @@ class RenderedModeIsolationTests(unittest.TestCase):
         for profile, model in self.models.items():
             validate_model(model, profile)
 
+    def test_rejected_generation_quarantine_is_enabled_and_persistent(self) -> None:
+        for profile in ("local", "e2e", "live-provider", "real-providers"):
+            with self.subTest(profile=profile):
+                model = self.model(profile)
+                service = model["services"]["cv-cover-letter-service"]
+                environment = service["environment"]
+                self.assertEqual(
+                    "true",
+                    environment["REJECTED_GENERATION_QUARANTINE_ENABLED"],
+                )
+                self.assertEqual(
+                    "/var/lib/cv-cover-letter/rejected-generations",
+                    environment["REJECTED_GENERATION_QUARANTINE_DIRECTORY"],
+                )
+                self.assertIn("cv-rejected-generation-quarantine", model["volumes"])
+                self.assertEqual(
+                    1,
+                    len([
+                        mount
+                        for mount in service["volumes"]
+                        if mount["source"] == "cv-rejected-generation-quarantine"
+                        and mount["target"]
+                        == "/var/lib/cv-cover-letter/rejected-generations"
+                        and not mount.get("read_only", False)
+                    ]),
+                )
+
+    def test_rejected_generation_quarantine_wiring_fails_closed(self) -> None:
+        mutations = (
+            (
+                "environment",
+                "REJECTED_GENERATION_QUARANTINE_ENABLED",
+                "false",
+                "must be true",
+            ),
+            (
+                "environment",
+                "REJECTED_GENERATION_QUARANTINE_KEY_BASE64",
+                "not-valid-base64-value-with-32-bytes",
+                "valid Base64",
+            ),
+            (
+                "environment",
+                "REJECTED_GENERATION_OPERATOR_TOKEN",
+                None,
+                "pairwise distinct",
+            ),
+        )
+        for location, variable, value, message in mutations:
+            with self.subTest(variable=variable):
+                model = self.model("local")
+                service_environment = model["services"][
+                    "cv-cover-letter-service"
+                ][location]
+                if variable == "REJECTED_GENERATION_OPERATOR_TOKEN":
+                    value = service_environment["CV_COVER_LETTER_GATEWAY_TOKEN"]
+                service_environment[variable] = value
+                with self.assertRaisesRegex(ValueError, message):
+                    validate_model(model, "local")
+
+        model = self.model("local")
+        model["services"]["cv-cover-letter-service"]["volumes"] = []
+        with self.assertRaisesRegex(ValueError, "must mount"):
+            validate_model(model, "local")
+
     def test_combined_real_providers_keep_egress_and_fixture_payments_bounded(
         self,
     ) -> None:

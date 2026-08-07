@@ -130,6 +130,27 @@ access blocking, versioning/backup or replication, and a paired
 database/object restore drill. Those deployed controls remain unfinished
 INFRA-08 work.
 
+### Rejected-generation diagnostic quarantine
+
+CV/Cover Letter has a separate, bounded quarantine for provider responses that
+fail deterministic post-provider validation. Local, E2E and live-provider
+profiles enable it with an isolated named volume, an independently generated
+32-byte Base64 encryption key, and a distinct operator token. The runtime
+validator rejects a disabled quarantine, missing or read-only storage,
+malformed keys, and credentials reused across trust boundaries.
+
+The quarantine is diagnostic storage, not a document family or a substitute
+for Document Store. Its encrypted artifacts expire after 24 hours, have fixed
+count and size limits, and are excluded from backup and export. The service can
+replay only its local deterministic validation and rendering stages; replay
+does not invoke OpenAI, reserve credits, or persist a CV or cover letter.
+
+Production must replace the local volume and environment-injected secrets with
+approved private encrypted storage, a managed encryption key, a managed
+operator credential, access logging, and a tested retention/deletion control.
+The CV/Cover Letter runbook defines the inspection, replay, deletion and key
+rotation procedure.
+
 ## DOC-09 lifecycle deployment gate
 
 The composed local profiles use the approved `DOC-09-2026-08-07` periods:
