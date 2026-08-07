@@ -692,6 +692,8 @@ services:
       - DOCUMENT_STORE_PRODUCER_TOKEN=${DOCUMENT_STORE_PRODUCER_TOKEN:?Generate the selected untracked environment file}
       - DOCUMENT_STORE_READER_TOKEN=${DOCUMENT_STORE_READER_TOKEN:?Generate the selected untracked environment file}
       - DOCUMENT_GENERATION_GATEWAY_TO_PAYMENT_SERVICE_TOKEN=${DOCUMENT_GENERATION_GATEWAY_TO_PAYMENT_SERVICE_TOKEN:?Generate the selected untracked environment file}
+      - RETAINED_RESPONSE_RECOVERY_ENABLED=true
+      - REJECTED_GENERATION_OPERATOR_TOKEN=${REJECTED_GENERATION_OPERATOR_TOKEN:?Generate the selected untracked environment file}
       - DOCUMENT_GENERATION_DATABASE_URL=jdbc:postgresql://document-generation-postgres:5432/document_generation
       - DOCUMENT_GENERATION_DATABASE_USERNAME=document_generation
       - DOCUMENT_GENERATION_DATABASE_PASSWORD=${DOCUMENT_GENERATION_DATABASE_PASSWORD:?Generate the selected untracked environment file}
