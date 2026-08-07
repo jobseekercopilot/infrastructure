@@ -741,13 +741,14 @@ class RenderedModeIsolationTests(unittest.TestCase):
                 ):
                     validate_model(model, profile)
 
-    def test_reporting_gateway_service_and_tracker_reader_identities_are_exact(
+    def test_reporting_gateway_tracker_and_store_reader_identities_are_exact(
         self,
     ) -> None:
         model = self.model("e2e")
         gateway = model["services"]["reporting-gateway"]["environment"]
         reporting = model["services"]["reporting-service"]["environment"]
         tracker = model["services"]["application-tracker-service"]["environment"]
+        store = model["services"]["document-store-service"]["environment"]
 
         self.assertEqual(
             gateway["REPORTING_GATEWAY_SERVICE_TOKEN"],
@@ -756,6 +757,18 @@ class RenderedModeIsolationTests(unittest.TestCase):
         self.assertEqual(
             reporting["APPLICATION_TRACKER_READER_TOKEN"],
             tracker["APPLICATION_TRACKER_READER_TOKEN"],
+        )
+        self.assertEqual(
+            reporting["DOCUMENT_STORE_READER_TOKEN"],
+            store["DOCUMENT_STORE_READER_TOKEN"],
+        )
+        self.assertEqual(
+            reporting["DOCUMENT_STORE_SERVICE_URL"],
+            "http://document-store-service:8089",
+        )
+        self.assertIn(
+            "document-store-service",
+            model["services"]["reporting-service"]["depends_on"],
         )
         self.assertEqual(
             gateway["REPORTING_GATEWAY_JWT_ISSUER"],
@@ -767,6 +780,7 @@ class RenderedModeIsolationTests(unittest.TestCase):
         for service, variable in (
             ("reporting-service", "REPORTING_GATEWAY_SERVICE_TOKEN"),
             ("reporting-service", "APPLICATION_TRACKER_READER_TOKEN"),
+            ("reporting-service", "DOCUMENT_STORE_READER_TOKEN"),
             ("reporting-gateway", "REPORTING_GATEWAY_SERVICE_TOKEN"),
         ):
             with self.subTest(service=service, variable=variable):
