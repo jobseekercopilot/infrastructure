@@ -657,6 +657,90 @@ class RenderedModeIsolationTests(unittest.TestCase):
                 )
                 self.assertIn("document-generation-postgres-data", model["volumes"])
 
+    def test_document_store_lifecycle_coordination_and_purge_gate_are_exact(self) -> None:
+        for profile in ("local", "e2e", "live-provider"):
+            with self.subTest(profile=profile):
+                model = self.model(profile)
+                store = model["services"]["document-store-service"]["environment"]
+                tracker = model["services"]["application-tracker-service"]["environment"]
+
+                self.assertEqual(
+                    store["APPLICATION_TRACKER_SERVICE_URL"],
+                    "http://application-tracker-service:8088",
+                )
+                self.assertEqual(
+                    store["APPLICATION_TRACKER_READER_TOKEN"],
+                    tracker["APPLICATION_TRACKER_READER_TOKEN"],
+                )
+                self.assertEqual(
+                    store["APPLICATION_TRACKER_PRODUCER_TOKEN"],
+                    tracker["APPLICATION_TRACKER_PRODUCER_TOKEN"],
+                )
+                self.assertEqual(store["DOCUMENT_STORE_RECOVERY_DAYS"], "30")
+                self.assertEqual(
+                    store["DOCUMENT_STORE_COMPLETED_OPERATION_RETENTION_DAYS"],
+                    "90",
+                )
+                self.assertEqual(
+                    store["DOCUMENT_STORE_LIFECYCLE_AUDIT_DAYS"], "365"
+                )
+                self.assertEqual(
+                    store["DOCUMENT_STORE_RETENTION_POLICY_VERSION"],
+                    "DOC-09-2026-08-07",
+                )
+                self.assertEqual(store["DOCUMENT_STORE_PURGE_ENABLED"], "false")
+
+    def test_authentication_account_lifecycle_dependencies_are_bounded(self) -> None:
+        for profile in ("local", "e2e", "live-provider"):
+            with self.subTest(profile=profile):
+                model = self.model(profile)
+                authentication = model["services"]["authentication-service"]
+                environment = authentication["environment"]
+
+                self.assertEqual(
+                    environment["USER_PROFILE_SERVICE_URL"],
+                    "http://user-profile-service:8085",
+                )
+                self.assertEqual(
+                    environment["APPLICATION_TRACKER_SERVICE_URL"],
+                    "http://application-tracker-service:8088",
+                )
+                self.assertEqual(
+                    environment["DOCUMENT_STORE_SERVICE_URL"],
+                    "http://document-store-service:8089",
+                )
+                self.assertEqual(
+                    environment["AUTH_ACCOUNT_LIFECYCLE_RECENT_AUTHENTICATION_AGE"],
+                    "15m",
+                )
+                self.assertEqual(
+                    environment["AUTH_ACCOUNT_LIFECYCLE_COMPLETED_RETENTION"],
+                    "365d",
+                )
+                self.assertEqual(
+                    environment["AUTH_ACCOUNT_LIFECYCLE_CONNECT_TIMEOUT"],
+                    "2s",
+                )
+                self.assertEqual(
+                    environment["AUTH_ACCOUNT_LIFECYCLE_READ_TIMEOUT"],
+                    "5s",
+                )
+                self.assertNotIn("user-profile-service", authentication["depends_on"])
+                self.assertNotIn("application-tracker-service", authentication["depends_on"])
+                self.assertNotIn("document-store-service", authentication["depends_on"])
+
+    def test_document_store_purge_cannot_be_enabled_in_local_profiles(self) -> None:
+        for profile in ("local", "e2e", "live-provider"):
+            with self.subTest(profile=profile):
+                model = self.model(profile)
+                model["services"]["document-store-service"]["environment"][
+                    "DOCUMENT_STORE_PURGE_ENABLED"
+                ] = "true"
+                with self.assertRaisesRegex(
+                    ValueError, "DOCUMENT_STORE_PURGE_ENABLED must remain false"
+                ):
+                    validate_model(model, profile)
+
     def test_reporting_gateway_service_and_tracker_reader_identities_are_exact(
         self,
     ) -> None:

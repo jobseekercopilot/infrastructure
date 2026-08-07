@@ -464,6 +464,7 @@ def validate_runtime_model(model: dict, profile: str) -> None:
                     "APPLICATION_TRACKER_PRODUCER_TOKEN",
                 ),
                 ("cv-cover-letter-service", "APPLICATION_TRACKER_PRODUCER_TOKEN"),
+                ("document-store-service", "APPLICATION_TRACKER_PRODUCER_TOKEN"),
             ),
         ),
         "APPLICATION_TRACKER_READER_TOKEN": require_shared(
@@ -471,6 +472,7 @@ def validate_runtime_model(model: dict, profile: str) -> None:
             "APPLICATION_TRACKER_READER_TOKEN",
             (
                 ("application-tracker-service", "APPLICATION_TRACKER_READER_TOKEN"),
+                ("document-store-service", "APPLICATION_TRACKER_READER_TOKEN"),
                 ("job-matching-service", "APPLICATION_TRACKER_READER_TOKEN"),
                 ("reporting-service", "APPLICATION_TRACKER_READER_TOKEN"),
             ),
@@ -662,6 +664,26 @@ def validate_runtime_model(model: dict, profile: str) -> None:
         "DOCUMENT_STORE_DATABASE_URL", ""
     ):
         raise ValueError("Document Store must use its isolated PostgreSQL service")
+    if (
+        document_store.get("APPLICATION_TRACKER_SERVICE_URL")
+        != "http://application-tracker-service:8088"
+    ):
+        raise ValueError(
+            "Document Store must coordinate lifecycle state with Application Tracker"
+        )
+    expected_retention = {
+        "DOCUMENT_STORE_RECOVERY_DAYS": "30",
+        "DOCUMENT_STORE_COMPLETED_OPERATION_RETENTION_DAYS": "90",
+        "DOCUMENT_STORE_LIFECYCLE_AUDIT_DAYS": "365",
+        "DOCUMENT_STORE_RETENTION_POLICY_VERSION": "DOC-09-2026-08-07",
+        "DOCUMENT_STORE_RETENTION_MAINTENANCE_ENABLED": "false",
+        "DOCUMENT_STORE_PURGE_ENABLED": "false",
+    }
+    for variable, expected in expected_retention.items():
+        if document_store.get(variable) != expected:
+            raise ValueError(
+                f"Document Store lifecycle setting {variable} must remain {expected}"
+            )
 
     application_tracker = environment(model, "application-tracker-service")
     application_tracker_postgres = environment(
