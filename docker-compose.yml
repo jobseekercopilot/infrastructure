@@ -626,9 +626,20 @@ services:
       - APPLICATION_TRACKER_SERVICE_BASE_URL=http://application-tracker-service:8088
       - PAYMENT_SERVICE_BASE_URL=http://payment-service:8099
       - CV_COVER_LETTER_GATEWAY_TOKEN=${CV_COVER_LETTER_GATEWAY_TOKEN:?Generate the selected untracked environment file}
+      - REJECTED_GENERATION_QUARANTINE_ENABLED=true
+      - REJECTED_GENERATION_QUARANTINE_DIRECTORY=/var/lib/cv-cover-letter/rejected-generations
+      - REJECTED_GENERATION_QUARANTINE_KEY_BASE64=${REJECTED_GENERATION_QUARANTINE_KEY_BASE64:?Generate the selected untracked environment file}
+      - REJECTED_GENERATION_OPERATOR_TOKEN=${REJECTED_GENERATION_OPERATOR_TOKEN:?Generate the selected untracked environment file}
+      - REJECTED_GENERATION_QUARANTINE_RETENTION=PT24H
+      - REJECTED_GENERATION_QUARANTINE_CLEANUP_INTERVAL=PT15M
+      - REJECTED_GENERATION_QUARANTINE_MAX_ARTIFACT_BYTES=262144
+      - REJECTED_GENERATION_QUARANTINE_MAX_ARTIFACTS=1000
+      - REJECTED_GENERATION_QUARANTINE_MAX_REPLAY_EVENTS=100
       - DOCUMENT_STORE_PRODUCER_TOKEN=${DOCUMENT_STORE_PRODUCER_TOKEN:?Generate the selected untracked environment file}
       - APPLICATION_TRACKER_PRODUCER_TOKEN=${APPLICATION_TRACKER_PRODUCER_TOKEN:?Generate the selected untracked environment file}
       - CV_COVER_LETTER_TO_PAYMENT_SERVICE_TOKEN=${CV_COVER_LETTER_TO_PAYMENT_SERVICE_TOKEN:?Generate the selected untracked environment file}
+    volumes:
+      - cv-rejected-generation-quarantine:/var/lib/cv-cover-letter/rejected-generations
     depends_on:
       llm-gateway:
         condition: service_healthy
@@ -939,3 +950,4 @@ volumes:
   document-store-objects:
   application-tracker-postgres-data:
   payment-postgres-data:
+  cv-rejected-generation-quarantine:

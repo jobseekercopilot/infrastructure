@@ -118,10 +118,16 @@ def generated_values(profile: str, schema: dict) -> dict[str, str]:
         if "JWT_PUBLIC_KEY_BASE64" in rsa_names:
             result["JWT_PUBLIC_KEY_BASE64"] = public_key
     for variable in profile_variables:
-        if variable.get("generator") != "random":
-            continue
-        minimum_bytes = variable.get("minimumBytes", 32)
-        result[variable["name"]] = secrets.token_urlsafe(max(minimum_bytes, 32))
+        generator = variable.get("generator")
+        if generator == "random":
+            minimum_bytes = variable.get("minimumBytes", 32)
+            result[variable["name"]] = secrets.token_urlsafe(
+                max(minimum_bytes, 32)
+            )
+        elif generator == "random-base64-32":
+            result[variable["name"]] = base64.b64encode(
+                secrets.token_bytes(32)
+            ).decode("ascii")
     return result
 
 

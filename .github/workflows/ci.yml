@@ -74,15 +74,31 @@ jobs:
       - uses: actions/checkout@v4
       - name: Validate Compose model
         run: |
+          umask 077
+          printf '%s\n' \
+            "REED_API_KEY=${REED_API_KEY}" \
+            "ADZUNA_APP_ID=${ADZUNA_APP_ID}" \
+            "ADZUNA_APP_KEY=${ADZUNA_APP_KEY}" \
+            "JSEARCH_API_KEY=${JSEARCH_API_KEY}" \
+            "DATA_ACQUISITION_RUN_ID=${DATA_ACQUISITION_RUN_ID}" \
+            "DATA_ACQUISITION_CONFIRMATION=${DATA_ACQUISITION_CONFIRMATION}" \
+            "DATA_ACQUISITION_TERMS_APPROVAL_REFERENCE=${DATA_ACQUISITION_TERMS_APPROVAL_REFERENCE}" \
+            "DATA_ACQUISITION_PROVENANCE_REVIEWER=${DATA_ACQUISITION_PROVENANCE_REVIEWER}" \
+            "DATA_ACQUISITION_APPROVED_PROVIDERS=${DATA_ACQUISITION_APPROVED_PROVIDERS}" \
+            "DATA_ACQUISITION_DATASET_VERSION=${DATA_ACQUISITION_DATASET_VERSION}" \
+            "DATA_ACQUISITION_ADZUNA_ENABLED=${DATA_ACQUISITION_ADZUNA_ENABLED}" \
+            "DATA_ACQUISITION_JSEARCH_ENABLED=${DATA_ACQUISITION_JSEARCH_ENABLED}" \
+            "DATA_ACQUISITION_REED_ENABLED=${DATA_ACQUISITION_REED_ENABLED}" \
+            > .env.ci-runtime
           python3 scripts/security/generate_profile_env.py --profile local --output .env
           python3 scripts/security/generate_profile_env.py --profile e2e --output .env.e2e
           python3 scripts/security/generate_profile_env.py --profile live-provider --output .env.live
           python3 scripts/security/generate_profile_env.py --profile data-acquisition --output .env.data-acquisition
           docker compose --env-file .env -f docker-compose.yml config --quiet
           docker compose --env-file .env.e2e -f docker-compose.yml -f docker-compose.e2e.yml config --quiet
-          docker compose --env-file .env.live -f docker-compose.yml -f docker-compose.live.yml config --quiet
-          docker compose --env-file .env.data-acquisition -f docker-compose.data-acquisition.yml --profile "*" config --quiet
+          docker compose --env-file .env.live --env-file .env.ci-runtime -f docker-compose.yml -f docker-compose.live.yml config --quiet
+          docker compose --env-file .env.data-acquisition --env-file .env.ci-runtime -f docker-compose.data-acquisition.yml --profile "*" config --quiet
           python3 scripts/security/validate_compose_runtime.py --profile local --env-file .env
           python3 scripts/security/validate_compose_runtime.py --profile e2e --env-file .env.e2e --overlay docker-compose.e2e.yml
-          python3 scripts/security/validate_compose_runtime.py --profile live-provider --env-file .env.live --overlay docker-compose.live.yml
-          python3 scripts/security/validate_compose_runtime.py --profile data-acquisition --env-file .env.data-acquisition --overlay docker-compose.data-acquisition.yml
+          python3 scripts/security/validate_compose_runtime.py --profile live-provider --env-file .env.live --secret-env-file .env.ci-runtime --overlay docker-compose.live.yml
+          python3 scripts/security/validate_compose_runtime.py --profile data-acquisition --env-file .env.data-acquisition --secret-env-file .env.ci-runtime --overlay docker-compose.data-acquisition.yml

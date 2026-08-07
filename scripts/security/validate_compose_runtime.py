@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import re
 import subprocess
@@ -28,6 +29,8 @@ CORE_CREDENTIALS = (
     "DOCUMENT_EXPORT_GATEWAY_TOKEN",
     "CV_COVER_LETTER_GATEWAY_TOKEN",
     "CV_COVER_LETTER_TO_PAYMENT_SERVICE_TOKEN",
+    "REJECTED_GENERATION_OPERATOR_TOKEN",
+    "REJECTED_GENERATION_QUARANTINE_KEY_BASE64",
     "BFF_TO_PAYMENT_GATEWAY_TOKEN",
     "PAYMENT_GATEWAY_TO_PAYMENT_SERVICE_TOKEN",
     "PAYMENT_GATEWAY_TO_STRIPE_GATEWAY_TOKEN",
@@ -102,6 +105,34 @@ def require_value(
     value = environment(model, service).get(variable)
     if value != expected:
         raise ValueError(f"{service}:{variable} must be {expected}")
+
+
+def require_single_secret(model: dict, service: str, variable: str) -> str:
+    value = environment(model, service).get(variable)
+    if not isinstance(value, str) or len(value.encode("utf-8")) < 32:
+        raise ValueError(f"{service}:{variable} must contain at least 32 bytes")
+    return value
+
+
+def require_private_volume_mount(
+    model: dict, service: str, source: str, target: str
+) -> None:
+    volumes = model.get("volumes", {})
+    if source not in volumes:
+        raise ValueError(f"missing private volume: {source}")
+    mounts = model.get("services", {}).get(service, {}).get("volumes", [])
+    matches = [
+        mount
+        for mount in mounts
+        if mount.get("type") == "volume"
+        and mount.get("source") == source
+        and mount.get("target") == target
+        and not mount.get("read_only", False)
+    ]
+    if len(matches) != 1:
+        raise ValueError(
+            f"{service} must mount {source} once at {target} read-write"
+        )
 
 
 def require_no_live_credentials(model: dict) -> None:
@@ -532,6 +563,16 @@ def validate_runtime_model(model: dict, profile: str) -> None:
                 ("payment-service", "CV_COVER_LETTER_TO_PAYMENT_SERVICE_TOKEN"),
             ),
         ),
+        "REJECTED_GENERATION_OPERATOR_TOKEN": require_single_secret(
+            model,
+            "cv-cover-letter-service",
+            "REJECTED_GENERATION_OPERATOR_TOKEN",
+        ),
+        "REJECTED_GENERATION_QUARANTINE_KEY_BASE64": require_single_secret(
+            model,
+            "cv-cover-letter-service",
+            "REJECTED_GENERATION_QUARANTINE_KEY_BASE64",
+        ),
         "BFF_TO_PAYMENT_GATEWAY_TOKEN": require_shared(
             model,
             "BFF_TO_PAYMENT_GATEWAY_TOKEN",
@@ -584,6 +625,37 @@ def validate_runtime_model(model: dict, profile: str) -> None:
         raise ValueError("every core credential must contain at least 32 bytes")
     if len(set(credential_values.values())) != len(CORE_CREDENTIALS):
         raise ValueError("core credentials must be pairwise distinct")
+    try:
+        quarantine_key = base64.b64decode(
+            credential_values["REJECTED_GENERATION_QUARANTINE_KEY_BASE64"],
+            validate=True,
+        )
+    except ValueError as error:
+        raise ValueError(
+            "rejected generation quarantine key must be valid Base64"
+        ) from error
+    if len(quarantine_key) != 32:
+        raise ValueError(
+            "rejected generation quarantine key must decode to exactly 32 bytes"
+        )
+    require_value(
+        model,
+        "cv-cover-letter-service",
+        "REJECTED_GENERATION_QUARANTINE_ENABLED",
+        "true",
+    )
+    require_value(
+        model,
+        "cv-cover-letter-service",
+        "REJECTED_GENERATION_QUARANTINE_DIRECTORY",
+        "/var/lib/cv-cover-letter/rejected-generations",
+    )
+    require_private_volume_mount(
+        model,
+        "cv-cover-letter-service",
+        "cv-rejected-generation-quarantine",
+        "/var/lib/cv-cover-letter/rejected-generations",
+    )
 
     authentication = environment(model, "authentication-service")
     authentication_password = authentication.get("AUTH_DB_PASSWORD", "")
