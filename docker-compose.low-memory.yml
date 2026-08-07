@@ -63,11 +63,11 @@ services:
   job-finder-gateway:
     <<: *java-small
   document-store-service:
-    <<: *java-small
-    # Retained document reads and a create request can briefly push native
-    # memory above the shared 384 MiB ceiling even with the bounded 160 MiB
-    # heap. Keep the heap small, but leave enough native headroom to prevent
-    # the store being OOM-killed during the generation hand-off.
+    <<: *java-heavy
+    # Family/history reads and reconciliation retain enough mapped metadata
+    # to exhaust the shared 160 MiB heap under normal localhost use. Give the
+    # store the same bounded 240 MiB heap as the other document-processing
+    # services while retaining native headroom inside the 512 MiB container.
     mem_limit: 512m
   application-tracker-service:
     <<: *java-small

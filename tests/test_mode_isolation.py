@@ -806,6 +806,17 @@ class RenderedModeIsolationTests(unittest.TestCase):
                 ):
                     validate_model(model, profile)
 
+    def test_real_provider_document_store_has_bounded_heap_headroom(self) -> None:
+        document_store = self.model("real-providers")["services"][
+            "document-store-service"
+        ]
+
+        self.assertEqual(document_store["mem_limit"], "536870912")
+        self.assertIn(
+            "-Xmx240m",
+            document_store["environment"]["JAVA_TOOL_OPTIONS"],
+        )
+
     def test_reporting_gateway_tracker_and_store_reader_identities_are_exact(
         self,
     ) -> None:
