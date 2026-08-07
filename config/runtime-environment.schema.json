@@ -175,7 +175,8 @@
       "consumers": [
         "application-tracker-service",
         "cv-cover-letter-service",
-        "document-generation-gateway"
+        "document-generation-gateway",
+        "document-store-service"
       ],
       "classification": "secret",
       "profiles": ["local", "e2e", "live-provider"],
@@ -187,6 +188,7 @@
       "owner": "Application Tracker",
       "consumers": [
         "application-tracker-service",
+        "document-store-service",
         "job-matching-service",
         "reporting-service"
       ],

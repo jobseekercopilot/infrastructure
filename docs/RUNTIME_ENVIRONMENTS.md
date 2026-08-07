@@ -64,6 +64,9 @@ acquisition controls.
 - Application Tracker owns its dedicated PostgreSQL credential plus separate
   producer and reader credentials. Document Generation and CV/Cover Letter
   receive producer access; Job Matching and Reporting receive reader access.
+  Document Store receives both only for the owner-scoped exact-version
+  association snapshot and terminal lifecycle projection required before an
+  archive, restore, recoverable delete or guarded purge can change local state.
 - Reporting Service owns a dedicated Gateway-to-Service identity. Reporting
   Gateway validates the platform access token, derives the report owner from
   its subject and supplies that identity only to Reporting Service.
@@ -126,6 +129,36 @@ S3-compatible bucket, managed SSE-KMS, least-privilege credentials, public
 access blocking, versioning/backup or replication, and a paired
 database/object restore drill. Those deployed controls remain unfinished
 INFRA-08 work.
+
+## DOC-09 lifecycle deployment gate
+
+The composed local profiles use the approved `DOC-09-2026-08-07` periods:
+30 days for recoverable deletion, 90 days for completed operation journals and
+365 days for content-free lifecycle audit. Unresolved operations and
+reconciliation cursors have no age-based deletion. Retention maintenance and
+irreversible purge both remain explicitly disabled.
+
+Document Store starts after its database and Authentication, then Application
+Tracker starts after Document Store. This avoids a health-check cycle while
+still allowing Store to call the healthy Tracker at lifecycle-operation time.
+Document Generation starts only after both are healthy. Store fails lifecycle
+coordination closed when Tracker is unavailable; it must not mutate local state
+or substitute a different document version.
+
+Production purge must remain disabled until a peer-reviewed deployment record
+identifies all of the following for the target environment:
+
+- PostgreSQL backup expiry and an isolated restore/reconciliation exercise;
+- private object-store current-version and non-current-version expiry;
+- application, platform and audit-log expiry and access controls;
+- the distinct retention-administrator credential deployment, rotation and
+  peer-approved legal-hold/purge procedure; and
+- personal-data export/account-erasure integration plus cross-owner negative
+  evidence.
+
+This repository does not yet contain that evidence and the Compose profiles
+are not production deployments. Setting `DOCUMENT_STORE_PURGE_ENABLED=true` in
+one of them is rejected by the runtime validator.
 
 ## Incident response
 
