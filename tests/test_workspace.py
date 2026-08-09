@@ -405,7 +405,7 @@ class CatalogTests(unittest.TestCase):
                 "google-maps-gateway": {
                     "environment": {"GOOGLE_MAPS_ENABLED": "true"},
                     "secrets": [
-                        {"target": "/run/secrets/GOOGLE_MAPS_API_KEY"}
+                        {"target": "GOOGLE_MAPS_API_KEY"}
                     ],
                 },
                 "location-service": {
@@ -448,7 +448,7 @@ class CatalogTests(unittest.TestCase):
                         "GOOGLE_MAPS_API_KEY": "must-not-be-an-environment-value",
                     },
                     "secrets": [
-                        {"target": "/run/secrets/GOOGLE_MAPS_API_KEY"}
+                        {"target": "GOOGLE_MAPS_API_KEY"}
                     ],
                 },
                 "location-service": {

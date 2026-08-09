@@ -147,7 +147,7 @@ def validate_google_maps_boundary(profile: Profile, environment_file: Path) -> N
     if google.get("environment", {}).get("GOOGLE_MAPS_API_KEY"):
         raise RuntimeError("Google Maps API key must not be exposed as container environment")
     secret_mounts = google.get("secrets", [])
-    if len(secret_mounts) != 1 or secret_mounts[0].get("target") != "/run/secrets/GOOGLE_MAPS_API_KEY":
+    if len(secret_mounts) != 1 or secret_mounts[0].get("target") != "GOOGLE_MAPS_API_KEY":
         raise RuntimeError("google-maps-gateway must mount only its API key secret")
     unexpected = [
         name for name, service in services.items()
