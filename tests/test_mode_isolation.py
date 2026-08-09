@@ -530,7 +530,7 @@ class RenderedModeIsolationTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     validate_model(model, "e2e")
 
-    def test_e2e_requires_exact_seed_profile_allowlist_and_payment_isolation(self) -> None:
+    def test_e2e_requires_exact_seed_profile_allowlist_and_database_isolation(self) -> None:
         for service, variable in (
             ("application-tracker-service", "ENVIRONMENT_DATA_ENABLED"),
             (
@@ -540,6 +540,14 @@ class RenderedModeIsolationTests(unittest.TestCase):
             (
                 "system-data-service",
                 "SYSTEM_DATA_ENVIRONMENT_ALLOWED_PROFILES",
+            ),
+            (
+                "application-tracker-service",
+                "ENVIRONMENT_DATA_ISOLATED_DATABASE",
+            ),
+            (
+                "document-store-service",
+                "ENVIRONMENT_DATA_ISOLATED_DATABASE",
             ),
             (
                 "payment-service",

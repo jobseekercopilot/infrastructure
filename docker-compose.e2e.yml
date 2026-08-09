@@ -157,6 +157,7 @@ services:
       - SPRING_PROFILES_ACTIVE=e2e
       - ENVIRONMENT_DATA_ENABLED=true
       - ENVIRONMENT_DATA_ALLOWED_ENVIRONMENTS=e2e
+      - ENVIRONMENT_DATA_ISOLATED_DATABASE=true
 
   document-store-postgres:
 
@@ -175,6 +176,7 @@ services:
       - SPRING_PROFILES_ACTIVE=e2e
       - ENVIRONMENT_DATA_ENABLED=true
       - ENVIRONMENT_DATA_ALLOWED_ENVIRONMENTS=e2e
+      - ENVIRONMENT_DATA_ISOLATED_DATABASE=true
 
   cv-cover-letter-service:
     ports: !override
