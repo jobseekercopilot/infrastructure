@@ -57,6 +57,56 @@ services:
       retries: 3
       start_period: 40s
 
+  google-maps-gateway:
+    build:
+      context: ../google-maps-gateway
+      dockerfile: Dockerfile
+    ports:
+      - "8105:8105"
+    environment:
+      - SPRING_APPLICATION_NAME=google-maps-gateway
+      - SERVER_PORT=8105
+      - GOOGLE_MAPS_ENABLED=${GOOGLE_MAPS_ENABLED:-false}
+      - GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY:-}
+      - GOOGLE_MAPS_GATEWAY_TOKEN=${GOOGLE_MAPS_GATEWAY_TOKEN:?Generate the selected untracked environment file}
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8105/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  location-service:
+    build:
+      context: ../location-service
+      dockerfile: Dockerfile
+    ports:
+      - "8104:8104"
+    environment:
+      - SPRING_APPLICATION_NAME=location-service
+      - SERVER_PORT=8104
+      - POSTCODE_IO_GATEWAY_URL=http://postcode-io-gateway:8082
+      - GOOGLE_MAPS_GATEWAY_URL=http://google-maps-gateway:8105
+      - GOOGLE_MAPS_ENABLED=${GOOGLE_MAPS_ENABLED:-false}
+      - LOCATION_SERVICE_TOKEN=${LOCATION_SERVICE_TOKEN:?Generate the selected untracked environment file}
+      - GOOGLE_MAPS_GATEWAY_TOKEN=${GOOGLE_MAPS_GATEWAY_TOKEN:?Generate the selected untracked environment file}
+      - LOCATION_COMMUTE_MAXIMUM_DESTINATIONS=5
+    depends_on:
+      postcode-io-gateway:
+        condition: service_healthy
+      google-maps-gateway:
+        condition: service_healthy
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8104/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
   location-gateway:
     build:
       context: ../location-gateway
@@ -66,9 +116,10 @@ services:
     environment:
       - SPRING_APPLICATION_NAME=location-gateway
       - SERVER_PORT=8081
-      - POSTCODE_IO_GATEWAY_URL=http://postcode-io-gateway:8082
+      - LOCATION_SERVICE_URL=http://location-service:8104
+      - LOCATION_SERVICE_TOKEN=${LOCATION_SERVICE_TOKEN:?Generate the selected untracked environment file}
     depends_on:
-      postcode-io-gateway:
+      location-service:
         condition: service_healthy
     networks:
       - job-seeker-network
@@ -397,8 +448,12 @@ services:
       - SERVER_PORT=8097
       - APPLICATION_TRACKER_SERVICE_BASE_URL=http://application-tracker-service:8088
       - APPLICATION_TRACKER_READER_TOKEN=${APPLICATION_TRACKER_READER_TOKEN:?Generate the selected untracked environment file}
+      - LOCATION_SERVICE_URL=http://location-service:8104
+      - LOCATION_SERVICE_TOKEN=${LOCATION_SERVICE_TOKEN:?Generate the selected untracked environment file}
     depends_on:
       application-tracker-service:
+        condition: service_healthy
+      location-service:
         condition: service_healthy
     networks:
       - job-seeker-network

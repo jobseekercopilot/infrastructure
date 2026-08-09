@@ -44,6 +44,10 @@ x-postgres-small: &postgres-small
 services:
   postcode-io-gateway:
     <<: *java-small
+  google-maps-gateway:
+    <<: *java-small
+  location-service:
+    <<: *java-small
   location-gateway:
     <<: *java-small
   authentication-service:

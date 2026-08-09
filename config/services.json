@@ -28,6 +28,8 @@
         "application-tracker-service",
         "system-data-service",
         "postcode-io-gateway",
+        "google-maps-gateway",
+        "location-service",
         "location-gateway",
         "reed-gateway",
         "adzuna-gateway",
@@ -87,6 +89,8 @@
     "authentication-service",
     "user-profile-service",
     "postcode-io-gateway",
+    "google-maps-gateway",
+    "location-service",
     "application-tracker-service",
     "document-store-service",
     "payment-service",
@@ -159,7 +163,27 @@
       "composeServices": ["location-gateway"],
       "port": 8081,
       "health": "/actuator/health",
-      "dependsOn": ["postcode-io-gateway"]
+      "dependsOn": ["location-service"]
+    },
+    {
+      "name": "location-service",
+      "kind": "service",
+      "branch": "develop",
+      "build": "maven",
+      "composeServices": ["location-service"],
+      "port": 8104,
+      "health": "/actuator/health",
+      "dependsOn": ["postcode-io-gateway", "google-maps-gateway"]
+    },
+    {
+      "name": "google-maps-gateway",
+      "kind": "gateway",
+      "branch": "develop",
+      "build": "maven",
+      "composeServices": ["google-maps-gateway"],
+      "port": 8105,
+      "health": "/actuator/health",
+      "dependsOn": []
     },
     {
       "name": "reed-gateway",
@@ -234,7 +258,7 @@
       "composeServices": ["job-matching-service"],
       "port": 8097,
       "health": "/actuator/health",
-      "dependsOn": ["application-tracker-service"]
+      "dependsOn": ["application-tracker-service", "location-service"]
     },
     {
       "name": "job-finder-gateway",

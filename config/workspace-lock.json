@@ -8,6 +8,8 @@
     {"name": "user-management-gateway", "branch": "develop", "revision": "a7c8639275c58a14b5bc233e0d6ba51ee77dcb6e"},
     {"name": "postcode-io-gateway", "branch": "develop", "revision": "589268b9e9d7a507241db51a1dd2e85f057bdbd9"},
     {"name": "location-gateway", "branch": "develop", "revision": "a5295787f01f21c2dd9cb79805d7989250dd96a7"},
+    {"name": "location-service", "branch": "develop", "revision": "c83e1742db58faae603177d1d9bcfaebc159c692"},
+    {"name": "google-maps-gateway", "branch": "develop", "revision": "3e79e003dcb3787d50624eb4f46987750017590e"},
     {"name": "reed-gateway", "branch": "develop", "revision": "092a293aeea3e266aad84f6c99844944095dbe2b"},
     {"name": "adzuna-gateway", "branch": "develop", "revision": "52638a076f1a692d81e7ac81ceefb69dae1ad22b"},
     {"name": "jsearch-gateway", "branch": "develop", "revision": "8bacb31766de5996bab6ba5f1f7548bf2be7329b"},

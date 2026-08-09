@@ -22,6 +22,20 @@ services:
       - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.0.0}
       - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
 
+  google-maps-gateway:
+    ports: !override
+      - "${E2E_GOOGLE_MAPS_GATEWAY_PORT:-9205}:8105"
+    environment:
+      - SPRING_PROFILES_ACTIVE=e2e
+      - GOOGLE_MAPS_ENABLED=false
+
+  location-service:
+    ports: !override
+      - "${E2E_LOCATION_SERVICE_PORT:-9204}:8104"
+    environment:
+      - SPRING_PROFILES_ACTIVE=e2e
+      - GOOGLE_MAPS_ENABLED=false
+
   location-gateway:
     ports: !override
       - "${E2E_LOCATION_GATEWAY_PORT:-9101}:8081"
