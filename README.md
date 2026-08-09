@@ -6,6 +6,15 @@ Maven build configuration, safe environment examples, and full-stack operating
 documentation. Application source remains in the repositories owned by the
 `jobseekercopilot` GitHub account.
 
+## Platform documentation
+
+The searchable, cross-repository documentation site lives in
+[`docs-site`](docs-site/README.md) and is published at
+[docs.jobseekercopilot.com](https://docs.jobseekercopilot.com/). It explains the product, end-to-end user
+journeys, service dependencies, API boundaries, data ownership, configuration,
+and local operations. Repository guides below remain the source for
+Infrastructure-specific procedures.
+
 ## Repository model
 
 This is a workspace orchestrator, not a monorepo or submodule superproject.

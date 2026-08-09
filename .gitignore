@@ -55,3 +55,7 @@ e2e/
 
 # Operator-only live acquisition output is quarantined in the System Data checkout.
 quarantined-acquisitions/
+
+# Central documentation local output
+docs-site/site/
+.venv-docs/
