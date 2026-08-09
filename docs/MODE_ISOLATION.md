@@ -21,6 +21,12 @@ injection. E2E additionally requires `SPRING_PROFILES_ACTIVE=e2e`,
 `DEPLOYMENT_ENVIRONMENT_CLASS=TEST` for postcode, fixture modes for every
 external gateway, and the exact reset/seed allowlists.
 
+The sole security-maintenance exception is the pinned ClamAV container. It
+joins a dedicated egress bridge only to refresh public malware signatures and
+a separate internal scanner bridge shared only with Document Store. ClamAV
+publishes no host port, and uploaded document bytes never traverse the
+signature-update network. Rendered-model tests enforce both memberships.
+
 The local live-provider stack deliberately means live **job-provider**
 integration only. It does not enable paid LLM content or real Stripe charges.
 Production/AWS configuration remains a separate deployment workstream and is

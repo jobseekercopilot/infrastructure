@@ -483,6 +483,42 @@ services:
       timeout: 5s
       retries: 12
 
+  clamav:
+    image: clamav/clamav:1.4.5_base@sha256:38850b4560ce21c36cacfb8d8ce2c172dcf0029db6c47342d882e04b818a2fef
+    mem_limit: 4g
+    environment:
+      - FRESHCLAM_CHECKS=12
+      - FRESHCLAM_CONF_ConnectTimeout=10
+      - FRESHCLAM_CONF_ReceiveTimeout=30
+      - CLAMD_CONF_StreamMaxLength=11M
+      - CLAMD_CONF_MaxFileSize=11M
+      - CLAMD_CONF_MaxScanSize=32M
+      - CLAMD_CONF_MaxScanTime=30000
+      - CLAMD_CONF_MaxFiles=512
+      - CLAMD_CONF_MaxRecursion=16
+      - CLAMD_CONF_SelfCheck=60
+    volumes:
+      - clamav-signatures:/var/lib/clamav
+    networks:
+      - document-scanner-network
+      - malware-signature-egress-network
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          clamdcheck.sh && daemon="$$(clamdscan --version)" &&
+          disk="$$(freshclam --version)" &&
+          test "$$(echo "$$daemon" | cut -d/ -f2)" =
+          "$$(echo "$$disk" | cut -d/ -f2)" &&
+          signature="$${daemon#*/*/}" &&
+          signature_epoch="$$(date -u -D '%a %b %e %H:%M:%S %Y'
+          -d "$$signature" +%s)" && now="$$(date -u +%s)" &&
+          test "$$((now - signature_epoch))" -le 172800
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10m
+
   document-store-service:
     build:
       context: ../document-store-service
@@ -517,6 +553,11 @@ services:
       - DOCUMENT_STORE_PURGE_ENABLED=false
       - ENVIRONMENT_DATA_TOKEN=${ENVIRONMENT_DATA_TOKEN:?Generate the selected untracked environment file}
       - DOCUMENT_STORE_DATABASE_PRODUCTION_SAFETY_CHECK=false
+      - DOCUMENT_STORE_CLAMAV_HOST=clamav
+      - DOCUMENT_STORE_CLAMAV_PORT=3310
+      - DOCUMENT_STORE_CLAMAV_CONNECT_TIMEOUT_MS=2000
+      - DOCUMENT_STORE_CLAMAV_READ_TIMEOUT_MS=30000
+      - DOCUMENT_STORE_CLAMAV_MAXIMUM_SIGNATURE_AGE_HOURS=48
     volumes:
       - document-store-objects:/app/data/objects
     depends_on:
@@ -524,8 +565,11 @@ services:
         condition: service_healthy
       document-store-postgres:
         condition: service_healthy
+      clamav:
+        condition: service_healthy
     networks:
       - job-seeker-network
+      - document-scanner-network
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8089/actuator/health"]
       interval: 30s
@@ -941,6 +985,12 @@ networks:
     driver: bridge
     driver_opts:
       com.docker.network.bridge.host_binding_ipv4: "127.0.0.1"
+  document-scanner-network:
+    driver: bridge
+    internal: true
+  malware-signature-egress-network:
+    driver: bridge
+    internal: false
 
 volumes:
   portainer-data:
@@ -950,6 +1000,7 @@ volumes:
   document-generation-postgres-data:
   document-store-postgres-data:
   document-store-objects:
+  clamav-signatures:
   application-tracker-postgres-data:
   payment-postgres-data:
   cv-rejected-generation-quarantine:

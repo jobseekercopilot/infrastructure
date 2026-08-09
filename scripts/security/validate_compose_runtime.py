@@ -73,6 +73,10 @@ ENVIRONMENT_DATA_SERVICES = (
 )
 RUN_ID = re.compile(r"^[a-z0-9][a-z0-9-]{2,63}$")
 ACQUISITION_CONFIRMATION = "I UNDERSTAND LIVE PROVIDERS WILL BE CALLED"
+CLAMAV_IMAGE = (
+    "clamav/clamav:1.4.5_base@"
+    "sha256:38850b4560ce21c36cacfb8d8ce2c172dcf0029db6c47342d882e04b818a2fef"
+)
 
 
 def environment(model: dict, service: str) -> dict[str, str]:
@@ -165,6 +169,101 @@ def service_networks(service: dict) -> set[str]:
     if isinstance(networks, list):
         return set(networks)
     raise ValueError("Compose service networks must render as a mapping or list")
+
+
+def validate_document_scanner(model: dict) -> None:
+    services = model.get("services", {})
+    scanner = services.get("clamav", {})
+    store = services.get("document-store-service", {})
+    if scanner.get("image") != CLAMAV_IMAGE:
+        raise ValueError("ClamAV must use the reviewed version-and-digest pin")
+    if scanner.get("ports"):
+        raise ValueError("ClamAV must not publish a host port")
+    if scanner.get("mem_limit") != str(4 * 1024 * 1024 * 1024):
+        raise ValueError("ClamAV must retain its bounded 4 GiB memory allocation")
+    if service_networks(scanner) != {
+        "document-scanner-network",
+        "malware-signature-egress-network",
+    }:
+        raise ValueError("ClamAV must use only scan and signature-update networks")
+    if "document-scanner-network" not in service_networks(store):
+        raise ValueError("Document Store must join the private scanner network")
+
+    scan_members = {
+        name
+        for name, service in services.items()
+        if "document-scanner-network" in service_networks(service)
+    }
+    if scan_members != {"clamav", "document-store-service"}:
+        raise ValueError(
+            "the private scanner network must contain only ClamAV and Document Store"
+        )
+    update_members = {
+        name
+        for name, service in services.items()
+        if "malware-signature-egress-network" in service_networks(service)
+    }
+    if update_members != {"clamav"}:
+        raise ValueError("only ClamAV may use malware-signature egress")
+
+    networks = model.get("networks", {})
+    if networks.get("document-scanner-network", {}).get("internal") is not True:
+        raise ValueError("the document scanner network must be internal")
+    if networks.get("malware-signature-egress-network", {}).get("internal") is True:
+        raise ValueError("ClamAV signature updates require explicit isolated egress")
+
+    expected_scanner = {
+        "FRESHCLAM_CHECKS": "12",
+        "FRESHCLAM_CONF_ConnectTimeout": "10",
+        "FRESHCLAM_CONF_ReceiveTimeout": "30",
+        "CLAMD_CONF_StreamMaxLength": "11M",
+        "CLAMD_CONF_MaxFileSize": "11M",
+        "CLAMD_CONF_MaxScanSize": "32M",
+        "CLAMD_CONF_MaxScanTime": "30000",
+        "CLAMD_CONF_MaxFiles": "512",
+        "CLAMD_CONF_MaxRecursion": "16",
+        "CLAMD_CONF_SelfCheck": "60",
+    }
+    for variable, expected in expected_scanner.items():
+        require_value(model, "clamav", variable, expected)
+    require_private_volume_mount(
+        model, "clamav", "clamav-signatures", "/var/lib/clamav"
+    )
+
+    store_environment = environment(model, "document-store-service")
+    expected_store = {
+        "DOCUMENT_STORE_CLAMAV_HOST": "clamav",
+        "DOCUMENT_STORE_CLAMAV_PORT": "3310",
+        "DOCUMENT_STORE_CLAMAV_CONNECT_TIMEOUT_MS": "2000",
+        "DOCUMENT_STORE_CLAMAV_READ_TIMEOUT_MS": "30000",
+        "DOCUMENT_STORE_CLAMAV_MAXIMUM_SIGNATURE_AGE_HOURS": "48",
+    }
+    for variable, expected in expected_store.items():
+        if store_environment.get(variable) != expected:
+            raise ValueError(
+                f"Document Store scanner setting {variable} must be {expected}"
+            )
+    if (
+        store.get("depends_on", {}).get("clamav", {}).get("condition")
+        != "service_healthy"
+    ):
+        raise ValueError("Document Store must wait for healthy ClamAV")
+
+    health_test = scanner.get("healthcheck", {}).get("test", [])
+    health = scanner.get("healthcheck", {})
+    health_command = " ".join(str(part) for part in health_test)
+    if (
+        "clamdcheck.sh" not in health_command
+        or "freshclam --version" not in health_command
+        or "172800" not in health_command
+    ):
+        raise ValueError("ClamAV health must verify daemon and signature freshness")
+    if (
+        health.get("retries") != 3
+        or health.get("start_period") != "10m0s"
+        or health.get("timeout") != "10s"
+    ):
+        raise ValueError("ClamAV health must allow bounded signature initialization")
 
 
 def validate_real_provider_secret_bindings(model: dict) -> None:
@@ -454,6 +553,7 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
 
 def validate_runtime_model(model: dict, profile: str) -> None:
     services = model.get("services", {})
+    validate_document_scanner(model)
     for service_name, service in services.items():
         if "JWT_SECRET" in service.get("environment", {}):
             raise ValueError(f"{service_name} still receives forbidden JWT_SECRET")

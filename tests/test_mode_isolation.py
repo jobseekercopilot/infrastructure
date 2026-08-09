@@ -806,6 +806,85 @@ class RenderedModeIsolationTests(unittest.TestCase):
                 ):
                     validate_model(model, profile)
 
+    def test_document_store_scanner_is_pinned_private_and_fail_closed(self) -> None:
+        expected_image = (
+            "clamav/clamav:1.4.5_base@"
+            "sha256:38850b4560ce21c36cacfb8d8ce2c172dcf0029db6c47342d882e04b818a2fef"
+        )
+        for profile in ("local", "e2e", "live-provider", "real-providers"):
+            with self.subTest(profile=profile):
+                model = self.model(profile)
+                scanner = model["services"]["clamav"]
+                store = model["services"]["document-store-service"]
+                self.assertEqual(scanner["image"], expected_image)
+                self.assertNotIn("ports", scanner)
+                self.assertEqual(scanner["mem_limit"], "4294967296")
+                self.assertEqual(
+                    set(scanner["networks"]),
+                    {
+                        "document-scanner-network",
+                        "malware-signature-egress-network",
+                    },
+                )
+                self.assertEqual(
+                    {
+                        name
+                        for name, service in model["services"].items()
+                        if "document-scanner-network" in service.get("networks", {})
+                    },
+                    {"clamav", "document-store-service"},
+                )
+                self.assertEqual(
+                    {
+                        name
+                        for name, service in model["services"].items()
+                        if "malware-signature-egress-network"
+                        in service.get("networks", {})
+                    },
+                    {"clamav"},
+                )
+                self.assertTrue(
+                    model["networks"]["document-scanner-network"]["internal"]
+                )
+                self.assertIsNot(
+                    model["networks"]["malware-signature-egress-network"].get(
+                        "internal"
+                    ),
+                    True,
+                )
+                self.assertEqual(
+                    scanner["volumes"][0]["source"], "clamav-signatures"
+                )
+                self.assertEqual(
+                    scanner["volumes"][0]["target"], "/var/lib/clamav"
+                )
+                self.assertEqual(
+                    store["environment"]["DOCUMENT_STORE_CLAMAV_HOST"],
+                    "clamav",
+                )
+                self.assertEqual(
+                    store["environment"][
+                        "DOCUMENT_STORE_CLAMAV_MAXIMUM_SIGNATURE_AGE_HOURS"
+                    ],
+                    "48",
+                )
+                self.assertEqual(
+                    store["depends_on"]["clamav"]["condition"],
+                    "service_healthy",
+                )
+                health = " ".join(scanner["healthcheck"]["test"])
+                self.assertIn("clamdcheck.sh", health)
+                self.assertIn("freshclam --version", health)
+                self.assertIn("172800", health)
+                self.assertEqual(scanner["healthcheck"]["retries"], 3)
+                self.assertEqual(scanner["healthcheck"]["start_period"], "10m0s")
+                self.assertEqual(scanner["healthcheck"]["timeout"], "10s")
+
+                mutated = self.model(profile)
+                mutated["services"]["clamav"]["ports"] = ["3310:3310"]
+                with self.assertRaisesRegex(ValueError, "must not publish"):
+                    validate_model(mutated, profile)
+
     def test_real_provider_document_store_has_bounded_heap_headroom(self) -> None:
         document_store = self.model("real-providers")["services"][
             "document-store-service"

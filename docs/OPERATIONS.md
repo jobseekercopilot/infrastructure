@@ -57,6 +57,16 @@ or shell setting is required. Payment Service retains the small-service
 160 MiB Java heap with a 512 MiB container ceiling because retained-ledger
 cold-start reconciliation needs additional bounded native-memory headroom.
 
+Secure application uploads depend on the exact ClamAV 1.4.5 base-image digest in
+`docker-compose.yml`. Its signature database persists in the
+`clamav-signatures` volume and FreshClam refreshes through the scanner-only
+egress network. The healthcheck requires both a responsive daemon, alignment
+with the persisted database and an embedded signature timestamp within 48
+hours; Document Store waits for that health gate and independently rejects
+stale signature metadata. The 4 GiB container
+ceiling follows the upstream guidance for loading current signature databases.
+Do not publish port 3310 or attach another service to either scanner network.
+
 Never add `docker-compose.live.yml` to this sequence. That older job-only
 overlay deliberately configures the LLM as `DISABLED` and is rejected by the
 combined real-provider trust-boundary validation.
