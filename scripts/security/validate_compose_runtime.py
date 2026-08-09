@@ -437,6 +437,13 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
                 "ENVIRONMENT_DATA_ALLOWED_ENVIRONMENTS",
                 "e2e",
             )
+    if e2e:
+        require_value(
+            model,
+            "payment-service",
+            "ENVIRONMENT_DATA_ISOLATED_DATABASE",
+            "true",
+        )
 
     authentication = environment(model, "authentication-service")
     if local_ses:
