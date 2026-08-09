@@ -16,7 +16,7 @@
     {"name": "job-matching-service", "branch": "develop", "revision": "5f60de7b4ebdae29e2cbe9a249ac8f31bf3fcc29"},
     {"name": "job-finder-gateway", "branch": "develop", "revision": "de8f3882a09be530a2c0b38f6aa78fbca3a714c0"},
     {"name": "llm-gateway", "branch": "develop", "revision": "f4f7e90a10da86b08071ea736fbacb4a5d52977b"},
-    {"name": "document-store-service", "branch": "develop", "revision": "5ad49672f0bd3c41b8833892ca360fe82a45e25d"},
+    {"name": "document-store-service", "branch": "develop", "revision": "fa202573b5a60dc47875c4c663bb91d33b89187f"},
     {"name": "document-export-service", "branch": "develop", "revision": "8dd4946406800e7346efe2df0589c3ee306f4ad1"},
     {"name": "application-tracker-service", "branch": "develop", "revision": "2c860939bc505ef0af672f0a157f37998e1a89fb"},
     {"name": "cv-cover-letter-service", "branch": "develop", "revision": "d5e98c1080c80ea5c83776e61f13e9c901c8fd49"},
