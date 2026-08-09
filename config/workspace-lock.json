@@ -31,6 +31,6 @@
     {"name": "stripe-gateway", "branch": "develop", "revision": "d9aa6b338d21c6beee6e097a3c72a783cc295b7c"},
     {"name": "payment-gateway", "branch": "develop", "revision": "8d49a6477c302d9700758c52de9e85cb192a0580"},
     {"name": "job-seeker-copilot-client", "branch": "feature/36-specialist-job-sources", "revision": "5b2f1d753dec58e1d70ca2bc045298576e70e531"},
-    {"name": "e2e", "branch": "feature/36-specialist-job-sources", "revision": "0957c748ce6353904baa07b96751ac00cdb470a4"}
+    {"name": "e2e", "branch": "feature/36-specialist-job-sources", "revision": "aaee661aad5f9f03eac2f2c02320184089f1e620"}
   ]
 }
