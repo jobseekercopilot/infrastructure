@@ -219,6 +219,7 @@ services:
       - SPRING_APPLICATION_NAME=user-profile-service
       - SERVER_PORT=8085
       - ENVIRONMENT_DATA_ENABLED=false
+      - ENVIRONMENT_DATA_TOKEN=${ENVIRONMENT_DATA_TOKEN:?Generate the selected untracked environment file}
       - PROFILE_DB_URL=jdbc:postgresql://user-profile-postgres:5432/user_profile
       - PROFILE_DB_USERNAME=user_profile
       - PROFILE_DB_PASSWORD=${USER_PROFILE_DATABASE_PASSWORD:?Generate the selected untracked environment file}

@@ -60,7 +60,7 @@ services:
     ports: !override
       - "${E2E_USER_PROFILE_SERVICE_PORT:-9105}:8085"
     environment:
-      - SPRING_PROFILES_ACTIVE=e2e,local
+      - SPRING_PROFILES_ACTIVE=e2e,environment-data
       - ENVIRONMENT_DATA_ENABLED=true
       - ENVIRONMENT_DATA_ALLOWED_ENVIRONMENTS=e2e
 

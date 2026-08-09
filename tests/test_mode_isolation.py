@@ -592,6 +592,27 @@ class RenderedModeIsolationTests(unittest.TestCase):
         ):
             validate_model(model, "e2e")
 
+        model = self.model("e2e")
+        model["services"]["user-profile-service"]["environment"][
+            "SPRING_PROFILES_ACTIVE"
+        ] = "e2e,local"
+        with self.assertRaisesRegex(
+            ValueError,
+            "user-profile-service:SPRING_PROFILES_ACTIVE must be exactly "
+            "e2e,environment-data in e2e",
+        ):
+            validate_model(model, "e2e")
+
+        model = self.model("e2e")
+        model["services"]["user-profile-service"]["environment"][
+            "ENVIRONMENT_DATA_TOKEN"
+        ] = "different-environment-data-identity-value"
+        with self.assertRaisesRegex(
+            ValueError,
+            "ENVIRONMENT_DATA_TOKEN does not match",
+        ):
+            validate_model(model, "e2e")
+
     def test_application_tracker_uses_isolated_postgres_in_runtime_profiles(
         self,
     ) -> None:
