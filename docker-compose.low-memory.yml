@@ -42,6 +42,10 @@ x-postgres-small: &postgres-small
     - max_connections=40
 
 services:
+  clamav:
+    # Current official signatures require substantial native memory; retain
+    # the reviewed upstream-recommended ceiling in the bounded profile.
+    mem_limit: 4g
   postcode-io-gateway:
     <<: *java-small
   location-gateway:

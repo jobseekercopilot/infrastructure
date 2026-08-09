@@ -80,10 +80,10 @@
     {
       "service": "document-store-service",
       "repository": "jobseekercopilot/document-store-service",
-      "revision": "fedcdbdec63795269c4e4c4f43fc32f38c6327b1",
+      "revision": "fa202573b5a60dc47875c4c663bb91d33b89187f",
       "path": "contracts/openapi.json",
-      "contractVersion": "1.0.0",
-      "sha256": "410ab1a7a2e8a5a5ad374443ec834f6aef7f778f6936b3ef90c33f8e580cdbd9",
+      "contractVersion": "4.0.0",
+      "sha256": "6470eb9e6770903922cc4cd6d841d72a51b362fe4b9146d20f8f2576f15d659c",
       "consumers": [
         "document-generation-gateway"
       ]
