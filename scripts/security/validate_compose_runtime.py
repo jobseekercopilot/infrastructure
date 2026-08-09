@@ -497,6 +497,18 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
             "SPRING_PROFILES_ACTIVE",
             "e2e",
         )
+        user_profile_active_profiles = {
+            profile.strip()
+            for profile in environment(model, "user-profile-service")
+            .get("SPRING_PROFILES_ACTIVE", "")
+            .split(",")
+            if profile.strip()
+        }
+        if user_profile_active_profiles != {"e2e", "environment-data"}:
+            raise ValueError(
+                "user-profile-service:SPRING_PROFILES_ACTIVE must be exactly "
+                "e2e,environment-data in e2e"
+            )
         require_value(
             model,
             "system-data-service",
@@ -573,6 +585,7 @@ def validate_runtime_model(model: dict, profile: str) -> None:
             "ENVIRONMENT_DATA_TOKEN",
             (
                 ("authentication-service", "AUTH_ENVIRONMENT_DATA_TOKEN"),
+                ("user-profile-service", "ENVIRONMENT_DATA_TOKEN"),
                 ("application-tracker-service", "ENVIRONMENT_DATA_TOKEN"),
                 ("document-store-service", "ENVIRONMENT_DATA_TOKEN"),
                 ("payment-service", "ENVIRONMENT_DATA_TOKEN"),

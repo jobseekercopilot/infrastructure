@@ -105,6 +105,11 @@ preflight rejects a resolved model unless Reed, Adzuna and JSearch are live,
 the LLM is `LIVE`, Stripe is `FIXTURE`, and only the four live gateways join
 the dedicated provider-egress network.
 
+Google Maps activation is deliberately separate from these profiles. Use the
+fixture-backed `google-maps-smoke` profile and follow
+[`GOOGLE_MAPS_ACTIVATION.md`](GOOGLE_MAPS_ACTIVATION.md); it enables only Places
+API (New) and Routes API while keeping job, LLM and payment providers fixture-backed.
+
 Starting `real-job-providers` validates the four job-provider credential names.
 Starting `real-providers` validates those names plus the complete OpenAI
 decision. Either command fails with only the missing variable name.

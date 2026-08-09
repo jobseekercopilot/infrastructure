@@ -7,6 +7,7 @@ import argparse
 import os
 import stat
 import sys
+import tempfile
 from pathlib import Path
 
 INFRASTRUCTURE_ROOT = Path(__file__).resolve().parents[2]
@@ -18,6 +19,7 @@ from scripts.workspace.catalog import WORKSPACE_ROOT
 
 SECRET_FILE = WORKSPACE_ROOT / "config" / ".secrets.env"
 PROVIDER_VARIABLES = {
+    "GOOGLE": ("GOOGLE_MAPS_API_KEY",),
     "REED": ("REED_API_KEY",),
     "ADZUNA": ("ADZUNA_APP_ID", "ADZUNA_APP_KEY"),
     "JSEARCH": ("JSEARCH_API_KEY",),
@@ -43,6 +45,52 @@ def parse_secret_file(path: Path) -> dict[str, str]:
         name, value = line.split("=", 1)
         values[name.strip()] = value.strip()
     return values
+
+
+def set_secret(name: str, value: str, path: Path = SECRET_FILE) -> None:
+    """Atomically update one external secret without writing its value to output."""
+    if name not in {
+        variable
+        for variables in PROVIDER_VARIABLES.values()
+        for variable in variables
+    }:
+        raise ValueError(f"unsupported provider variable: {name}")
+    if not value or "\n" in value or "\r" in value or "\0" in value:
+        raise ValueError("provider secret must be one non-empty line")
+    if path.resolve() != SECRET_FILE.resolve():
+        raise ValueError(f"provider secret store must be {SECRET_FILE.resolve()}")
+
+    lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+    replacement = f"{name}={value}"
+    updated: list[str] = []
+    found = False
+    for line in lines:
+        existing_name = line.split("=", 1)[0].strip() if "=" in line else None
+        if existing_name == name:
+            if not found:
+                updated.append(replacement)
+                found = True
+            continue
+        updated.append(line)
+    if not found:
+        updated.append(replacement)
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=".provider-secrets-",
+        dir=path.parent,
+        text=True,
+    )
+    temporary_path = Path(temporary_name)
+    try:
+        os.fchmod(descriptor, 0o600)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            stream.write("\n".join(updated) + "\n")
+        os.replace(temporary_path, path)
+        path.chmod(0o600)
+    except BaseException:
+        temporary_path.unlink(missing_ok=True)
+        raise
 
 
 def validate_store(
@@ -122,7 +170,28 @@ def main() -> int:
         action="store_true",
         help="reject provider credential files located inside sibling Git repositories",
     )
+    parser.add_argument(
+        "--set-variable",
+        choices=sorted(
+            variable
+            for variables in PROVIDER_VARIABLES.values()
+            for variable in variables
+        ),
+        help="atomically set one provider variable from standard input",
+    )
     args = parser.parse_args()
+    if args.set_variable:
+        value = sys.stdin.read().rstrip("\r\n")
+        try:
+            set_secret(args.set_variable, value)
+        except ValueError as error:
+            print(f"ERROR: {error}", file=sys.stderr)
+            return 1
+        print(
+            f"Updated {args.set_variable} in the owner-only provider secret store. "
+            "The value was not printed."
+        )
+        return 0
     failures = validate_store(tuple(args.providers))
     if args.check_repositories:
         for path in secret_files_inside_repositories():
