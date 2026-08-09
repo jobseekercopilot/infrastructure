@@ -4,7 +4,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 from scripts.security.provider_secrets import (
+    parse_secret_file,
     secret_files_inside_repositories,
+    set_secret,
     validate_store,
 )
 
@@ -95,3 +97,23 @@ class ProviderSecretStoreTests(unittest.TestCase):
                 failures = validate_store(("GOOGLE",), store)
 
         self.assertEqual([], failures)
+
+    def test_set_secret_updates_atomically_and_preserves_other_values(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            store = Path(directory) / ".secrets.env"
+            store.write_text(
+                "# external credentials\nREED_API_KEY=keep-me\n"
+                "GOOGLE_MAPS_API_KEY=replace-me\n",
+                encoding="utf-8",
+            )
+            with patch("scripts.security.provider_secrets.SECRET_FILE", store):
+                set_secret("GOOGLE_MAPS_API_KEY", "new-secret", store)
+
+            values = parse_secret_file(store)
+            self.assertEqual("keep-me", values["REED_API_KEY"])
+            self.assertEqual("new-secret", values["GOOGLE_MAPS_API_KEY"])
+            self.assertEqual(0o600, store.stat().st_mode & 0o777)
+            self.assertEqual(
+                1,
+                store.read_text(encoding="utf-8").count("GOOGLE_MAPS_API_KEY="),
+            )
