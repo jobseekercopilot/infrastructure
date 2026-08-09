@@ -48,4 +48,3 @@ Review identity propagation, idempotency, deadlines, partial failure, durable re
 | Browser journey/accessibility | E2E plus client component tests |
 
 Use fixture mode for deterministic tests. Live acquisition is a separate, explicitly approved operator workflow and is never normal CI.
-

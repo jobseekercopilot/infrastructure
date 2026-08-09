@@ -69,4 +69,3 @@ Cross-service document replacement and generated-application withdrawal cannot b
 ## Archive, delete, and history
 
 Application deletion is an owner-scoped lifecycle action, not an unguarded database delete. Immutable application events support reporting and audit. Account deletion uses a separate internal owner-scoped API coordinated by Authentication Service.
-

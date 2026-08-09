@@ -35,4 +35,3 @@ The selected canonical location—postcode, place, region/district, coordinates,
     `location-service` and `google-maps-gateway` contain only repository bootstrap files on `develop`. They are not built or composed by the infrastructure catalogue. There is no backend-to-backend commute assessment path to document from this source of truth.
 
 Commute preferences exist in profile data and canonical job locations can carry coordinates, but route assessment, travel duration, Google configuration switches, and provenance from Google Maps are **not confirmed from current implementation**.
-

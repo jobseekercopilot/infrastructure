@@ -33,4 +33,3 @@ Job Seeker Copilot is a pre-release application for organising a job search. Its
 The application is not a job board and does not submit applications to provider sites. It records job-search and application activity. “Job matching” currently means reconciling found jobs with existing application records; it is not a candidate suitability score. Reporting estimates commitment progress from application statuses and explicitly says it is not an official or measured time log.
 
 See [user journeys](../journeys/job-search.md) for behaviour and [implementation status](../reference/implementation-status.md) for beta limitations.
-

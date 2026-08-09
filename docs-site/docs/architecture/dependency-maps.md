@@ -87,4 +87,3 @@ flowchart TB
 ```
 
 System Data is deliberately outside production ownership. It serves versioned synthetic provider responses and coordinates service-owned non-production management APIs. It does not bypass APIs or share databases.
-

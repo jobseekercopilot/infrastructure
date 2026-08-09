@@ -64,4 +64,3 @@ When sources disagree, use this order:
 5. This central narrative.
 
 Correct the lower source or explicitly record uncertainty. Do not guess; write **Not confirmed from current implementation**.
-

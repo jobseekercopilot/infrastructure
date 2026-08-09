@@ -59,4 +59,3 @@ Transactions are the append-only audit trail. Reservations isolate estimated usa
 ## Document lifecycle data
 
 `generated_documents` represents immutable versions (with family and parent lineage); `exported_document_files` represents stored artifacts. Storage operation/cursor tables reconcile metadata and object-provider effects. Lifecycle/activity tables retain audit events, while tombstones preserve content-free relationships after an approved purge.
-

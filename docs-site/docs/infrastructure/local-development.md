@@ -110,4 +110,3 @@ This retains the profile's volumes. The explicit destructive form is intentional
 ```
 
 It removes only that Compose project's local volumes and must not be used for valuable or production data.
-

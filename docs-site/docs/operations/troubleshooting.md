@@ -39,4 +39,3 @@ For Reed, Adzuna, JSearch, Postcode.io, LLM, and Stripe, distinguish fixture fai
 ## Logs and sensitive data
 
 Use correlation IDs, operation IDs, provider names, and stable error categories. Do not copy cookies, bearer tokens, service tokens, prompts, generated documents, profile content, or rejected provider bodies into issues or documentation.
-

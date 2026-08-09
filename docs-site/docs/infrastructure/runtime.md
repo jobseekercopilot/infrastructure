@@ -67,4 +67,3 @@ Compose DNS uses service names. `depends_on: condition: service_healthy` establi
 Most images build from sibling repository Dockerfiles. Repositories whose source intentionally excludes compiled artifacts are staged into disposable `.cache/runtime-images` contexts by build scripts. Java generated clients are rebuilt from locked producer revisions into the workspace-local Maven cache; copied JARs are not fleet build inputs.
 
 Release profiles are intended to move toward digest-pinned registry images, but the current developer composition is source-built.
-

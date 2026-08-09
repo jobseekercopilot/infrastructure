@@ -24,4 +24,3 @@ The main runtime uses AWS SES for production account email when configured. Loca
 ## Not runtime services
 
 `google-maps-gateway`, `location-service`, and `nhs-jobs-gateway` have no application source, Dockerfile, port, or catalogue entry on `develop`. They must not be shown as active dependencies. See [location status](../journeys/location.md).
-

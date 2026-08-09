@@ -97,4 +97,3 @@ Provider/API keys must never be placed in client configuration; SSR variables ar
 - Document Store local filesystem encryption-at-rest flags are false; this is local-development behaviour, not a production recommendation.
 - Fixture provider mode is the default and real credentials are forbidden there.
 - Payments remain browser-disabled regardless of composed backend configuration.
-
