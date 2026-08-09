@@ -85,3 +85,13 @@ class ProviderSecretStoreTests(unittest.TestCase):
         self.assertNotIn("OPENAI_PROJECT_ID is MISSING", failures)
         self.assertIn("OPENAI_PRIVACY_DECISION_ID is MISSING", failures)
         self.assertNotIn("not-a-real-secret", "\n".join(failures))
+
+    def test_google_validation_requires_only_the_gateway_key(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            store = Path(directory) / ".secrets.env"
+            store.write_text("GOOGLE_MAPS_API_KEY=not-a-real-secret\n", encoding="utf-8")
+            store.chmod(0o600)
+            with patch("scripts.security.provider_secrets.SECRET_FILE", store):
+                failures = validate_store(("GOOGLE",), store)
+
+        self.assertEqual([], failures)

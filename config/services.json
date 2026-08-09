@@ -56,6 +56,22 @@
       "frontendUrl": "http://localhost:3000",
       "services": "all-runtime"
     },
+    "google-maps-smoke": {
+      "description": "The complete fixture-backed private-beta application with only Google Maps live for bounded validation.",
+      "composeFiles": [
+        "docker-compose.yml",
+        "docker-compose.real-google-maps.yml",
+        "docker-compose.low-memory.yml"
+      ],
+      "composeProject": "job-seeker-copilot-google-maps",
+      "composeParallelLimit": 1,
+      "environmentProfile": "local",
+      "environmentFile": ".env.google-maps-smoke",
+      "secretEnvironmentFile": "config/.secrets.env",
+      "secretProviders": ["GOOGLE"],
+      "frontendUrl": "http://localhost:3000",
+      "services": "all-runtime"
+    },
     "real-job-providers": {
       "description": "The complete private-beta application with Reed, Adzuna and JSearch live while LLM and Stripe remain fixture-backed.",
       "composeFiles": ["docker-compose.yml", "docker-compose.real-job-providers.yml"],

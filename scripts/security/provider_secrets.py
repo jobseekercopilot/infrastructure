@@ -18,6 +18,7 @@ from scripts.workspace.catalog import WORKSPACE_ROOT
 
 SECRET_FILE = WORKSPACE_ROOT / "config" / ".secrets.env"
 PROVIDER_VARIABLES = {
+    "GOOGLE": ("GOOGLE_MAPS_API_KEY",),
     "REED": ("REED_API_KEY",),
     "ADZUNA": ("ADZUNA_APP_ID", "ADZUNA_APP_KEY"),
     "JSEARCH": ("JSEARCH_API_KEY",),

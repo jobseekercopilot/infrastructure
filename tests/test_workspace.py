@@ -108,6 +108,7 @@ class CatalogTests(unittest.TestCase):
                 "basic-fixture",
                 "full-fixture",
                 "full-local-ses",
+                "google-maps-smoke",
                 "real-job-providers",
                 "real-providers",
             },
@@ -145,6 +146,20 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(
             real_openai.secret_providers,
             ("REED", "ADZUNA", "JSEARCH", "OPENAI"),
+        )
+        google_maps = catalog.profile("google-maps-smoke")
+        self.assertEqual(google_maps.secret_providers, ("GOOGLE",))
+        self.assertEqual(
+            google_maps.compose_files,
+            (
+                "docker-compose.yml",
+                "docker-compose.real-google-maps.yml",
+                "docker-compose.low-memory.yml",
+            ),
+        )
+        self.assertEqual(
+            google_maps.secret_environment_file,
+            WORKSPACE_ROOT / "config" / ".secrets.env",
         )
         command = compose_command(real_openai, expected_real_environment, "ps")
         self.assertEqual(
@@ -225,6 +240,24 @@ class CatalogTests(unittest.TestCase):
                 for secret in openai_overlay["services"]["llm-gateway"]["secrets"]
             },
             {"OPENAI_API_KEY"},
+        )
+        google_overlay = yaml.safe_load(
+            (WORKSPACE_ROOT / "infrastructure"
+             / "docker-compose.real-google-maps.yml").read_text()
+        )
+        google_gateway = google_overlay["services"]["google-maps-gateway"]
+        self.assertEqual(google_gateway["environment"]["GOOGLE_MAPS_ENABLED"], "true")
+        self.assertEqual(
+            google_gateway["environment"]["SPRING_CONFIG_IMPORT"],
+            "optional:configtree:/run/secrets/",
+        )
+        self.assertEqual(
+            {secret["target"] for secret in google_gateway["secrets"]},
+            {"GOOGLE_MAPS_API_KEY"},
+        )
+        self.assertEqual(
+            set(google_gateway["networks"]),
+            {"job-seeker-network", "google-maps-egress-network"},
         )
         base_services = yaml.safe_load(
             (WORKSPACE_ROOT / "infrastructure" / "docker-compose.yml").read_text()
@@ -362,6 +395,73 @@ class CatalogTests(unittest.TestCase):
             secret_env_file=WORKSPACE_ROOT / "config" / ".secrets.env",
         )
         validate.assert_called_once_with(rendered, "real-providers")
+
+    def test_google_maps_startup_preflight_enforces_the_gateway_boundary(
+        self,
+    ) -> None:
+        profile = load_catalog().profile("google-maps-smoke")
+        rendered = {
+            "services": {
+                "google-maps-gateway": {
+                    "environment": {"GOOGLE_MAPS_ENABLED": "true"},
+                    "secrets": [
+                        {"target": "/run/secrets/GOOGLE_MAPS_API_KEY"}
+                    ],
+                },
+                "location-service": {
+                    "environment": {"GOOGLE_MAPS_ENABLED": "true"}
+                },
+            }
+        }
+        with patch(
+            "scripts.workspace.lifecycle.compose_security_model",
+            return_value=rendered,
+        ) as compose, patch(
+            "scripts.workspace.lifecycle.validate_security_model"
+        ) as validate:
+            validate_runtime_boundary(profile, profile.environment_file)
+
+        compose.assert_called_once_with(
+            profile.environment_file,
+            [
+                WORKSPACE_ROOT
+                / "infrastructure"
+                / "docker-compose.real-google-maps.yml",
+                WORKSPACE_ROOT
+                / "infrastructure"
+                / "docker-compose.low-memory.yml",
+            ],
+            "local",
+            secret_env_file=WORKSPACE_ROOT / "config" / ".secrets.env",
+        )
+        validate.assert_called_once_with(rendered, "local")
+
+    def test_google_maps_startup_preflight_rejects_key_environment_exposure(
+        self,
+    ) -> None:
+        profile = load_catalog().profile("google-maps-smoke")
+        rendered = {
+            "services": {
+                "google-maps-gateway": {
+                    "environment": {
+                        "GOOGLE_MAPS_ENABLED": "true",
+                        "GOOGLE_MAPS_API_KEY": "must-not-be-an-environment-value",
+                    },
+                    "secrets": [
+                        {"target": "/run/secrets/GOOGLE_MAPS_API_KEY"}
+                    ],
+                },
+                "location-service": {
+                    "environment": {"GOOGLE_MAPS_ENABLED": "true"}
+                },
+            }
+        }
+        with patch(
+            "scripts.workspace.lifecycle.compose_security_model",
+            return_value=rendered,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "container environment"):
+                validate_runtime_boundary(profile, profile.environment_file)
 
     def test_basic_and_full_profiles_have_distinct_source_scope(self) -> None:
         catalog = load_catalog()

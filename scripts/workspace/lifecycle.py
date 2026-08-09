@@ -91,6 +91,9 @@ def ensure_environment(profile: Profile) -> Path:
 
 def validate_runtime_boundary(profile: Profile, environment_file: Path) -> None:
     """Fail closed on the combined real-provider trust boundary before startup."""
+    if profile.name == "google-maps-smoke":
+        validate_google_maps_boundary(profile, environment_file)
+        return
     if profile.name != "real-providers":
         return
     if profile.secret_environment_file is None:
@@ -114,6 +117,47 @@ def validate_runtime_boundary(profile: Profile, environment_file: Path) -> None:
     )
     validate_security_model(model, "real-providers")
     print("real-providers runtime boundary is valid; no values were printed.")
+
+
+def validate_google_maps_boundary(profile: Profile, environment_file: Path) -> None:
+    if profile.secret_environment_file is None:
+        raise RuntimeError("google-maps-smoke requires the catalogued secret store")
+    expected_files = (
+        "docker-compose.yml",
+        "docker-compose.real-google-maps.yml",
+        "docker-compose.low-memory.yml",
+    )
+    if profile.compose_files != expected_files:
+        raise RuntimeError(
+            "google-maps-smoke Compose order must be base, real Google Maps, then low memory"
+        )
+    model = compose_security_model(
+        environment_file,
+        [INFRASTRUCTURE_ROOT / path for path in profile.compose_files[1:]],
+        "local",
+        secret_env_file=profile.secret_environment_file,
+    )
+    services = model.get("services", {})
+    google = services.get("google-maps-gateway", {})
+    location = services.get("location-service", {})
+    if google.get("environment", {}).get("GOOGLE_MAPS_ENABLED") != "true":
+        raise RuntimeError("google-maps-gateway must be explicitly enabled")
+    if location.get("environment", {}).get("GOOGLE_MAPS_ENABLED") != "true":
+        raise RuntimeError("location-service must be explicitly enabled")
+    if google.get("environment", {}).get("GOOGLE_MAPS_API_KEY"):
+        raise RuntimeError("Google Maps API key must not be exposed as container environment")
+    secret_mounts = google.get("secrets", [])
+    if len(secret_mounts) != 1 or secret_mounts[0].get("target") != "/run/secrets/GOOGLE_MAPS_API_KEY":
+        raise RuntimeError("google-maps-gateway must mount only its API key secret")
+    unexpected = [
+        name for name, service in services.items()
+        if name != "google-maps-gateway"
+        and service.get("environment", {}).get("GOOGLE_MAPS_API_KEY")
+    ]
+    if unexpected:
+        raise RuntimeError("Google Maps API key reached an unapproved service")
+    validate_security_model(model, "local")
+    print("google-maps-smoke runtime boundary is valid; no values were printed.")
 
 
 def run(command: list[str], cwd: Path, env: dict[str, str] | None = None) -> None:
