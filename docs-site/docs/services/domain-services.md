@@ -39,4 +39,3 @@ Read-only projection over Application Tracker history, content-free Document Sto
 ## Payment Service
 
 Owns AI-credit wallets, append-only transactions, pricing, and recoverable reservations. Caller-specific service identities separate Payment Gateway, Stripe webhook fulfilment, CV estimation, and Document Generation coordination.
-

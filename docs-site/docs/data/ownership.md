@@ -34,4 +34,3 @@ Document Store separates file metadata from object bytes. Local Compose configur
 ## Backups and deletion
 
 Service runbooks define PostgreSQL backup/restore evidence. Local volumes are developer data, not a backup. Document deletion has archive, recovery, retention, legal hold, and separately enabled purge semantics. Coordinated account deletion records durable progress because several service-owned stores cannot be erased atomically.
-

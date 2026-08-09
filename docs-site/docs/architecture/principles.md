@@ -40,4 +40,3 @@ Fixture mode is the standard local/E2E default. Live mode requires explicit over
 ## Degradation rather than invented success
 
 Job search reports partial provider/matching status. Reporting can omit unavailable document activity but does not write. Recoverable document/application workflows return `202` while incomplete. Missing payment/browser approval returns feature unavailable. The code does not conceal partial completion behind a success response.
-

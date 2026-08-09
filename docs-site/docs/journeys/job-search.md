@@ -73,4 +73,3 @@ If Job Matching times out or fails, Job Service returns provider results with a 
 | Profile defaults | Read from User Profile Service when needed |
 | Application state | Read from Application Tracker through Job Matching |
 | Saved jobs | Written only by Job Service to its own PostgreSQL database |
-

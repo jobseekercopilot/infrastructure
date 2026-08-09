@@ -62,4 +62,3 @@ The authenticated export/delete endpoints begin in Authentication Service, which
 - Authentication Service `/api/auth/**` requires User Management Gateway's service identity; it is not a browser API.
 - The public JWKS endpoint is used by resource services for token verification.
 - Production CORS, cookie names, `Secure`, issuer, audience, key size, and service-token length are fail-closed configuration.
-

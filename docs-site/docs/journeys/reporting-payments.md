@@ -57,4 +57,3 @@ Payment Service owns an append-only AI-credit ledger: wallets, transactions, and
     The client contains a hardened future payment proxy, but `src/server.ts` does not register it. `/api/v1/payment/**` is caught by the fail-closed boundary and returns `404 FEATURE_NOT_AVAILABLE`. The backend services are composed in `full-fixture`; that does not make payments user-accessible.
 
 Local Stripe Gateway runs in fixture mode and uses System Data. Live Stripe secrets are forbidden by the current standard runtime profiles. The payment/Stripe repositories describe themselves as beta baselines, not production-ready live payment releases.
-

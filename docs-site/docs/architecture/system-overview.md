@@ -93,4 +93,3 @@ Infrastructure overlays deliberately control these modes. Fixture/E2E profiles f
 - `system-data-service` knows many service URLs so it can coordinate guarded non-production reset/seed/verify APIs. It does not write their databases.
 - Location on `develop` is a two-gateway chain (`location-gateway → postcode-io-gateway`). `location-service` and `google-maps-gateway` contain no runtime implementation on this branch.
 - Service catalogue dependencies are operational hints; actual runtime calls are documented in the domain maps and journeys.
-
