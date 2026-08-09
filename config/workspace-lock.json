@@ -16,7 +16,7 @@
     {"name": "nhs-jobs-gateway", "branch": "feature/36-specialist-job-sources", "revision": "fa9efa2fafb741c8378f351eb6126d9d98a42296"},
     {"name": "apprenticeships-gateway", "branch": "feature/36-specialist-job-sources", "revision": "7820f390a2cd8ccbdf5b8f3c86dc57df424c478c"},
     {"name": "system-data-service", "branch": "develop", "revision": "bf2a1d2df0d9b09a1d99af20f71738633fe6afc8"},
-    {"name": "job-service", "branch": "feature/36-specialist-job-sources", "revision": "aa6c60c1649c06b082df358366a359f9b3818648"},
+    {"name": "job-service", "branch": "feature/36-specialist-job-sources", "revision": "ddd41ded7f5deffd9bd8d0e2ab20511dbd4cb651"},
     {"name": "job-matching-service", "branch": "develop", "revision": "47826c19a744233a02e0d26e2c9b779d771de06a"},
     {"name": "job-finder-gateway", "branch": "feature/36-specialist-job-sources", "revision": "fac0dc9814fade281d65f839db8d5c052d9c4b59"},
     {"name": "llm-gateway", "branch": "develop", "revision": "f4f7e90a10da86b08071ea736fbacb4a5d52977b"},
