@@ -80,6 +80,7 @@ class RenderedModeIsolationTests(unittest.TestCase):
                 "ADZUNA_APP_ID": "test-adzuna-id",
                 "ADZUNA_APP_KEY": "test-adzuna-key",
                 "JSEARCH_API_KEY": "test-jsearch-key",
+                "APPRENTICESHIPS_API_KEY": "test-apprenticeships-key",
             },
         )
         cls.models["live-provider"] = compose_model(
@@ -100,6 +101,7 @@ class RenderedModeIsolationTests(unittest.TestCase):
             "ADZUNA_APP_ID": "synthetic-adzuna-application",
             "ADZUNA_APP_KEY": "synthetic-adzuna-credential",
             "JSEARCH_API_KEY": "synthetic-jsearch-credential",
+            "APPRENTICESHIPS_API_KEY": "synthetic-apprenticeships-credential",
             "OPENAI_API_KEY": "synthetic-openai-credential-with-enough-characters",
         }
         cls.real_providers_secrets = directory / "real-providers-secrets.env"
@@ -253,10 +255,18 @@ class RenderedModeIsolationTests(unittest.TestCase):
                 "reed-gateway",
                 "adzuna-gateway",
                 "jsearch-gateway",
+                "nhs-jobs-gateway",
+                "apprenticeships-gateway",
                 "llm-gateway",
             },
         )
-        for gateway in ("reed-gateway", "adzuna-gateway", "jsearch-gateway"):
+        for gateway in (
+            "reed-gateway",
+            "adzuna-gateway",
+            "jsearch-gateway",
+            "nhs-jobs-gateway",
+            "apprenticeships-gateway",
+        ):
             self.assertEqual(
                 services[gateway]["environment"]["EXTERNAL_PROVIDER_MODE"],
                 "LIVE",
@@ -311,6 +321,9 @@ class RenderedModeIsolationTests(unittest.TestCase):
                 "adzuna_app_key": "ADZUNA_APP_KEY",
             },
             "jsearch-gateway": {"jsearch_api_key": "JSEARCH_API_KEY"},
+            "apprenticeships-gateway": {
+                "apprenticeships_api_key": "APPRENTICESHIPS_API_KEY"
+            },
             "llm-gateway": {"openai_api_key": "OPENAI_API_KEY"},
         }
         for service_name, bindings in expected.items():

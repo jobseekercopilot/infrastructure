@@ -4,14 +4,14 @@
   "profileRequirements": {
     "local": {
       "required": ["JWT_PRIVATE_KEY_BASE64", "JWT_PUBLIC_KEY_BASE64", "AUTH_DB_PASSWORD", "USER_PROFILE_DATABASE_PASSWORD", "JOB_SERVICE_DATABASE_PASSWORD", "DOCUMENT_GENERATION_DATABASE_PASSWORD", "DOCUMENT_STORE_DATABASE_PASSWORD", "APPLICATION_TRACKER_DATABASE_PASSWORD", "PAYMENT_DATABASE_PASSWORD", "AUTH_SERVICE_TOKEN", "ENVIRONMENT_DATA_TOKEN", "SYSTEM_DATA_INTERNAL_CALLER_KEY", "APPLICATION_TRACKER_PRODUCER_TOKEN", "APPLICATION_TRACKER_READER_TOKEN", "REPORTING_GATEWAY_SERVICE_TOKEN", "DOCUMENT_STORE_PRODUCER_TOKEN", "DOCUMENT_STORE_READER_TOKEN", "DOCUMENT_STORE_RETENTION_ADMIN_TOKEN", "DOCUMENT_EXPORT_GATEWAY_TOKEN", "CV_COVER_LETTER_GATEWAY_TOKEN", "CV_COVER_LETTER_TO_PAYMENT_SERVICE_TOKEN", "REJECTED_GENERATION_OPERATOR_TOKEN", "REJECTED_GENERATION_QUARANTINE_KEY_BASE64", "DOCUMENT_GENERATION_GATEWAY_TO_PAYMENT_SERVICE_TOKEN", "BFF_TO_PAYMENT_GATEWAY_TOKEN", "PAYMENT_GATEWAY_TO_PAYMENT_SERVICE_TOKEN", "PAYMENT_GATEWAY_TO_STRIPE_GATEWAY_TOKEN", "STRIPE_GATEWAY_TO_PAYMENT_SERVICE_TOKEN"],
-      "forbidden": ["REED_API_KEY", "ADZUNA_APP_ID", "ADZUNA_APP_KEY", "JSEARCH_API_KEY", "OPENAI_API_KEY", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"]
+      "forbidden": ["REED_API_KEY", "ADZUNA_APP_ID", "ADZUNA_APP_KEY", "JSEARCH_API_KEY", "APPRENTICESHIPS_API_KEY", "OPENAI_API_KEY", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"]
     },
     "e2e": {
       "required": ["JWT_PRIVATE_KEY_BASE64", "JWT_PUBLIC_KEY_BASE64", "AUTH_DB_PASSWORD", "USER_PROFILE_DATABASE_PASSWORD", "JOB_SERVICE_DATABASE_PASSWORD", "DOCUMENT_GENERATION_DATABASE_PASSWORD", "DOCUMENT_STORE_DATABASE_PASSWORD", "APPLICATION_TRACKER_DATABASE_PASSWORD", "PAYMENT_DATABASE_PASSWORD", "AUTH_SERVICE_TOKEN", "ENVIRONMENT_DATA_TOKEN", "SYSTEM_DATA_INTERNAL_CALLER_KEY", "APPLICATION_TRACKER_PRODUCER_TOKEN", "APPLICATION_TRACKER_READER_TOKEN", "REPORTING_GATEWAY_SERVICE_TOKEN", "DOCUMENT_STORE_PRODUCER_TOKEN", "DOCUMENT_STORE_READER_TOKEN", "DOCUMENT_STORE_RETENTION_ADMIN_TOKEN", "DOCUMENT_EXPORT_GATEWAY_TOKEN", "CV_COVER_LETTER_GATEWAY_TOKEN", "CV_COVER_LETTER_TO_PAYMENT_SERVICE_TOKEN", "REJECTED_GENERATION_OPERATOR_TOKEN", "REJECTED_GENERATION_QUARANTINE_KEY_BASE64", "DOCUMENT_GENERATION_GATEWAY_TO_PAYMENT_SERVICE_TOKEN", "BFF_TO_PAYMENT_GATEWAY_TOKEN", "PAYMENT_GATEWAY_TO_PAYMENT_SERVICE_TOKEN", "PAYMENT_GATEWAY_TO_STRIPE_GATEWAY_TOKEN", "STRIPE_GATEWAY_TO_PAYMENT_SERVICE_TOKEN"],
-      "forbidden": ["REED_API_KEY", "ADZUNA_APP_ID", "ADZUNA_APP_KEY", "JSEARCH_API_KEY", "OPENAI_API_KEY", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"]
+      "forbidden": ["REED_API_KEY", "ADZUNA_APP_ID", "ADZUNA_APP_KEY", "JSEARCH_API_KEY", "APPRENTICESHIPS_API_KEY", "OPENAI_API_KEY", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"]
     },
     "live-provider": {
-      "required": ["REED_API_KEY", "ADZUNA_APP_ID", "ADZUNA_APP_KEY", "JSEARCH_API_KEY"],
+      "required": ["REED_API_KEY", "ADZUNA_APP_ID", "ADZUNA_APP_KEY", "JSEARCH_API_KEY", "APPRENTICESHIPS_API_KEY"],
       "forbidden": ["OPENAI_API_KEY", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"]
     },
     "data-acquisition": {
@@ -360,6 +360,13 @@
       "classification": "secret",
       "profiles": ["live-provider", "data-acquisition"]
     },
+    {
+      "name": "APPRENTICESHIPS_API_KEY",
+      "owner": "Apprenticeships Gateway",
+      "consumers": ["apprenticeships-gateway"],
+      "classification": "secret",
+      "profiles": ["live-provider"]
+    },
     {"name": "OPENAI_API_KEY", "owner": "LLM Gateway", "consumers": ["llm-gateway"], "classification": "secret", "profiles": ["live-provider"]},
     {"name": "OPENAI_ENDPOINT", "owner": "LLM Gateway", "consumers": ["llm-gateway"], "classification": "configuration", "profiles": ["live-provider"], "example": "https://api.openai.com/v1/chat/completions"},
     {"name": "OPENAI_ORGANIZATION_ID", "owner": "LLM Gateway", "consumers": ["llm-gateway"], "classification": "sensitive-configuration", "profiles": ["live-provider"], "example": "org-example"},
@@ -382,6 +389,8 @@
     {"name": "JSEARCH_COUNTRY", "owner": "JSearch Gateway", "consumers": ["jsearch-gateway"], "classification": "configuration", "profiles": ["local", "data-acquisition"], "example": "gb"},
     {"name": "JSEARCH_LANGUAGE", "owner": "JSearch Gateway", "consumers": ["jsearch-gateway"], "classification": "configuration", "profiles": ["local", "data-acquisition"], "example": "en"},
     {"name": "JSEARCH_PAGES_PER_SEARCH", "owner": "JSearch Gateway", "consumers": ["jsearch-gateway"], "classification": "configuration", "profiles": ["local", "data-acquisition"], "example": "1"},
+    {"name": "NHS_JOBS_ENABLED", "owner": "NHS Jobs Gateway", "consumers": ["nhs-jobs-gateway", "job-service"], "classification": "configuration", "profiles": ["local", "e2e", "live-provider"], "example": "true"},
+    {"name": "APPRENTICESHIPS_ENABLED", "owner": "Apprenticeships Gateway", "consumers": ["apprenticeships-gateway", "job-service"], "classification": "configuration", "profiles": ["local", "e2e", "live-provider"], "example": "true"},
     {"name": "GOOGLE_MAPS_ENABLED", "owner": "Google Maps Gateway", "consumers": ["google-maps-gateway", "location-service"], "classification": "configuration", "profiles": ["local", "e2e"], "example": "false"},
     {"name": "GOOGLE_MAPS_API_KEY", "owner": "Google Maps Gateway", "consumers": ["google-maps-gateway"], "classification": "secret", "profiles": ["local"], "example": ""},
     {"name": "LOCATION_SERVICE_TOKEN", "owner": "Location Service", "consumers": ["location-service", "location-gateway", "job-matching-service"], "classification": "secret", "profiles": ["local", "e2e", "live-provider"], "generator": "random", "minimumBytes": 32, "example": ""},
@@ -419,6 +428,8 @@
     {"name": "E2E_REED_GATEWAY_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9087"},
     {"name": "E2E_ADZUNA_GATEWAY_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9101"},
     {"name": "E2E_JSEARCH_GATEWAY_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9102"},
+    {"name": "E2E_NHS_JOBS_GATEWAY_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9124"},
+    {"name": "E2E_APPRENTICESHIPS_GATEWAY_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9125"},
     {"name": "E2E_JOB_SERVICE_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9086"},
     {"name": "E2E_JOB_MATCHING_SERVICE_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9097"},
     {"name": "E2E_JOB_FINDER_GATEWAY_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9080"},

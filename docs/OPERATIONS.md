@@ -19,9 +19,9 @@ update path and only fast-forwards clean expected branches.
 - `full-fixture`: the complete deterministic private-beta runtime.
 - `full-local-ses`: the complete fixture runtime with account email delivered
   to pinned local SES.
-- `real-job-providers`: the complete runtime with Reed, Adzuna and JSearch
+- `real-job-providers`: the complete runtime with Reed, Adzuna, JSearch, NHS Jobs and Find an apprenticeship
   live; OpenAI and Stripe remain fixture-backed.
-- `real-providers`: the complete runtime with the three job providers and
+- `real-providers`: the complete runtime with all five job providers and
   OpenAI live; Stripe and payments remain fixture-backed.
 
 The two real-provider profiles share the owner-only

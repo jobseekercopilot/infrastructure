@@ -346,6 +346,49 @@ services:
       retries: 3
       start_period: 40s
 
+  nhs-jobs-gateway:
+    build:
+      context: ../nhs-jobs-gateway
+      dockerfile: Dockerfile
+    ports:
+      - "8114:8104"
+    environment:
+      - SPRING_APPLICATION_NAME=nhs-jobs-gateway
+      - SERVER_PORT=8104
+      - SPRING_PROFILES_ACTIVE=local
+      - EXTERNAL_PROVIDER_MODE=FIXTURE
+      - NHS_JOBS_ENABLED=${NHS_JOBS_ENABLED:-true}
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8104/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  apprenticeships-gateway:
+    build:
+      context: ../apprenticeships-gateway
+      dockerfile: Dockerfile
+    ports:
+      - "8115:8105"
+    environment:
+      - SPRING_APPLICATION_NAME=apprenticeships-gateway
+      - SERVER_PORT=8105
+      - SPRING_PROFILES_ACTIVE=local
+      - EXTERNAL_PROVIDER_MODE=FIXTURE
+      - APPRENTICESHIPS_ENABLED=${APPRENTICESHIPS_ENABLED:-true}
+      - APPRENTICESHIPS_API_VERSION=2
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8105/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
   system-data-service:
     build:
       context: ../system-data-service
@@ -416,6 +459,8 @@ services:
       - REED_GATEWAY_URL=http://reed-gateway:8087
       - ADZUNA_GATEWAY_URL=http://adzuna-gateway:8101
       - JSEARCH_GATEWAY_URL=http://jsearch-gateway:8102
+      - NHS_JOBS_GATEWAY_URL=http://nhs-jobs-gateway:8104
+      - APPRENTICESHIPS_GATEWAY_URL=http://apprenticeships-gateway:8105
       - JOB_MATCHING_SERVICE_URL=http://job-matching-service:8097
     depends_on:
       job-service-postgres:
@@ -425,6 +470,10 @@ services:
       adzuna-gateway:
         condition: service_healthy
       jsearch-gateway:
+        condition: service_healthy
+      nhs-jobs-gateway:
+        condition: service_healthy
+      apprenticeships-gateway:
         condition: service_healthy
       job-matching-service:
         condition: service_healthy

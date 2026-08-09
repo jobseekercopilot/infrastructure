@@ -66,6 +66,10 @@ services:
     <<: *java-small
   jsearch-gateway:
     <<: *java-small
+  nhs-jobs-gateway:
+    <<: *java-small
+  apprenticeships-gateway:
+    <<: *java-small
   job-matching-service:
     <<: *java-small
   job-finder-gateway:
