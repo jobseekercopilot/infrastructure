@@ -9,7 +9,7 @@ The authenticated private GitHub account lists 30 repositories, exactly matching
 | Capability | Backend | Client path | External mode | Confidence |
 |---|---|---|---|---|
 | Account/session/profile/evidence | Implemented and composed | Enabled | Local/hosted auth; SES fixture or configured | Confirmed |
-| Job search and saved jobs | Implemented and composed | Enabled | Fixture default; three live providers optional | Confirmed |
+| Job search and saved jobs | Implemented and composed | Enabled | Fixture default; five live providers optional | Confirmed |
 | Application tracking | Implemented and composed | Enabled through Job Finder and documents | Internal | Confirmed |
 | Document generation/approval/export | Implemented and composed | Enabled | Fixture LLM default; OpenAI optional | Confirmed |
 | Document management | Implemented and composed | Enabled route allowlist | Filesystem + ClamAV locally | Confirmed |
@@ -17,7 +17,7 @@ The authenticated private GitHub account lists 30 repositories, exactly matching
 | Reporting | Implemented and composed | Enabled | Internal projection | Confirmed |
 | Payment/Stripe | Backend implemented/composed | Explicitly disabled | Stripe fixture backend | Confirmed disabled |
 | Commute route assessment | Repositories are skeletons | No client/BFF route on `develop` | None | Confirmed absent |
-| NHS Jobs provider | Repository is a README-only skeleton | No integration | None | Confirmed absent |
+| NHS Jobs and apprenticeship providers | Implemented and composed | Enabled with specialist badges/details | Fixture default; official APIs optional | Confirmed |
 
 ## Beta readiness
 

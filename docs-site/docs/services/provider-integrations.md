@@ -5,6 +5,8 @@
 | Reed Gateway | Reed API | System Data | Search/detail request and canonical provider mapping | Optional overlay |
 | Adzuna Gateway | Adzuna API | System Data | Credentialed search, paging bounds, mapping | Optional overlay |
 | JSearch Gateway | JSearch via RapidAPI | System Data | Country/language/paging bounds, mapping | Optional overlay |
+| NHS Jobs Gateway | NHS Jobs Self-Serve Job Adverts XML API | In-service deterministic fixture | Official NHS vacancy mapping; no credential | Optional overlay |
+| Apprenticeships Gateway | DfE Display Advert API v2 | In-service deterministic fixture | Rate-bounded snapshot refresh, multi-location and training mapping | Optional overlay |
 | Postcode.io Gateway | Postcodes.io | System Data | Place and postcode/outcode lookup | Public live API supported; fixture default |
 | LLM Gateway | OpenAI | System Data | Typed generation, response bounds, usage/model evidence | Optional `real-providers` overlay |
 | Stripe Gateway | Stripe | System Data | Checkout session and signed webhook handling | Not enabled by standard profiles |
@@ -23,4 +25,6 @@ The main runtime uses AWS SES for production account email when configured. Loca
 
 ## Not runtime services
 
-`google-maps-gateway`, `location-service`, and `nhs-jobs-gateway` have no application source, Dockerfile, port, or catalogue entry on `develop`. They must not be shown as active dependencies. See [location status](../journeys/location.md).
+The job-provider gateways above are active catalogue dependencies. Their fixture
+modes make no external calls; only the reviewed live overlays have provider
+egress.

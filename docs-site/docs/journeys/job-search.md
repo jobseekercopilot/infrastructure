@@ -10,7 +10,7 @@ sequenceDiagram
   participant Finder as Job Finder Gateway
   participant Profile as User Profile Service
   participant Jobs as Job Service
-  participant Providers as Reed / Adzuna / JSearch
+  participant Providers as Reed / Adzuna / JSearch / NHS / Apprenticeships
   participant Matching as Job Matching Service
   participant Tracker as Application Tracker
 
@@ -42,7 +42,15 @@ The preferred client flow sends a request body assembled from the current profil
 
 Job Service calls enabled provider adapters through a bounded executor. A provider timeout, rate limit, bad configuration, or temporary failure is represented in `providerResults`. The whole request can still return a `PARTIAL` result when at least one provider succeeds. If none succeeds, the service returns unavailable.
 
-In fixture profiles, provider gateways obtain synthetic responses from System Data. Live overlays switch Reed, Adzuna, and JSearch independently and require their credentials.
+In fixture profiles, provider gateways return deterministic synthetic responses
+without external calls. Live overlays switch Reed, Adzuna, JSearch, NHS Jobs,
+and Find an apprenticeship independently. NHS Jobs requires no credential; the
+DfE Display Advert API requires a server-side subscription key.
+
+Official specialist sources are ordered before aggregators. NHS vacancies
+retain NHS Jobs provenance. Apprenticeships retain a visible specialist type,
+all advertised locations, course/training facts, wage, hours, duration, skills,
+qualifications, and official listing/apply URLs.
 
 ## Canonicalisation and deduplication
 

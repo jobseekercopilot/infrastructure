@@ -25,6 +25,19 @@ services:
       - EXTERNAL_PROVIDER_MODE=LIVE
       - JSEARCH_API_KEY=${JSEARCH_API_KEY:?Set JSEARCH_API_KEY in the ignored live-provider environment}
 
+  nhs-jobs-gateway:
+    environment:
+      - SPRING_PROFILES_ACTIVE=local
+      - EXTERNAL_PROVIDER_MODE=LIVE
+      - NHS_JOBS_ENABLED=true
+
+  apprenticeships-gateway:
+    environment:
+      - SPRING_PROFILES_ACTIVE=local
+      - EXTERNAL_PROVIDER_MODE=LIVE
+      - APPRENTICESHIPS_ENABLED=true
+      - APPRENTICESHIPS_API_KEY=${APPRENTICESHIPS_API_KEY:?Set APPRENTICESHIPS_API_KEY in the ignored live-provider environment}
+
   authentication-service:
     environment:
       - SPRING_PROFILES_ACTIVE=local

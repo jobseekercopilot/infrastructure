@@ -40,6 +40,8 @@ FIXTURE_GATEWAYS = (
     "reed-gateway",
     "adzuna-gateway",
     "jsearch-gateway",
+    "nhs-jobs-gateway",
+    "apprenticeships-gateway",
     "postcode-io-gateway",
     "llm-gateway",
     "stripe-gateway",
@@ -48,12 +50,15 @@ JOB_PROVIDER_GATEWAYS = (
     "reed-gateway",
     "adzuna-gateway",
     "jsearch-gateway",
+    "nhs-jobs-gateway",
+    "apprenticeships-gateway",
     "postcode-io-gateway",
 )
 LIVE_CREDENTIALS = {
     "reed-gateway": ("REED_API_KEY",),
     "adzuna-gateway": ("ADZUNA_APP_ID", "ADZUNA_APP_KEY"),
     "jsearch-gateway": ("JSEARCH_API_KEY",),
+    "apprenticeships-gateway": ("APPRENTICESHIPS_API_KEY",),
 }
 REAL_PROVIDER_SECRET_BINDINGS = {
     "reed-gateway": {"reed_api_key": "REED_API_KEY"},
@@ -62,6 +67,9 @@ REAL_PROVIDER_SECRET_BINDINGS = {
         "adzuna_app_key": "ADZUNA_APP_KEY",
     },
     "jsearch-gateway": {"jsearch_api_key": "JSEARCH_API_KEY"},
+    "apprenticeships-gateway": {
+        "apprenticeships_api_key": "APPRENTICESHIPS_API_KEY"
+    },
     "llm-gateway": {"openai_api_key": "OPENAI_API_KEY"},
 }
 ENVIRONMENT_DATA_SERVICES = (
@@ -282,10 +290,10 @@ def validate_real_provider_secret_bindings(model: dict) -> None:
         for name, service in services.items()
         if "provider-egress-network" in service_networks(service)
     }
-    expected_egress = set(REAL_PROVIDER_SECRET_BINDINGS)
+    expected_egress = set(REAL_PROVIDER_SECRET_BINDINGS) | {"nhs-jobs-gateway"}
     if actual_egress != expected_egress:
         raise ValueError(
-            "provider-egress-network must contain only Reed, Adzuna, JSearch "
+            "provider-egress-network must contain only approved job-provider "
             "and LLM gateways"
         )
 
@@ -377,7 +385,7 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
                     f"{service}:{variable} is forbidden in the job-provider-only live stack"
                 )
     elif real_providers:
-        for service in LIVE_CREDENTIALS:
+        for service in ("reed-gateway", "adzuna-gateway", "jsearch-gateway", "nhs-jobs-gateway", "apprenticeships-gateway"):
             require_value(model, service, "EXTERNAL_PROVIDER_MODE", "LIVE")
         require_value(
             model,

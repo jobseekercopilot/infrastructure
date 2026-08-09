@@ -34,6 +34,8 @@
         "reed-gateway",
         "adzuna-gateway",
         "jsearch-gateway",
+        "nhs-jobs-gateway",
+        "apprenticeships-gateway",
         "job-matching-service",
         "job-service",
         "job-finder-gateway",
@@ -73,13 +75,13 @@
       "services": "all-runtime"
     },
     "real-job-providers": {
-      "description": "The complete private-beta application with Reed, Adzuna and JSearch live while LLM and Stripe remain fixture-backed.",
+      "description": "The complete private-beta application with Reed, Adzuna, JSearch, NHS Jobs and Find an apprenticeship live while LLM and Stripe remain fixture-backed.",
       "composeFiles": ["docker-compose.yml", "docker-compose.real-job-providers.yml"],
       "composeProject": "job-seeker-copilot-real-jobs",
       "environmentProfile": "local",
       "environmentFile": ".env.real-job-providers",
       "secretEnvironmentFile": "config/.secrets.env",
-      "secretProviders": ["REED", "ADZUNA", "JSEARCH"],
+      "secretProviders": ["REED", "ADZUNA", "JSEARCH", "APPRENTICESHIPS"],
       "frontendUrl": "http://localhost:3000",
       "services": "all-runtime"
     },
@@ -96,7 +98,7 @@
       "environmentProfile": "local",
       "environmentFile": ".env.real-job-providers",
       "secretEnvironmentFile": "config/.secrets.env",
-      "secretProviders": ["REED", "ADZUNA", "JSEARCH", "OPENAI"],
+      "secretProviders": ["REED", "ADZUNA", "JSEARCH", "APPRENTICESHIPS", "OPENAI"],
       "frontendUrl": "http://localhost:3000",
       "services": "all-runtime"
     }
@@ -113,6 +115,8 @@
     "reed-gateway",
     "adzuna-gateway",
     "jsearch-gateway",
+    "nhs-jobs-gateway",
+    "apprenticeships-gateway",
     "llm-gateway",
     "stripe-gateway",
     "location-gateway",
@@ -232,6 +236,26 @@
       "dependsOn": ["system-data-service"]
     },
     {
+      "name": "nhs-jobs-gateway",
+      "kind": "gateway",
+      "branch": "develop",
+      "build": "maven",
+      "composeServices": ["nhs-jobs-gateway"],
+      "port": 8104,
+      "health": "/actuator/health",
+      "dependsOn": []
+    },
+    {
+      "name": "apprenticeships-gateway",
+      "kind": "gateway",
+      "branch": "develop",
+      "build": "maven",
+      "composeServices": ["apprenticeships-gateway"],
+      "port": 8105,
+      "health": "/actuator/health",
+      "dependsOn": []
+    },
+    {
       "name": "system-data-service",
       "kind": "service",
       "branch": "develop",
@@ -263,6 +287,8 @@
         "reed-gateway",
         "adzuna-gateway",
         "jsearch-gateway",
+        "nhs-jobs-gateway",
+        "apprenticeships-gateway",
         "job-matching-service"
       ]
     },

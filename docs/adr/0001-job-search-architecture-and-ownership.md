@@ -73,7 +73,7 @@ before beta. Neither path changes ownership of search aggregation.
 | Provider fan-out and partial-result aggregation | `job-service` | Provider gateways own only their individual provider boundary |
 | Deterministic normalisation, distance enrichment and cross-provider deduplication | `job-service` | Job Matching adds application state only after these stages |
 | Saved-job persistence and saved-job ownership | `job-service` | Application lifecycle records remain owned by Application Tracker |
-| Provider credentials, request mapping, response mapping and provider-specific compliance | `reed-gateway`, `adzuna-gateway`, and `jsearch-gateway` respectively | Credentials and external DTOs do not enter Job Finder or Job Service |
+| Provider credentials, request mapping, response mapping and provider-specific compliance | `reed-gateway`, `adzuna-gateway`, `jsearch-gateway`, `nhs-jobs-gateway`, and `apprenticeships-gateway` respectively | Credentials and external DTOs do not enter Job Finder or Job Service |
 | Existing-application enrichment of canonical search results | `job-matching-service` | Reads owner-scoped Application Tracker state; does not store jobs or applications |
 | Application records, lifecycle transitions and document references | `application-tracker-service` | Job Finder and Job Matching are consumers, not alternate stores |
 | Synthetic named states and deterministic provider fixtures | `system-data-service` | Non-production only; never a production job, user, application, or document store |

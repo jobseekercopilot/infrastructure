@@ -37,6 +37,26 @@ services:
       - job-seeker-network
       - provider-egress-network
 
+  nhs-jobs-gateway:
+    environment:
+      EXTERNAL_PROVIDER_MODE: LIVE
+      NHS_JOBS_ENABLED: "true"
+    networks:
+      - job-seeker-network
+      - provider-egress-network
+
+  apprenticeships-gateway:
+    environment:
+      EXTERNAL_PROVIDER_MODE: LIVE
+      APPRENTICESHIPS_ENABLED: "true"
+      SPRING_CONFIG_IMPORT: optional:configtree:/run/secrets/
+    secrets:
+      - source: apprenticeships_api_key
+        target: APPRENTICESHIPS_API_KEY
+    networks:
+      - job-seeker-network
+      - provider-egress-network
+
   llm-gateway:
     environment:
       EXTERNAL_PROVIDER_MODE: FIXTURE
@@ -63,3 +83,5 @@ secrets:
     environment: ADZUNA_APP_KEY
   jsearch_api_key:
     environment: JSEARCH_API_KEY
+  apprenticeships_api_key:
+    environment: APPRENTICESHIPS_API_KEY

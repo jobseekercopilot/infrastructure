@@ -128,7 +128,7 @@ class CatalogTests(unittest.TestCase):
         )
         self.assertEqual(
             real_providers.secret_providers,
-            ("REED", "ADZUNA", "JSEARCH"),
+            ("REED", "ADZUNA", "JSEARCH", "APPRENTICESHIPS"),
         )
         real_openai = catalog.profile("real-providers")
         self.assertEqual(real_openai.environment_file, expected_real_environment)
@@ -145,7 +145,7 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(real_openai.compose_parallel_limit, 1)
         self.assertEqual(
             real_openai.secret_providers,
-            ("REED", "ADZUNA", "JSEARCH", "OPENAI"),
+            ("REED", "ADZUNA", "JSEARCH", "APPRENTICESHIPS", "OPENAI"),
         )
         google_maps = catalog.profile("google-maps-smoke")
         self.assertEqual(google_maps.secret_providers, ("GOOGLE",))

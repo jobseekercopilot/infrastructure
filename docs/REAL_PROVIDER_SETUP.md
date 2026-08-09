@@ -1,7 +1,8 @@
 # Real provider configuration
 
 The `real-job-providers` profile runs the complete local application with Reed,
-Adzuna and JSearch in live mode. OpenAI and Stripe remain fixture-backed.
+Adzuna, JSearch, NHS Jobs and Find an apprenticeship in live mode. OpenAI and
+Stripe remain fixture-backed.
 `full-fixture` remains the default deterministic profile and never reads real
 provider credentials.
 
@@ -28,6 +29,7 @@ REED_API_KEY=
 ADZUNA_APP_ID=
 ADZUNA_APP_KEY=
 JSEARCH_API_KEY=
+APPRENTICESHIPS_API_KEY=
 ```
 
 Real OpenAI generation additionally requires the following reviewed values in
@@ -59,7 +61,7 @@ Validate selected providers without printing values:
 
 ```bash
 python3 scripts/security/provider_secrets.py \
-  --providers ADZUNA JSEARCH \
+  --providers ADZUNA JSEARCH APPRENTICESHIPS \
   --check-repositories
 ```
 
@@ -67,7 +69,7 @@ Validate the complete real-provider profile without printing values:
 
 ```bash
 python3 scripts/security/provider_secrets.py \
-  --providers REED ADZUNA JSEARCH OPENAI \
+  --providers REED ADZUNA JSEARCH APPRENTICESHIPS OPENAI \
   --check-repositories
 ```
 
@@ -101,16 +103,16 @@ on a temporary low-memory file or a caller-provided parallelism setting.
 Do not append `docker-compose.live.yml` before or after these files. It is a
 separate legacy job-only overlay and, if applied later, resets
 `llm-gateway:EXTERNAL_PROVIDER_MODE` to `DISABLED`. The `real-providers`
-preflight rejects a resolved model unless Reed, Adzuna and JSearch are live,
-the LLM is `LIVE`, Stripe is `FIXTURE`, and only the four live gateways join
-the dedicated provider-egress network.
+preflight rejects a resolved model unless all five job providers are live, the
+LLM is `LIVE`, Stripe is `FIXTURE`, and only those provider gateways plus the
+LLM join the dedicated provider-egress network.
 
 Google Maps activation is deliberately separate from these profiles. Use the
 fixture-backed `google-maps-smoke` profile and follow
 [`GOOGLE_MAPS_ACTIVATION.md`](GOOGLE_MAPS_ACTIVATION.md); it enables only Places
 API (New) and Routes API while keeping job, LLM and payment providers fixture-backed.
 
-Starting `real-job-providers` validates the four job-provider credential names.
+Starting `real-job-providers` validates the five job-provider credential names.
 Starting `real-providers` validates those names plus the complete OpenAI
 decision. Either command fails with only the missing variable name.
 `REED_API_KEY` must contain a replacement credential; the previously tracked
@@ -140,6 +142,7 @@ runtime. Credentials are never supplied to frontend tasks or image builds.
 | `ADZUNA_APP_ID` | `/job-seeker-copilot/beta/job-providers/adzuna/app-id` | Adzuna Gateway |
 | `ADZUNA_APP_KEY` | `/job-seeker-copilot/beta/job-providers/adzuna/app-key` | Adzuna Gateway |
 | `JSEARCH_API_KEY` | `/job-seeker-copilot/beta/job-providers/jsearch/api-key` | JSearch Gateway |
+| `APPRENTICESHIPS_API_KEY` | `/job-seeker-copilot/beta/job-providers/apprenticeships/api-key` | Apprenticeships Gateway |
 
 Each gateway should receive read permission only for its own secret names.
 Production deployment and IAM resources are intentionally outside this
