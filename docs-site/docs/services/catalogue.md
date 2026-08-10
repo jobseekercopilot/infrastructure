@@ -24,6 +24,8 @@ Ports and dependencies come from `infrastructure/config/services.json` and the b
 | [reed-gateway](https://github.com/jobseekercopilot/reed-gateway) | Provider gateway | Reed search/detail mapping | Job Service | Reed API or System Data | None | 8087 | [Providers](provider-integrations.md) |
 | [adzuna-gateway](https://github.com/jobseekercopilot/adzuna-gateway) | Provider gateway | Adzuna search mapping | Job Service | Adzuna API or System Data | None | 8101 | [Providers](provider-integrations.md) |
 | [jsearch-gateway](https://github.com/jobseekercopilot/jsearch-gateway) | Provider gateway | JSearch mapping | Job Service | JSearch/RapidAPI or System Data | None | 8102 | [Providers](provider-integrations.md) |
+| [nhs-jobs-gateway](https://github.com/jobseekercopilot/nhs-jobs-gateway) | Provider gateway | Official NHS vacancy search and mapping | Job Service | NHS Jobs Self-Serve XML API or in-service fixture | None | 8104 | [Providers](provider-integrations.md) |
+| [apprenticeships-gateway](https://github.com/jobseekercopilot/apprenticeships-gateway) | Provider gateway | DfE apprenticeship snapshot, search and mapping | Job Service | Display Advert API v2 or in-service fixture | In-memory snapshot | 8105 | [Providers](provider-integrations.md) |
 | [postcode-io-gateway](https://github.com/jobseekercopilot/postcode-io-gateway) | Provider gateway | Postcodes.io place/postcode mapping | Location Gateway | Postcodes.io or System Data | None | 8082 | [Providers](provider-integrations.md) |
 | [llm-gateway](https://github.com/jobseekercopilot/llm-gateway) | Provider gateway | Typed LLM request/response, usage and safety | CV/Cover Letter | OpenAI or System Data | None | 8090 | [Providers](provider-integrations.md) |
 | [stripe-gateway](https://github.com/jobseekercopilot/stripe-gateway) | Provider gateway | Stripe checkout and webhook boundary | Payment Gateway, Stripe | Stripe/System Data, Payment | None | 8100 | [Providers](provider-integrations.md) |
@@ -33,7 +35,6 @@ Ports and dependencies come from `infrastructure/config/services.json` and the b
 | [job-seeker-copilot-landing](https://github.com/jobseekercopilot/job-seeker-copilot-landing) | Marketing frontend | Public landing/waitlist/contact site | Public browser | AWS-backed waitlist/contact APIs | AWS-managed | — | [Status](../reference/implementation-status.md) |
 | [google-maps-gateway](https://github.com/jobseekercopilot/google-maps-gateway) | Skeleton | Intended provider boundary | None on `develop` | None | None | — | [Providers](provider-integrations.md#not-runtime-services) |
 | [location-service](https://github.com/jobseekercopilot/location-service) | Skeleton | Intended commute/location domain | None on `develop` | None | None | — | [Providers](provider-integrations.md#not-runtime-services) |
-| [nhs-jobs-gateway](https://github.com/jobseekercopilot/nhs-jobs-gateway) | Skeleton | Intended NHS Jobs provider | None on `develop` | None | None | — | [Providers](provider-integrations.md#not-runtime-services) |
 
 !!! note "Catalogue scope"
     Portainer, Dozzle, PostgreSQL, ClamAV, and LocalStack are infrastructure containers rather than application repositories. They are covered in [runtime architecture](../infrastructure/runtime.md).

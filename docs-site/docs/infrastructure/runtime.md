@@ -16,6 +16,7 @@
 | 8098 | Payment Gateway | 8099 | Payment Service |
 | 8100 | Stripe Gateway | 8101 | Adzuna Gateway |
 | 8102 | JSearch Gateway | 8103 | System Data Service |
+| 8114 | NHS Jobs Gateway | 8115 | Apprenticeships Gateway |
 | 9000 | Portainer (optional) | 9999 | Dozzle (optional) |
 
 PostgreSQL containers are not published to the host by the base Compose. Java services use internal names such as `authentication-postgres:5432` and `job-service:8086`.
@@ -55,7 +56,7 @@ The principal application network is Docker-internal. The client is the normal h
 | `basic-fixture` | Account/profile/location/job-search development | Fixtures |
 | `full-fixture` | Complete composed platform | Fixtures |
 | `full-local-ses` | Full fixture plus production SES adapter against LocalStack | Fixtures + local SES |
-| `real-job-providers` | Full platform with live Reed/Adzuna/JSearch | Live job providers; fixture LLM/Stripe |
+| `real-job-providers` | Full platform with five live job providers | Live job providers; fixture LLM/Stripe |
 | `real-providers` | Live jobs and OpenAI | Live jobs/LLM; fixture Stripe |
 
 ## Service discovery and readiness

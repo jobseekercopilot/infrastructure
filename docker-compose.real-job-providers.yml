@@ -41,6 +41,7 @@ services:
     environment:
       EXTERNAL_PROVIDER_MODE: LIVE
       NHS_JOBS_ENABLED: "true"
+      NHS_JOBS_RESULTS_PER_PAGE: ${NHS_JOBS_RESULTS_PER_PAGE:-50}
     networks:
       - job-seeker-network
       - provider-egress-network
@@ -49,6 +50,10 @@ services:
     environment:
       EXTERNAL_PROVIDER_MODE: LIVE
       APPRENTICESHIPS_ENABLED: "true"
+      APPRENTICESHIPS_SYNC_PAGE_SIZE: ${APPRENTICESHIPS_SYNC_PAGE_SIZE:-100}
+      APPRENTICESHIPS_SYNC_MAX_PAGES: ${APPRENTICESHIPS_SYNC_MAX_PAGES:-150}
+      APPRENTICESHIPS_INITIAL_SYNC_DELAY_MS: ${APPRENTICESHIPS_INITIAL_SYNC_DELAY_MS:-1000}
+      APPRENTICESHIPS_SYNC_DELAY_MS: ${APPRENTICESHIPS_SYNC_DELAY_MS:-900000}
       SPRING_CONFIG_IMPORT: optional:configtree:/run/secrets/
     secrets:
       - source: apprenticeships_api_key

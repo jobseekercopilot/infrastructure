@@ -7,8 +7,8 @@
 | Reed | Job search/detail | Reed Gateway | System Data fixture | `REED_API_KEY` in live overlay (secret) |
 | Adzuna | Job search | Adzuna Gateway | Fixture; independently enabled | `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` (secret) |
 | JSearch/RapidAPI | Job search | JSearch Gateway | Fixture; independently enabled | `JSEARCH_API_KEY` (secret) |
-| NHS Jobs | Specialist health vacancies | NHS Jobs Gateway | In-service fixture; independently enabled | None |
-| Find an apprenticeship | Specialist apprenticeship vacancies | Apprenticeships Gateway | In-service fixture; independently enabled | `APPRENTICESHIPS_API_KEY` (secret) |
+| NHS Jobs | Specialist health vacancies | NHS Jobs Gateway | Fixture default; approved Self-Serve v1.07 live overlay | None |
+| Find an apprenticeship | Specialist apprenticeship vacancies | Apprenticeships Gateway | Fixture default; authenticated Display Advert API v2 live overlay | `APPRENTICESHIPS_API_KEY` (secret) |
 | Postcodes.io | UK place/postcode | Postcode.io Gateway | Fixture in base stack; public live API supported by gateway | No standard API secret |
 | OpenAI | LLM generation | LLM Gateway | Fixture model response | `OPENAI_API_KEY` in `real-providers` (secret) |
 | Stripe | Checkout/webhook | Stripe Gateway | Fixture; browser payment blocked | Live secret/webhook keys not allowed in standard profiles |
