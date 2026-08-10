@@ -123,3 +123,11 @@ production task CPU/memory reservations, separate production databases from
 the measured local stack, and rerun 10/15/20/25 sessions on the selected AWS
 shape. Only then should Savings Plans, Multi-AZ or a Fargate break-even point be
 modelled as a commitment.
+
+## Validation status
+
+No workload in this evidence set ran on AWS, and no cloud resources were
+created. The recommendation is a calculated starting shape, not a deployment
+record or availability claim. See `real-world-validation-costs-2026-08-10.md`
+for the paid-call boundary and the public beta-readiness page for the explicit
+go/no-go conditions.

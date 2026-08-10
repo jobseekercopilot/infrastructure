@@ -96,3 +96,11 @@ A later gross-margin model should add, at minimum:
    10-session boundary.
 
 No customer subscription price is changed or recommended by this document.
+
+## Current validation spend
+
+No OpenAI or other paid-provider credentials were present in the 10 August 2026
+real-world validation environment. Actual paid validation spend was therefore
+GBP 0.00 / USD 0.00 and no live latency or token distribution was observed.
+The arithmetic above remains a scenario calculation only; the exact execution
+boundary is recorded in `real-world-validation-costs-2026-08-10.md`.

@@ -9,16 +9,33 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from scripts.data.environment_client import fail_if_unsuccessful, print_operation, request_json
-from scripts.data.prepare_environment import SCENARIOS
+
+
+SCENARIOS = [
+    "EMPTY",
+    "REGISTRATION_CLEAN",
+    "LOGIN_SESSION",
+    "PROFILE_LOCATION",
+    "DUPLICATE_REGISTRATION",
+    "CROSS_USER_SECURITY",
+    "REAL_WORLD_PERSONAS",
+    "PROVIDER_FAILURE",
+    "DEMO_READY",
+]
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Verify non-production Job Seeker Copilot environment data.")
+    parser = argparse.ArgumentParser(description="Prepare a governed System Data named state.")
     parser.add_argument("--service-url", default="http://localhost:9103")
-    parser.add_argument("--scenario", default="DEMO_READY", choices=SCENARIOS)
+    parser.add_argument("--scenario", required=True, choices=SCENARIOS)
     args = parser.parse_args()
 
-    response = request_json("GET", args.service_url, f"/internal/environments/verify?scenario={args.scenario}")
+    response = request_json(
+        "POST",
+        args.service_url,
+        "/internal/environments/prepare",
+        {"scenario": args.scenario},
+    )
     print_operation(response)
     return fail_if_unsuccessful(response)
 

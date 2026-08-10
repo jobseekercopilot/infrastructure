@@ -101,3 +101,8 @@ Highest peak CPU:
 ## Interpretation boundary
 
 These runs measure the listed concurrency points only. They do not establish capacity above the largest successful run. Any AWS sizing or higher-user figures derived from them must be labelled **calculated** or **projected**, not benchmark results.
+
+The later real-world profile audit added seven deterministic persona shapes but
+did not rerun or reinterpret these historical workload measurements. The
+highest evidenced concurrency therefore remains 10 successful active sessions;
+the 25-session attempt remains a failure.

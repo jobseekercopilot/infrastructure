@@ -43,6 +43,17 @@ theme:
 
 nav:
   - Home: index.md
+  - Product confidence:
+      - Evidence overview: confidence/index.md
+      - Testing & coverage: confidence/testing.md
+      - Real-world personas: confidence/personas.md
+      - Beta readiness: confidence/beta-readiness.md
+      - Methodology: confidence/methodology.md
+  - Performance & economics:
+      - Performance & capacity: evidence/capacity.md
+      - AWS decision: evidence/aws.md
+      - Pricing & unit economics: evidence/unit-economics.md
+      - Validation costs: evidence/validation-costs.md
   - Product:
       - Overview: product/overview.md
       - Implementation status: reference/implementation-status.md

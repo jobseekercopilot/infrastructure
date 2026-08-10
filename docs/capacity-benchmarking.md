@@ -73,3 +73,12 @@ independent idle benchmark. Network counters are container-lifetime counters;
 compare start/end samples rather than treating the final value as run-only
 traffic. Database-operation and storage-growth attribution require dedicated
 instrumentation before they can be claimed per feature.
+
+## Real-world persona boundary
+
+The seven-profile `real-world-personas-v1` System Data state validates profile
+shape and lifecycle coverage. It is deliberately separate from this concurrent
+browser workload: persona variety is not a substitute for measured active
+sessions, and measured capacity must not be multiplied by persona count. The
+infrastructure E2E overlay is pinned to governed fixture dataset `1.0.0` so
+lifecycle preparation fails on genuine contract drift.

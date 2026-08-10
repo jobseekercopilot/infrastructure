@@ -4,7 +4,8 @@
 
 Technical documentation for the platform that helps a job seeker manage a profile and evidence, find and save jobs, track applications, and create application documents.
 
-**Source of truth:** implementation on each repository's `develop` branch, audited 9 August 2026.
+**Source of truth:** reviewed implementation and retained evidence on the
+production-confidence feature branches, audited 10 August 2026.
 
 This is living documentation for the current development architecture. It
 evolves alongside the repositories' `develop` branches and identifies features
@@ -16,6 +17,24 @@ verified.
 ## Start with the question you have
 
 <div class="jsc-grid" markdown>
+
+<div class="jsc-card" markdown>
+
+### Does it work for different people?
+
+Start with the [product-confidence evidence](confidence/index.md),
+[testing layers](confidence/testing.md) and [real-world personas](confidence/personas.md).
+
+</div>
+
+<div class="jsc-card" markdown>
+
+### What has actually been measured?
+
+Review [capacity](evidence/capacity.md), the dated [AWS decision](evidence/aws.md)
+and [unit-economics inputs](evidence/unit-economics.md).
+
+</div>
 
 <div class="jsc-card" markdown>
 
@@ -67,16 +86,70 @@ Use the [change guide](development/change-guide.md) and [documentation maintenan
 
 </div>
 
+## Confidence snapshot
+
+<div class="jsc-grid" markdown>
+
+<div class="jsc-card jsc-card--measured" markdown>
+
+### 10 concurrent sessions
+
+**Measured · 10 August 2026**
+
+10/10 fixture-backed DISCOVER journeys succeeded. Session p95 was 16.285 s;
+browser-response p95 was 273 ms.
+
+</div>
+
+<div class="jsc-card jsc-card--failed" markdown>
+
+### 25 concurrent sessions
+
+**Measured failure · 10 August 2026**
+
+0/25 journeys completed. The first observed boundary was job-detail latency,
+not an OOM or container restart.
+
+</div>
+
+<div class="jsc-card jsc-card--calculated" markdown>
+
+### Initial beta compute
+
+**Calculated, not benchmarked on AWS**
+
+One `m7i.2xlarge` in London is the current bounded public-beta candidate at
+$340.33/month compute-only On-Demand.
+
+</div>
+
+<div class="jsc-card jsc-card--partial" markdown>
+
+### Seven profile personas
+
+**Deterministic coverage added**
+
+Sparse, typical, rich, stress, CV-led, manual-first and career-change profiles
+are canonical System Data states. Full browser coverage remains in progress.
+
+</div>
+
+</div>
+
+!!! warning "Evidence, not a readiness percentage"
+    Measured, calculated and planned claims are labelled separately. Known
+    failures remain visible; this site does not turn them into a vanity score.
+
 ## Platform at a glance
 
 ```mermaid
 flowchart LR
-  User[Job seeker] --> Browser[Angular + Express BFF<br/>:3000]
-  Browser --> Edge[Browser-facing gateways]
-  Edge --> Domain[Domain services]
-  Domain --> Stores[(Service-owned PostgreSQL<br/>and object storage)]
-  Domain --> Providers[Provider gateways]
-  Providers --> External[External APIs<br/>or System Data fixtures]
+  A[Job seeker] --> B[Web application]
+  B --> C[Browser gateways]
+  C --> D[Domain services]
+  D --> E[Service data stores]
+  D --> F[Provider gateways]
+  F --> G[External APIs and fixtures]
 ```
 
 The browser uses same-origin BFF routes. The BFF sends session-derived identity to the appropriate gateway. Gateways validate identity and coordinate domain services; provider gateways isolate third-party protocols and credentials. Persistent domains own separate schemas and do not share a database.
