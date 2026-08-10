@@ -5,8 +5,8 @@
 | Reed Gateway | Reed API | System Data | Search/detail request and canonical provider mapping | Optional overlay |
 | Adzuna Gateway | Adzuna API | System Data | Credentialed search, paging bounds, mapping | Optional overlay |
 | JSearch Gateway | JSearch via RapidAPI | System Data | Country/language/paging bounds, mapping | Optional overlay |
-| NHS Jobs Gateway | NHS Jobs Self-Serve Job Adverts XML API | In-service deterministic fixture | Official NHS vacancy mapping; no credential | Optional overlay |
-| Apprenticeships Gateway | DfE Display Advert API v2 | In-service deterministic fixture | Rate-bounded snapshot refresh, multi-location and training mapping | Optional overlay |
+| NHS Jobs Gateway | NHS Jobs Self-Serve Job Adverts XML API v1.07 | In-service deterministic fixture | Official NHS vacancy mapping; no credential | Approved live overlay; bounded smoke-tested |
+| Apprenticeships Gateway | DfE Display Advert API v2 | In-service deterministic fixture | Rate-bounded snapshot refresh, multi-location and training mapping | Authenticated live overlay; bounded smoke-tested |
 | Postcode.io Gateway | Postcodes.io | System Data | Place and postcode/outcode lookup | Public live API supported; fixture default |
 | LLM Gateway | OpenAI | System Data | Typed generation, response bounds, usage/model evidence | Optional `real-providers` overlay |
 | Stripe Gateway | Stripe | System Data | Checkout session and signed webhook handling | Not enabled by standard profiles |

@@ -53,6 +53,10 @@ Compose supplies internal JDBC URLs/usernames. Direct JVM development can overri
 | `JSEARCH_ENABLED` | JSearch | Base `true` | Provider kill switch | No |
 | `JSEARCH_COUNTRY`, `JSEARCH_LANGUAGE` | JSearch | `gb`, `en` | Market/language | No |
 | `JSEARCH_PAGES_PER_SEARCH` | JSearch | 1 | Bounded pagination | No |
+| `NHS_JOBS_ENABLED`, `NHS_JOBS_RESULTS_PER_PAGE` | NHS Jobs | Enabled in reviewed live overlay; page size 1–100 | Kill switch and bounded Self-Serve request size | No |
+| `APPRENTICESHIPS_API_KEY` | Apprenticeships | Forbidden fixture; required live | DfE subscription key | Yes |
+| `APPRENTICESHIPS_SYNC_PAGE_SIZE`, `APPRENTICESHIPS_SYNC_MAX_PAGES` | Apprenticeships | 100 and 150; override for bounded smoke tests | Bounded Display Advert API v2 snapshot refresh | No |
+| `APPRENTICESHIPS_INITIAL_SYNC_DELAY_MS`, `APPRENTICESHIPS_SYNC_DELAY_MS` | Apprenticeships | 1000 and 900000 | Initial and recurring refresh cadence | No |
 | `OPENAI_API_KEY` | LLM Gateway | Forbidden fixture; required by real OpenAI overlay | Model credential | Yes |
 | `GENERATION_MODEL_ID` | LLM Gateway | Fixture model ID in base | Model audit identity | No |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Stripe Gateway | Forbidden in standard profiles | Live checkout/webhook authentication | Yes |

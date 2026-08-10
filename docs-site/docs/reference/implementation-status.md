@@ -17,7 +17,7 @@ The authenticated private GitHub account lists 30 repositories, exactly matching
 | Reporting | Implemented and composed | Enabled | Internal projection | Confirmed |
 | Payment/Stripe | Backend implemented/composed | Explicitly disabled | Stripe fixture backend | Confirmed disabled |
 | Commute route assessment | Repositories are skeletons | No client/BFF route on `develop` | None | Confirmed absent |
-| NHS Jobs and apprenticeship providers | Implemented and composed | Enabled with specialist badges/details | Fixture default; official APIs optional | Confirmed |
+| NHS Jobs and apprenticeship providers | Implemented and composed | Enabled with specialist badges/details | Fixture default; approved live profiles smoke-tested | Confirmed |
 
 ## Beta readiness
 
@@ -42,5 +42,4 @@ Treat these labels carefully:
 
 - A production deployment topology, registry image set, public observability stack, or production database encryption evidence.
 - Google Maps route/commute request semantics on `develop`.
-- NHS Jobs provider contract or data mapping.
 - Browser-accessible Stripe checkout or a live Stripe deployment profile.

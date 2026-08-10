@@ -63,9 +63,10 @@ fast-forward to a newly reviewed lock.
 - `full-local-ses`: the same complete fixture-backed runtime, with account
   email sent by the Authentication Service production SES adapter to pinned,
   ephemeral LocalStack SES.
-- `real-job-providers`: the full application with Reed, Adzuna and JSearch
-  live while OpenAI and Stripe remain fixture-backed.
-- `real-providers`: the same full application with Reed, Adzuna, JSearch and
+- `real-job-providers`: the full application with Reed, Adzuna, JSearch,
+  NHS Jobs and Find an apprenticeship live while OpenAI and Stripe remain
+  fixture-backed.
+- `real-providers`: the same full application with all five job providers and
   OpenAI live while Stripe and payments remain fixture-backed.
 
 ```bash

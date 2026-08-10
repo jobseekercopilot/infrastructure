@@ -8,7 +8,7 @@ Job Seeker Copilot is a pre-release application for organising a job search. Its
 |---|---|---|
 | Account and session | Registration, sign-in, refresh, logout, password reset, account export/deletion | <span class="status status--implemented">Implemented</span> |
 | Profile and evidence | Search preferences plus a versioned evidence library and immutable evidence snapshots | <span class="status status--implemented">Implemented</span> |
-| Job search | Reed, Adzuna, and JSearch results normalised into canonical jobs, deduplicated and optionally enriched with application state | <span class="status status--implemented">Implemented</span> |
+| Job search | Reed, Adzuna, JSearch, NHS Jobs, and Find an apprenticeship results normalised into canonical jobs, deduplicated and optionally enriched with application state | <span class="status status--implemented">Implemented</span> |
 | Saved jobs | Owner-scoped immutable canonical snapshots | <span class="status status--implemented">Implemented</span> |
 | Application tracking | Saved/generated/applied lifecycle, immutable events, document selections, replacement and withdrawal recovery | <span class="status status--implemented">Implemented</span> |
 | CV and cover-letter generation | Durable generation operations, evidence-grounded drafts, approval, export, download, and application linkage | <span class="status status--implemented">Implemented</span> |
@@ -17,7 +17,7 @@ Job Seeker Copilot is a pre-release application for organising a job search. Its
 | Reporting | Application summary, activity timeline, UC-journal text, and evidence text download | <span class="status status--implemented">Implemented</span> |
 | Payments | AI-credit ledger and Stripe/fixture backend exist; browser routes are blocked | <span class="status status--disabled">Browser disabled</span> |
 | Commute routing | Rich route assessment through Google Maps | <span class="status status--incomplete">Not on develop</span> |
-| NHS Jobs | Provider integration | <span class="status status--incomplete">Repository skeleton</span> |
+| Specialist job sources | NHS Jobs and Find an apprenticeship, with visible provenance and apprenticeship details | <span class="status status--implemented">Implemented</span> |
 
 ## What makes the platform distinctive
 
