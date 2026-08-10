@@ -109,6 +109,34 @@ python -m scripts.demo.prepare_demo
 
 The command refuses live port `3000`, requires the E2E compose project, checks fixture gateway modes, resets and seeds `DEMO_READY`, and runs fixture smoke tests. Playwright/Cucumber defaults to `E2E_BASE_URL=http://localhost:3100`.
 
+## Product-confidence capacity benchmarks
+
+Run from the infrastructure repository. The runner waits for the isolated E2E
+stack, proves every external gateway is in `FIXTURE` mode, prepares `DEMO_READY`
+once, runs the shared browser journey, and samples every Compose container.
+
+```bash
+python -m scripts.benchmark.run_capacity --profile idle
+python -m scripts.benchmark.run_capacity --profile single-user
+python -m scripts.benchmark.run_capacity --profile concurrent-5
+python -m scripts.benchmark.run_capacity --profile concurrent-10
+python -m scripts.benchmark.run_capacity --profile concurrent-25
+```
+
+Profiles 50 and 100 fail closed unless `--allow-high-concurrency` is supplied
+after checking host headroom. Raw JSON is written below
+`benchmark-results/runs/`. Generate a Markdown report from selected runs with:
+
+```bash
+python -m scripts.benchmark.generate_report \
+  benchmark-results/runs/<idle>.json \
+  benchmark-results/runs/<single>.json \
+  --output benchmark-results/capacity-report.md
+```
+
+See [`docs/capacity-benchmarking.md`](../docs/capacity-benchmarking.md) for the
+evidence model, safeguards and interpretation limits.
+
 Operational scripts live under this directory and are grouped by responsibility.
 Application code, service runtime code, and E2E test implementation stay in their
 own project directories.

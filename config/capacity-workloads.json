@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "profiles": {
+    "idle": {"kind": "idle", "durationSeconds": 60, "concurrency": 0, "iterations": 0},
+    "single-user": {"kind": "browser", "durationSeconds": 0, "concurrency": 1, "iterations": 1},
+    "concurrent-5": {"kind": "browser", "durationSeconds": 0, "concurrency": 5, "iterations": 1},
+    "concurrent-10": {"kind": "browser", "durationSeconds": 0, "concurrency": 10, "iterations": 1},
+    "concurrent-25": {"kind": "browser", "durationSeconds": 0, "concurrency": 25, "iterations": 1},
+    "concurrent-50": {"kind": "browser", "durationSeconds": 0, "concurrency": 50, "iterations": 1, "requiresHighConcurrencyApproval": true},
+    "concurrent-100": {"kind": "browser", "durationSeconds": 0, "concurrency": 100, "iterations": 1, "requiresHighConcurrencyApproval": true}
+  }
+}

@@ -26,8 +26,8 @@ def enforce_e2e_target(service_url: str, status: dict) -> None:
     active_environment = str(status.get("activeEnvironment", "")).lower()
     if "prod" in active_environment or "production" in active_environment:
         raise RuntimeError(f"Refusing production environment: {status.get('activeEnvironment')}")
-    if "e2e" not in active_environment:
-        raise RuntimeError(f"Refusing non-e2e environment: {status.get('activeEnvironment')}")
+    if "e2e" not in active_environment and active_environment != "test":
+        raise RuntimeError(f"Refusing non-e2e/test environment: {status.get('activeEnvironment')}")
     if status.get("environmentManagementEnabled") is not True:
         raise RuntimeError("Refusing because environment management is not enabled")
 
@@ -37,7 +37,7 @@ def main() -> int:
     parser.add_argument("--service-url", default="http://localhost:9103")
     parser.add_argument("--scenario", default="DEMO_READY", choices=["DEMO_READY"])
     parser.add_argument("--dataset-id", default="uk-software-developer-demo")
-    parser.add_argument("--dataset-version", default="1.0.0")
+    parser.add_argument("--dataset-version", default="1.1.0")
     parser.add_argument("--reference-date", default="2026-07-10T09:00:00Z")
     parser.add_argument("--yes", action="store_true")
     args = parser.parse_args()

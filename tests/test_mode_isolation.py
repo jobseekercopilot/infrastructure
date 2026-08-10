@@ -166,6 +166,54 @@ class RenderedModeIsolationTests(unittest.TestCase):
     def model(self, profile: str) -> dict:
         return copy.deepcopy(self.models[profile])
 
+    def test_e2e_rate_limits_support_repeatable_shared_peer_regression_runs(
+        self,
+    ) -> None:
+        local_services = self.model("local")["services"]
+        e2e_services = self.model("e2e")["services"]
+
+        self.assertNotIn(
+            "GATEWAY_AUTH_RATE_MAXIMUM",
+            local_services["user-management-gateway"]["environment"],
+        )
+        self.assertEqual(
+            "100",
+            e2e_services["user-management-gateway"]["environment"][
+                "GATEWAY_AUTH_RATE_MAXIMUM"
+            ],
+        )
+
+    def test_e2e_fixture_gateways_are_loopback_reachable_for_preflight(self) -> None:
+        local_services = self.model("local")["services"]
+        e2e_services = self.model("e2e")["services"]
+        fixture_gateways = (
+            "adzuna-gateway",
+            "jsearch-gateway",
+            "nhs-jobs-gateway",
+            "apprenticeships-gateway",
+            "reed-gateway",
+            "postcode-io-gateway",
+            "llm-gateway",
+            "stripe-gateway",
+        )
+
+        for gateway in fixture_gateways:
+            with self.subTest(gateway=gateway):
+                self.assertNotIn("host-access", local_services[gateway]["networks"])
+                self.assertIn("host-access", e2e_services[gateway]["networks"])
+        self.assertEqual(
+            "5",
+            local_services["job-seeker-copilot-client"]["environment"][
+                "BFF_PASSWORD_RESET_RATE_MAXIMUM"
+            ],
+        )
+        self.assertEqual(
+            "100",
+            e2e_services["job-seeker-copilot-client"]["environment"][
+                "BFF_PASSWORD_RESET_RATE_MAXIMUM"
+            ],
+        )
+
     def test_all_seven_rendered_modes_pass_the_policy(self) -> None:
         for profile, model in self.models.items():
             validate_model(model, profile)
@@ -518,6 +566,14 @@ class RenderedModeIsolationTests(unittest.TestCase):
                         "job-seeker-copilot-client",
                         "authentication-service",
                         "system-data-service",
+                        "adzuna-gateway",
+                        "jsearch-gateway",
+                        "nhs-jobs-gateway",
+                        "apprenticeships-gateway",
+                        "reed-gateway",
+                        "postcode-io-gateway",
+                        "llm-gateway",
+                        "stripe-gateway",
                     }
                 )
                 self.assertEqual(
