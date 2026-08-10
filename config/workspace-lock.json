@@ -13,16 +13,16 @@
     {"name": "reed-gateway", "branch": "develop", "revision": "092a293aeea3e266aad84f6c99844944095dbe2b"},
     {"name": "adzuna-gateway", "branch": "develop", "revision": "d57fb6c37c343a8d0bb93ca8f5606978c0fb88a4"},
     {"name": "jsearch-gateway", "branch": "develop", "revision": "8bacb31766de5996bab6ba5f1f7548bf2be7329b"},
-    {"name": "nhs-jobs-gateway", "branch": "develop", "revision": "e9b825cd25701725888fbe50fa0755f3ac041fd3"},
+    {"name": "nhs-jobs-gateway", "branch": "develop", "revision": "e65efa0dc73c5d58403a3cef27ba586563e512a7"},
     {"name": "apprenticeships-gateway", "branch": "develop", "revision": "73daae862189f279fb130f7aec9f326ad20e0a69"},
     {"name": "system-data-service", "branch": "develop", "revision": "bf2a1d2df0d9b09a1d99af20f71738633fe6afc8"},
-    {"name": "job-service", "branch": "develop", "revision": "e45f0a268e0efe485911005afe33d0c65fef9837"},
+    {"name": "job-service", "branch": "develop", "revision": "8daa37e62ed76f2423d73f21ec8fe505ed86f6ae"},
     {"name": "job-matching-service", "branch": "develop", "revision": "47826c19a744233a02e0d26e2c9b779d771de06a"},
-    {"name": "job-finder-gateway", "branch": "develop", "revision": "42dee6bde6c363cbd9e9018898f6069c0b506a53"},
+    {"name": "job-finder-gateway", "branch": "develop", "revision": "40767ce9e06c30e319c7faf02ac4c7821f98e9a2"},
     {"name": "llm-gateway", "branch": "develop", "revision": "f4f7e90a10da86b08071ea736fbacb4a5d52977b"},
     {"name": "document-store-service", "branch": "develop", "revision": "fa202573b5a60dc47875c4c663bb91d33b89187f"},
     {"name": "document-export-service", "branch": "develop", "revision": "8dd4946406800e7346efe2df0589c3ee306f4ad1"},
-    {"name": "application-tracker-service", "branch": "develop", "revision": "5f1320f1bbde33a3ae3c7c330db345924398e419"},
+    {"name": "application-tracker-service", "branch": "develop", "revision": "339ef3c7d52d17089ba670cfd16a8104c9e5b028"},
     {"name": "cv-cover-letter-service", "branch": "develop", "revision": "d5e98c1080c80ea5c83776e61f13e9c901c8fd49"},
     {"name": "document-generation-gateway", "branch": "develop", "revision": "44a10064caba61c833be1e7c0639bf882cc1b6c1"},
     {"name": "reporting-service", "branch": "develop", "revision": "835f507cb02ea55d5c4680d8faea869cbd11a7f3"},
@@ -30,7 +30,7 @@
     {"name": "payment-service", "branch": "develop", "revision": "0dedb519f2f51de1f6c4c0f71d4e950e53297345"},
     {"name": "stripe-gateway", "branch": "develop", "revision": "d9aa6b338d21c6beee6e097a3c72a783cc295b7c"},
     {"name": "payment-gateway", "branch": "develop", "revision": "8d49a6477c302d9700758c52de9e85cb192a0580"},
-    {"name": "job-seeker-copilot-client", "branch": "develop", "revision": "7c8d913ab07eac251af98e9542fe3e8fdfab542e"},
-    {"name": "e2e", "branch": "develop", "revision": "4acb6450023a4dd7ed829e84eec85feef75ce335"}
+    {"name": "job-seeker-copilot-client", "branch": "develop", "revision": "f04429e746652cb4794518bd6dbf53e100aa8571"},
+    {"name": "e2e", "branch": "develop", "revision": "c751383d9e63e7b3ae164a0e6dc3c036b2254146"}
   ]
 }
