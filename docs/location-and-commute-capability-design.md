@@ -1,13 +1,17 @@
 # Features 34 and 35: Location and commute capability design
 
-Status: **Proposed — implementation requires explicit approval**  
+Status: **Accepted design; core controlled-beta implementation merged**
 Prepared: 9 August 2026  
 Features: `document-generation-gateway#34`, `document-generation-gateway#35`  
 Parent: `[Epic] Expand the Job Seeker Copilot Private Beta`
 
-This report is research and design only. It does not authorise application code,
-contract, schema, infrastructure, credential, matching-behaviour, or deployment
-changes.
+This report preserves the decision record and original implementation plan.
+The core `location-service`, `google-maps-gateway`, v2 browser flow, profile
+fields and advisory commute path were subsequently merged to `develop` and
+composed by Infrastructure. Sections written in future tense describe the
+design-stage proposal, not current absence. Current operational truth is in
+`docs/GOOGLE_MAPS_ACTIVATION.md` and the Pages location journey. Google remains
+disabled by default and production approval remains separate.
 
 ## Executive conclusion
 

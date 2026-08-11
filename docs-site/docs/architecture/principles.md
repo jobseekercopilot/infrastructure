@@ -9,7 +9,7 @@ These are conventions demonstrated by `develop`, not aspirational rules.
 - Provider gateways isolate external authentication, protocol mapping, rate/error translation, and fixture/live mode.
 - The Express BFF is the same-origin browser boundary. It is not a general service mesh and exposes an explicit allowlist.
 
-The split is not completely uniform. Location Gateway directly contains validation, caching, rate limiting, and resilience that might otherwise sit in a domain service. `location-service` is not yet implemented on `develop`.
+The split is not completely uniform. Location Gateway retains validation, caller rate limiting, and compatibility routes, while Location Service owns v2 provider selection, canonical resolution and commute orchestration. Google credentials and provider DTOs remain isolated in Google Maps Gateway.
 
 ## Ownership derived from trusted identity
 

@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Job Seeker Copilot — Technical Portfolio</title>
+  <link rel="stylesheet" href="portfolio.css">
+</head>
+<body>
+  <section class="page dark">
+    <div class="eyebrow">Technical portfolio · August 2026</div>
+    <div class="cover-title">
+      <h1>Job Seeker<br>Copilot</h1>
+      <p class="cover-subtitle">Engineering a multi-service job-search and application platform</p>
+    </div>
+    <div class="cover-meta"><span>Bernard McGeever</span><span>Software Developer</span><span>Controlled private beta</span></div>
+    <img class="cover-shot" src="assets/screenshots/dashboard-live.png" alt="Job Seeker Copilot real-provider search dashboard, with personal identity cropped out">
+    <p class="small" style="margin-top:5mm;color:#c5d4ef;max-width:165mm">An evidence-backed product dossier for recruiters, engineering teams and potential partners. Private source access and deeper technical evidence can be provided on request.</p>
+    <div class="footer"><span>Job Seeker Copilot · Technical Portfolio</span><span>01</span></div>
+  </section>
+
+  <section class="page tint">
+    <div class="eyebrow">How to read this dossier</div>
+    <h2>Product first. Engineering evidence underneath.</h2>
+    <p class="lede">The first pages explain the product in plain language. Later pages show how its contracts, state owners, provider boundaries, recovery controls and tests make it more than a user-interface prototype.</p>
+    <div class="toc">
+      <div class="toc-item"><span class="toc-num">03</span><span class="toc-title">Executive overview</span></div>
+      <div class="toc-item"><span class="toc-num">04</span><span class="toc-title">What I built</span></div>
+      <div class="toc-item"><span class="toc-num">05</span><span class="toc-title">Product journey</span></div>
+      <div class="toc-item"><span class="toc-num">06</span><span class="toc-title">System architecture</span></div>
+      <div class="toc-item"><span class="toc-num">07</span><span class="toc-title">Backend design</span></div>
+      <div class="toc-item"><span class="toc-num">08</span><span class="toc-title">Providers and location</span></div>
+      <div class="toc-item"><span class="toc-num">09</span><span class="toc-title">Engineering around an LLM</span></div>
+      <div class="toc-item"><span class="toc-num">10</span><span class="toc-title">Document evidence</span></div>
+      <div class="toc-item"><span class="toc-num">11</span><span class="toc-title">Applications and reporting</span></div>
+      <div class="toc-item"><span class="toc-num">12</span><span class="toc-title">Reliability and testing</span></div>
+      <div class="toc-item"><span class="toc-num">13</span><span class="toc-title">Runnable environments</span></div>
+      <div class="toc-item"><span class="toc-num">14</span><span class="toc-title">Integrity, privacy and safety</span></div>
+      <div class="toc-item"><span class="toc-num">15</span><span class="toc-title">Challenges and lessons</span></div>
+      <div class="toc-item"><span class="toc-num">16</span><span class="toc-title">Status and professional evidence</span></div>
+    </div>
+    <div class="grid-3" style="margin-top:9mm">
+      <div class="stat"><span class="value">28</span><span class="label">healthy application services in the verified manual runtime</span></div>
+      <div class="stat"><span class="value">32/32</span><span class="label">authoritative regression scenarios passed in the closure evidence</span></div>
+      <div class="stat"><span class="value">25</span><span class="label">concurrent active fixture sessions completed; 15 is the cautious operating point</span></div>
+    </div>
+    <div class="privacy-note" style="margin-top:8mm"><strong>Evidence boundary.</strong> Screenshots are privacy-reviewed crops from the working local product. Live-provider labels mean real external responses; they do not imply provider uptime, public production deployment or measured employment outcomes.</div>
+    <div class="footer"><span>Contents and evidence boundary</span><span>02</span></div>
+  </section>
+
+  <section class="page">
+    <div class="eyebrow">Executive overview</div>
+    <h2>One workspace for the fragmented work of finding a job</h2>
+    <div class="header-rule"></div>
+    <div class="split-60">
+      <div>
+        <p class="lede">Job Seeker Copilot helps a candidate organise evidence, discover vacancies, prepare grounded application documents, track progress and review activity without repeatedly rebuilding the same context.</p>
+        <div class="quote">The product goal is not “AI writes a CV”. It is a traceable workflow from verified career evidence and a real vacancy to an application-specific document set.</div>
+        <p>The current software is a <strong>controlled private beta</strong>. Its normal local environment can use live Reed, Adzuna, JSearch, NHS Jobs, Find an apprenticeship, Postcodes.io, Google Maps and OpenAI paths. The default engineering environment remains deterministic, and live Stripe checkout is not enabled.</p>
+        <p>Bernard conceived the product, set its architecture and product direction, coordinated a multi-repository implementation, integrated the service boundaries, ran realistic acceptance work and repeatedly debugged failures exposed by real-user journeys.</p>
+      </div>
+      <div>
+        <div class="card blue"><h3>Problem</h3><p>Job search information is scattered across boards, CV files, notes and application trackers. Generic AI output can introduce unsupported claims.</p></div>
+        <div class="card purple" style="margin-top:4mm"><h3>Product response</h3><p>Structured candidate evidence, provider-normalised vacancies, durable workflows, exact document versions and application tracking in one authenticated interface.</p></div>
+        <div class="card green" style="margin-top:4mm"><h3>Engineering response</h3><p>Domain-aligned services, producer-owned contracts, deterministic provider modes, fail-closed validation and recovery designed around unreliable external systems.</p></div>
+      </div>
+    </div>
+    <div class="grid-4" style="margin-top:7mm">
+      <div class="stat"><span class="value">31</span><span class="label">workspace repositories audited: runtime/test catalogue, infrastructure and landing</span></div>
+      <div class="stat"><span class="value">7</span><span class="label">independent PostgreSQL state owners</span></div>
+      <div class="stat"><span class="value">5</span><span class="label">current job-provider integrations</span></div>
+      <div class="stat"><span class="value">4</span><span class="label">document outputs per approved CV/letter pair: DOCX + PDF</span></div>
+    </div>
+    <div class="footer"><span>Executive overview</span><span>03</span></div>
+  </section>
+
+  <section class="page tint">
+    <div class="eyebrow">What I built</div>
+    <h2>Full-stack delivery, integration and product ownership</h2>
+    <div class="grid-2">
+      <div class="card"><h3>Candidate experience</h3><ul class="ticks"><li>Angular/TypeScript authenticated workspace</li><li>Progressive profile and reusable Evidence Library</li><li>Live/fixture job discovery with explicit source state</li><li>Applications, documents, version history and reporting</li><li>Accessible states for loading, absence and provider failure</li></ul></div>
+      <div class="card"><h3>Java/Spring platform</h3><ul class="ticks"><li>Gateway and domain-service boundaries</li><li>REST/OpenAPI contracts and generated clients</li><li>PostgreSQL/Flyway state ownership</li><li>Idempotent multi-service workflows</li><li>External provider mapping, timeouts and degradation</li></ul></div>
+      <div class="card"><h3>AI document engineering</h3><ul class="ticks"><li>Purpose-bound evidence snapshots</li><li>Versioned prompts and strict output schemas</li><li>Claim ledger, structural repair and grounding</li><li>Unknown-outcome reconciliation and bounded retry</li><li>Deterministic evidence-based CV fallback</li></ul></div>
+      <div class="card"><h3>Delivery system</h3><ul class="ticks"><li>Docker Compose profiles and persistent volumes</li><li>GitHub branch/PR/CI delivery across repositories</li><li>Playwright/Cucumber E2E and promo automation</li><li>Capacity, cost and AWS decision evidence</li><li>Central documentation and reproducible contracts</li></ul></div>
+    </div>
+    <div class="quote">The professional evidence is the ability to design, direct, integrate, test, debug and evolve a substantial product—not a claim that every line was typed without modern engineering assistance.</div>
+    <div class="card soft">
+      <h3>How the work was approached</h3>
+      <p>Work was broken into explicit features and service-owned changes, reviewed through source, contracts and running behaviour, then reconciled through integration branches. Realistic manual use exposed defects that synthetic journeys missed; those failures were treated as evidence to improve the design rather than hidden from the narrative.</p>
+    </div>
+    <div class="footer"><span>Bernard's contribution</span><span>04</span></div>
+  </section>
+
+  <section class="page">
+    <div class="eyebrow">Product journey</div>
+    <h2>From a reusable profile to a traceable application</h2>
+    <img class="diagram" src="assets/diagrams/user-journey.svg" alt="Eight-step Job Seeker Copilot user journey">
+    <div class="grid-2" style="margin-top:4mm">
+      <div class="shot-frame"><img class="screenshot" src="assets/screenshots/job-search-live.png" alt="Real-provider vacancy search results"><p class="caption"><strong>Discover.</strong> A real-provider search returned 188 current results for the selected role. Provider source and saved/document state remain visible.</p></div>
+      <div class="shot-frame"><img class="screenshot" src="assets/screenshots/applications-live.png" alt="Tracked applications and document milestones"><p class="caption"><strong>Track.</strong> Applications preserve vacancy identity, lifecycle milestones, evidence choices and the exact prepared document state.</p></div>
+    </div>
+    <div class="card green" style="margin-top:5mm"><h3>What makes the journey connected</h3><p>Search does not create a hidden application. A job is explicitly saved, generation uses the saved immutable snapshot, the user approves exact drafts, and Application Tracker records exact document references. Document history can evolve without silently changing what an application used.</p></div>
+    <div class="footer"><span>Connected candidate journey</span><span>05</span></div>
+  </section>
+
+  <section class="page tint">
+    <div class="eyebrow">System architecture</div>
+    <h2>Decomposed by ownership, not by repository count</h2>
+    <img class="diagram" src="assets/diagrams/system-architecture.svg" alt="High-level multi-service architecture">
+    <div class="grid-3">
+      <div class="card soft"><h3>Why gateways?</h3><p class="small">Browser gateways constrain routes and identity. Provider gateways isolate external credentials, DTOs and failure translation.</p></div>
+      <div class="card soft"><h3>Why separate state?</h3><p class="small">Each persistent domain owns its PostgreSQL schema. Cross-service workflows use operation records and idempotency rather than shared tables.</p></div>
+      <div class="card soft"><h3>Why fixtures?</h3><p class="small">The same boundaries can run with governed System Data responses, keeping CI repeatable and preventing accidental spend.</p></div>
+    </div>
+    <div class="footer"><span>Verified high-level architecture</span><span>06</span></div>
+  </section>
+
+  <section class="page">
+    <div class="eyebrow">Backend and microservice design</div>
+    <h2>Representative services and their decisions</h2>
+    <div class="grid-2">
+      <div class="card blue"><h3>Job Service</h3><p>Bounds provider fan-out, maps adverts into a canonical model, retains field/source provenance, deduplicates related adverts and persists only explicit saved-job snapshots.</p></div>
+      <div class="card blue"><h3>User Profile Service</h3><p>Owns subject-scoped career data, search preferences, revisioned evidence and purpose-bound immutable snapshots used by generation.</p></div>
+      <div class="card purple"><h3>Document Generation Gateway</h3><p>Coordinates saved-job resolution, evidence snapshots, AI-credit reservation, drafts, approval, export and Tracker linkage through a durable PostgreSQL operation ledger.</p></div>
+      <div class="card purple"><h3>Document Store</h3><p>Owns families, immutable versions, current/approved pointers, lineage, file metadata and bytes. Local uploads cross an isolated ClamAV scan boundary.</p></div>
+      <div class="card green"><h3>Application Tracker</h3><p>Owns lifecycle and immutable events. It independently verifies document ownership and commits exact version references atomically.</p></div>
+      <div class="card green"><h3>Reporting</h3><p>Builds read-only summaries, recent activity, an indicative time estimate and an evidence export from owner-scoped upstream data.</p></div>
+    </div>
+    <h3 style="margin-top:7mm">Contract discipline</h3>
+    <div class="flow-mini"><div>Producer OpenAPI</div><span>→</span><div>reviewed revision + checksum</div><span>→</span><div>generated client</div><span>→</span><div>semantic/compatibility gates</div></div>
+    <p class="muted">Repositories build without copied local client JARs. Consumers pin reviewed producer revisions; generated output remains disposable build material.</p>
+    <div class="card amber" style="margin-top:5mm"><strong>Deliberate honesty:</strong> “Job Matching” currently means reconciliation with existing application state plus advisory commute metadata. It does not calculate a candidate-skill suitability score.</div>
+    <div class="footer"><span>Representative service decisions</span><span>07</span></div>
+  </section>
+
+  <section class="page tint provider-page">
+    <div class="eyebrow">External integrations</div>
+    <h2>Live boundaries are explicit—and optional</h2>
+    <div style="margin-bottom:4mm"><span class="pill live">LIVE / REAL PROVIDER</span><span class="pill fixture">FIXTURE / DETERMINISTIC</span><span class="pill disabled">DISABLED / NOT EXPOSED</span></div>
+    <table class="status-table">
+      <thead><tr><th>Boundary</th><th>Purpose</th><th>Current controlled-beta state</th></tr></thead>
+      <tbody>
+        <tr><td>Reed, Adzuna, JSearch</td><td>General vacancy discovery</td><td><span class="dot"></span>Bounded live samples; fixture default</td></tr>
+        <tr><td>NHS Jobs</td><td>Official health-sector vacancies</td><td><span class="dot"></span>Live XML path; deterministic in-service fixture</td></tr>
+        <tr><td>Find an apprenticeship</td><td>DfE vacancies and training detail</td><td><span class="dot"></span>Authenticated live snapshot; fixture default</td></tr>
+        <tr><td>Postcodes.io</td><td>Persistable UK postcode/place authority</td><td><span class="dot"></span>Public live API supported; fixture default</td></tr>
+        <tr><td>Google Places / Routes</td><td>Autocomplete and advisory commute</td><td><span class="dot"></span>Explicit live profile; five-result browser proof</td></tr>
+        <tr><td>OpenAI</td><td>Typed CV/cover-letter generation</td><td><span class="dot"></span>Explicit paid profile; deterministic default</td></tr>
+        <tr><td>Stripe</td><td>Checkout and signed webhook</td><td><span class="dot amber"></span>Backend fixture; browser checkout disabled</td></tr>
+      </tbody>
+    </table>
+    <div class="split-60" style="margin-top:7mm">
+      <div>
+        <div class="shot-frame"><img class="screenshot" src="assets/screenshots/google-location-live.png" alt="Google-attributed live location suggestions"><p class="caption">A normal UI request returned five suggestions with required Google Maps attribution. The search text was not saved.</p></div>
+      </div>
+      <div>
+        <h3>Location ownership</h3>
+        <ul class="ticks"><li>Browser calls the same-origin BFF.</li><li>Location Gateway owns the public contract.</li><li>Location Service owns provider selection and canonical rules.</li><li>Google Maps Gateway alone receives the key and provider DTOs.</li><li>Postcodes.io provides persistable UK canonical fields.</li><li>Route estimates remain transient and advisory.</li></ul>
+      </div>
+    </div>
+    <div class="footer"><span>Provider and location boundaries</span><span>08</span></div>
+  </section>
+
+  <section class="page">
+    <div class="eyebrow">AI document generation</div>
+    <h2>Engineering around an unreliable model</h2>
+    <img class="diagram" src="assets/diagrams/document-generation.svg" alt="Evidence-grounded generation and recovery flow">
+    <div class="grid-3">
+      <div class="card soft"><h3>Untrusted output</h3><p class="small">The model response is parsed against a strict schema, bounded, repaired only for harmless structure, and checked again against approved fact IDs.</p></div>
+      <div class="card soft"><h3>Safe recovery</h3><p class="small">Retry is bounded to classified safe failures. Unknown outcomes are reconciled before another paid call. Retained responses can be replayed without calling the model again.</p></div>
+      <div class="card soft"><h3>Fail useful</h3><p class="small">When acceptable model CV content cannot be obtained, an evidence-based deterministic CV can complete the workflow without invented qualifications or metrics.</p></div>
+    </div>
+    <div class="footer"><span>Evidence-grounded AI design</span><span>09</span></div>
+  </section>
+
+  <section class="page tint">
+    <div class="eyebrow">Document workflow evidence</div>
+    <h2>Generation is a stateful product operation</h2>
+    <div class="split-60">
+      <div class="shot-frame"><img class="screenshot" src="assets/screenshots/generated-documents-live.png" alt="Successful CV and cover-letter generation with DOCX and PDF downloads"><p class="caption">Real vacancy, real provider path and successful CV/cover-letter operation. Four retained download choices are presented only after the exact drafts complete.</p></div>
+      <div>
+        <div class="card green"><h3>Demonstrated here</h3><ul class="ticks"><li>Saved provider vacancy</li><li>Selected candidate evidence</li><li>CV and cover letter prepared</li><li>DOCX and PDF available</li><li>Application state updated</li></ul></div>
+        <div class="card amber" style="margin-top:4mm"><h3>Not silently claimed</h3><p class="small">A green result does not prove every future model call will succeed. The engineering claim is that failures are bounded, diagnosable and recoverable without inventing content or double-charging the wallet.</p></div>
+      </div>
+    </div>
+    <h3 style="margin-top:7mm">Version and lineage model</h3>
+    <div class="flow-mini"><div>Original/source evidence</div><span>→</span><div>immutable evidence snapshot</div><span>→</span><div>draft document version</div><span>→</span><div>approved/current pointer</div><span>→</span><div>exact application reference</div></div>
+    <p>Document families group history; versions remain immutable. Changing the family’s current version does not rewrite a submitted application’s frozen selection.</p>
+    <div class="grid-3" style="margin-top:5mm">
+      <div class="stat"><span class="value">17</span><span class="label">bounded live OpenAI calls in the closure quality/cost sample</span></div>
+      <div class="stat"><span class="value">$0.069</span><span class="label">observed OpenAI cost for that sample—not a usage forecast</span></div>
+      <div class="stat"><span class="value">0</span><span class="label">live Stripe charges in the validated environment</span></div>
+    </div>
+    <div class="footer"><span>Document-generation evidence</span><span>10</span></div>
+  </section>
+
+  <section class="page state-page">
+    <div class="eyebrow">Applications, documents and reporting</div>
+    <h2>State remains visible after generation</h2>
+    <div class="grid-2">
+      <div class="shot-frame"><img class="screenshot" src="assets/screenshots/documents-live.png" alt="Document family and version workspace"><p class="caption"><strong>Documents.</strong> CV and cover-letter families expose type, retained-version count, source, job scope, association state and current selection.</p></div>
+      <div class="shot-frame"><img class="screenshot" src="assets/screenshots/reporting-live.png" alt="Reporting summary and recent activity"><p class="caption"><strong>Reporting.</strong> Application totals, recent content-free activity and an explicitly indicative time estimate are projected from service-owned data.</p></div>
+    </div>
+    <div class="grid-3" style="margin-top:6mm">
+      <div class="card"><h3>Application truth</h3><p class="small">Tracker owns status, immutable events and exact document references.</p></div>
+      <div class="card"><h3>Document truth</h3><p class="small">Store owns families, versions, files, lifecycle and lineage.</p></div>
+      <div class="card"><h3>Reporting truth</h3><p class="small">Reporting reads owner-scoped APIs and never decides or mutates domain state.</p></div>
+    </div>
+    <div class="card blue" style="margin-top:6mm"><strong>Product discipline:</strong> a “recommended” document does not save itself. The candidate selects or explicitly omits the exact version for each application slot.</div>
+    <div class="footer"><span>Persistent product state</span><span>11</span></div>
+  </section>
+
+  <section class="page tint">
+    <div class="eyebrow">Reliability and testing</div>
+    <h2>Confidence is layered—and bounded</h2>
+    <div class="grid-3">
+      <div class="card blue"><h3>Fast feedback</h3><p class="small">Unit/component tests, parser/policy tests, frontend specs, migration tests and generated-client checks.</p></div>
+      <div class="card purple"><h3>Boundary confidence</h3><p class="small">Producer contracts, semantic compatibility, HTTP integration, PostgreSQL persistence and container verification.</p></div>
+      <div class="card green"><h3>Product confidence</h3><p class="small">Cucumber/Playwright journeys, accessibility automation, real-provider samples, manual acceptance and capacity workloads.</p></div>
+    </div>
+    <div class="grid-4" style="margin-top:8mm">
+      <div class="stat"><span class="value">32</span><span class="label">regression scenarios</span></div>
+      <div class="stat"><span class="value">244</span><span class="label">passed journey steps</span></div>
+      <div class="stat"><span class="value">7</span><span class="label">canonical personas covered</span></div>
+      <div class="stat"><span class="value">26</span><span class="label">steps in the connected promo journey</span></div>
+    </div>
+    <h3 style="margin-top:8mm">Realistic testing changed the product</h3>
+    <div class="challenge"><span class="num">1</span><div><p><strong>Document/application association.</strong></p><p class="small muted">A completed generation was not enough; exact retained versions also had to become visible and selectable on the correct application.</p></div></div>
+    <div class="challenge"><span class="num">2</span><div><p><strong>LLM duplicate and timeout behaviour.</strong></p><p class="small muted">Fail-closed validation evolved into narrow structural repair, bounded retry, outcome reconciliation, quarantine replay and fallback.</p></div></div>
+    <div class="challenge"><span class="num">3</span><div><p><strong>Rich real profiles.</strong></p><p class="small muted">Real career structure exposed selection and formatting assumptions that compact deterministic profiles did not.</p></div></div>
+    <div class="challenge"><span class="num">4</span><div><p><strong>Provider detail inconsistency.</strong></p><p class="small muted">Canonicalisation and source attribution matter because provider IDs, dates, descriptions and locations vary.</p></div></div>
+    <div class="card amber" style="margin-top:5mm"><strong>What the numbers do not prove:</strong> universal provider uptime, a complete manual accessibility audit, public production security, employment outcomes or 50-user capacity.</div>
+    <div class="footer"><span>Testing and bounded confidence</span><span>12</span></div>
+  </section>
+
+  <section class="page">
+    <div class="eyebrow">Environment architecture</div>
+    <h2>Runnable software, not a collection of repositories</h2>
+    <div class="split-60">
+      <div>
+        <h3>Supported Compose profiles</h3>
+        <table class="status-table">
+          <tr><td><strong>basic-fixture</strong></td><td>Account, profile, location and job search</td></tr>
+          <tr><td><strong>full-fixture</strong></td><td>Complete deterministic application</td></tr>
+          <tr><td><strong>full-local-ses</strong></td><td>Fixture app + production email adapter against LocalStack</td></tr>
+          <tr><td><strong>google-maps-smoke</strong></td><td>Only Google live; other providers fixture-backed</td></tr>
+          <tr><td><strong>real-job-providers</strong></td><td>Five live job sources + Postcodes.io; fixture LLM/Stripe</td></tr>
+          <tr><td><strong>real-providers</strong></td><td>Live jobs, Postcodes.io, Google and OpenAI; fixture Stripe</td></tr>
+        </table>
+        <div class="card green" style="margin-top:6mm"><h3>Current evidence</h3><p>The supported `real-providers` lifecycle reported 28 healthy application services. Persistent PostgreSQL and document volumes survived ordinary restarts; personal data and credentials remain outside Git.</p></div>
+      </div>
+      <div>
+        <div class="card soft"><h3>Reproducibility controls</h3><ul class="ticks"><li>Single service/dependency/port catalogue</li><li>Reviewed workspace revision lock</li><li>Generated owner-only runtime environments</li><li>Explicit live-provider overlays</li><li>Health and mode verification before use</li><li>Workspace-local build caches</li></ul></div>
+        <div class="card blue" style="margin-top:4mm"><h3>Capacity evidence</h3><p class="small">Fixture-backed 1/5/10/15/20/25 active-browser ladders completed. At 25, p95 reached 59.45 seconds, so the documented cautious local operating point is 15—not a public capacity promise.</p></div>
+      </div>
+    </div>
+    <h3 style="margin-top:8mm">AWS status</h3>
+    <p>Deployment shapes and costs were modelled from local resource evidence, but the authenticated application has <strong>not</strong> been load-tested or deployed on AWS. The separate landing/waitlist stack uses AWS services and has its own launch gates.</p>
+    <div class="footer"><span>Local runtime and deployment boundary</span><span>13</span></div>
+  </section>
+
+  <section class="page tint">
+    <div class="eyebrow">Data integrity, privacy and safety</div>
+    <h2>Controls follow the data—not a compliance slogan</h2>
+    <div class="grid-2">
+      <div class="card"><h3>Trusted identity</h3><p>Browser tokens remain in HttpOnly cookies. BFF route allowlists and CSRF checks constrain browser actions; service owners derive identity from validated subjects and dedicated service tokens.</p></div>
+      <div class="card"><h3>Immutable lineage</h3><p>Evidence revisions, saved-job snapshots, claims, document versions and application selections carry stable IDs/digests so later edits do not rewrite history.</p></div>
+      <div class="card"><h3>Secret and personal-data boundary</h3><p>Provider credentials are runtime-only. Real candidate data, CVs, cookies and passwords are excluded from fixtures, logs, screenshots and Git history.</p></div>
+      <div class="card"><h3>Untrusted content</h3><p>Provider text renders as text, external links pass an allowlist, uploads are bounded and scanned, and model output must satisfy schema and evidence policy.</p></div>
+      <div class="card"><h3>Wallet safety</h3><p>Reservations, stable operation keys, idempotent commit/release and unknown-outcome checks prevent an ordinary retry becoming a second charge.</p></div>
+      <div class="card"><h3>Provider minimisation</h3><p>Google DTOs and keys stay in one gateway; location labels/routes remain transient and attributed. Postcodes.io supplies persistable UK fields.</p></div>
+    </div>
+    <div class="privacy-note" style="margin-top:7mm"><strong>Scope boundary.</strong> These are implemented design controls, not a claim of certification, complete penetration testing, formal regulatory compliance or production-grade operational security.</div>
+    <h3 style="margin-top:8mm">Shareable-asset review</h3>
+    <ul class="ticks"><li>No API keys, tokens, cookies, passwords or private environment values.</li><li>No real CV, personal email address or phone number embedded in this dossier.</li><li>Application screenshots exclude account identity/contact information.</li><li>Private repositories are described, not linked as if publicly accessible.</li></ul>
+    <div class="footer"><span>Integrity, privacy and safety</span><span>14</span></div>
+  </section>
+
+  <section class="page">
+    <div class="eyebrow">Engineering challenges and lessons</div>
+    <h2>Failures became architecture</h2>
+    <div class="challenge"><span class="num">1</span><div><p><strong>LLM output could be fluent and still structurally or factually wrong.</strong></p><p class="small muted">The response: strict typed output, a claim ledger, exact evidence paths, narrow repair, fail-closed grounding, retained-response replay and deterministic CV fallback.</p></div></div>
+    <div class="challenge"><span class="num">2</span><div><p><strong>Multiple job sources describe the same opportunity differently.</strong></p><p class="small muted">The response: provider adapters, canonical source references, field provenance, URL/content deduplication and partial-provider status instead of a false all-or-nothing success.</p></div></div>
+    <div class="challenge"><span class="num">3</span><div><p><strong>A generated file is not the same as an application decision.</strong></p><p class="small muted">The response: immutable families/versions, explicit approval/current pointers and exact application selections owned by separate services.</p></div></div>
+    <div class="challenge"><span class="num">4</span><div><p><strong>Independent repositories create contract drift risk.</strong></p><p class="small muted">The response: producer-owned OpenAPI, reviewed revision/checksum pins, reproducible generated clients and semantic compatibility gates.</p></div></div>
+    <div class="challenge"><span class="num">5</span><div><p><strong>Deterministic tests overstated confidence in realistic use.</strong></p><p class="small muted">The response: retain canonical personas for repeatability, then add rich-profile, real-provider, paid-LLM and restart-persistence checkpoints with explicit cost authority.</p></div></div>
+    <div class="challenge"><span class="num">6</span><div><p><strong>Persistent manual state and fixture state have different needs.</strong></p><p class="small muted">The response: named fixture environments for engineering and a separately protected persistent real-user environment that survives ordinary restarts.</p></div></div>
+    <div class="quote">Mature engineering confidence is not “nothing failed”. It is knowing what failed, why the previous tests missed it, and what design now makes the failure safer.</div>
+    <div class="footer"><span>Engineering judgement</span><span>15</span></div>
+  </section>
+
+  <section class="page dark">
+    <div class="eyebrow">Current status · professional evidence</div>
+    <h2>What is working—and what this project demonstrates</h2>
+    <div class="grid-2">
+      <div class="card" style="color:var(--ink)"><h3>Working / demonstrated</h3><ul class="ticks small"><li>Authenticated profiles and revisioned evidence</li><li>Five-source fixture and bounded live job discovery</li><li>Canonicalisation, dedupe and saved snapshots</li><li>Applications, document lineage and reporting</li><li>Grounded CV/cover-letter generation and export</li><li>Live Google autocomplete; advisory commute path</li><li>Persistent 28-service local manual environment</li></ul></div>
+      <div class="card" style="color:var(--ink)"><h3>Known limits / post-beta</h3><ul class="small"><li>No skill-based suitability score.</li><li>Live Stripe/browser purchasing remains disabled.</li><li>Main application is not deployed or load-tested on AWS.</li><li>Provider/LLM samples do not predict uptime or quality.</li><li>Accessibility automation is not a complete manual audit.</li><li>No measured user, revenue or employment-outcome claim.</li></ul></div>
+    </div>
+    <h3 style="margin-top:7mm;color:white">Technical stack evidenced by source</h3>
+    <div class="stack"><span>Java 17</span><span>Spring Boot</span><span>Angular 21</span><span>TypeScript</span><span>Node / Express</span><span>REST / OpenAPI</span><span>PostgreSQL</span><span>Flyway</span><span>Docker Compose</span><span>Playwright</span><span>Cucumber</span><span>JUnit</span><span>ClamAV</span><span>OpenAI API</span><span>Google Maps Platform</span><span>AWS/SAM preparation</span><span>DOCX/PDF generation</span></div>
+    <h3 style="margin-top:7mm;color:white">Professional capabilities demonstrated</h3>
+    <p class="lede" style="font-size:12pt">Full-stack delivery · Java/Spring engineering · Angular/TypeScript · API and data design · microservice integration · debugging · testing · AI safety/recovery · Docker · Git/GitHub workflows · technical documentation · product ownership</p>
+    <div class="quote">Job-specific CV and cover letter explain suitability for a role. This portfolio is the engineering evidence behind those claims.</div>
+    <p class="small" style="color:#cad7ef">Contact details are provided in the accompanying CV. Demonstration videos include a 204.4-second master showcase and seven feature clips. Private repository access can be arranged on request.</p>
+    <div class="footer"><span>Job Seeker Copilot · Bernard McGeever</span><span>16</span></div>
+  </section>
+</body>
+</html>

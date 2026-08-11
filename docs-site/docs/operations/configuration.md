@@ -59,6 +59,10 @@ Compose supplies internal JDBC URLs/usernames. Direct JVM development can overri
 | `APPRENTICESHIPS_INITIAL_SYNC_DELAY_MS`, `APPRENTICESHIPS_SYNC_DELAY_MS` | Apprenticeships | 1000 and 900000 | Initial and recurring refresh cadence | No |
 | `OPENAI_API_KEY` | LLM Gateway | Forbidden fixture; required by real OpenAI overlay | Model credential | Yes |
 | `GENERATION_MODEL_ID` | LLM Gateway | Fixture model ID in base | Model audit identity | No |
+| `GOOGLE_MAPS_API_KEY` | Google Maps Gateway | Forbidden base fixture; required when Google is enabled | Restricted server-side Places/Routes credential | Yes |
+| `GOOGLE_MAPS_ENABLED` | Location + Google Maps gateways | `false` in base; `true` only in reviewed overlays | Explicit paid-provider switch | No |
+| `GOOGLE_MAPS_CONNECT_TIMEOUT`, `GOOGLE_MAPS_READ_TIMEOUT` | Google Maps Gateway | `500ms`, `4s` defaults; live profile may widen within policy | Bounded provider deadlines | No |
+| `GOOGLE_MAPS_SESSION_TTL`, `GOOGLE_MAPS_MAXIMUM_SESSIONS` | Google Maps Gateway | `10m`, `10000` | Bounded transient billing sessions | No |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Stripe Gateway | Forbidden in standard profiles | Live checkout/webhook authentication | Yes |
 | `STRIPE_SUCCESS_URL`, `STRIPE_CANCEL_URL` | Stripe Gateway | Local `/payment/success|cancel` | Redirect targets | No |
 

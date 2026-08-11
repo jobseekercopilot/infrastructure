@@ -16,6 +16,7 @@
 | 8098 | Payment Gateway | 8099 | Payment Service |
 | 8100 | Stripe Gateway | 8101 | Adzuna Gateway |
 | 8102 | JSearch Gateway | 8103 | System Data Service |
+| 8104 | Location Service (container-internal) | 8105 | Google Maps Gateway |
 | 8114 | NHS Jobs Gateway | 8115 | Apprenticeships Gateway |
 | 9000 | Portainer (optional) | 9999 | Dozzle (optional) |
 
@@ -57,7 +58,8 @@ The principal application network is Docker-internal. The client is the normal h
 | `full-fixture` | Complete composed platform | Fixtures |
 | `full-local-ses` | Full fixture plus production SES adapter against LocalStack | Fixtures + local SES |
 | `real-job-providers` | Full platform with five live job providers | Live job providers; fixture LLM/Stripe |
-| `real-providers` | Live jobs and OpenAI | Live jobs/LLM; fixture Stripe |
+| `google-maps-smoke` | Full fixture platform with one bounded Google validation path | Google Maps live; other providers fixture |
+| `real-providers` | Live jobs, OpenAI and Google Maps | Live jobs/LLM/Google; fixture Stripe |
 
 ## Service discovery and readiness
 

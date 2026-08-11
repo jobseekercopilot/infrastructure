@@ -11,6 +11,7 @@ Reviewed: **11 August 2026**
 | Application tracking | Validated in fixture mode | Supported states and persisted mixed histories are covered. |
 | Reporting | Validated in deterministic scope | Empty, small and rich-history source records reconcile to API totals, buckets and displayed values. |
 | Provider integration | Bounded live validation | Reed, Adzuna, JSearch, NHS and apprenticeship paths were sampled live; bounded evidence does not prove provider reliability. |
+| Google location | Bounded live validation | A five-suggestion Google-attributed autocomplete completed through browser, BFF, Location Gateway, Location Service and Google Maps Gateway on 11 August; this is not a reliability or production-compliance claim. |
 | LLM generation | Validated with bounded limitations | Policy 2.24.0, deterministic suites and the live domain/gateway path cover grounding, rejection, repair, quarantine replay and approved downloads. The 17-call sample is not a reliability forecast. |
 | Payments | Validated in fixture mode | Same-origin session-derived pricing/wallet routes return 200 for authenticated browser sessions and fail closed for invalid sessions. Live Stripe remains separately gated. |
 | Accessibility | Automated regression validated | Both accessibility scenarios and 22 steps pass; this is not a claim of a complete manual accessibility audit. |
@@ -23,6 +24,7 @@ Reviewed: **11 August 2026**
 
 1. Reproduce the workload on the selected AWS deployment shape before making a
    public capacity claim.
-2. Run live Google and Stripe validation only when intentionally configured.
+2. Run live Stripe validation only when intentionally configured; continue to
+   treat Google evidence as bounded integration proof rather than reliability.
 3. Enable the repository's public Pages deployment through its required
    GitHub administration/integration step; the strict local build already passes.
