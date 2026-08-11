@@ -139,13 +139,21 @@ class CatalogTests(unittest.TestCase):
                 "docker-compose.yml",
                 "docker-compose.real-job-providers.yml",
                 "docker-compose.real-openai.yml",
+                "docker-compose.real-google-maps.yml",
                 "docker-compose.low-memory.yml",
             ),
         )
         self.assertEqual(real_openai.compose_parallel_limit, 1)
         self.assertEqual(
             real_openai.secret_providers,
-            ("REED", "ADZUNA", "JSEARCH", "APPRENTICESHIPS", "OPENAI"),
+            (
+                "REED",
+                "ADZUNA",
+                "JSEARCH",
+                "APPRENTICESHIPS",
+                "OPENAI",
+                "GOOGLE",
+            ),
         )
         google_maps = catalog.profile("google-maps-smoke")
         self.assertEqual(google_maps.secret_providers, ("GOOGLE",))
@@ -181,6 +189,8 @@ class CatalogTests(unittest.TestCase):
                 "docker-compose.real-job-providers.yml",
                 "-f",
                 "docker-compose.real-openai.yml",
+                "-f",
+                "docker-compose.real-google-maps.yml",
                 "-f",
                 "docker-compose.low-memory.yml",
                 "ps",
@@ -387,6 +397,9 @@ class CatalogTests(unittest.TestCase):
                 WORKSPACE_ROOT
                 / "infrastructure"
                 / "docker-compose.real-openai.yml",
+                WORKSPACE_ROOT
+                / "infrastructure"
+                / "docker-compose.real-google-maps.yml",
                 WORKSPACE_ROOT
                 / "infrastructure"
                 / "docker-compose.low-memory.yml",

@@ -290,10 +290,13 @@ def validate_real_provider_secret_bindings(model: dict) -> None:
         for name, service in services.items()
         if "provider-egress-network" in service_networks(service)
     }
-    expected_egress = set(REAL_PROVIDER_SECRET_BINDINGS) | {"nhs-jobs-gateway"}
+    expected_egress = set(REAL_PROVIDER_SECRET_BINDINGS) | {
+        "nhs-jobs-gateway",
+        "postcode-io-gateway",
+    }
     if actual_egress != expected_egress:
         raise ValueError(
-            "provider-egress-network must contain only approved job-provider "
+            "provider-egress-network must contain only approved provider "
             "and LLM gateways"
         )
 
@@ -330,8 +333,48 @@ def validate_real_provider_secret_bindings(model: dict) -> None:
                 )
             if any(key in definition for key in ("value", "content")):
                 raise ValueError(
-                    f"{source} must not embed a credential value in the Compose model"
+                f"{source} must not embed a credential value in the Compose model"
                 )
+
+    google_network = model.get("networks", {}).get(
+        "google-maps-egress-network"
+    )
+    if not isinstance(google_network, dict) or (
+        google_network.get("internal", False) is not False
+    ):
+        raise ValueError(
+            "real-providers requires the explicit external google-maps-egress-network"
+        )
+    google_egress = {
+        name
+        for name, service in services.items()
+        if "google-maps-egress-network" in service_networks(service)
+    }
+    if google_egress != {"google-maps-gateway"}:
+        raise ValueError(
+            "google-maps-egress-network must contain only google-maps-gateway"
+        )
+    require_value(model, "google-maps-gateway", "GOOGLE_MAPS_ENABLED", "true")
+    require_value(model, "location-service", "GOOGLE_MAPS_ENABLED", "true")
+    google = services.get("google-maps-gateway", {})
+    if environment(model, "google-maps-gateway").get("GOOGLE_MAPS_API_KEY"):
+        raise ValueError(
+            "google-maps-gateway:GOOGLE_MAPS_API_KEY must be mounted as an owned secret"
+        )
+    google_bindings = {
+        secret.get("source"): secret.get("target")
+        for secret in google.get("secrets", [])
+        if isinstance(secret, dict)
+    }
+    if google_bindings != {"google_maps_api_key": "GOOGLE_MAPS_API_KEY"}:
+        raise ValueError("google-maps-gateway must receive exactly its API key secret")
+    google_definition = declared_secrets.get("google_maps_api_key", {})
+    if google_definition.get("environment") != "GOOGLE_MAPS_API_KEY":
+        raise ValueError(
+            "google_maps_api_key must resolve only from the GOOGLE_MAPS_API_KEY environment source"
+        )
+    if any(key in google_definition for key in ("value", "content")):
+        raise ValueError("google_maps_api_key must not embed a credential value")
 
 
 def validate_runtime_modes(model: dict, profile: str) -> None:
@@ -385,14 +428,8 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
                     f"{service}:{variable} is forbidden in the job-provider-only live stack"
                 )
     elif real_providers:
-        for service in ("reed-gateway", "adzuna-gateway", "jsearch-gateway", "nhs-jobs-gateway", "apprenticeships-gateway"):
+        for service in JOB_PROVIDER_GATEWAYS:
             require_value(model, service, "EXTERNAL_PROVIDER_MODE", "LIVE")
-        require_value(
-            model,
-            "postcode-io-gateway",
-            "EXTERNAL_PROVIDER_MODE",
-            "FIXTURE",
-        )
         require_value(model, "llm-gateway", "EXTERNAL_PROVIDER_MODE", "LIVE")
         require_value(model, "stripe-gateway", "EXTERNAL_PROVIDER_MODE", "FIXTURE")
         require_value(
@@ -1182,6 +1219,7 @@ def main() -> int:
         expected = (
             (ROOT / "docker-compose.real-job-providers.yml").resolve(),
             (ROOT / "docker-compose.real-openai.yml").resolve(),
+            (ROOT / "docker-compose.real-google-maps.yml").resolve(),
             (ROOT / "docker-compose.low-memory.yml").resolve(),
         )
         actual = tuple(path.resolve() for path in args.overlay)
@@ -1190,6 +1228,7 @@ def main() -> int:
                 "real-providers requires overlays in exact order: "
                 "docker-compose.real-job-providers.yml then "
                 "docker-compose.real-openai.yml then "
+                "docker-compose.real-google-maps.yml then "
                 "docker-compose.low-memory.yml"
             )
         if args.secret_env_file is None:

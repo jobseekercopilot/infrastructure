@@ -75,7 +75,7 @@
       "services": "all-runtime"
     },
     "real-job-providers": {
-      "description": "The complete private-beta application with Reed, Adzuna, JSearch, NHS Jobs and Find an apprenticeship live while LLM and Stripe remain fixture-backed.",
+      "description": "The complete private-beta application with Reed, Adzuna, JSearch, NHS Jobs, Find an apprenticeship and the Postcodes.io location authority live while LLM and Stripe remain fixture-backed.",
       "composeFiles": ["docker-compose.yml", "docker-compose.real-job-providers.yml"],
       "composeProject": "job-seeker-copilot-real-jobs",
       "environmentProfile": "local",
@@ -86,11 +86,12 @@
       "services": "all-runtime"
     },
     "real-providers": {
-      "description": "The complete private-beta application with real job providers and real OpenAI document generation while Stripe remains fixture-backed.",
+      "description": "The complete private-beta application with real job providers, Postcodes.io, Google Maps and real OpenAI document generation while Stripe remains fixture-backed.",
       "composeFiles": [
         "docker-compose.yml",
         "docker-compose.real-job-providers.yml",
         "docker-compose.real-openai.yml",
+        "docker-compose.real-google-maps.yml",
         "docker-compose.low-memory.yml"
       ],
       "composeProject": "job-seeker-copilot-real-jobs",
@@ -98,7 +99,7 @@
       "environmentProfile": "local",
       "environmentFile": ".env.real-job-providers",
       "secretEnvironmentFile": "config/.secrets.env",
-      "secretProviders": ["REED", "ADZUNA", "JSEARCH", "APPRENTICESHIPS", "OPENAI"],
+      "secretProviders": ["REED", "ADZUNA", "JSEARCH", "APPRENTICESHIPS", "OPENAI", "GOOGLE"],
       "frontendUrl": "http://localhost:3000",
       "services": "all-runtime"
     }

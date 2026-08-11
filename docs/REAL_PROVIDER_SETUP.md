@@ -1,15 +1,15 @@
 # Real provider configuration
 
 The `real-job-providers` profile runs the complete local application with Reed,
-Adzuna, JSearch, NHS Jobs and Find an apprenticeship in live mode. OpenAI and
-Stripe remain fixture-backed.
+Adzuna, JSearch, NHS Jobs, Find an apprenticeship and the Postcodes.io location
+authority in live mode. OpenAI and Stripe remain fixture-backed.
 `full-fixture` remains the default deterministic profile and never reads real
 provider credentials.
 
 The `real-providers` profile extends `real-job-providers` with real OpenAI CV and
-cover-letter generation. It reuses the same Compose project so switching the
-running environment preserves local application data. Stripe remains
-fixture-backed. Both profiles also reuse the existing owner-only
+cover-letter generation plus Google Maps Places and Routes. It reuses the same
+Compose project so switching the running environment preserves local
+application data. Stripe remains fixture-backed. Both profiles also reuse the existing owner-only
 `.env.real-job-providers` base environment, so service identities and local
 PostgreSQL data do not drift when OpenAI is enabled.
 
@@ -44,6 +44,7 @@ OPENAI_DATA_SHARING_MODE=
 OPENAI_PRIVACY_DECISION_ID=
 OPENAI_PRIVACY_OWNER=
 OPENAI_PRIVACY_REVIEW_ON=
+GOOGLE_MAPS_API_KEY=
 ```
 
 Project-scoped API keys do not require organization or project headers. If an
@@ -69,7 +70,7 @@ Validate the complete real-provider profile without printing values:
 
 ```bash
 python3 scripts/security/provider_secrets.py \
-  --providers REED ADZUNA JSEARCH APPRENTICESHIPS OPENAI \
+  --providers REED ADZUNA JSEARCH APPRENTICESHIPS OPENAI GOOGLE \
   --check-repositories
 ```
 
@@ -93,7 +94,8 @@ The lifecycle always resolves the combined runtime in this exact order:
 1. `docker-compose.yml`
 2. `docker-compose.real-job-providers.yml`
 3. `docker-compose.real-openai.yml`
-4. `docker-compose.low-memory.yml`
+4. `docker-compose.real-google-maps.yml`
+5. `docker-compose.low-memory.yml`
 
 The final overlay carries the reviewed resource-constrained settings used for
 manual beta validation. The lifecycle also limits Compose to one concurrent
@@ -104,17 +106,17 @@ Do not append `docker-compose.live.yml` before or after these files. It is a
 separate legacy job-only overlay and, if applied later, resets
 `llm-gateway:EXTERNAL_PROVIDER_MODE` to `DISABLED`. The `real-providers`
 preflight rejects a resolved model unless all five job providers are live, the
-LLM is `LIVE`, Stripe is `FIXTURE`, and only those provider gateways plus the
-LLM join the dedicated provider-egress network.
+Postcodes.io authority and LLM are `LIVE`, Google Maps is enabled, Stripe is
+`FIXTURE`, and each external adapter has only its dedicated egress network.
 
-Google Maps activation is deliberately separate from these profiles. Use the
-fixture-backed `google-maps-smoke` profile and follow
+For isolated Google validation, the fixture-backed `google-maps-smoke` profile
+remains available. Follow
 [`GOOGLE_MAPS_ACTIVATION.md`](GOOGLE_MAPS_ACTIVATION.md); it enables only Places
 API (New) and Routes API while keeping job, LLM and payment providers fixture-backed.
 
 Starting `real-job-providers` validates the five job-provider credential names.
 Starting `real-providers` validates those names plus the complete OpenAI
-decision. Either command fails with only the missing variable name.
+decision and Google Maps key. Either command fails with only the missing variable name.
 `REED_API_KEY` must contain a replacement credential; the previously tracked
 value is permanently ineligible for reuse.
 

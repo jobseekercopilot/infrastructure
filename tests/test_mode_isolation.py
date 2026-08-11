@@ -103,6 +103,7 @@ class RenderedModeIsolationTests(unittest.TestCase):
             "JSEARCH_API_KEY": "synthetic-jsearch-credential",
             "APPRENTICESHIPS_API_KEY": "synthetic-apprenticeships-credential",
             "OPENAI_API_KEY": "synthetic-openai-credential-with-enough-characters",
+            "GOOGLE_MAPS_API_KEY": "synthetic-google-maps-credential",
         }
         cls.real_providers_secrets = directory / "real-providers-secrets.env"
         write_environment(
@@ -125,6 +126,7 @@ class RenderedModeIsolationTests(unittest.TestCase):
             [
                 Path("docker-compose.real-job-providers.yml"),
                 Path("docker-compose.real-openai.yml"),
+                Path("docker-compose.real-google-maps.yml"),
                 Path("docker-compose.low-memory.yml"),
             ],
             "real-providers",
@@ -305,8 +307,18 @@ class RenderedModeIsolationTests(unittest.TestCase):
                 "jsearch-gateway",
                 "nhs-jobs-gateway",
                 "apprenticeships-gateway",
+                "postcode-io-gateway",
                 "llm-gateway",
             },
+        )
+        self.assertEqual(
+            {
+                name
+                for name, service in services.items()
+                if "google-maps-egress-network"
+                in service.get("networks", {})
+            },
+            {"google-maps-gateway"},
         )
         for gateway in (
             "reed-gateway",
@@ -314,6 +326,7 @@ class RenderedModeIsolationTests(unittest.TestCase):
             "jsearch-gateway",
             "nhs-jobs-gateway",
             "apprenticeships-gateway",
+            "postcode-io-gateway",
         ):
             self.assertEqual(
                 services[gateway]["environment"]["EXTERNAL_PROVIDER_MODE"],
@@ -322,6 +335,33 @@ class RenderedModeIsolationTests(unittest.TestCase):
         self.assertEqual(
             services["llm-gateway"]["environment"]["EXTERNAL_PROVIDER_MODE"],
             "LIVE",
+        )
+        self.assertEqual(
+            services["llm-gateway"]["environment"][
+                "GENERATION_MAX_AUTOMATIC_PROVIDER_RETRIES"
+            ],
+            "1",
+        )
+        self.assertEqual(
+            services["llm-gateway"]["environment"]["OPENAI_CALL_TIMEOUT_MS"],
+            "360000",
+        )
+        document_generation = services["document-generation-gateway"][
+            "environment"
+        ]
+        self.assertEqual(
+            document_generation["DOCUMENT_GENERATION_READ_TIMEOUT"],
+            "PT6M30S",
+        )
+        self.assertEqual(
+            document_generation["DOCUMENT_GENERATION_OPERATION_LEASE"],
+            "PT7M",
+        )
+        self.assertEqual(
+            document_generation[
+                "GENERATION_OUTCOME_RECONCILIATION_MAX_ATTEMPTS"
+            ],
+            "30",
         )
         self.assertEqual(
             services["stripe-gateway"]["environment"]["EXTERNAL_PROVIDER_MODE"],
@@ -373,6 +413,9 @@ class RenderedModeIsolationTests(unittest.TestCase):
                 "apprenticeships_api_key": "APPRENTICESHIPS_API_KEY"
             },
             "llm-gateway": {"openai_api_key": "OPENAI_API_KEY"},
+            "google-maps-gateway": {
+                "google_maps_api_key": "GOOGLE_MAPS_API_KEY"
+            },
         }
         for service_name, bindings in expected.items():
             service = model["services"][service_name]
@@ -416,6 +459,7 @@ class RenderedModeIsolationTests(unittest.TestCase):
             [
                 Path("docker-compose.real-job-providers.yml"),
                 Path("docker-compose.real-openai.yml"),
+                Path("docker-compose.real-google-maps.yml"),
                 Path("docker-compose.live.yml"),
                 Path("docker-compose.low-memory.yml"),
             ],
@@ -483,6 +527,8 @@ class RenderedModeIsolationTests(unittest.TestCase):
                 "docker-compose.real-job-providers.yml",
                 "--overlay",
                 "docker-compose.real-openai.yml",
+                "--overlay",
+                "docker-compose.real-google-maps.yml",
                 "--overlay",
                 "docker-compose.low-memory.yml",
             ],
