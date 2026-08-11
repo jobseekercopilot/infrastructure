@@ -64,10 +64,11 @@ fast-forward to a newly reviewed lock.
   email sent by the Authentication Service production SES adapter to pinned,
   ephemeral LocalStack SES.
 - `real-job-providers`: the full application with Reed, Adzuna, JSearch,
-  NHS Jobs and Find an apprenticeship live while OpenAI and Stripe remain
-  fixture-backed.
+  NHS Jobs, Find an apprenticeship and the Postcodes.io location authority
+  live while OpenAI and Stripe remain fixture-backed.
 - `real-providers`: the same full application with all five job providers and
-  OpenAI live while Stripe and payments remain fixture-backed.
+  Postcodes.io, OpenAI and Google Maps live while Stripe and payments remain
+  fixture-backed.
 
 ```bash
 ./scripts/start-local.sh --profile basic-fixture --build
@@ -83,7 +84,8 @@ Both real-provider profiles reuse the owner-only
 from the workspace-root `config/.secrets.env`, which must have mode `0600`.
 The lifecycle applies `docker-compose.yml`, then
 `docker-compose.real-job-providers.yml`, then—only for `real-providers`—
-`docker-compose.real-openai.yml` and `docker-compose.low-memory.yml`. The
+`docker-compose.real-openai.yml`, `docker-compose.real-google-maps.yml` and
+`docker-compose.low-memory.yml`. The
 combined profile uses one Compose operation at a time and checked-in runtime
 memory ceilings; it does not require a temporary resource overlay. Never append
 `docker-compose.live.yml`: that legacy job-only overlay resets the LLM gateway

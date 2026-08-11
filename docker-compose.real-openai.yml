@@ -17,12 +17,27 @@ services:
       GENERATION_PRICING_VERSION: openai-standard-2026-07-29
       GENERATION_INPUT_RATE_MICRO_USD_PER_MILLION_TOKENS: "400000"
       GENERATION_OUTPUT_RATE_MICRO_USD_PER_MILLION_TOKENS: "1600000"
+      CV_COVER_LETTER_GENERATION_MAX_OUTPUT_TOKENS: "16384"
+      GENERATION_MAX_AUTOMATIC_PROVIDER_RETRIES: "1"
+      GENERATION_PROVIDER_RETRY_DELAY_MILLIS: "1000"
+      OPENAI_CALL_TIMEOUT_MS: "360000"
     secrets:
       - source: openai_api_key
         target: OPENAI_API_KEY
     networks:
       - job-seeker-network
       - provider-egress-network
+
+  cv-cover-letter-service:
+    environment:
+      LLM_MAX_TOKENS: "16384"
+
+  document-generation-gateway:
+    environment:
+      DOCUMENT_GENERATION_OPERATION_LEASE: PT7M
+      DOCUMENT_GENERATION_READ_TIMEOUT: PT6M30S
+      GENERATION_OUTCOME_RECONCILIATION_INTERVAL: PT2S
+      GENERATION_OUTCOME_RECONCILIATION_MAX_ATTEMPTS: "30"
 
   job-seeker-copilot-client:
     environment:

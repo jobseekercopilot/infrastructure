@@ -19,10 +19,12 @@ update path and only fast-forwards clean expected branches.
 - `full-fixture`: the complete deterministic private-beta runtime.
 - `full-local-ses`: the complete fixture runtime with account email delivered
   to pinned local SES.
-- `real-job-providers`: the complete runtime with Reed, Adzuna, JSearch, NHS Jobs and Find an apprenticeship
-  live; OpenAI and Stripe remain fixture-backed.
+- `real-job-providers`: the complete runtime with Reed, Adzuna, JSearch, NHS
+  Jobs, Find an apprenticeship and Postcodes.io live; OpenAI and Stripe remain
+  fixture-backed.
 - `real-providers`: the complete runtime with all five job providers and
-  OpenAI live; Stripe and payments remain fixture-backed.
+  Postcodes.io, OpenAI and Google Maps live; Stripe and payments remain
+  fixture-backed.
 
 The two real-provider profiles share the owner-only
 `.env.real-job-providers` file and the same Compose project. Provider
@@ -31,12 +33,14 @@ credentials are resolved separately from the workspace-root
 credential values.
 
 For `real-providers`, the only supported Compose order is base, real job
-providers, real OpenAI, then the reviewed low-memory runtime limits:
+providers, real OpenAI, real Google Maps, then the reviewed low-memory runtime
+limits:
 
 ```text
 docker-compose.yml
 docker-compose.real-job-providers.yml
 docker-compose.real-openai.yml
+docker-compose.real-google-maps.yml
 docker-compose.low-memory.yml
 ```
 

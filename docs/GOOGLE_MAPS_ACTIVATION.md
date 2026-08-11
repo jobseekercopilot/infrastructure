@@ -46,8 +46,10 @@ an implemented technical notice, not a claim of legal compliance.
 ## Secure local activation
 
 Normal development and CI use `GOOGLE_MAPS_ENABLED=false`. The dedicated
-`google-maps-smoke` profile is the only local profile that enables Google Maps;
-all other external providers remain fixture-backed.
+`google-maps-smoke` profile enables Google Maps while all other external
+providers remain fixture-backed. The owner-authorised `real-providers` manual
+environment also enables this overlay alongside its live job, postcode and LLM
+adapters; deterministic fixture and E2E profiles remain unchanged.
 
 The API key belongs in the owner-only workspace file:
 

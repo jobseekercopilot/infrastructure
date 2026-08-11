@@ -102,12 +102,13 @@ def validate_runtime_boundary(profile: Profile, environment_file: Path) -> None:
         "docker-compose.yml",
         "docker-compose.real-job-providers.yml",
         "docker-compose.real-openai.yml",
+        "docker-compose.real-google-maps.yml",
         "docker-compose.low-memory.yml",
     )
     if profile.compose_files != expected_files:
         raise RuntimeError(
             "real-providers Compose order must be base, real job providers, "
-            "real OpenAI, then low memory"
+            "real OpenAI, real Google Maps, then low memory"
         )
     model = compose_security_model(
         environment_file,
