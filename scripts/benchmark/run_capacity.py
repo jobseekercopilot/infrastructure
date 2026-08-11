@@ -57,13 +57,20 @@ def percentile(values: list[float], quantile: float) -> float | None:
     return ordered[min(len(ordered) - 1, max(0, int(len(ordered) * quantile + 0.999999) - 1))]
 
 
-def run(command: list[str], *, cwd: Path, capture: bool = True) -> subprocess.CompletedProcess[str]:
+def run(
+    command: list[str],
+    *,
+    cwd: Path,
+    capture: bool = True,
+    timeout: float | None = None,
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         command,
         cwd=cwd,
         text=True,
         capture_output=capture,
         check=False,
+        timeout=timeout,
     )
 
 
@@ -81,10 +88,14 @@ def compose_container_ids(project: str) -> list[str]:
 
 
 def collect_stats(container_ids: list[str]) -> list[dict[str, object]]:
-    result = run(
-        ["docker", "stats", "--no-stream", "--format", "{{json .}}", *container_ids],
-        cwd=INFRASTRUCTURE_ROOT,
-    )
+    try:
+        result = run(
+            ["docker", "stats", "--no-stream", "--format", "{{json .}}", *container_ids],
+            cwd=INFRASTRUCTURE_ROOT,
+            timeout=20,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError("docker stats exceeded the 20-second sampling limit") from exc
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or "docker stats failed")
     samples: list[dict[str, object]] = []
@@ -239,16 +250,14 @@ def main() -> int:
     before = inspect_containers(container_ids)
     samples: list[dict[str, object]] = []
     stop = threading.Event()
-    collector_error: list[Exception] = []
+    collector_errors: list[dict[str, str]] = []
 
     def collect() -> None:
         while not stop.is_set():
             try:
                 samples.append({"capturedAt": utc_now(), "containers": collect_stats(container_ids)})
-            except Exception as exc:  # preserve workload outcome and fail the report afterwards
-                collector_error.append(exc)
-                stop.set()
-                return
+            except Exception as exc:  # preserve measured samples and disclose transient sampler failures
+                collector_errors.append({"capturedAt": utc_now(), "error": str(exc)})
             stop.wait(args.sample_interval)
 
     output = args.output or DEFAULT_RESULTS_ROOT / f"{datetime.now().strftime('%Y%m%dT%H%M%S')}-{args.profile}.json"
@@ -295,11 +304,18 @@ def main() -> int:
                 workload["runnerError"] = (completed.stderr or completed.stdout)[-2000:]
     finally:
         stop.set()
-        thread.join(timeout=args.sample_interval + 5)
-    if collector_error:
-        raise collector_error[0]
+        thread.join(timeout=25)
+    if thread.is_alive():
+        collector_errors.append({
+            "capturedAt": utc_now(),
+            "error": "stats collector did not stop within 25 seconds",
+        })
     if not samples:
-        samples.append({"capturedAt": utc_now(), "containers": collect_stats(container_ids)})
+        try:
+            samples.append({"capturedAt": utc_now(), "containers": collect_stats(container_ids)})
+        except Exception as exc:
+            collector_errors.append({"capturedAt": utc_now(), "error": str(exc)})
+            raise RuntimeError("no Docker resource samples were captured") from exc
     after = inspect_containers(container_ids)
     report = {
         "schemaVersion": 1,
@@ -310,6 +326,7 @@ def main() -> int:
         "startedAt": started_at,
         "finishedAt": utc_now(),
         "sampleIntervalSeconds": args.sample_interval,
+        "statsSamplingErrors": collector_errors,
         "host": host_specification(),
         "containerStateBefore": before,
         "containerStateAfter": after,

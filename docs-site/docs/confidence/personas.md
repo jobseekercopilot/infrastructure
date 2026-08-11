@@ -2,8 +2,8 @@
 
 Canonical definitions: `system-data-service/src/main/resources/personas/personas.json`
 
-Named state: `REAL_WORLD_PERSONAS` / `real-world-personas-v1`
-Reference date: **10 August 2026**
+Named state: `REAL_WORLD_PERSONAS` / `real-world-personas-v2`
+Reference date: **11 August 2026**
 
 The profiles differ in history, target, location, preferences and data size.
 They are fictional and use reserved `example.com` identities.
@@ -39,10 +39,11 @@ and structured commute, availability and workplace preferences.
 
 <div class="jsc-card" markdown>
 
-### Stress profile
+### Very-rich profile
 
-A plausible long career with 60 skills, seven roles and six qualifications.
-Targets serialization, rendering, persistence and prompt growth.
+A plausible senior contractor/consultant career with 60 skills, 18 distinct
+engagements and six qualifications. It targets serialization, rendering,
+persistence and prompt growth without claiming maximum-scale stress coverage.
 
 </div>
 

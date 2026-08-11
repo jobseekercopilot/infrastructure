@@ -23,6 +23,11 @@ prepare_demo = load_module("prepare_demo", "scripts/demo/prepare_demo.py")
 
 
 class CapacityBenchmarkTest(unittest.TestCase):
+    def test_demo_preparation_targets_the_governed_fixture_version(self):
+        self.assertEqual(prepare_demo.DATASET_ID, "uk-software-developer-demo")
+        self.assertEqual(prepare_demo.DATASET_VERSION, "1.0.0")
+        self.assertTrue(prepare_demo.dataset_path().is_dir())
+
     def test_demo_summary_is_optional_when_dataset_lives_in_runtime_image(self):
         with tempfile.TemporaryDirectory() as directory:
             with patch.object(prepare_demo, "dataset_path", return_value=Path(directory)):

@@ -19,7 +19,7 @@ application stack only. Host specifications are retained beside each run.
 ## Workloads
 
 `config/capacity-workloads.json` is authoritative. `idle` measures the fixed
-floor. Browser profiles run 1, 5, 10, 25, 50 or 100 simultaneously active
+floor. Browser profiles run 1, 5, 10, 15, 20, 25, 50 or 100 simultaneously active
 DISCOVER sessions. They reuse one registered synthetic fixture identity, so
 the reported concurrency is active browser sessions—not registered-user
 capacity or a count of isolated HTTP requests.
@@ -76,7 +76,7 @@ instrumentation before they can be claimed per feature.
 
 ## Real-world persona boundary
 
-The seven-profile `real-world-personas-v1` System Data state validates profile
+The seven-profile `real-world-personas-v2` System Data state validates profile
 shape and lifecycle coverage. It is deliberately separate from this concurrent
 browser workload: persona variety is not a substitute for measured active
 sessions, and measured capacity must not be multiplied by persona count. The

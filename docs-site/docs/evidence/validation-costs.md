@@ -1,16 +1,16 @@
 # Real-world validation costs
 
-Report date: **10–11 August 2026**
+Report date: **11 August 2026**
 
-| Provider group | Calls retained | Cost | Evidence status |
-| --- | ---: | ---: | --- |
-| Deterministic System Data providers | many local fixture calls | $0.00 | Measured fixture mode |
-| Live job providers | 6 searches (2 each: Reed, Adzuna, JSearch) | $0.00 observable incremental charge | Completed in quarantined, non-runtime acquisition |
-| Live location/route providers | 0 | $0.00 | Not run in this validation pass |
-| Paid LLM quality samples | 6 successful calls; 9,325 tokens | $0.009377 | Completed through the product gateway |
+| Provider group | Measured use | Spend |
+| --- | ---: | ---: |
+| OpenAI | 17 calls; 80,012 input / 23,419 output tokens | **$0.069487** |
+| Live job providers | bounded Reed, Adzuna, JSearch, NHS Jobs and Apprenticeships requests | $0.00 observable incremental charge |
+| Google Maps | disabled | $0.00 |
+| Live Stripe | not run; fixture only | $0.00 |
+| AWS | no resources created | $0.00 |
 
-Zero means no paid call was made; it does not imply the production operation is
-free. The LLM figure is calculated from provider-reported input/output usage
-using the dated public model rates. The internal call-by-call record is maintained in
-`docs/real-world-validation-costs-2026-08-10.md`. Credentials, raw request
-payloads and applicant content are deliberately excluded from this public page.
+Zero monetary charge does not mean a production call is free: job-provider
+quota was consumed and production prices remain provider/account dependent.
+Secrets, raw prompts, outputs and authorization data are excluded. The
+reconciled ledger is in `docs/real-world-validation-costs-2026-08-11.md`.

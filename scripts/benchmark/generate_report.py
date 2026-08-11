@@ -3,7 +3,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 from pathlib import Path
+
+
+WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 
 
 def gib(value: int | float) -> str:
@@ -12,6 +16,25 @@ def gib(value: int | float) -> str:
 
 def milliseconds(value: int | float | None) -> str:
     return "—" if value is None else f"{value:.0f} ms"
+
+
+def source_revisions() -> list[tuple[str, str, str]]:
+    revisions: list[tuple[str, str, str]] = []
+    for repository in sorted(path.parent for path in WORKSPACE_ROOT.glob("*/.git")):
+        sha = subprocess.run(
+            ["git", "-C", str(repository), "rev-parse", "--short=12", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        dirty = subprocess.run(
+            ["git", "-C", str(repository), "status", "--porcelain"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        revisions.append((repository.name, sha, "dirty" if dirty else "clean"))
+    return revisions
 
 
 def main() -> int:
@@ -36,7 +59,20 @@ def main() -> int:
         f"- Host: {host['logicalCpuCount']} logical CPUs, {gib(host['memoryBytes'])} RAM, {host['architecture']}",
         f"- Docker: {host['dockerServerVersion']}",
         f"- Stack: `{reports[0]['stack']}` with fixture providers",
+        f"- Sampler interval: {reports[0]['sampleIntervalSeconds']:.0f} seconds",
         "- Browser processes run on the host and are not included in per-container memory figures.",
+        "- Workload: one headless browser per active session signs in, opens DISCOVER, searches the governed nine-job fixture and expands job details; it does not generate documents.",
+        "- Safety controls: loopback port 3100 only; real providers and paid AI explicitly disabled; dataset `uk-software-developer-demo` version `1.0.0` reset and verified before each active run.",
+        "",
+        "### Source revisions",
+        "",
+        "The benchmark used the following repository HEADs. `dirty` means the tested working tree also contained coordinated, uncommitted closure changes; the SHA alone is not claimed as a complete build identifier.",
+        "",
+        "| Repository | HEAD | Working tree |",
+        "|---|---|---|",
+    ])
+    lines.extend(f"| `{name}` | `{sha}` | {state} |" for name, sha, state in source_revisions())
+    lines.extend([
         "",
         "## Measured profiles",
         "",
@@ -103,10 +139,18 @@ def main() -> int:
         f"- Highest fully successful measured concurrency: {highest_successful['workload'].get('activeBrowserSessions', 0)} active sessions.",
         f"- Highest attempted concurrency: {loaded['workload'].get('activeBrowserSessions', 0)} active sessions; "
         f"{loaded['workload'].get('failedSessions', 0)} sessions failed.",
+        f"- Docker stats sampling errors disclosed across profiles: {sum(len(report.get('statsSamplingErrors', [])) for report in reports)}. "
+        "The 25-session run retained nine valid samples and one stats call exceeded the 20-second sampler limit.",
+        f"- Transport observations at 25 sessions: {loaded['workload'].get('expectedAuthBootstrapResponses', 0)} expected unauthenticated bootstrap responses, "
+        f"{loaded['workload'].get('abortedRequests', 0)} cancelled navigation requests and {loaded['workload'].get('applicationErrors', 0)} application errors.",
         "",
         "## Interpretation boundary",
         "",
-        "These runs measure the listed concurrency points only. They do not establish capacity above the largest successful run. Any AWS sizing or higher-user figures derived from them must be labelled **calculated** or **projected**, not benchmark results.",
+        "All required levels through 25 sessions completed, so this run did not expose a failing application-service boundary. It did expose a practical latency boundary: throughput peaked at 10 sessions and the 25-session p95 reached 59.45 seconds, leaving essentially no headroom against the 60-second journey timeout. The host-side browser processes are excluded from Docker CPU/memory, so the test cannot attribute that slowdown solely to the service stack.",
+        "",
+        "The job-details interaction is client-side expansion of the search result, so there is no separate job-details endpoint latency to report. The response percentiles include the job search and dashboard/reporting calls that precede that interaction. Generation latency is not applicable because this capacity workload intentionally forbids paid generation.",
+        "",
+        "No 50-session run was attempted: the instruction allowed higher levels only when 25 succeeded comfortably, and a 59.45-second p95 is not comfortable. These runs do not establish capacity above 25. Any AWS sizing or higher-user figures derived from them must be labelled **calculated** or **projected**, not benchmark results.",
         "",
     ])
     args.output.parent.mkdir(parents=True, exist_ok=True)

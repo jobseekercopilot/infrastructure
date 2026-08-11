@@ -92,23 +92,24 @@ Use the [change guide](development/change-guide.md) and [documentation maintenan
 
 <div class="jsc-card jsc-card--measured" markdown>
 
-### 10 concurrent sessions
+### 20 concurrent sessions
 
-**Measured · 10 August 2026**
+**Measured · 11 August 2026**
 
-10/10 fixture-backed DISCOVER journeys succeeded. Session p95 was 16.285 s;
-browser-response p95 was 273 ms.
+20/20 fixture-backed DISCOVER journeys succeeded. Session p95 was 40.432 s;
+browser-response p95 was 609 ms.
 
 </div>
 
-<div class="jsc-card jsc-card--failed" markdown>
+<div class="jsc-card jsc-card--partial" markdown>
 
 ### 25 concurrent sessions
 
-**Measured failure · 10 August 2026**
+**Measured, latency-limited · 11 August 2026**
 
-0/25 journeys completed. The first observed boundary was job-detail latency,
-not an OOM or container restart.
+25/25 journeys completed with zero application errors, restarts or OOM. Session
+p95 was 59.449 s, so this is a functional proof rather than a comfortable
+operating target; 50 was not attempted.
 
 </div>
 
@@ -125,12 +126,12 @@ $340.33/month compute-only On-Demand.
 
 <div class="jsc-card jsc-card--partial" markdown>
 
-### Seven profile personas
+### Complete beta journey
 
-**Deterministic coverage added**
+**Browser verified**
 
-Sparse, typical, rich, stress, CV-led, manual-first and career-change profiles
-are canonical System Data states. Full browser coverage remains in progress.
+Seven purpose-sized persona journeys and the single 26-step registration-to-
+returning-user showcase path pass against the full deterministic stack.
 
 </div>
 

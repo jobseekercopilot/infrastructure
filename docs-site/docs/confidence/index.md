@@ -3,20 +3,22 @@
 Last reviewed: **11 August 2026**
 
 Job Seeker Copilot uses complementary evidence rather than one happy-path demo.
-The current confidence work covers deterministic state preparation, browser
-journeys, service and contract suites, adverse uploads, provider failures,
-returning state, and capacity. It does not yet justify a public-beta-ready claim.
+The current confidence work covers deterministic state preparation, all seven
+purpose-sized persona journeys, the authoritative beta path, service and
+contract suites, adverse uploads, provider failures, returning state, bounded
+live integrations and capacity. It supports the intended private-beta journey;
+it does not establish AWS-scale or public-beta operational readiness.
 
 ## Current evidence
 
 | Area | Status | Evidence boundary |
 | --- | --- | --- |
-| Account, session and profile | Partially validated | Registration, login/logout and saved profiles have browser coverage; the new seven-persona state still needs full UI execution. |
+| Account, session and profile | Validated intended path | Registration, onboarding, login/logout, persistence and all seven purpose-sized persona journeys pass. |
 | Job search and details | Fixture plus bounded live sample | Reed, Adzuna and JSearch were called through quarantined acquisition; four reviewed records were retained from thirteen raw results. |
-| Generated application documents | Partially validated | Six live LLM cases completed; selected fixture output now passes backend generation and approval, but two browser journeys still do not surface completion within 120 seconds. Placeholder identity and weak-claim defects also remain. |
-| Uploaded documents | Partially validated | Valid PDF and DOCX application uploads plus adversarial fixtures exist; profile-import/extraction is not a currently exposed end-to-end product flow. |
-| Application tracking and reporting | Validated for retained demo state | Source records, mixed statuses, document references and reporting surfaces are checked; persona breadth remains incomplete. |
-| Capacity | Bounded measurement | 10 sessions passed; 25 failed. No 50/100-session or registered-user capacity claim is made. |
+| Generated application documents | Bounded live path validated | Policy 2.24.0 and the live domain/gateway path cover grounded generation, rejection/repair, approval and downloadable output; the small paid sample is not a reliability forecast. |
+| Uploaded documents | Validated beta scope | Valid PDF/DOCX, adverse shapes, private download and lineage pass; profile import is explicitly out of scope. |
+| Application tracking and reporting | Validated deterministic scope | Exact job/document relationships persist and empty/small/rich reporting reconciles to source records. |
+| Capacity | Bounded measurement | Every required level through 25 passed, but 25-session p95 was 59.45 seconds. No 50/100-session or registered-user capacity claim is made. |
 | AWS | Calculated candidate | The candidate shape is derived from local measurements and dated prices, not an AWS load test. |
 
 ## Strongest evidence
@@ -27,18 +29,17 @@ returning state, and capacity. It does not yet justify a public-beta-ready claim
   modes.
 - Generated-document evidence, immutable references, downloads and application
   associations have deep integration coverage.
-- The retained capacity run exposes both its successful and failed concurrency
-  points.
+- The retained capacity run exposes all required stages and the latency-limited
+  25-session boundary without presenting it as an operating recommendation.
 
 ## Weakest evidence
 
-- Live LLM sampling found placeholder identity and weak-claim defects that must
-  be corrected before generated documents are used promotionally.
-- Successful backend document generation and approval are not yet reflected in
-  the expected browser completion state in two focused scenarios.
-- CV-to-profile extraction/import is not established as a supported product
-  capability, so it must not be implied by promotional material.
-- The 25-session synchronous job-details boundary remains unresolved.
+- The paid LLM sample is intentionally small and cannot establish provider
+  reliability or all-profile quality.
+- CV-to-profile extraction/import is deliberately outside the current product
+  promise and is not implied by promotional material.
+- The 25-session journey has almost no timeout headroom, so it is not the
+  recommended operating point.
 - The local Compose result has not been reproduced on the proposed AWS shape.
 
 Continue with [testing and coverage](testing.md), [personas](personas.md) or the

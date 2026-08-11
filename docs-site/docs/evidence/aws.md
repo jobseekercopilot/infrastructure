@@ -1,26 +1,27 @@
 # AWS capacity decision
 
-Pricing checked: **10 August 2026**
+Decision date: **11 August 2026**
+
 Region/basis: **eu-west-2 (London), Linux/x86, On-Demand, 730 hours/month**
 
-## Current recommendation
+## Recommendation
 
-Use Amazon ECS on a single EC2 `m7i.2xlarge` (8 vCPU, 32 GiB) only as the first
-bounded public-beta candidate. Its calculated compute price is **$340.33/month**.
-It is not highly available and has not been benchmarked on AWS.
+Use ECS on one EC2 `m7i.2xlarge` (8 vCPU, 32 GiB) as the **minimum calculated**
+bounded public-beta starting shape, initially capped around 15 active DISCOVER
+journeys. Its compute-only price is **$340.33/month**.
 
-## Alternatives
+| Stage | Candidate | Compute/month | Evidence |
+| --- | --- | ---: | --- |
+| Private experiment | `t3.xlarge`, 4 vCPU / 16 GiB | $137.82 | Calculated; burstable and narrow headroom |
+| Bounded public beta | `m7i.2xlarge`, 8 vCPU / 32 GiB | $340.33 | Calculated from fresh local measurement |
+| Availability/growth | two `m7i.2xlarge` nodes | $680.65 | Modelled only; not benchmarked |
 
-| Stage | Candidate | Intended use | Evidence | Compute/month | Status |
-| --- | --- | --- | --- | ---: | --- |
-| Development | 16 logical CPUs / 32 GiB local | Full stack engineering | Measured host | local | Current |
-| Private beta experiment | `t3.xlarge` | Tightly capped low concurrency | Calculated; CPU below 10-session peak | $137.82 | Risk accepted only with alarms |
-| Small public beta | ECS/EC2 `m7i.2xlarge` | Bounded initial deployment | Calculated from local floor/peak | $340.33 | Candidate |
-| Availability/growth | Multiple nodes / hot-service scaling | Failure and scaling headroom | Not benchmarked | unknown | Requires further benchmark |
+!!! danger "Not AWS-tested"
+    No AWS workload ran. No deployable credential/tooling path was available,
+    no resource was created and AWS validation spend was $0. Local results are
+    not labelled cloud measurements.
 
-Compute is not the AWS bill. EBS/RDS, object storage, load balancing, public
-IPv4, NAT/data transfer, DNS, logs, backups, security services, support and tax
-are excluded.
-
-See `docs/aws-capacity-decision-2026-08-10.md` for official source links,
-option calculations and scaling gates.
+Compute is not the AWS bill. RDS, storage, load balancing, public IPv4,
+NAT/data transfer, DNS, logs, backups, support and tax are excluded. See
+`docs/aws-capacity-decision-2026-08-11.md` for the full evidence boundary and
+activation gates.

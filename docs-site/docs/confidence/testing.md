@@ -1,6 +1,6 @@
 # Testing and coverage
 
-Last coverage audit: **10 August 2026**
+Last coverage audit: **11 August 2026**
 
 ## Evidence layers
 
@@ -40,8 +40,20 @@ not applicable or not yet supported.
 | Reporting | empty API | E2E | INT | substantial history | API | API | API |
 | Logout/login/return | E2E | E2E | API | API | E2E | E2E | API |
 
-This is a coverage decision matrix, not a claim that every cell has passed.
-Detailed results and remaining gaps live in the E2E real-world coverage audit.
+The purpose-sized browser replay for all seven personas now passes. Cells marked
+API/INT still intentionally belong below the browser layer; this table is not a
+claim that every contract boundary needs a duplicate E2E scenario. Detailed
+results and limitations live in the E2E real-world coverage audit.
+
+## Current totals
+
+- Full Cucumber regression: 32 scenarios / 244 steps, all passed.
+- Browser support: 54/54.
+- Angular client: 460/460 plus lint and production build.
+- CV/cover-letter domain: 248/248.
+- Infrastructure: 109/109.
+- Six changed Java services: 706 tests, zero failures/errors.
+- Authoritative showcase gate: 1 scenario / 26 steps.
 
 ## Failure coverage retained
 
@@ -52,4 +64,4 @@ Detailed results and remaining gaps live in the E2E real-world coverage audit.
   application documents;
 - insufficient AI credit and protected generation boundaries;
 - stale state, session reload and reset cleanup;
-- measured capacity timeout at 25 sessions.
+- immutable card refresh and capacity-latency boundaries through 25 sessions.

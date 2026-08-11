@@ -1,26 +1,34 @@
 # Performance and capacity
 
-Benchmark date: **10 August 2026**
+Benchmark date: **11 August 2026**
+
 Evidence class: **measured local fixture stack**
 
 | Active browser sessions | Result | Session p95 | Response p95 | Peak app CPU | Peak app memory |
 | ---: | --- | ---: | ---: | ---: | ---: |
-| 1 | 1/1 pass | 6.945 s | 89 ms | 262.94% | 9.89 GiB |
-| 5 | 5/5 pass | 8.767 s | 164 ms | 62.48% | 9.91 GiB |
-| 10 | 10/10 pass | 16.285 s | 273 ms | 651.73% | 9.96 GiB |
-| 25 | **0/25 fail** | 50.452 s | 1.110 s | 1,214.41% | 8.71 GiB |
+| 1 | 1/1 pass | 5.97 s | 182 ms | 317% | 8.01 GiB |
+| 5 | 5/5 pass | 10.34 s | 571 ms | 259% | 8.14 GiB |
+| 10 | 10/10 pass | 17.00 s | 709 ms | 783% | 8.35 GiB |
+| 15 | 15/15 pass | 25.97 s | 472 ms | 714% | 8.42 GiB |
+| 20 | 20/20 pass | 40.43 s | 609 ms | 702% | 8.66 GiB |
+| 25 | 25/25 pass | 59.45 s | 546 ms | 567% | 8.64 GiB |
 
-The host had 16 logical x86 CPUs and 30.63 GiB RAM. Browser processes ran on
-the host and are excluded from container memory. No containers restarted or
-were OOM-killed. At 25 sessions every journey timed out waiting for job details,
-so the first observed boundary is application latency, not proven memory
-exhaustion.
+The prior 0/25 failure was traced to a frontend card being recreated when an
+immutable refresh introduced a canonical identifier. Stable provider-job
+tracking fixed it. The final ladder had zero application errors, restarts, OOM
+kills and unhealthy containers.
 
-!!! danger "No unsupported scale claim"
-    This result supports neither 25 concurrent DISCOVER sessions nor a 50/100
-    session claim. Registered users and monthly active users are not concurrent
-    browser sessions.
+!!! warning "Functional pass, not comfortable capacity"
+    Throughput peaked at 10 sessions and the 25-session p95 left about 0.55
+    seconds against the journey timeout. Browser workers consume host resources
+    outside Docker. No 50-session run was attempted and no capacity above 25 is
+    claimed. The sensible initial operating cap is about 15 active DISCOVER
+    journeys until the intended AWS shape is measured.
 
-The detailed methodology and raw-result retention rules are in
-`docs/capacity-benchmarking.md`; the complete retained table is in
-`docs/capacity-report-2026-08-10.md`.
+The host had 16 logical x86 CPUs and 30.63 GiB RAM. The benchmark used only the
+governed fixture providers; real providers and paid generation were disabled.
+One Docker-stats observation at 25 sessions exceeded the sampler limit; nine
+valid observations and the error are retained.
+
+See `docs/capacity-report-2026-08-11.md` for source revisions, workload,
+per-service measurements and interpretation limits.

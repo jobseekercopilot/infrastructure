@@ -1,0 +1,297 @@
+{
+  "schemaVersion": 1,
+  "evidenceClass": "measured",
+  "runId": "2026-08-11T05-34-15-078Z-6add6d1c",
+  "profile": "fixture-discover-browser-session",
+  "baseUrl": "http://localhost:3100",
+  "startedAt": "2026-08-11T05:34:15.079Z",
+  "finishedAt": "2026-08-11T05:35:03.301Z",
+  "concurrency": 20,
+  "iterations": 1,
+  "activeBrowserSessions": 20,
+  "registeredFixtureUsers": 1,
+  "elapsedSeconds": 48.222,
+  "throughputSessionsPerSecond": 0.41474845506200486,
+  "successfulSessions": 20,
+  "failedSessions": 0,
+  "responseCount": 1133,
+  "responseErrors": 85,
+  "applicationErrors": 0,
+  "expectedAuthBootstrapResponses": 80,
+  "externalResourceErrors": 0,
+  "abortedRequests": 5,
+  "sessionLatencyMs": {
+    "p50": 47712,
+    "p95": 47881,
+    "p99": null
+  },
+  "responseLatencyMs": {
+    "p50": 65,
+    "p95": 1108,
+    "p99": 7186
+  },
+  "workers": [
+    {
+      "worker": 0,
+      "exitCode": 0,
+      "signal": null,
+      "durationMs": 47219
+    },
+    {
+      "worker": 1,
+      "exitCode": 0,
+      "signal": null,
+      "durationMs": 47220
+    },
+    {
+      "worker": 2,
+      "exitCode": 0,
+      "signal": null,
+      "durationMs": 47674
+    },
+    {
+      "worker": 3,
+      "exitCode": 0,
+      "signal": null,
+      "durationMs": 47469
+    },
+    {
+      "worker": 4,
+      "exitCode": 0,
+      "signal": null,
+      "durationMs": 47868
+    },
+    {
+      "worker": 5,
+      "exitCode": 0,
+      "signal": null,
+      "durationMs": 47589
+    },
+    {
+      "worker": 6,
+      "exitCode": 0,
+      "signal": null,
+      "durationMs": 48201
+    },
+    {
+      "worker": 7,
+      "exitCode": 0,
+      "signal": null,
+      "durationMs": 47712
+    },
+    {
+      "worker": 8,
+      "exitCode": 0,
+      "signal": null,
+      "durationMs": 47845
+    },
+    {
+      "worker": 9,
+      "exitCode": 0,
+      "signal": null,
+      "durationMs": 47011
+    },
+    {
+      "worker": 10,
+      "exitCode": 0,
+      "signal": null,
+      "durationMs": 47818
+    },
+    {
+      "worker": 11,
+      "exitCode": 0,
+      "signal": null,
+      "durationMs": 47317
+    },
+    {
+      "worker": 12,
+      "exitCode": 0,
+      "signal": null,
+      "durationMs": 47003
+    },
+    {
+      "worker": 13,
+      "exitCode": 0,
+      "signal": null,
+      "durationMs": 47780
+    },
+    {
+      "worker": 14,
+      "exitCode": 0,
+      "signal": null,
+      "durationMs": 47776
+    },
+    {
+      "worker": 15,
+      "exitCode": 0,
+      "signal": null,
+      "durationMs": 47881
+    },
+    {
+      "worker": 16,
+      "exitCode": 0,
+      "signal": null,
+      "durationMs": 47745
+    },
+    {
+      "worker": 17,
+      "exitCode": 0,
+      "signal": null,
+      "durationMs": 47857
+    },
+    {
+      "worker": 18,
+      "exitCode": 0,
+      "signal": null,
+      "durationMs": 47596
+    },
+    {
+      "worker": 19,
+      "exitCode": 0,
+      "signal": null,
+      "durationMs": 47763
+    }
+  ],
+  "scenarioReports": [
+    {
+      "runId": "mso876u3-capacity-1-d3f53dea",
+      "status": "PASSED",
+      "responseCount": 57,
+      "errorCount": 4,
+      "consoleErrorCount": 4
+    },
+    {
+      "runId": "mso8772p-capacity-9-ccd7d5f0",
+      "status": "PASSED",
+      "responseCount": 57,
+      "errorCount": 4,
+      "consoleErrorCount": 4
+    },
+    {
+      "runId": "mso8770m-capacity-0-e0656278",
+      "status": "PASSED",
+      "responseCount": 57,
+      "errorCount": 4,
+      "consoleErrorCount": 4
+    },
+    {
+      "runId": "mso8780h-capacity-12-d24e3744",
+      "status": "PASSED",
+      "responseCount": 57,
+      "errorCount": 4,
+      "consoleErrorCount": 4
+    },
+    {
+      "runId": "mso876wu-capacity-11-d8059f44",
+      "status": "PASSED",
+      "responseCount": 57,
+      "errorCount": 4,
+      "consoleErrorCount": 4
+    },
+    {
+      "runId": "mso876q4-capacity-5-50b19e21",
+      "status": "PASSED",
+      "responseCount": 57,
+      "errorCount": 4,
+      "consoleErrorCount": 4
+    },
+    {
+      "runId": "mso8785a-capacity-13-485a9ebf",
+      "status": "PASSED",
+      "responseCount": 57,
+      "errorCount": 4,
+      "consoleErrorCount": 4
+    },
+    {
+      "runId": "mso877r7-capacity-18-bd510780",
+      "status": "PASSED",
+      "responseCount": 57,
+      "errorCount": 4,
+      "consoleErrorCount": 4
+    },
+    {
+      "runId": "mso87797-capacity-3-6bce05e4",
+      "status": "PASSED",
+      "responseCount": 57,
+      "errorCount": 4,
+      "consoleErrorCount": 4
+    },
+    {
+      "runId": "mso878hh-capacity-2-96db4f9c",
+      "status": "PASSED",
+      "responseCount": 57,
+      "errorCount": 4,
+      "consoleErrorCount": 4
+    },
+    {
+      "runId": "mso877wk-capacity-7-71bc50f3",
+      "status": "PASSED",
+      "responseCount": 57,
+      "errorCount": 4,
+      "consoleErrorCount": 4
+    },
+    {
+      "runId": "mso876zf-capacity-14-4707c710",
+      "status": "PASSED",
+      "responseCount": 57,
+      "errorCount": 4,
+      "consoleErrorCount": 4
+    },
+    {
+      "runId": "mso878ar-capacity-16-a64615ae",
+      "status": "PASSED",
+      "responseCount": 57,
+      "errorCount": 4,
+      "consoleErrorCount": 4
+    },
+    {
+      "runId": "mso877rm-capacity-10-95137a8b",
+      "status": "PASSED",
+      "responseCount": 57,
+      "errorCount": 4,
+      "consoleErrorCount": 4
+    },
+    {
+      "runId": "mso8778p-capacity-19-81af0cdc",
+      "status": "PASSED",
+      "responseCount": 57,
+      "errorCount": 4,
+      "consoleErrorCount": 4
+    },
+    {
+      "runId": "mso878qb-capacity-4-b809610c",
+      "status": "PASSED",
+      "responseCount": 57,
+      "errorCount": 4,
+      "consoleErrorCount": 4
+    },
+    {
+      "runId": "mso878hd-capacity-8-e88fdb11",
+      "status": "PASSED",
+      "responseCount": 57,
+      "errorCount": 4,
+      "consoleErrorCount": 4
+    },
+    {
+      "runId": "mso877ha-capacity-17-5784c4db",
+      "status": "PASSED",
+      "responseCount": 53,
+      "errorCount": 6,
+      "consoleErrorCount": 4
+    },
+    {
+      "runId": "mso878mm-capacity-15-196dfacd",
+      "status": "PASSED",
+      "responseCount": 54,
+      "errorCount": 7,
+      "consoleErrorCount": 4
+    },
+    {
+      "runId": "mso87box-capacity-6-bf3de650",
+      "status": "PASSED",
+      "responseCount": 57,
+      "errorCount": 4,
+      "consoleErrorCount": 4
+    }
+  ]
+}

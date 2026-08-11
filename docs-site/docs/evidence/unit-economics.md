@@ -1,42 +1,44 @@
 # Pricing and unit economics
 
-Model date: **10 August 2026**
+Model date: **11 August 2026**
 
-This is a cost-input model, not a customer-price recommendation.
+This combines a narrow cost model with transparent commercial hypotheses. It
+is not an instruction to change live pricing.
 
 ## Fixed compute allocation
 
-Using the calculated $340.33/month single-node candidate:
-
-| Illustrative use | Sessions/month | Compute per active user | Compute per session |
+| Modelled use | Sessions/month | Compute/user | Compute/session |
 | --- | ---: | ---: | ---: |
-| Low: 500 users × 4 sessions | 2,000 | $0.681 | $0.1702 |
-| Typical: 2,000 users × 8 sessions | 16,000 | $0.170 | $0.0213 |
-| Heavy aggregate: 5,000 users × 12 sessions | 60,000 | $0.068 | $0.0057 |
+| 500 MAU × 4 sessions | 2,000 | $0.681 | $0.1702 |
+| 2,000 MAU × 8 sessions | 16,000 | $0.170 | $0.0213 |
+| 5,000 MAU × 12 sessions | 60,000 | $0.068 | $0.0057 |
 
-These divisions do not imply that all users can be active concurrently; demand
-must remain within a separately validated concurrency boundary.
+The input is one calculated $340.33/month `m7i.2xlarge`. These divisions do not
+imply simultaneous capacity.
 
-## AI input
+## Measured and modelled AI cost
 
-The fixture-shaped combined CV/cover-letter operation records 2,100 input and
-1,600 output tokens. At the dated GPT-4.1 mini standard text rates, the
-**calculated** provider cost is **$0.00340 per combined generation**. Six live
-synthetic samples cost $0.009377 in total by provider-reported usage, or
-$0.001563 mean; the sample is too small to replace the scenario model. Retries,
-tax and failed outputs are excluded.
+Seventeen bounded GPT-4.1 mini calls used 80,012 input and 23,419 output tokens
+and cost **$0.069487**. The last complete CV-plus-cover-letter operation cost
+**$0.011350**.
 
-## Contribution model
+| Scenario | CV + cover-letter provider cost |
+| --- | ---: |
+| Low fixture shape | $0.00340 |
+| Typical measured evidence point | $0.01135 |
+| Heavy two-times-token sensitivity | $0.02270 |
 
-```text
-price
-- VAT/payment processing where applicable
-- observed AI usage
-- allocated compute
-- databases/storage/networking/observability
-- support and other variable service cost
-= contribution before broader operating cost
-```
+## Candidate pricing scenarios
 
-The complete assumptions and limitations are in
-`docs/unit-economics-2026-08-10.md`.
+| Candidate | Example AI allowance | Typical LLM cost of allowance |
+| --- | ---: | ---: |
+| Free/trial | 1 operation | $0.011 |
+| £5 light | 5 operations | $0.057 |
+| £10 standard | 20 operations | $0.227 |
+| £20 intensive | 60 operations | $0.681 |
+
+The packages are GBP hypotheses while cost inputs are USD; no exchange-rate or
+gross-margin claim is made. Customer value, conversion, support and market
+positioning matter more than token arithmetic. Database, storage, networking,
+observability, payment, tax, external-provider and operating costs remain to be
+added. Full assumptions are in `docs/unit-economics-2026-08-11.md`.

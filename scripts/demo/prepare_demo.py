@@ -15,7 +15,7 @@ from scripts.docker.stack_config import stack_for
 from scripts.lib.project_paths import INFRASTRUCTURE_ROOT, WORKSPACE_ROOT
 
 DATASET_ID = "uk-software-developer-demo"
-DATASET_VERSION = "1.1.0"
+DATASET_VERSION = "1.0.0"
 SCENARIO = "DEMO_READY"
 
 
