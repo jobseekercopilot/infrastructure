@@ -37,9 +37,14 @@ minutes only when deliberately run.
 Repository administrators must select **GitHub Actions** as the Pages source
 once under **Settings → Pages**.
 
-The public, canonical documentation address is
-<https://docs.jobseekercopilot.com/>. The underlying GitHub Pages project URL
-is a hosting implementation detail and should not be used in user-facing links.
+The configured canonical documentation target is
+<https://docs.jobseekercopilot.com/>. As checked on 11 August 2026, GitHub's
+Pages API returned `404 Not Found` and the two manual workflow runs had stopped
+at `actions/configure-pages` after successful strict builds. The target must not
+be described as publicly deployed until a repository administrator enables
+**GitHub Actions** under **Settings → Pages** and a subsequent workflow run
+succeeds. The underlying GitHub Pages project URL is a hosting implementation
+detail and should not be used in user-facing links.
 
 If the repository instead uses the classic `gh-pages` branch model, no workflow
 is required:

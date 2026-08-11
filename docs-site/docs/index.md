@@ -5,7 +5,7 @@
 Technical documentation for the platform that helps a job seeker manage a profile and evidence, find and save jobs, track applications, and create application documents.
 
 **Source of truth:** reviewed implementation and retained evidence on the
-production-confidence feature branches, audited 10 August 2026.
+production-confidence feature branches, audited 11 August 2026.
 
 This is living documentation for the current development architecture. It
 evolves alongside the repositories' `develop` branches and identifies features
