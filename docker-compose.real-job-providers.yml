@@ -1,4 +1,18 @@
 services:
+  job-service:
+    environment:
+      JOB_SEARCH_REQUEST_TIMEOUT_MS: "20000"
+      JOB_SEARCH_PROVIDER_TIMEOUT_MS: "15000"
+      JOB_SEARCH_MATCHING_TIMEOUT_MS: "3000"
+      # The first cursor page returns current JSearch vacancies; a second page
+      # is too slow for an interactive multi-provider request on RapidAPI.
+      JSEARCH_MAX_CURSOR_PAGES: "1"
+
+  job-finder-gateway:
+    environment:
+      JOB_FINDER_RESPONSE_TIMEOUT_MS: "23000"
+      JOB_FINDER_REQUEST_DEADLINE_MS: "23000"
+
   reed-gateway:
     environment:
       EXTERNAL_PROVIDER_MODE: LIVE
@@ -73,6 +87,7 @@ services:
   job-seeker-copilot-client:
     environment:
       JOB_SEARCH_PROVIDER_MODE: REAL_PROVIDERS
+      BFF_DOWNSTREAM_TIMEOUT_MS: "25000"
 
 networks:
   provider-egress-network:
