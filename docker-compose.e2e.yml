@@ -19,8 +19,11 @@ services:
       - PROVIDER_MODE_ENDPOINT_ENABLED=true
       - SYSTEM_DATA_SERVICE_URL=http://system-data-service:8103
       - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
-      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.1.0}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.0.0}
       - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
+    networks:
+      - job-seeker-network
+      - host-access
 
   google-maps-gateway:
     ports: !override
@@ -70,6 +73,7 @@ services:
       - "${E2E_USER_MANAGEMENT_DEBUG_PORT:-9505}:5005"
     environment:
       SPRING_PROFILES_ACTIVE: "e2e"
+      GATEWAY_AUTH_RATE_MAXIMUM: "100"
 
   reed-gateway:
     ports: !override
@@ -79,8 +83,11 @@ services:
       - EXTERNAL_PROVIDER_MODE=FIXTURE
       - SYSTEM_DATA_SERVICE_URL=http://system-data-service:8103
       - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
-      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.1.0}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.0.0}
       - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
+    networks:
+      - job-seeker-network
+      - host-access
 
   adzuna-gateway:
     ports: !override
@@ -90,8 +97,11 @@ services:
       - EXTERNAL_PROVIDER_MODE=FIXTURE
       - SYSTEM_DATA_SERVICE_URL=http://system-data-service:8103
       - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
-      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.1.0}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.0.0}
       - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
+    networks:
+      - job-seeker-network
+      - host-access
 
   jsearch-gateway:
     ports: !override
@@ -101,8 +111,11 @@ services:
       - EXTERNAL_PROVIDER_MODE=FIXTURE
       - SYSTEM_DATA_SERVICE_URL=http://system-data-service:8103
       - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
-      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.1.0}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.0.0}
       - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
+    networks:
+      - job-seeker-network
+      - host-access
 
   nhs-jobs-gateway:
     ports: !override
@@ -110,6 +123,9 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
       - EXTERNAL_PROVIDER_MODE=FIXTURE
+    networks:
+      - job-seeker-network
+      - host-access
 
   apprenticeships-gateway:
     ports: !override
@@ -117,6 +133,9 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
       - EXTERNAL_PROVIDER_MODE=FIXTURE
+    networks:
+      - job-seeker-network
+      - host-access
 
   system-data-service:
     ports: !override
@@ -128,7 +147,7 @@ services:
       - SYSTEM_DATA_FIXTURES_ENABLED=true
       - SYSTEM_DATA_FIXTURE_ALLOWED_PROFILES=test
       - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
-      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.1.0}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.0.0}
       - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
     networks:
       - job-seeker-network
@@ -161,8 +180,11 @@ services:
       - EXTERNAL_PROVIDER_MODE=FIXTURE
       - SYSTEM_DATA_SERVICE_URL=http://system-data-service:8103
       - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
-      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.1.0}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.0.0}
       - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
+    networks:
+      - job-seeker-network
+      - host-access
 
   document-store-service:
     ports: !override
@@ -224,6 +246,7 @@ services:
       - ENVIRONMENT_DATA_ENABLED=true
       - ENVIRONMENT_DATA_ALLOWED_ENVIRONMENTS=e2e
       - ENVIRONMENT_DATA_ISOLATED_DATABASE=true
+      - FREE_STARTER_TOKENS=50000
 
   payment-postgres:
 
@@ -235,10 +258,13 @@ services:
       - EXTERNAL_PROVIDER_MODE=FIXTURE
       - SYSTEM_DATA_SERVICE_URL=http://system-data-service:8103
       - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
-      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.1.0}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.0.0}
       - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
       - STRIPE_SUCCESS_URL=http://localhost:${E2E_FRONTEND_PORT:-3100}/payment/success
       - STRIPE_CANCEL_URL=http://localhost:${E2E_FRONTEND_PORT:-3100}/payment/cancel
+    networks:
+      - job-seeker-network
+      - host-access
 
   payment-gateway:
     ports: !override
@@ -251,3 +277,4 @@ services:
       - "${E2E_FRONTEND_PORT:-3100}:3000"
     environment:
       - NODE_ENV=production
+      - BFF_PASSWORD_RESET_RATE_MAXIMUM=100

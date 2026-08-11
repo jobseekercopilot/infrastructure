@@ -166,6 +166,54 @@ class RenderedModeIsolationTests(unittest.TestCase):
     def model(self, profile: str) -> dict:
         return copy.deepcopy(self.models[profile])
 
+    def test_e2e_rate_limits_support_repeatable_shared_peer_regression_runs(
+        self,
+    ) -> None:
+        local_services = self.model("local")["services"]
+        e2e_services = self.model("e2e")["services"]
+
+        self.assertNotIn(
+            "GATEWAY_AUTH_RATE_MAXIMUM",
+            local_services["user-management-gateway"]["environment"],
+        )
+        self.assertEqual(
+            "100",
+            e2e_services["user-management-gateway"]["environment"][
+                "GATEWAY_AUTH_RATE_MAXIMUM"
+            ],
+        )
+
+    def test_e2e_fixture_gateways_are_loopback_reachable_for_preflight(self) -> None:
+        local_services = self.model("local")["services"]
+        e2e_services = self.model("e2e")["services"]
+        fixture_gateways = (
+            "adzuna-gateway",
+            "jsearch-gateway",
+            "nhs-jobs-gateway",
+            "apprenticeships-gateway",
+            "reed-gateway",
+            "postcode-io-gateway",
+            "llm-gateway",
+            "stripe-gateway",
+        )
+
+        for gateway in fixture_gateways:
+            with self.subTest(gateway=gateway):
+                self.assertNotIn("host-access", local_services[gateway]["networks"])
+                self.assertIn("host-access", e2e_services[gateway]["networks"])
+        self.assertEqual(
+            "5",
+            local_services["job-seeker-copilot-client"]["environment"][
+                "BFF_PASSWORD_RESET_RATE_MAXIMUM"
+            ],
+        )
+        self.assertEqual(
+            "100",
+            e2e_services["job-seeker-copilot-client"]["environment"][
+                "BFF_PASSWORD_RESET_RATE_MAXIMUM"
+            ],
+        )
+
     def test_all_seven_rendered_modes_pass_the_policy(self) -> None:
         for profile, model in self.models.items():
             validate_model(model, profile)
@@ -518,6 +566,14 @@ class RenderedModeIsolationTests(unittest.TestCase):
                         "job-seeker-copilot-client",
                         "authentication-service",
                         "system-data-service",
+                        "adzuna-gateway",
+                        "jsearch-gateway",
+                        "nhs-jobs-gateway",
+                        "apprenticeships-gateway",
+                        "reed-gateway",
+                        "postcode-io-gateway",
+                        "llm-gateway",
+                        "stripe-gateway",
                     }
                 )
                 self.assertEqual(
@@ -1174,6 +1230,61 @@ class AcquisitionAuthorizationTests(unittest.TestCase):
             ):
                 self.assertEqual(run_acquisition(), 2)
         run.assert_not_called()
+
+    def test_acquisition_merges_only_provider_credentials_into_temporary_runtime_env(
+        self,
+    ) -> None:
+        values = self.values()
+        adzuna_id = values.pop("ADZUNA_APP_ID")
+        adzuna_key = values.pop("ADZUNA_APP_KEY")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            env_file = root / ".env.data-acquisition"
+            env_file.write_text(
+                "\n".join(f"{name}={value}" for name, value in values.items())
+                + "\n",
+                encoding="utf-8",
+            )
+            secrets_file = root / ".secrets.env"
+            secrets_file.write_text(
+                f"ADZUNA_APP_ID={adzuna_id}\n"
+                f"ADZUNA_APP_KEY={adzuna_key}\n"
+                "UNRELATED_SECRET=must-not-be-copied\n",
+                encoding="utf-8",
+            )
+            observed: list[tuple[Path, str]] = []
+
+            def observe_runtime_env(command: list[str]) -> int:
+                runtime_path = Path(command[command.index("--env-file") + 1])
+                observed.append(
+                    (runtime_path, runtime_path.read_text(encoding="utf-8"))
+                )
+                return 0
+
+            with patch(
+                "sys.argv",
+                [
+                    "run_acquisition",
+                    "--env-file",
+                    str(env_file),
+                    "--secrets-env-file",
+                    str(secrets_file),
+                    "--authorize-live-provider-costs",
+                ],
+            ), patch(
+                "scripts.data.run_acquisition.QUARANTINE_ROOT", root / "quarantine"
+            ), patch(
+                "scripts.data.run_acquisition.run", side_effect=observe_runtime_env
+            ), redirect_stdout(StringIO()):
+                self.assertEqual(run_acquisition(), 0)
+
+        self.assertGreaterEqual(len(observed), 4)
+        runtime_path, runtime_contents = observed[0]
+        self.assertNotEqual(runtime_path, env_file)
+        self.assertIn(f'ADZUNA_APP_ID="{adzuna_id}"', runtime_contents)
+        self.assertIn(f'ADZUNA_APP_KEY="{adzuna_key}"', runtime_contents)
+        self.assertNotIn("UNRELATED_SECRET", runtime_contents)
+        self.assertFalse(runtime_path.exists())
 
     def test_rejected_quarantine_is_exactly_deleted_and_audited(self) -> None:
         authorization = authorize(self.values())

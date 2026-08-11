@@ -416,6 +416,8 @@
     {"name": "DATA_ACQUISITION_LOCATIONS", "owner": "System Data Service", "consumers": ["data-acquisition"], "classification": "configuration", "profiles": ["data-acquisition"], "example": "London"},
     {"name": "DATA_ACQUISITION_MAXIMUM_JOBS_PER_PROVIDER", "owner": "System Data Service", "consumers": ["data-acquisition"], "classification": "configuration", "profiles": ["data-acquisition"], "example": "100"},
     {"name": "DATA_ACQUISITION_MAXIMUM_OUTPUT_RECORDS", "owner": "System Data Service", "consumers": ["data-acquisition"], "classification": "configuration", "profiles": ["data-acquisition"], "example": "300"},
+    {"name": "DATA_ACQUISITION_HOST_UID", "owner": "Infrastructure", "consumers": ["docker-compose.data-acquisition.yml"], "classification": "configuration", "profiles": ["data-acquisition"], "example": "1000"},
+    {"name": "DATA_ACQUISITION_HOST_GID", "owner": "Infrastructure", "consumers": ["docker-compose.data-acquisition.yml"], "classification": "configuration", "profiles": ["data-acquisition"], "example": "1000"},
     {"name": "DATA_ACQUISITION_ADZUNA_ENABLED", "owner": "System Data Service", "consumers": ["data-acquisition"], "classification": "configuration", "profiles": ["data-acquisition"], "example": "false"},
     {"name": "DATA_ACQUISITION_JSEARCH_ENABLED", "owner": "System Data Service", "consumers": ["data-acquisition"], "classification": "configuration", "profiles": ["data-acquisition"], "example": "false"},
     {"name": "DATA_ACQUISITION_REED_ENABLED", "owner": "System Data Service", "consumers": ["data-acquisition"], "classification": "configuration", "profiles": ["data-acquisition"], "example": "false"},

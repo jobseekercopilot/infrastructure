@@ -59,3 +59,7 @@ quarantined-acquisitions/
 # Central documentation local output
 docs-site/site/
 .venv-docs/
+
+# Raw local benchmark runs can be large and host-specific. Reviewed baseline
+# evidence is copied explicitly under benchmark-results/baseline/.
+benchmark-results/runs/

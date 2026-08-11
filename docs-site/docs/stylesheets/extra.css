@@ -34,6 +34,17 @@
   margin-top: 0;
 }
 
+.md-typeset .jsc-card--measured { border-left: 0.25rem solid #16845b; }
+.md-typeset .jsc-card--calculated { border-left: 0.25rem solid #3973c7; }
+.md-typeset .jsc-card--partial { border-left: 0.25rem solid #c37a18; }
+.md-typeset .jsc-card--failed { border-left: 0.25rem solid #b52b35; }
+
+@media (max-width: 44.99em) {
+  .md-typeset .jsc-hero { padding: 1.25rem; }
+  .md-typeset .jsc-grid { grid-template-columns: 1fr; }
+  .md-typeset table:not([class]) { display: block; overflow-x: auto; }
+}
+
 .md-typeset table:not([class]) {
   display: table;
   width: 100%;

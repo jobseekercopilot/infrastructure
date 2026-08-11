@@ -99,6 +99,7 @@ Then an operator can deliberately run:
 ```bash
 python3 -m scripts.data.run_acquisition \
   --env-file .env.data-acquisition \
+  --secrets-env-file ../config/.secrets.env \
   --authorize-live-provider-costs
 ```
 

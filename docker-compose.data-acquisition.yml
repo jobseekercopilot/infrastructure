@@ -81,6 +81,7 @@ services:
     build:
       context: ../system-data-service
       dockerfile: Dockerfile
+    user: "${DATA_ACQUISITION_HOST_UID:-1000}:${DATA_ACQUISITION_HOST_GID:-1000}"
     environment:
       SPRING_PROFILES_ACTIVE: live-acquisition
       DATA_ACQUISITION_RUN_ID: ${DATA_ACQUISITION_RUN_ID:?Set a unique DATA_ACQUISITION_RUN_ID}
