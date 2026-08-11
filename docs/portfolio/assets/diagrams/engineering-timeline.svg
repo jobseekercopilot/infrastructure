@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="520" viewBox="0 0 1400 520">
+  <defs><style>.t{font:700 24px Arial;fill:#14213d}.s{font:18px Arial;fill:#53627c}.d{font:800 18px Arial;fill:#2f6df6}.line{stroke:#b8c9e8;stroke-width:8}.n{fill:#fff;stroke:#2f6df6;stroke-width:5}.a{fill:#f3f7ff}.b{fill:#f6f2ff}.c{fill:#eefaf7}</style></defs>
+  <rect width="1400" height="520" rx="28" fill="#f7f9fd"/>
+  <line class="line" x1="100" y1="250" x2="1300" y2="250"/>
+  <g transform="translate(100 250)"><circle class="n" r="22"/><text class="d" x="-48" y="-54">18 Jun</text><text class="t" x="-62" y="74">Foundations</text><text class="s" x="-72" y="104">Client, identity, profile,</text><text class="s" x="-62" y="130">search and location</text></g>
+  <g transform="translate(300 250)"><circle class="n" r="22"/><text class="d" x="-42" y="-54">14 Jul</text><text class="t" x="-55" y="-108">Landing</text><text class="s" x="-80" y="-80">Waitlist, contact, SES</text></g>
+  <g transform="translate(500 250)"><circle class="n" r="22"/><text class="d" x="-48" y="-54">20–24 Jul</text><text class="t" x="-70" y="74">Hardening</text><text class="s" x="-90" y="104">Persistence, ownership,</text><text class="s" x="-98" y="130">BFF, contracts, System Data</text></g>
+  <g transform="translate(700 250)"><circle class="n" r="22"/><text class="d" x="-48" y="-54">24–29 Jul</text><text class="t" x="-96" y="-108">Product domains</text><text class="s" x="-105" y="-80">Applications, documents,</text><text class="s" x="-92" y="-56">reporting, evidence</text></g>
+  <g transform="translate(900 250)"><circle class="n" r="22"/><text class="d" x="-42" y="-54">6–9 Aug</text><text class="t" x="-86" y="74">Real workflows</text><text class="s" x="-105" y="104">Live LLM, selected outputs,</text><text class="s" x="-98" y="130">location and five providers</text></g>
+  <g transform="translate(1100 250)"><circle class="n" r="22"/><text class="d" x="-47" y="-54">10–11 Aug</text><text class="t" x="-85" y="-108">Confidence</text><text class="s" x="-108" y="-80">Association repair, closure,</text><text class="s" x="-105" y="-56">capacity and live validation</text></g>
+  <g transform="translate(1300 250)"><circle class="n" r="22"/><text class="d" x="-42" y="-54">11 Aug</text><text class="t" x="-72" y="74">Recovery</text><text class="s" x="-104" y="104">Rich-profile incident, retry,</text><text class="s" x="-95" y="130">fallback, export and audit</text></g>
+</svg>

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1300" height="620" viewBox="0 0 1300 620">
+  <defs><style>.h{font:800 25px Arial;fill:#14213d}.p{font:18px Arial;fill:#53627c}.box{fill:#fff;stroke:#c8d5eb;stroke-width:3}.green{fill:#eefaf7;stroke:#77cdb7}.purple{fill:#f5f1ff;stroke:#9f88ef}.blue{fill:#f1f6ff;stroke:#83a7fa}.arrow{stroke:#657897;stroke-width:4;fill:none;marker-end:url(#m)}</style><marker id="m" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#657897"/></marker></defs>
+  <rect width="1300" height="620" rx="28" fill="#f8faff"/>
+  <g transform="translate(40 70)"><rect class="box" width="230" height="140" rx="18"/><text class="h" x="28" y="48">Profile</text><text class="p" x="28" y="80">Employment · projects</text><text class="p" x="28" y="108">education · preferences</text></g>
+  <g transform="translate(330 70)"><rect class="green" width="250" height="140" rx="18"/><text class="h" x="28" y="48">Evidence entry</text><text class="p" x="28" y="80">Category · provenance</text><text class="p" x="28" y="108">confirmation · lifecycle</text></g>
+  <g transform="translate(640 70)"><rect class="green" width="250" height="140" rx="18"/><text class="h" x="28" y="48">Revision</text><text class="p" x="28" y="80">Immutable facts</text><text class="p" x="28" y="108">creator · digest · time</text></g>
+  <g transform="translate(950 70)"><rect class="purple" width="300" height="140" rx="18"/><text class="h" x="28" y="48">Purpose selection</text><text class="p" x="28" y="80">CV or cover letter</text><text class="p" x="28" y="108">ordered and explicitly bounded</text></g>
+  <path class="arrow" d="M270 140 H325"/><path class="arrow" d="M580 140 H635"/><path class="arrow" d="M890 140 H945"/>
+  <g transform="translate(235 350)"><rect class="blue" width="360" height="160" rx="18"/><text class="h" x="30" y="52">Evidence snapshot</text><text class="p" x="30" y="86">Immutable selected facts + order</text><text class="p" x="30" y="116">purpose · profile revision · digest</text></g>
+  <g transform="translate(705 350)"><rect class="purple" width="360" height="160" rx="18"/><text class="h" x="30" y="52">Generation input</text><text class="p" x="30" y="86">Saved vacancy + snapshot IDs</text><text class="p" x="30" y="116">model sees bounded evidence only</text></g>
+  <path class="arrow" d="M1100 210 V275 H415 V345"/><path class="arrow" d="M595 430 H700"/>
+</svg>

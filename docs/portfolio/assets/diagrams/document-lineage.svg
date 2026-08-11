@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="620" viewBox="0 0 1400 620">
+  <defs><style>.h{font:800 24px Arial;fill:#14213d}.p{font:17px Arial;fill:#53627c}.b{fill:#fff;stroke:#bdcce6;stroke-width:3}.v{fill:#f5f1ff;stroke:#9880e8}.g{fill:#eefaf7;stroke:#68c2ab}.a{stroke:#657897;stroke-width:4;fill:none;marker-end:url(#m)}.dash{stroke:#2f6df6;stroke-width:4;fill:none;stroke-dasharray:10 8;marker-end:url(#m)}</style><marker id="m" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#657897"/></marker></defs>
+  <rect width="1400" height="620" rx="28" fill="#f8faff"/>
+  <g transform="translate(60 70)"><rect class="b" width="240" height="120" rx="16"/><text class="h" x="25" y="45">Source evidence</text><text class="p" x="25" y="78">profile · upload · vacancy</text></g>
+  <g transform="translate(370 70)"><rect class="v" width="260" height="120" rx="16"/><text class="h" x="25" y="45">Document family</text><text class="p" x="25" y="78">CV or cover letter history</text></g>
+  <g transform="translate(720 35)"><rect class="v" width="260" height="120" rx="16"/><text class="h" x="25" y="45">Version 1</text><text class="p" x="25" y="78">immutable · digest · files</text></g>
+  <g transform="translate(720 205)"><rect class="v" width="260" height="120" rx="16"/><text class="h" x="25" y="45">Version 2</text><text class="p" x="25" y="78">immutable · digest · files</text></g>
+  <path class="a" d="M300 130 H365"/><path class="a" d="M630 130 H715"/><path class="a" d="M630 130 H675 V265 H715"/>
+  <g transform="translate(1080 35)"><rect class="g" width="250" height="120" rx="16"/><text class="h" x="25" y="45">Current pointer</text><text class="p" x="25" y="78">explicit family choice</text></g>
+  <g transform="translate(1080 205)"><rect class="g" width="250" height="120" rx="16"/><text class="h" x="25" y="45">Approved pointer</text><text class="p" x="25" y="78">explicit version action</text></g>
+  <path class="dash" d="M980 95 H1075"/><path class="dash" d="M980 265 H1075"/>
+  <g transform="translate(445 425)"><rect class="b" width="500" height="130" rx="16"/><text class="h" x="30" y="48">Application document selection</text><text class="p" x="30" y="82">exact version ID or explicit omission · frozen when Applied</text></g>
+  <path class="a" d="M850 155 V380 H695 V420"/><text class="p" x="865" y="365">Yesterday's submitted CV remains Version 1</text>
+</svg>

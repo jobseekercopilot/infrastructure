@@ -6,6 +6,7 @@ Reviewed on 11 August 2026. Hashes identify the exact artifacts reviewed during 
 
 | Asset | Location | Review status | Provenance and use | SHA-256 |
 |---|---|---|---|---|
+| Detailed engineering portfolio PDF | `infrastructure/docs/portfolio/output/Bernard-McGeever-Job-Seeker-Copilot-Detailed-Engineering-Portfolio-2026.pdf` | Shareable | 42-page v2 dossier with architecture evolution, full 31-repository catalogue, implementation deep dives, failure case studies and evidence boundaries. Contains no personal email address, phone number, credentials or private-repository URLs. | `d945e6a405607a1984442da0455994a6a9c68188d9d81b7d91aaeda3a9027ccf` |
 | Technical portfolio PDF | `infrastructure/docs/portfolio/output/Bernard-McGeever-Job-Seeker-Copilot-Technical-Portfolio-2026.pdf` | Shareable | 16-page, evidence-backed dossier built from the audited HTML source. Contains no personal email address, phone number, credentials or private-repository URLs. | `dbec2270db01ef1dfaf3fcf72addec5c2a42dea14c54257a750b052b7ce97f3a` |
 | Master product showcase | `e2e/demo-recordings/final/JOB-SEEKER-COPILOT-SHOWCASE.mp4` | Shareable with fixture disclosure | 204.40-second deterministic showcase recorded from canonical System Data. Useful for demonstrating journeys; it is not evidence of live provider availability. | `5fd8a8b95aaa86812d77aed029ec69a7d417bd0a962abd748c08e05bd0b9c790` |
 | Example generated CV | `e2e/demo-recordings/final/downloads/alex-taylor-java-software-developer-cv.pdf` | Shareable as a synthetic example | Fictional Alex Taylor fixture output. Demonstrates export format and workflow only; use a separately reviewed, job-specific real CV for an application. | `f8344bae60253ebb1cd891c1ea071d0675439d49ed0b2c43089ebba89fc3f276` |
@@ -40,6 +41,13 @@ The portfolio embeds reviewed crops from the persistent real-provider manual env
 - `reporting-live.png`
 
 They exclude account identity and contact data. Provider-backed vacancy screenshots are point-in-time evidence, not an availability guarantee. `google-location-live.png` uses a generic Reading search and saved no profile change.
+
+The detailed edition additionally embeds privacy-reviewed synthetic fixture
+screenshots for registration, profile structure, the Evidence Library,
+purpose-bound evidence selection, job details and generated-CV layout. These
+use the fictional Alex Taylor System Data persona and are explicitly labelled
+as synthetic in the dossier. `registration-current.png` contains no submitted
+identity or contact data.
 
 ## Distribution notes
 

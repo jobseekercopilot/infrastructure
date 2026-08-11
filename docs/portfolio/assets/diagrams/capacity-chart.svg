@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1300" height="620" viewBox="0 0 1300 620">
+  <defs><style>.h{font:800 24px Arial;fill:#14213d}.p{font:17px Arial;fill:#53627c}.axis{stroke:#8898b2;stroke-width:3}.grid{stroke:#dbe3f1;stroke-width:2}.bar{fill:#5f7cf5}.warn{fill:#e49a32}.val{font:700 17px Arial;fill:#14213d}</style></defs>
+  <rect width="1300" height="620" rx="28" fill="#f8faff"/>
+  <text class="h" x="55" y="55">Measured session p95 by active browser sessions</text>
+  <line class="axis" x1="100" y1="500" x2="1230" y2="500"/><line class="axis" x1="100" y1="100" x2="100" y2="500"/>
+  <line class="grid" x1="100" y1="400" x2="1230" y2="400"/><line class="grid" x1="100" y1="300" x2="1230" y2="300"/><line class="grid" x1="100" y1="200" x2="1230" y2="200"/><line class="grid" x1="100" y1="100" x2="1230" y2="100"/>
+  <text class="p" x="45" y="505">0s</text><text class="p" x="35" y="405">15s</text><text class="p" x="35" y="305">30s</text><text class="p" x="35" y="205">45s</text><text class="p" x="35" y="105">60s</text>
+  <rect class="bar" x="150" y="460" width="120" height="40" rx="8"/><text class="val" x="176" y="448">5.97s</text><text class="p" x="196" y="535">1</text>
+  <rect class="bar" x="335" y="431" width="120" height="69" rx="8"/><text class="val" x="351" y="419">10.34s</text><text class="p" x="382" y="535">5</text>
+  <rect class="bar" x="520" y="387" width="120" height="113" rx="8"/><text class="val" x="538" y="375">17.00s</text><text class="p" x="560" y="535">10</text>
+  <rect class="bar" x="705" y="327" width="120" height="173" rx="8"/><text class="val" x="723" y="315">25.97s</text><text class="p" x="745" y="535">15</text>
+  <rect class="bar" x="890" y="230" width="120" height="270" rx="8"/><text class="val" x="908" y="218">40.43s</text><text class="p" x="930" y="535">20</text>
+  <rect class="warn" x="1075" y="104" width="120" height="396" rx="8"/><text class="val" x="1093" y="92">59.45s</text><text class="p" x="1115" y="535">25</text>
+  <text class="p" x="400" y="580">Active sessions · all points completed; 25 left 0.55s against the journey timeout</text>
+</svg>
