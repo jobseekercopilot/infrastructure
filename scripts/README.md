@@ -72,6 +72,7 @@ python3 scripts/security/generate_profile_env.py \
   --output .env.data-acquisition
 python3 -m scripts.data.run_acquisition \
   --env-file .env.data-acquisition \
+  --secrets-env-file ../config/.secrets.env \
   --authorize-live-provider-costs
 ```
 

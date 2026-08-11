@@ -1,4 +1,4 @@
-# Real-world validation costs — 2026-08-10
+# Real-world validation costs — 2026-08-10 to 2026-08-11
 
 ## Evidence boundary
 
@@ -10,16 +10,23 @@ from optional live verification.
 | Provider | Operation | Calls | Tokens/units | Cost | Purpose | Reusable fixture? |
 | --- | --- | ---: | ---: | ---: | --- | --- |
 | System Data (local) | Job, postcode, Stripe and LLM fixture responses | many | local requests | $0.00 | Repeatable regression and promotional state | Yes; canonical synthetic fixtures |
-| Live job providers | Current response-shape sampling | 0 | 0 | $0.00 | Optional provider realism | Not run |
+| Reed | Search sampling | 2 | 2 requests | $0.00 observable incremental charge | Current nullable/salary/description shape | Private quarantined evidence only |
+| Adzuna | Search sampling | 2 | 2 requests | $0.00 observable incremental charge | Current empty-result behaviour | Private quarantined evidence only |
+| JSearch | Search sampling | 2 | 2 requests | $0.00 observable incremental charge | Current employment/remote/description shape | Private quarantined evidence only |
 | Live location providers | Location/route sampling | 0 | 0 | $0.00 | Optional location realism | Not run |
-| OpenAI | Six-case CV/cover-letter quality sample | 0 | 0 | $0.00 | Grounding, latency, token and quality review | Outstanding |
+| OpenAI | Six-case CV/cover-letter quality sample through `llm-gateway` | 6 successful; 1 rejected before generation | 4,622 input / 4,703 output | $0.009377 | Grounding, latency, token and quality review | No; private synthetic review evidence only |
 
-**Exact paid validation spend recorded so far: $0.00.**
+**Usage-calculated paid validation spend: $0.009377.** The rejected LLM request
+reported no generation usage and adds $0.00. The provider accounts exposed no
+per-request monetary charge to the runner, so the six search requests record
+$0.00 observable incremental spend while consuming provider quota.
 
-Zero here means no paid call was made; it does not mean a production operation
-is free. The six required LLM samples remain an explicit coverage gap until a
-bounded live run records model, call count, input/output tokens, latency and
-calculated cost.
+The six successful calls used `gpt-4.1-mini-2025-04-14`, with `store=false`,
+data sharing disabled, synthetic personas, a 1,600-token output cap and one
+concurrent provider call. Latency ranged from 6,349 to 13,466 ms (9,461 ms
+mean). The private, mode-0600 evidence file is
+`/tmp/jsc-live-llm-validation-2026-08-11.json`; it is deliberately not a
+committed fixture.
 
 ## Safety and reproducibility
 
@@ -27,5 +34,5 @@ calculated cost.
 - No API key, token, request authorization header or applicant document is
   recorded in this report.
 - All users and documents are fictional.
-- A later paid run must add one row per provider/operation and retain aggregate
-  token/unit evidence without committing credentials or raw personal content.
+- Aggregate call/token/cost evidence is committed; credentials and full live
+  outputs are not.

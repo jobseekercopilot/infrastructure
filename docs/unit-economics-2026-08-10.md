@@ -59,7 +59,7 @@ background noise.
 ### CV and cover-letter generation
 
 The governed fixture records 2,100 input and 1,600 output tokens for the
-combined CV/cover-letter operation. No live request was made. The configured
+combined CV/cover-letter operation. The configured
 model family is GPT-4.1 mini; its official standard text price retrieved on
 2026-08-10 is [$0.40 per million input tokens and $1.60 per million output
 tokens](https://developers.openai.com/api/docs/models/gpt-4.1-mini).
@@ -70,7 +70,11 @@ Calculated provider cost for that combined fixture-shaped generation:
 
 That is **0.34 US cents per combined generation**, or $3.40 per 1,000, before
 retries, moderation, failed outputs, longer prompts, taxes or any priority tier.
-It is not a measured live bill. The current fixture does not support a credible
+It is a scenario rather than the observed live average. Six bounded live
+combined generations on 11 August used 4,622 input and 4,703 output tokens in
+total, costing $0.009377 by provider-reported usage, or $0.001563 mean per
+combined output. That small synthetic sample is quality evidence, not a demand
+forecast. The current fixture does not support a credible
 split between “cost per CV” and “cost per cover letter”; measure those operations
 separately before pricing either one.
 
@@ -99,8 +103,8 @@ No customer subscription price is changed or recommended by this document.
 
 ## Current validation spend
 
-No OpenAI or other paid-provider credentials were present in the 10 August 2026
-real-world validation environment. Actual paid validation spend was therefore
-GBP 0.00 / USD 0.00 and no live latency or token distribution was observed.
-The arithmetic above remains a scenario calculation only; the exact execution
-boundary is recorded in `real-world-validation-costs-2026-08-10.md`.
+Six OpenAI calls were executed on 11 August through the product gateway after
+the initial credential inventory. Their usage-calculated spend was $0.009377;
+latency was 6.349–13.466 seconds. Job-provider and location costs remain
+separate. The exact execution boundary is recorded in
+`real-world-validation-costs-2026-08-10.md`.

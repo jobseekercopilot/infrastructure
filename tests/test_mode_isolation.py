@@ -1231,6 +1231,61 @@ class AcquisitionAuthorizationTests(unittest.TestCase):
                 self.assertEqual(run_acquisition(), 2)
         run.assert_not_called()
 
+    def test_acquisition_merges_only_provider_credentials_into_temporary_runtime_env(
+        self,
+    ) -> None:
+        values = self.values()
+        adzuna_id = values.pop("ADZUNA_APP_ID")
+        adzuna_key = values.pop("ADZUNA_APP_KEY")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            env_file = root / ".env.data-acquisition"
+            env_file.write_text(
+                "\n".join(f"{name}={value}" for name, value in values.items())
+                + "\n",
+                encoding="utf-8",
+            )
+            secrets_file = root / ".secrets.env"
+            secrets_file.write_text(
+                f"ADZUNA_APP_ID={adzuna_id}\n"
+                f"ADZUNA_APP_KEY={adzuna_key}\n"
+                "UNRELATED_SECRET=must-not-be-copied\n",
+                encoding="utf-8",
+            )
+            observed: list[tuple[Path, str]] = []
+
+            def observe_runtime_env(command: list[str]) -> int:
+                runtime_path = Path(command[command.index("--env-file") + 1])
+                observed.append(
+                    (runtime_path, runtime_path.read_text(encoding="utf-8"))
+                )
+                return 0
+
+            with patch(
+                "sys.argv",
+                [
+                    "run_acquisition",
+                    "--env-file",
+                    str(env_file),
+                    "--secrets-env-file",
+                    str(secrets_file),
+                    "--authorize-live-provider-costs",
+                ],
+            ), patch(
+                "scripts.data.run_acquisition.QUARANTINE_ROOT", root / "quarantine"
+            ), patch(
+                "scripts.data.run_acquisition.run", side_effect=observe_runtime_env
+            ), redirect_stdout(StringIO()):
+                self.assertEqual(run_acquisition(), 0)
+
+        self.assertGreaterEqual(len(observed), 4)
+        runtime_path, runtime_contents = observed[0]
+        self.assertNotEqual(runtime_path, env_file)
+        self.assertIn(f'ADZUNA_APP_ID="{adzuna_id}"', runtime_contents)
+        self.assertIn(f'ADZUNA_APP_KEY="{adzuna_key}"', runtime_contents)
+        self.assertNotIn("UNRELATED_SECRET", runtime_contents)
+        self.assertFalse(runtime_path.exists())
+
     def test_rejected_quarantine_is_exactly_deleted_and_audited(self) -> None:
         authorization = authorize(self.values())
         with tempfile.TemporaryDirectory() as directory:

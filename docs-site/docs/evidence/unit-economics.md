@@ -21,9 +21,10 @@ must remain within a separately validated concurrency boundary.
 
 The fixture-shaped combined CV/cover-letter operation records 2,100 input and
 1,600 output tokens. At the dated GPT-4.1 mini standard text rates, the
-**calculated** provider cost is **$0.00340 per combined generation**. No live
-request produced that figure, and retries, longer prompts, tax and failed
-outputs are excluded.
+**calculated** provider cost is **$0.00340 per combined generation**. Six live
+synthetic samples cost $0.009377 in total by provider-reported usage, or
+$0.001563 mean; the sample is too small to replace the scenario model. Retries,
+tax and failed outputs are excluded.
 
 ## Contribution model
 
