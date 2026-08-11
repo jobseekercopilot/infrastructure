@@ -13,6 +13,7 @@ sequenceDiagram
   participant Providers as Reed / Adzuna / JSearch / NHS / Apprenticeships
   participant Matching as Job Matching Service
   participant Tracker as Application Tracker
+  participant Location as Location Service
 
   User->>UI: Search with filters or profile defaults
   UI->>BFF: POST /api/jobs/search
@@ -30,6 +31,10 @@ sequenceDiagram
   Jobs->>Matching: POST /api/v1/job-matches/enrich
   Matching->>Tracker: List owner's applications
   Tracker-->>Matching: Application records
+  opt Eligible destinations and commute preferences
+    Matching->>Location: Bounded commute matrix
+    Location-->>Matching: Advisory distance/duration or unavailable
+  end
   Matching-->>Jobs: Jobs + application state
   Jobs-->>UI: Paged jobs, provider status, partial/degraded status
 ```
@@ -65,7 +70,7 @@ Duplicates are merged, source references are retained, and a stable `job_<sha256
 ## What “matching” means today
 
 !!! info "Application-state matching, not suitability scoring"
-    `job-matching-service` does not read candidate skills or calculate a fit score on `develop`. It loads the claimant's Application Tracker records and matches by canonical job ID, then provider/external ID, then exact normalised title/company/location. It enriches the job with application status, application ID, document IDs, and timestamps, or marks it `NEW`.
+    `job-matching-service` does not read candidate skills or calculate a fit score on `develop`. It loads the claimant's Application Tracker records and matches by canonical job ID, then provider/external ID, then exact normalised title/company/location. It enriches the job with application status, application ID, document IDs, and timestamps, or marks it `NEW`. Separately, it can attach a bounded advisory commute assessment through Location Service; that is not a suitability score and never removes a result.
 
 If Job Matching times out or fails, Job Service returns provider results with a degraded matching status. `matchScore` exists in the canonical DTO but this flow does not set it.
 

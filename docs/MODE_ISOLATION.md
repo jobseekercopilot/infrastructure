@@ -5,19 +5,21 @@ points render the selected model in memory and reject profile crossover,
 live-provider credentials in fixture modes, unsafe reset/seed exposure, or a
 payment/LLM provider mode that can incur external activity unexpectedly.
 
-## Mode matrix
+## Supported profile matrix
 
-| Mode | External providers | Environment reset/seed | State and teardown |
+| Profile | External providers | Environment reset/seed | State and teardown |
 | --- | --- | --- | --- |
-| `local` | Job, postcode, LLM and Stripe gateways use reviewed System Data fixtures | Disabled | Dedicated `job-seeker-copilot-local` volumes; stop with the matching stack command |
-| `e2e` | Fixture-only; live credentials are not injected | Enabled only under the exact `e2e` profile and allowlist | `job-seeker-copilot-e2e` volumes and ports; disposable synthetic state |
-| `live-provider` | Reed, Adzuna, JSearch and postcode may be LIVE; LLM is `DISABLED`; Stripe remains `FIXTURE` | Disabled | Dedicated `job-seeker-copilot-live` volumes; not production evidence |
-| `data-acquisition` | Only explicitly approved job-provider gateway profiles start | System Data is a non-web `live-acquisition` command; normal environment management and fixtures are disabled | Separate `job-seeker-copilot-data-acquisition` project, network and quarantine; containers/network are removed after every run |
+| `basic-fixture` | Job, postcode and Google/LLM paths are deterministic or disabled | Disabled in normal runtime | Dedicated `job-seeker-copilot-basic` volumes; normal stop preserves state |
+| `full-fixture` | Complete application; job, postcode, LLM and Stripe provider boundaries use reviewed fixtures and Google is disabled | Disabled in normal runtime; guarded E2E tooling uses explicit named-state APIs | Dedicated `job-seeker-copilot-full` volumes; reproducible fixture data |
+| `full-local-ses` | Same provider boundary as `full-fixture`; account email uses the production SES adapter against LocalStack | Same as full fixture | Dedicated project/volumes; LocalStack mail is ephemeral |
+| `google-maps-smoke` | Google Places/Routes may be LIVE; every other external provider remains fixture-backed | Disabled | Dedicated `job-seeker-copilot-google-maps` state; bounded live validation only |
+| `real-job-providers` | Reed, Adzuna, JSearch, NHS Jobs, Find an apprenticeship and Postcodes.io may be LIVE; LLM and Stripe remain `FIXTURE`; Google remains disabled | Disabled | Dedicated `job-seeker-copilot-real-jobs` persistent volumes; not production evidence |
+| `real-providers` | The same real jobs plus OpenAI and Google Maps LIVE; Stripe remains `FIXTURE` | Disabled | Reuses the persistent manual project intentionally; stop without deleting volumes |
+| `data-acquisition` | Only explicitly approved job-provider gateway profiles start | System Data is a non-web `live-acquisition` command; normal environment management and fixtures are disabled | Separate quarantined project/network removed after each run |
 
-Local and E2E use an internal-only Compose network with no external egress.
-They can contain live credentials in an ignored operator file without receiving
-them in a container. The rendered-model policy rejects any accidental
-injection. E2E additionally requires `SPRING_PROFILES_ACTIVE=e2e`,
+Fixture and E2E use an internal-only application network and do not inject live
+provider credentials. The rendered-model policy rejects accidental crossover.
+E2E additionally requires `SPRING_PROFILES_ACTIVE=e2e`,
 `DEPLOYMENT_ENVIRONMENT_CLASS=TEST` for postcode, fixture modes for every
 external gateway, and the exact reset/seed allowlists.
 
@@ -27,10 +29,10 @@ a separate internal scanner bridge shared only with Document Store. ClamAV
 publishes no host port, and uploaded document bytes never traverse the
 signature-update network. Rendered-model tests enforce both memberships.
 
-The local live-provider stack deliberately means live **job-provider**
-integration only. It does not enable paid LLM content or real Stripe charges.
-Production/AWS configuration remains a separate deployment workstream and is
-not inferred from these local profiles.
+`real-job-providers` deliberately means live **job-provider** integration only.
+`real-providers` separately opts into paid OpenAI and Google calls. Neither
+profile enables real Stripe. Production/AWS configuration remains a separate
+deployment workstream and is not inferred from local evidence.
 
 ## Application fixture boundary
 
@@ -49,26 +51,23 @@ modes before Compose starts.
 
 ## Runtime start
 
-Generate an ignored environment and use the stack wrapper:
+Generate the selected ignored environment through the supported lifecycle:
 
 ```bash
-python3 scripts/security/generate_profile_env.py --profile local --output .env
-python3 -m scripts.docker.start_stack local --build
+./scripts/bootstrap.sh --profile basic-fixture
+./scripts/start-local.sh --profile basic-fixture --build
+./scripts/health-check.sh --profile basic-fixture
 
-python3 scripts/security/generate_profile_env.py \
-  --profile e2e --output .env.e2e
-python3 -m scripts.docker.start_stack e2e --build
+./scripts/start-local.sh --profile real-providers --build
+./scripts/health-check.sh --profile real-providers
 ```
 
-`start_stack` runs `validate_compose_runtime.py` before `docker compose up`.
-The older rebuild helper also requires an explicit `local`, `live` or `e2e`
-stack and delegates to this guarded entry point; it can no longer start bare
-Compose.
-Normal stop preserves that exact project's state. Disposable local/E2E state
-can be reset only with an explicit destructive confirmation:
+The wrapper validates the rendered Compose model before `docker compose up`.
+Normal stop preserves that exact project's state. Disposable fixture state can
+be reset only with an explicit destructive confirmation:
 
 ```bash
-python3 -m scripts.docker.stop_stack e2e --delete-volumes --yes
+./scripts/stop-local.sh --profile full-fixture --delete-volumes --yes
 ```
 
 The command targets the selected fixed Compose project; it does not use a
@@ -131,5 +130,6 @@ The former `capture_llm_fixtures` helper is fail-closed because it could make
 paid calls and write responses directly into a runtime dataset. The governed
 replacement is tracked in
 [BACKLOG-LLM-02](https://github.com/jobseekercopilot/infrastructure/issues/29).
-Normal local, E2E, live job-provider and acquisition modes cannot inject an
-OpenAI credential or start an LLM LIVE adapter.
+Fixture, E2E, job-only live-provider and acquisition modes cannot inject an
+OpenAI credential or start an LLM LIVE adapter. Only the explicit
+`real-providers` overlay can enable it.

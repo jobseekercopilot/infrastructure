@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="780" viewBox="0 0 1400 780" role="img" aria-labelledby="title desc">
+  <title id="title">Evidence-grounded document-generation and recovery flow</title>
+  <desc id="desc">Selected candidate evidence and a saved job pass through durable coordination, model generation, validation and fallback before immutable document storage and application selection.</desc>
+  <defs>
+    <marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#64748b"/></marker>
+    <linearGradient id="g" x1="0" x2="1"><stop stop-color="#edf3ff"/><stop offset="1" stop-color="#f2edff"/></linearGradient>
+  </defs>
+  <rect width="1400" height="780" rx="28" fill="#f7f9fd"/>
+  <g font-family="Inter,Arial,sans-serif">
+    <text x="60" y="60" font-size="30" font-weight="800" fill="#14213d">The LLM is a bounded collaborator, not a source of truth</text>
+    <g stroke="#64748b" stroke-width="3" fill="none" marker-end="url(#a)">
+      <path d="M245 180H315"/><path d="M525 180H595"/><path d="M805 180H875"/><path d="M1085 180H1155"/>
+      <path d="M1260 240V330"/><path d="M1155 400H1085"/><path d="M875 400H805"/><path d="M595 400H525"/><path d="M315 400H245"/>
+      <path d="M140 460V550"/><path d="M245 620H335"/><path d="M545 620H635"/><path d="M845 620H935"/><path d="M1145 620H1235"/>
+    </g>
+    <g font-size="18" text-anchor="middle" fill="#14213d">
+      <g><rect x="35" y="115" width="210" height="130" rx="18" fill="#fff" stroke="#2f6df6" stroke-width="3"/><text x="140" y="155" font-weight="800">Saved job</text><text x="140" y="185">immutable snapshot</text><text x="140" y="214" font-size="14" fill="#53627c">provider provenance</text></g>
+      <g><rect x="315" y="115" width="210" height="130" rx="18" fill="#fff" stroke="#2f6df6" stroke-width="3"/><text x="420" y="150" font-weight="800">Selected evidence</text><text x="420" y="180">purpose-bound</text><text x="420" y="208">revision + digest</text></g>
+      <g><rect x="595" y="115" width="210" height="130" rx="18" fill="url(#g)" stroke="#6c4cf1" stroke-width="3"/><text x="700" y="150" font-weight="800">Durable operation</text><text x="700" y="180">reserve AI Credit</text><text x="700" y="208">stable operation ID</text></g>
+      <g><rect x="875" y="115" width="210" height="130" rx="18" fill="#fff" stroke="#6c4cf1" stroke-width="3"/><text x="980" y="150" font-weight="800">CV service</text><text x="980" y="180">versioned prompt</text><text x="980" y="208">strict schema</text></g>
+      <g><rect x="1155" y="115" width="210" height="130" rx="18" fill="#fff" stroke="#6c4cf1" stroke-width="3"/><text x="1260" y="150" font-weight="800">LLM Gateway</text><text x="1260" y="180">OpenAI / fixture</text><text x="1260" y="208">usage + audit</text></g>
+
+      <g><rect x="1155" y="330" width="210" height="130" rx="18" fill="#fff" stroke="#f59e0b" stroke-width="3"/><text x="1260" y="365" font-weight="800">Parse &amp; repair</text><text x="1260" y="395">exact duplicates only</text><text x="1260" y="423">bounded structure</text></g>
+      <g><rect x="875" y="330" width="210" height="130" rx="18" fill="#fff" stroke="#f59e0b" stroke-width="3"/><text x="980" y="365" font-weight="800">Ground claims</text><text x="980" y="395">approved fact IDs</text><text x="980" y="423">reject unsupported</text></g>
+      <g><rect x="595" y="330" width="210" height="130" rx="18" fill="#fff" stroke="#f59e0b" stroke-width="3"/><text x="700" y="365" font-weight="800">Recover safely</text><text x="700" y="395">bounded retry or replay</text><text x="700" y="423">unknown-outcome check</text></g>
+      <g><rect x="315" y="330" width="210" height="130" rx="18" fill="#fff" stroke="#00a685" stroke-width="3"/><text x="420" y="365" font-weight="800">Deterministic CV</text><text x="420" y="395">evidence fallback</text><text x="420" y="423">no invented facts</text></g>
+      <g><rect x="35" y="330" width="210" height="130" rx="18" fill="#fff" stroke="#00a685" stroke-width="3"/><text x="140" y="365" font-weight="800">Validated drafts</text><text x="140" y="395">claim ledger</text><text x="140" y="423">usage evidence</text></g>
+
+      <g><rect x="35" y="550" width="210" height="140" rx="18" fill="#fff" stroke="#2f6df6" stroke-width="3"/><text x="140" y="590" font-weight="800">Immutable store</text><text x="140" y="620">DRAFT versions</text><text x="140" y="650" font-size="14" fill="#53627c">lineage + digests</text></g>
+      <g><rect x="335" y="550" width="210" height="140" rx="18" fill="#fff" stroke="#2f6df6" stroke-width="3"/><text x="440" y="590" font-weight="800">Wallet commit</text><text x="440" y="620">actual usage</text><text x="440" y="650" font-size="14" fill="#53627c">idempotent reservation</text></g>
+      <g><rect x="635" y="550" width="210" height="140" rx="18" fill="#fff" stroke="#6c4cf1" stroke-width="3"/><text x="740" y="590" font-weight="800">User approval</text><text x="740" y="620">exact versions</text><text x="740" y="650" font-size="14" fill="#53627c">no automatic selection</text></g>
+      <g><rect x="935" y="550" width="210" height="140" rx="18" fill="#fff" stroke="#6c4cf1" stroke-width="3"/><text x="1040" y="590" font-weight="800">DOCX / PDF</text><text x="1040" y="620">stable export keys</text><text x="1040" y="650" font-size="14" fill="#53627c">stored artifacts</text></g>
+      <g><rect x="1235" y="550" width="130" height="140" rx="18" fill="#e8faf5" stroke="#00a685" stroke-width="3"/><text x="1300" y="590" font-weight="800">Application</text><text x="1300" y="620">exact refs</text><text x="1300" y="650" font-size="14" fill="#53627c">tracked</text></g>
+    </g>
+  </g>
+</svg>

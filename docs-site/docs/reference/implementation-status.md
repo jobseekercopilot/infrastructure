@@ -13,10 +13,10 @@ The authenticated private GitHub account lists 30 repositories, exactly matching
 | Application tracking | Implemented and composed | Enabled through Job Finder and documents | Internal | Confirmed |
 | Document generation/approval/export | Implemented and composed | Enabled | Fixture LLM default; OpenAI optional | Confirmed |
 | Document management | Implemented and composed | Enabled route allowlist | Filesystem + ClamAV locally | Confirmed |
-| UK place/postcode | Implemented and composed | Enabled | Fixture default; Postcodes.io supported | Confirmed |
+| UK place/postcode | Implemented and composed through Location Service | Enabled | Fixture default; Postcodes.io and optional Google Places | Confirmed |
 | Reporting | Implemented and composed | Enabled | Internal projection | Confirmed |
 | Payment/Stripe | Backend implemented/composed | Explicitly disabled | Stripe fixture backend | Confirmed disabled |
-| Commute route assessment | Repositories are skeletons | No client/BFF route on `develop` | None | Confirmed absent |
+| Commute route assessment | Implemented and composed | Displayed on eligible job cards | Google Routes when explicitly enabled; unavailable/degraded otherwise | Confirmed controlled-beta capability |
 | NHS Jobs and apprenticeship providers | Implemented and composed | Enabled with specialist badges/details | Fixture default; approved live profiles smoke-tested | Confirmed |
 
 ## Beta readiness
@@ -35,11 +35,11 @@ Treat these labels carefully:
 
 - The client README said reporting was unavailable, while `src/server.ts` registers the reporting proxy and the fail-closed prefix contains only payment. This documentation set treats reporting as enabled and payments as disabled.
 - “Job matching” names and DTOs can suggest candidate scoring. The implementation performs application-record reconciliation and does not set `matchScore`.
-- Infrastructure's active location path is still Location Gateway → Postcode.io Gateway. Local feature branches contain richer commute work, but that is outside the `develop` source of truth.
+- Location retains a compatibility `GET /api/locations` and postcode path through Postcodes.io, while the current v2 autocomplete/resolve path runs through Location Service and can use Google Places. Job Matching requests bounded commute matrices through Location Service for eligible jobs.
 - Infrastructure Compose lists `payment-gateway` as a client dependency, although the BFF rejects its route prefix. Composition indicates backend availability, not browser enablement.
 
 ## Not confirmed from current implementation
 
 - A production deployment topology, registry image set, public observability stack, or production database encryption evidence.
-- Google Maps route/commute request semantics on `develop`.
+- Production approval, long-term operational quotas, and reliability evidence for Google Maps beyond bounded local live validation.
 - Browser-accessible Stripe checkout or a live Stripe deployment profile.

@@ -19,18 +19,18 @@
     {"name": "job-service", "branch": "develop", "revision": "8daa37e62ed76f2423d73f21ec8fe505ed86f6ae"},
     {"name": "job-matching-service", "branch": "develop", "revision": "47826c19a744233a02e0d26e2c9b779d771de06a"},
     {"name": "job-finder-gateway", "branch": "develop", "revision": "104aec5af310c4062e4a22c8433910ffabee5896"},
-    {"name": "llm-gateway", "branch": "develop", "revision": "bafe04b115f97f18c8f93cb968ed2555ab3d248f"},
+    {"name": "llm-gateway", "branch": "develop", "revision": "0a9dfdc1b9e279455a8ff51b50e48bc3a1d37d54"},
     {"name": "document-store-service", "branch": "develop", "revision": "205c69983c62150d3d26520c093861f68558cd36"},
-    {"name": "document-export-service", "branch": "develop", "revision": "2f78feec1613e329257b759579305383a011f82f"},
+    {"name": "document-export-service", "branch": "develop", "revision": "e253b56bfdee9942995135e5d980851be023b4da"},
     {"name": "application-tracker-service", "branch": "develop", "revision": "d4b438ed81e389a6121f9deb72c48b2086843e9d"},
-    {"name": "cv-cover-letter-service", "branch": "develop", "revision": "d72ea57c9735cad11b89ea153d9785f8c4da8189"},
-    {"name": "document-generation-gateway", "branch": "develop", "revision": "31447b950c077d4a9fa34fd6379871bf81468391"},
+    {"name": "cv-cover-letter-service", "branch": "develop", "revision": "acc3e623c8d1b3fbf9530184f5967daacc306b87"},
+    {"name": "document-generation-gateway", "branch": "develop", "revision": "f8bc05869d6acebcd1548c76df003ce378049c81"},
     {"name": "reporting-service", "branch": "develop", "revision": "835f507cb02ea55d5c4680d8faea869cbd11a7f3"},
     {"name": "reporting-gateway", "branch": "develop", "revision": "721e1b980eff33db0866527c4376f61c0ba41ea8"},
     {"name": "payment-service", "branch": "develop", "revision": "1cc75e84847eb6f418a81f77892271e61c7b17f4"},
     {"name": "stripe-gateway", "branch": "develop", "revision": "3427c9999e9cd7336ac3a3f58c63767fdbdab263"},
     {"name": "payment-gateway", "branch": "develop", "revision": "711841743fb57aed984ad6bf40a729091cdbbdef"},
-    {"name": "job-seeker-copilot-client", "branch": "develop", "revision": "903423f409e915ffb85b03225fea1ade5900e044"},
+    {"name": "job-seeker-copilot-client", "branch": "develop", "revision": "a4833a4f672999b8e0f2119595bcbb2b4fc4f01e"},
     {"name": "e2e", "branch": "develop", "revision": "983b63caa66af12ab47c5ecdc85736f6ba1a588d"}
   ]
 }

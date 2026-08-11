@@ -8,6 +8,7 @@
 | NHS Jobs Gateway | NHS Jobs Self-Serve Job Adverts XML API v1.07 | In-service deterministic fixture | Official NHS vacancy mapping; no credential | Approved live overlay; bounded smoke-tested |
 | Apprenticeships Gateway | DfE Display Advert API v2 | In-service deterministic fixture | Rate-bounded snapshot refresh, multi-location and training mapping | Authenticated live overlay; bounded smoke-tested |
 | Postcode.io Gateway | Postcodes.io | System Data | Place and postcode/outcode lookup | Public live API supported; fixture default |
+| Google Maps Gateway | Google Places API (New), Routes API | Disabled provider path/mocked tests | Transient autocomplete, place resolution and route matrix | Optional `google-maps-smoke` or `real-providers` overlay |
 | LLM Gateway | OpenAI | System Data | Typed generation, response bounds, usage/model evidence | Optional `real-providers` overlay |
 | Stripe Gateway | Stripe | System Data | Checkout session and signed webhook handling | Not enabled by standard profiles |
 
@@ -23,8 +24,7 @@ It does not own production job search, user, application, document, or payment s
 
 The main runtime uses AWS SES for production account email when configured. Local `full-local-ses` runs the same adapter against ephemeral LocalStack. The separate landing repository uses AWS-backed waitlist/contact infrastructure. Infrastructure also contains AWS deployment material, but local Compose remains free and self-contained.
 
-## Not runtime services
-
-The job-provider gateways above are active catalogue dependencies. Their fixture
-modes make no external calls; only the reviewed live overlays have provider
-egress.
+All gateways in the matrix are active catalogue dependencies. Their fixture or
+disabled modes make no external calls; only the reviewed live overlays have
+provider egress. Google-backed content is visibly attributed, is kept transient,
+and is not a replacement for Postcodes.io-owned canonical UK data.

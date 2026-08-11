@@ -27,6 +27,7 @@ flowchart TB
     EXPORT[Document Export]
     REPORT[Reporting]
     PAY[Payment]
+    LOC[Location]
   end
 
   subgraph Provider boundaries
@@ -36,6 +37,7 @@ flowchart TB
     PC[Postcode.io Gateway]
     LLM[LLM Gateway]
     STRIPE[Stripe Gateway]
+    GOOGLE[Google Maps Gateway]
     SD[System Data fixtures]
   end
 
@@ -45,7 +47,7 @@ flowchart TB
   UMG --> AUTH & PROFILE
   JFG --> PROFILE & JOB & APP
   JOB --> REED & ADZ & JS & MATCH
-  MATCH --> APP
+  MATCH --> APP & LOC
   DG --> PROFILE & JOB & CV & STORE & EXPORT & APP & PAY
   CV --> LLM & PAY
   EXPORT --> STORE
@@ -53,7 +55,9 @@ flowchart TB
   REPORT --> PROFILE & APP & STORE
   PG --> PAY & STRIPE
   STRIPE --> PAY
-  LG --> PC
+  LG --> LOC
+  LG -. compatibility routes .-> PC
+  LOC --> PC & GOOGLE
   REED & ADZ & JS & PC & LLM & STRIPE -. fixture mode .-> SD
 ```
 
@@ -91,5 +95,5 @@ Infrastructure overlays deliberately control these modes. Fixture/E2E profiles f
 
 - The client BFF calls Document Store directly for a narrow set of metadata/download routes as well as using Document Generation Gateway. This is a documented retained boundary, not a general browser-to-service path.
 - `system-data-service` knows many service URLs so it can coordinate guarded non-production reset/seed/verify APIs. It does not write their databases.
-- Location on `develop` is a two-gateway chain (`location-gateway → postcode-io-gateway`). `location-service` and `google-maps-gateway` contain no runtime implementation on this branch.
+- Location v2 is `location-gateway → location-service → google-maps-gateway/Postcode.io gateway`. The original GET place/postcode compatibility routes still call Postcode.io Gateway directly. Commute estimates are transient, advisory and requested by Job Matching only for bounded eligible destinations.
 - Service catalogue dependencies are operational hints; actual runtime calls are documented in the domain maps and journeys.
