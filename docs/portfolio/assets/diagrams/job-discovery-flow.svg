@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="680" viewBox="0 0 1400 680">
+  <defs><style>.h{font:800 24px Arial;fill:#14213d}.p{font:17px Arial;fill:#53627c}.b{fill:#fff;stroke:#b9c9e5;stroke-width:3}.g{fill:#edf9f6;stroke:#73cbb4}.q{fill:#f5f1ff;stroke:#9f88ef}.a{stroke:#657897;stroke-width:4;fill:none;marker-end:url(#m)}</style><marker id="m" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#657897"/></marker></defs>
+  <rect width="1400" height="680" rx="28" fill="#f7f9fd"/>
+  <g transform="translate(40 245)"><rect class="b" width="180" height="130" rx="16"/><text class="h" x="34" y="48">Angular UI</text><text class="p" x="34" y="80">query, filters</text><text class="p" x="34" y="106">source states</text></g>
+  <g transform="translate(270 245)"><rect class="b" width="200" height="130" rx="16"/><text class="h" x="25" y="48">Finder BFF</text><text class="p" x="25" y="80">verified subject</text><text class="p" x="25" y="106">saved/app state</text></g>
+  <g transform="translate(520 220)"><rect class="q" width="245" height="180" rx="16"/><text class="h" x="28" y="48">Job Service</text><text class="p" x="28" y="82">bounded fan-out</text><text class="p" x="28" y="108">canonical mapping</text><text class="p" x="28" y="134">dedupe · detail cache</text><text class="p" x="28" y="160">immutable save</text></g>
+  <path class="a" d="M220 310 H265"/><path class="a" d="M470 310 H515"/>
+  <g transform="translate(850 35)"><rect class="g" width="240" height="100" rx="16"/><text class="h" x="24" y="42">Reed</text><text class="p" x="24" y="72">search + detail</text></g>
+  <g transform="translate(850 160)"><rect class="g" width="240" height="100" rx="16"/><text class="h" x="24" y="42">Adzuna</text><text class="p" x="24" y="72">credentialed paging</text></g>
+  <g transform="translate(850 285)"><rect class="g" width="240" height="100" rx="16"/><text class="h" x="24" y="42">JSearch</text><text class="p" x="24" y="72">RapidAPI mapping</text></g>
+  <g transform="translate(850 410)"><rect class="g" width="240" height="100" rx="16"/><text class="h" x="24" y="42">NHS Jobs</text><text class="p" x="24" y="72">official XML adverts</text></g>
+  <g transform="translate(850 535)"><rect class="g" width="240" height="100" rx="16"/><text class="h" x="24" y="42">Apprenticeships</text><text class="p" x="24" y="72">DfE snapshot</text></g>
+  <path class="a" d="M765 250 H815 V85 H845"/><path class="a" d="M815 210 H845"/><path class="a" d="M815 335 H845"/><path class="a" d="M815 460 H845"/><path class="a" d="M815 585 H845"/>
+  <g transform="translate(1150 220)"><rect class="b" width="210" height="180" rx="16"/><text class="h" x="25" y="48">Provider mode</text><text class="p" x="25" y="82">LIVE API</text><text class="p" x="25" y="110">or FIXTURE</text><text class="p" x="25" y="138">bounded failure</text><text class="p" x="25" y="164">source attribution</text></g>
+  <path class="a" d="M1090 310 H1145"/>
+</svg>
