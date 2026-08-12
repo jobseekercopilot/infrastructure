@@ -57,7 +57,7 @@ p { margin-bottom: 2.5mm; }
 .screen-two { display:grid;grid-template-columns:1fr 1fr;gap:4mm; }
 .screen-two .screenshot { height:128mm; object-fit:contain; object-position:top center; }
 .screen-wide .screenshot { width:100%;height:135mm;object-fit:contain;object-position:top center; }
-.provider-shot .screenshot { height:103mm;object-fit:cover;object-position:top center; }
+.provider-shot .screenshot { height:103mm;object-fit:cover;object-position:center 15%; }
 .screen-short .screenshot { width:100%;height:90mm;object-fit:contain;object-position:top center; }
 .page.cover-v2 { padding:16mm; }
 .cover-v2 .cover-shot { height:112mm; }
