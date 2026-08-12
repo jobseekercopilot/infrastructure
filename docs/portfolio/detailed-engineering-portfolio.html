@@ -41,7 +41,7 @@
       <div class="truth-grid"><div class="card blue"><h3>Candidate problem</h3><p class="small">Vacancies, versions, portals, evidence and follow-up are scattered across tools.</p></div><div class="card purple"><h3>Product response</h3><p class="small">Structured profile, multi-provider discovery, document lineage and application tracking.</p></div><div class="card green"><h3>Engineering response</h3><p class="small">Owned domain state, provider gateways, versioned contracts and recoverable workflows.</p></div><div class="card amber"><h3>Current boundary</h3><p class="small">Controlled private beta; local persistent operation, not public production.</p></div></div>
     </div>
     <div class="metric-row"><div class="metric"><b>31</b><span>repositories audited—not used as a vanity metric</span></div><div class="metric"><b>28</b><span>application services in the audited manual profile</span></div><div class="metric"><b>7</b><span>independent PostgreSQL state owners</span></div><div class="metric"><b>5</b><span>job-provider domains</span></div></div>
-    <img class="diagram" style="height:105mm" src="assets/diagrams/user-journey.svg" alt="Connected candidate journey">
+    <img class="diagram journey-diagram" src="assets/diagrams/user-journey.svg" alt="Connected candidate journey">
     <div class="footer"><span>Product overview</span><span>03</span></div>
   </section>
 
@@ -78,9 +78,9 @@
 
   <section class="page tint">
     <div class="eyebrow">Connected product walkthrough</div><h2>Every screen is backed by an ownership decision</h2>
-    <div class="screen-two">
-      <div class="shot-frame"><img class="screenshot" src="assets/screenshots/registration-current.png" alt="Current anonymous registration screen"><p class="caption"><strong>Registration.</strong> Minimal first entry; no CV or postcode required. Browser tokens remain in HttpOnly cookies.</p></div>
-      <div class="shot-frame"><img class="screenshot" src="assets/screenshots/job-search-live.png" alt="Live provider-backed job discovery"><p class="caption"><strong>Discovery.</strong> Provider status, source attribution and application state are visible rather than hidden.</p></div>
+    <div class="screen-two walkthrough-grid">
+      <div class="shot-frame"><img class="screenshot registration-crop" src="assets/screenshots/registration-current.png" alt="Targeted view of the current anonymous registration screen"><p class="caption"><strong>Registration.</strong> Minimal first entry; no CV or postcode required. Browser tokens remain in HttpOnly cookies.</p></div>
+      <div class="shot-frame"><img class="screenshot discovery-crop" src="assets/screenshots/job-search-live.png" alt="Targeted view of live provider-backed job discovery"><p class="caption"><strong>Discovery.</strong> Provider status, source attribution and application state are visible rather than hidden.</p></div>
     </div>
     <div class="flow-mini"><div>Account</div><span>→</span><div>Profile/evidence</div><span>→</span><div>Search/detail</div><span>→</span><div>Save</div><span>→</span><div>Select evidence</div><span>→</span><div>Generate/upload</div><span>→</span><div>Track/report</div></div>
     <table class="status-table"><tr><th>User step</th><th>Backend engineering</th><th>Durable truth</th></tr><tr><td>Register/sign in</td><td>BFF cookie and CSRF boundary; UMG; RS256/JWKS</td><td>Authentication DB</td></tr><tr><td>Build profile</td><td>Progressive sections, revisions, confirmation and provenance</td><td>Profile DB</td></tr><tr><td>Discover/save</td><td>Five-provider fan-out, mapping, dedupe and snapshot</td><td>Job DB</td></tr><tr><td>Generate</td><td>Evidence snapshot, wallet reservation, LLM validation and fallback</td><td>Generation ledger + Store</td></tr><tr><td>Apply/track</td><td>Exact document selections, immutable events and transitions</td><td>Application DB</td></tr><tr><td>Report</td><td>Read-only projections from owner-scoped services</td><td>Upstream owners</td></tr></table>
@@ -104,7 +104,7 @@
 
   <section class="page tint">
     <div class="eyebrow">Full system/domain architecture</div><h2>Major boundaries without a 30-service spaghetti diagram</h2>
-    <img class="diagram" style="height:168mm" src="assets/diagrams/system-architecture.svg" alt="High-level verified domain architecture">
+    <img class="diagram architecture-diagram" src="assets/diagrams/system-architecture.svg" alt="High-level verified domain architecture">
     <div class="grid-3 dense"><div class="card"><h3>Browser boundary</h3><p>Angular + Express BFF, allowlisted routes, HttpOnly cookies and CSRF.</p></div><div class="card"><h3>Owned state</h3><p>Seven PostgreSQL owners plus document bytes in an object-provider boundary.</p></div><div class="card"><h3>External boundaries</h3><p>Five job sources, OpenAI, Google, Postcodes.io and disabled-by-default Stripe.</p></div></div>
     <p class="footnote">Arrows show material runtime calls, not every health, lifecycle or fixture-control edge. The full catalogue appears on pages 39–45.</p>
     <div class="footer"><span>Verified domain architecture</span><span>08</span></div>
@@ -138,7 +138,7 @@ registerDocumentGenerationRoutes(app, {
   accessCookieName, csrfCookieName, origin, timeoutMs
 });</pre>
     <div class="callout green"><strong>Why the BFF exists.</strong> Browser code never chooses arbitrary service destinations or stores access tokens. The server boundary converts cookies into controlled downstream requests and stable, redacted failures.</div>
-    <div class="screen-short shot-frame"><img class="screenshot" src="assets/screenshots/dashboard-live.png" alt="Authenticated dashboard"><p class="caption">The dashboard composes application, document and reporting state from separate owners without becoming their database.</p></div>
+    <div class="screen-short shot-frame dashboard-shot"><img class="screenshot dashboard-crop" src="assets/screenshots/dashboard-live.png" alt="Targeted view of the authenticated dashboard"><p class="caption">The dashboard composes application, document and reporting state from separate owners without becoming their database.</p></div>
     <div class="footer"><span>Angular and BFF architecture</span><span>10</span></div>
   </section>
 
@@ -154,7 +154,7 @@ registerDocumentGenerationRoutes(app, {
 
   <section class="page tint">
     <div class="eyebrow">Profile and Evidence Library</div><h2>Career history is structured product data</h2>
-    <div class="screen-two"><div class="shot-frame"><img class="screenshot" src="assets/screenshots/profile-structure-fixture.png" alt="Synthetic fixture profile structure"><p class="caption">Synthetic fixture: progressive employment, projects, qualifications, skills and preferences.</p></div><div class="shot-frame"><img class="screenshot" src="assets/screenshots/evidence-library-fixture.png" alt="Synthetic Evidence Library manager"><p class="caption">Synthetic fixture: evidence entries expose category, confirmation, provenance and revision state.</p></div></div>
+    <div class="screen-two profile-shots"><div class="shot-frame"><img class="screenshot profile-crop" src="assets/screenshots/profile-structure-fixture.png" alt="Targeted view of synthetic fixture profile structure"><p class="caption">Synthetic fixture, targeted view: progressive employment, projects, qualifications, skills and preferences.</p></div><div class="shot-frame"><img class="screenshot evidence-crop" src="assets/screenshots/evidence-library-fixture.png" alt="Targeted view of the synthetic Evidence Library manager"><p class="caption">Synthetic fixture, targeted view: entries expose category, confirmation, provenance and revision state.</p></div></div>
     <div class="grid-3 dense" style="margin-top:4mm"><div class="card"><h3>Entry</h3><p>Stable category and identity; visibility, lifecycle and review state.</p></div><div class="card"><h3>Revision</h3><p>Immutable facts, creator, confirmation and content digest.</p></div><div class="card"><h3>Snapshot</h3><p>Purpose, selected revisions, section order, profile revision and digest.</p></div></div>
     <div class="callout"><strong>Why this exists.</strong> Repeatedly pasting a free-text biography into a model makes provenance and later correction impossible. Structured evidence allows a user to confirm facts once, select them for a purpose and retain exactly what supported a generated document.</div>
     <div class="footer"><span>Profile and evidence architecture</span><span>12</span></div>
@@ -182,7 +182,7 @@ registerDocumentGenerationRoutes(app, {
     <div class="eyebrow">Job discovery deep dive</div><h2>Five providers become one truthful product response</h2>
     <img class="diagram" style="height:110mm" src="assets/diagrams/job-discovery-flow.svg" alt="Job discovery architecture">
     <div class="grid-3 dense"><div class="card"><h3>Fan-out</h3><p>Provider calls are bounded independently. One failure can produce a partial response rather than erase healthy sources.</p></div><div class="card"><h3>Mapping</h3><p>Adapters convert provider IDs, dates, salary, workplace type, descriptions and source URLs.</p></div><div class="card"><h3>Save</h3><p>The selected result is hydrated where supported and persisted as an immutable vacancy snapshot.</p></div></div>
-    <div class="screen-short shot-frame"><img class="screenshot" style="height:76mm" src="assets/screenshots/job-search-live.png" alt="Live provider-backed search results"><p class="caption">Point-in-time live-provider evidence. Changing external adverts and provider uptime are not regression assertions.</p></div>
+    <div class="screen-short shot-frame search-evidence-shot"><img class="screenshot search-results-crop" src="assets/screenshots/job-search-live.png" alt="Targeted view of live provider-backed search results"><p class="caption">Targeted point-in-time live-provider view. Changing external adverts and provider uptime are not regression assertions.</p></div>
     <div class="footer"><span>Job discovery flow</span><span>14</span></div>
   </section>
 
@@ -212,7 +212,7 @@ mergeDuplicateJobs(primary, duplicate); // also merges every source reference</p
 
   <section class="page">
     <div class="eyebrow">Applications and tracking</div><h2>A saved vacancy becomes owned lifecycle state</h2>
-    <div class="screen-short shot-frame"><img class="screenshot" src="assets/screenshots/applications-live.png" alt="Application tracking workspace"><p class="caption">Application state, milestones and exact document selection remain visible after generation.</p></div>
+    <div class="screen-short shot-frame application-shot"><img class="screenshot applications-crop" src="assets/screenshots/applications-live.png" alt="Targeted view of the application tracking workspace"><p class="caption">Targeted view: application state, milestones and exact document selection remain visible after generation.</p></div>
     <div class="grid-3 dense"><div class="card"><h3>Identity</h3><p>Owner + canonical/provider/external job identity; idempotent creation independent of generation.</p></div><div class="card"><h3>Lifecycle</h3><p>SAVED → DOCUMENTS_GENERATED → APPLIED → INTERVIEW → OFFER → ACCEPTED, with guarded transitions.</p></div><div class="card"><h3>History</h3><p>Immutable events and milestone dates survive refresh and reporting projection.</p></div></div>
     <pre class="code">PUT /applications/{id}/document-selections
 // CV and cover-letter slots are both mandatory:
@@ -226,7 +226,7 @@ mergeDuplicateJobs(primary, duplicate); // also merges every source reference</p
 
   <section class="page tint">
     <div class="eyebrow">Document architecture</div><h2>A document is a family, immutable versions and files—not one mutable blob</h2>
-    <div class="screen-two"><div class="shot-frame"><img class="screenshot" src="assets/screenshots/documents-live.png" alt="Document family and version workspace"><p class="caption">Families expose type, job scope, source, retention, current state and application associations.</p></div><div class="card dense"><h3>Document Store owns</h3><ul class="ticks"><li>family and immutable version records;</li><li>generated/uploaded source and lineage;</li><li>current/approved pointers;</li><li>DOCX/PDF metadata, checksum and MIME;</li><li>filesystem bytes locally or S3-compatible provider;</li><li>archive, restore, recoverable delete and tombstones.</li></ul><h3>Upload boundary</h3><p>PDF/DOCX ≤10 MiB; bounded extraction; MIME/signature checks; isolated ClamAV scanning; no model or AI-credit call.</p></div></div>
+    <div class="screen-two document-store-layout"><div class="shot-frame"><img class="screenshot documents-crop" src="assets/screenshots/documents-live.png" alt="Targeted view of the document family and version workspace"><p class="caption">Targeted view: families expose type, job scope, source, retention, current state and application associations.</p></div><div class="card dense"><h3>Document Store owns</h3><ul class="ticks"><li>family and immutable version records;</li><li>generated/uploaded source and lineage;</li><li>current/approved pointers;</li><li>DOCX/PDF metadata, checksum and MIME;</li><li>filesystem bytes locally or S3-compatible provider;</li><li>archive, restore, recoverable delete and tombstones.</li></ul><h3>Upload boundary</h3><p>PDF/DOCX ≤10 MiB; bounded extraction; MIME/signature checks; isolated ClamAV scanning; no model or AI-credit call.</p></div></div>
     <table class="status-table" style="margin-top:4mm"><tr><th>Lifecycle action</th><th>Meaning</th><th>What it does not do</th></tr><tr><td>Set current</td><td>Select family recommendation</td><td>Does not rewrite an application</td></tr><tr><td>Approve</td><td>Make exact version eligible</td><td>Does not auto-select it for a job</td></tr><tr><td>Archive/restore</td><td>Reversible organisation state</td><td>Does not mutate bytes</td></tr><tr><td>Delete/recover</td><td>Recovery-window lifecycle</td><td>Purge remains separately controlled</td></tr></table>
     <div class="callout green"><strong>Historical problem solved.</strong> Regenerating a CV tomorrow must not silently change the version associated with yesterday’s application.</div>
     <div class="footer"><span>Document families and lifecycle</span><span>18</span></div>
@@ -242,9 +242,9 @@ mergeDuplicateJobs(primary, duplicate); // also merges every source reference</p
 
   <section class="page tint">
     <div class="eyebrow">Generation orchestration</div><h2>Generation is a durable product operation</h2>
-    <img class="diagram" style="height:118mm" src="assets/diagrams/document-generation.svg" alt="Evidence-grounded generation and recovery flow">
+    <img class="diagram generation-diagram" src="assets/diagrams/document-generation.svg" alt="Evidence-grounded generation and recovery flow">
     <div class="grid-3 dense"><div class="card"><h3>Before the model</h3><p>Persist operation/deadline; resolve saved vacancy; create purpose snapshots; estimate and reserve credit.</p></div><div class="card"><h3>After the model</h3><p>Validate claims; store draft versions; commit actual usage; wait for explicit approval.</p></div><div class="card"><h3>After approval</h3><p>Set pointers; export exact versions; create/reconcile application and exact document selections.</p></div></div>
-    <div class="screen-short shot-frame"><img class="screenshot" style="height:78mm" src="assets/screenshots/generated-documents-live.png" alt="Successful generated CV and cover-letter operation"><p class="caption">Real vacancy and provider path; exact generated drafts expose DOCX/PDF only after the operation completes.</p></div>
+    <div class="screen-short shot-frame generation-shot"><img class="screenshot" src="assets/screenshots/generated-documents-live.png" alt="Successful generated CV and cover-letter operation"><p class="caption">Real vacancy and provider path; exact generated drafts expose DOCX/PDF only after the operation completes.</p></div>
     <div class="footer"><span>Durable document generation</span><span>20</span></div>
   </section>
 
@@ -283,14 +283,14 @@ mergeDuplicateJobs(primary, duplicate); // also merges every source reference</p
     <div class="eyebrow">Location and commute</div><h2>Persistable place truth is separated from transient provider data</h2>
     <img class="diagram" style="height:84mm" src="assets/diagrams/location-flow-detailed.svg" alt="Detailed location provider flow">
     <div class="grid-3 dense"><div class="card"><h3>Canonical location</h3><p>Stable label, country, coordinates/postcode authority and provider provenance suitable for profile persistence.</p></div><div class="card"><h3>Autocomplete session</h3><p>Bounded provider token/session and suggestions remain transient; attribution is required.</p></div><div class="card"><h3>Commute matrix</h3><p>At most five eligible destinations, selected travel modes and advisory route estimates—never suitability scores.</p></div></div>
-    <div class="screen-short shot-frame location-shot"><img class="screenshot" src="assets/screenshots/google-location-live.png" alt="Google-attributed live suggestions"><p class="caption">Live browser evidence returned five attributed suggestions. A suggestion is resolved to a canonical place before it can become persisted profile data.</p></div>
+    <div class="screen-short shot-frame location-shot"><img class="screenshot" src="assets/screenshots/google-location-live.png" alt="Google-attributed live suggestions"><div class="location-evidence-copy"><span class="pill live">Live Google evidence</span><h3>Five attributed suggestions</h3><p class="caption">A suggestion is resolved to a canonical place before it can become persisted profile data. The provider attribution remains visible at the point of selection.</p></div></div>
     <div class="callout"><strong>Why another service?</strong> The original Location Gateway directly represented Postcodes.io-style operations. Adding Google Places/Routes required a provider-neutral orchestration layer so the browser contract, canonical persistence and provider-specific credentials/DTOs stayed separate.</div>
     <div class="footer"><span>Location-provider isolation</span><span>24</span></div>
   </section>
 
   <section class="page">
     <div class="eyebrow">Reporting architecture</div><h2>Reporting observes domain truth; it does not own or mutate it</h2>
-    <div class="screen-two"><div class="shot-frame"><img class="screenshot" src="assets/screenshots/reporting-live.png" alt="Reporting summary and recent activity"><p class="caption">Application totals, status buckets, recent activity and indicative time are projected from owner services.</p></div><div class="dense"><div class="card blue"><h3>Sources</h3><p>Tracker applications/events, Store document metadata and Profile data through owner-scoped service APIs.</p></div><div class="card purple" style="margin-top:3mm"><h3>Read models</h3><p>Application totals/status/date buckets, recent content-free activity, indicative time and text evidence export.</p></div><div class="card green" style="margin-top:3mm"><h3>Privacy</h3><p>Document activity reports version/type/lifecycle—not CV or letter content. Empty, small and rich histories have explicit behaviour.</p></div></div></div>
+    <div class="screen-two report-layout"><div class="shot-frame"><div class="reporting-crop"><img class="screenshot" src="assets/screenshots/reporting-live.png" alt="Targeted reporting summary and recent activity"></div><p class="caption">Targeted view: application totals, status buckets and complete recent-activity items are projected from owner services.</p></div><div class="dense"><div class="card blue"><h3>Sources</h3><p>Tracker applications/events, Store document metadata and Profile data through owner-scoped service APIs.</p></div><div class="card purple" style="margin-top:3mm"><h3>Read models</h3><p>Application totals/status/date buckets, recent content-free activity, indicative time and text evidence export.</p></div><div class="card green" style="margin-top:3mm"><h3>Privacy</h3><p>Document activity reports version/type/lifecycle—not CV or letter content. Empty, small and rich histories have explicit behaviour.</p></div></div></div>
     <div class="flow-mini"><div>Tracker truth</div><span>+</span><div>Document metadata</div><span>+</span><div>Profile context</div><span>→</span><div>Reporting projection</div><span>→</span><div>UI / evidence.txt</div></div>
     <div class="callout amber"><strong>Indicative means indicative.</strong> Time estimates are explanatory product aids, not payroll, benefits or regulatory calculations.</div>
     <div class="evidence-ref">Evidence basis: Reporting OpenAPI 2.1, summary/journal/evidence routes, document-activity projection and the retained reporting journey.</div>
@@ -376,7 +376,7 @@ mergeDuplicateJobs(primary, duplicate); // also merges every source reference</p
 
   <section class="page">
     <div class="eyebrow">Contracts and multi-repository delivery</div><h2>Independent repositories require explicit compatibility discipline</h2>
-    <img class="diagram" style="height:92mm" src="assets/diagrams/contract-flow.svg" alt="Producer OpenAPI to generated client flow">
+    <img class="diagram contract-diagram" src="assets/diagrams/contract-flow.svg" alt="Producer OpenAPI to generated client flow">
     <div class="grid-3 dense"><div class="card"><h3>Producer ownership</h3><p>Controller/DTO source and contract tests produce the reviewed OpenAPI. Consumers do not edit private copies.</p></div><div class="card"><h3>Revision + checksum</h3><p>Consumer metadata names the producer Git revision and schema SHA-256, making drift reviewable.</p></div><div class="card"><h3>Generated clients</h3><p>Maven/TypeScript clients are disposable build output. Checked-in local JAR coupling was removed.</p></div></div>
     <h3 style="margin-top:5mm">Delivery engineering</h3>
     <table class="status-table"><tr><th>Concern</th><th>Practice</th><th>Failure prevented</th></tr><tr><td>Branches</td><td>Feature branch → PR → green CI → develop; main separately protected</td><td>Unreviewed integration changes</td></tr><tr><td>Parity</td><td>Workspace lock and catalogue coordinate reviewed revisions</td><td>“Works only in my checkout”</td></tr><tr><td>Semantic compatibility</td><td>Policy tests inspect required routes/schemas/enums</td><td>Compiles but changes meaning</td></tr><tr><td>Security/build gates</td><td>Secret history, dependency, licence, clean clone/container checks</td><td>False-green or irreproducible releases</td></tr></table>

@@ -69,7 +69,8 @@
   <path d="M930 465 V545" class="arrow"/>
   <path d="M1000 465 C1085 520 1220 520 1280 545" class="arrow"/>
 
-  <rect x="84" y="798" width="1382" height="94" rx="18" fill="#172645"/>
+  <rect x="84" y="786" width="1382" height="118" rx="18" fill="#172645"/>
   <text x="118" y="838" class="sub">Evidence boundary</text>
-  <text x="118" y="872" class="sub">Local capacity informed the starting shape; networking, RDS, storage, recovery and AWS workload validation remain implementation gates.</text>
+  <text x="118" y="872" class="sub">Local capacity informed the starting shape; networking, RDS, storage and recovery</text>
+  <text x="118" y="898" font-family="Arial,sans-serif" font-size="18" fill="#dbe7ff">remain implementation gates until the complete authenticated workload is deployed and measured.</text>
 </svg>

@@ -108,3 +108,53 @@ p { margin-bottom: 2.5mm; }
 .support-grid p { color:#dce7fb;font-size:8pt;line-height:1.35;margin:0; }
 .catalogue-final { color:#cbd8ef; }
 .catalogue-close .service-dossier .tag { color:#234f9f;background:#edf3ff; }
+
+/* Page-specific media composition. Product screenshots have different useful
+   regions, so each is framed deliberately rather than squeezed into one
+   generic fixed-height rule. */
+.journey-diagram { width:100%;height:auto;max-height:none;margin:12mm auto 4mm; }
+.architecture-diagram { width:100%;height:auto;max-height:none;margin:6mm auto 5mm; }
+.generation-diagram { width:100%;height:auto;max-height:none;margin:4mm auto; }
+.contract-diagram { width:100%;height:auto;max-height:none;margin:10mm auto 9mm; }
+
+.walkthrough-grid { grid-template-columns:.86fr 1.14fr;align-items:start; }
+.walkthrough-grid .screenshot { height:112mm;object-fit:cover;object-position:center top; }
+.walkthrough-grid .registration-crop { object-position:center center; }
+
+.dashboard-shot { overflow:hidden; }
+.dashboard-shot .dashboard-crop { height:86mm;object-fit:cover;object-position:center top; }
+
+.profile-shots { align-items:start; }
+.profile-shots .screenshot { height:103mm;object-fit:cover; }
+.profile-shots .profile-crop { object-position:28% top; }
+.profile-shots .evidence-crop { object-position:center top; }
+
+.search-evidence-shot { overflow:hidden; }
+.search-evidence-shot .search-results-crop { height:69mm;object-fit:cover;object-position:center top; }
+
+.application-shot { overflow:hidden; }
+.application-shot .applications-crop { height:82mm;object-fit:cover;object-position:center 7%; }
+
+.document-store-layout { grid-template-columns:1.1fr .9fr;align-items:start; }
+.document-store-layout .documents-crop { width:100%;height:119mm;object-fit:cover;object-position:center top; }
+.document-store-layout > .card { min-height:119mm; }
+
+.generation-shot { width:124mm;margin:3mm auto 0; }
+.generation-shot .screenshot { width:100%;height:auto;object-fit:contain; }
+
+.artifact-layout { grid-template-columns:1.15fr .85fr;gap:6mm; }
+.artifact-layout .full-cv { width:100%;height:auto;max-height:178mm; }
+.artifact-layout .card { padding:3mm; }
+.artifact-layout .card p { font-size:8.5pt;line-height:1.31; }
+
+.location-shot { display:grid;grid-template-columns:55mm 1fr;gap:7mm;align-items:center;text-align:left;padding:4mm 8mm; }
+.location-shot .screenshot { width:auto;height:87mm;margin:0 auto; }
+.location-shot .location-evidence-copy { padding-right:3mm; }
+.location-shot .location-evidence-copy h3 { font-size:15pt;margin:1mm 0 3mm; }
+.location-shot .location-evidence-copy .caption { font-size:9pt;line-height:1.45;margin:0; }
+
+.report-layout { grid-template-columns:.78fr 1.22fr;align-items:start; }
+.report-layout > .shot-frame { text-align:center; }
+.reporting-crop { height:128mm;overflow:hidden;border-radius:3.5mm; }
+.report-layout .reporting-crop .screenshot { width:auto;height:137mm;margin:0 auto;object-fit:contain;object-position:top center; }
+.report-layout .caption { text-align:left; }

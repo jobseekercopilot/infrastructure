@@ -1,25 +1,26 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="300" viewBox="0 0 1400 300" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="540" viewBox="0 0 1400 540" role="img" aria-labelledby="title desc">
   <title id="title">Job Seeker Copilot product journey</title>
   <desc id="desc">Eight connected steps from account creation to reporting.</desc>
   <defs>
     <linearGradient id="bg" x1="0" x2="1"><stop stop-color="#eef4ff"/><stop offset="1" stop-color="#f4efff"/></linearGradient>
     <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#6d7c9b"/></marker>
   </defs>
-  <rect width="1400" height="300" rx="30" fill="url(#bg)"/>
+  <rect width="1400" height="540" rx="30" fill="url(#bg)"/>
   <g font-family="Inter,Arial,sans-serif" text-anchor="middle">
-    <g stroke="#6d7c9b" stroke-width="4" marker-end="url(#arrow)">
-      <path d="M180 150H230"/><path d="M350 150H400"/><path d="M520 150H570"/><path d="M690 150H740"/>
-      <path d="M860 150H910"/><path d="M1030 150H1080"/><path d="M1200 150H1250"/>
+    <g stroke="#6d7c9b" stroke-width="5" fill="none" marker-end="url(#arrow)">
+      <path d="M230 155H375"/><path d="M555 155H700"/><path d="M880 155H1025"/>
+      <path d="M1115 245V295"/>
+      <path d="M1025 385H880"/><path d="M700 385H555"/><path d="M375 385H230"/>
     </g>
-    <g font-size="22" font-weight="700" fill="#14213d">
-      <g><circle cx="120" cy="150" r="56" fill="#fff" stroke="#2f6df6" stroke-width="4"/><text x="120" y="143">Create</text><text x="120" y="170">account</text></g>
-      <g><circle cx="290" cy="150" r="56" fill="#fff" stroke="#2f6df6" stroke-width="4"/><text x="290" y="143">Build</text><text x="290" y="170">profile</text></g>
-      <g><circle cx="460" cy="150" r="56" fill="#fff" stroke="#2f6df6" stroke-width="4"/><text x="460" y="143">Discover</text><text x="460" y="170">jobs</text></g>
-      <g><circle cx="630" cy="150" r="56" fill="#fff" stroke="#2f6df6" stroke-width="4"/><text x="630" y="143">Review</text><text x="630" y="170">details</text></g>
-      <g><circle cx="800" cy="150" r="56" fill="#fff" stroke="#6c4cf1" stroke-width="4"/><text x="800" y="143">Save &amp;</text><text x="800" y="170">track</text></g>
-      <g><circle cx="970" cy="150" r="56" fill="#fff" stroke="#6c4cf1" stroke-width="4"/><text x="970" y="143">Generate</text><text x="970" y="170">documents</text></g>
-      <g><circle cx="1140" cy="150" r="56" fill="#fff" stroke="#00a685" stroke-width="4"/><text x="1140" y="143">Manage</text><text x="1140" y="170">versions</text></g>
-      <g><circle cx="1310" cy="150" r="56" fill="#fff" stroke="#00a685" stroke-width="4"/><text x="1310" y="143">Review</text><text x="1310" y="170">reporting</text></g>
+    <g font-size="25" font-weight="700" fill="#14213d">
+      <g><circle cx="140" cy="155" r="90" fill="#fff" stroke="#2f6df6" stroke-width="5"/><text x="140" y="147">Create</text><text x="140" y="179">account</text></g>
+      <g><circle cx="465" cy="155" r="90" fill="#fff" stroke="#2f6df6" stroke-width="5"/><text x="465" y="147">Build</text><text x="465" y="179">profile</text></g>
+      <g><circle cx="790" cy="155" r="90" fill="#fff" stroke="#2f6df6" stroke-width="5"/><text x="790" y="147">Discover</text><text x="790" y="179">jobs</text></g>
+      <g><circle cx="1115" cy="155" r="90" fill="#fff" stroke="#2f6df6" stroke-width="5"/><text x="1115" y="147">Review</text><text x="1115" y="179">details</text></g>
+      <g><circle cx="1115" cy="385" r="90" fill="#fff" stroke="#6c4cf1" stroke-width="5"/><text x="1115" y="377">Save &amp;</text><text x="1115" y="409">track</text></g>
+      <g><circle cx="790" cy="385" r="90" fill="#fff" stroke="#6c4cf1" stroke-width="5"/><text x="790" y="367">Generate</text><text x="790" y="399">documents</text></g>
+      <g><circle cx="465" cy="385" r="90" fill="#fff" stroke="#00a685" stroke-width="5"/><text x="465" y="377">Manage</text><text x="465" y="409">versions</text></g>
+      <g><circle cx="140" cy="385" r="90" fill="#fff" stroke="#00a685" stroke-width="5"/><text x="140" y="377">Review</text><text x="140" y="409">reporting</text></g>
     </g>
   </g>
 </svg>
