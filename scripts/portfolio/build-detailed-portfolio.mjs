@@ -15,6 +15,7 @@ const output = path.join(
   outputDirectory,
   'Bernard-McGeever-Job-Seeker-Copilot-Detailed-Engineering-Portfolio-2026.pdf'
 );
+const expectedPages = 45;
 await fs.mkdir(outputDirectory, { recursive: true });
 
 const browser = await chromium.launch({ headless: true });
@@ -40,8 +41,8 @@ try {
     };
   });
 
-  if (inspection.count !== 42) {
-    throw new Error(`Expected 42 portfolio pages, found ${inspection.count}`);
+  if (inspection.count !== expectedPages) {
+    throw new Error(`Expected ${expectedPages} portfolio pages, found ${inspection.count}`);
   }
   if (inspection.missingImages.length > 0) {
     throw new Error(`Portfolio images missing: ${JSON.stringify(inspection.missingImages)}`);
@@ -55,6 +56,8 @@ try {
     format: 'A4',
     printBackground: true,
     preferCSSPageSize: true,
+    tagged: true,
+    outline: true,
     displayHeaderFooter: false,
     margin: { top: '0', right: '0', bottom: '0', left: '0' }
   });
@@ -63,4 +66,4 @@ try {
 }
 
 const stat = await fs.stat(output);
-console.log(JSON.stringify({ output, pages: 42, bytes: stat.size }));
+console.log(JSON.stringify({ output, pages: expectedPages, bytes: stat.size }));

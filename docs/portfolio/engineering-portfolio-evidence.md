@@ -1,11 +1,11 @@
-# Detailed engineering portfolio evidence map
+# Product and engineering confidence dossier evidence map
 
-Internal traceability for the v2 detailed dossier. Public prose deliberately avoids private-repository links; this map records the supporting repository, source/report and selected historical change. All evidence was reviewed on 11 August 2026.
+Internal traceability for the v3 dossier. Public prose deliberately avoids private-repository links; this map records supporting source/report evidence and selected historical change. The v3 claims and current communication paths were reviewed on 12 August 2026. Dated run totals retain their original revision boundary.
 
 | Claim or dossier section | Current implementation/runtime evidence | Historical evidence |
 |---|---|---|
 | 31 meaningful repositories form the reviewed workspace | `docs/portfolio/repository-inventory.md`; `config/services.json` | Infrastructure PR #95 documentation audit |
-| 28 application services are healthy in the persistent manual environment | `scripts/health-check.sh --profile real-providers`; dated runtime check | Infrastructure PR #94 enabled resilient live manual provider/AI testing |
+| 28 application services passed the audited persistent-manual health contract | `scripts/health-check.sh --profile real-providers`; retained 11 August runtime evidence | Infrastructure PR #94 enabled resilient live manual provider/model testing |
 | Browser identity uses HttpOnly cookies and a same-origin BFF | Client `src/server.ts`, `src/server/bff-boundary.ts`; UMG browser-session contract | Client PRs #15–18 removed browser token storage and hardened the BFF |
 | Authentication owns durable account/session state and RS256/JWKS | Authentication controllers, migrations and security configuration | Authentication PRs #16, #18 and #24 |
 | Profile data is structured, revisioned evidence rather than one biography string | User Profile evidence models, migrations, `EvidenceLibraryService`, `EvidenceSnapshotService` | Client PR #58; User Profile/Doc Generation/CV PR sequence on 29 July |
@@ -32,7 +32,7 @@ Internal traceability for the v2 detailed dossier. Public prose deliberately avo
 | Google provider credentials and DTOs remain isolated | Google Maps Gateway source/OpenAPI; Location Service clients; Compose secret mount | Feature 34 PR sequence; Infrastructure PRs #67–#79 |
 | Reporting reads owner-scoped upstream truth and does not mutate it | Reporting clients/controllers and evidence endpoint | Reporting Service PR #21; Infrastructure PR #55 |
 | System Data provides governed deterministic personas/named states | System Data datasets, controllers and non-production guards | System Data PRs #9–#19; E2E PRs #8/#9 |
-| Product-showcase media is executable test output | E2E recorder, product-showcase feature/steps and recording report | Current final recording dated 11 August; E2E README correction PR #41 |
+| Product-showcase media is executable test output | E2E recorder, current 22-top-level-step product-showcase feature and `demo-recordings/live-showcase-2026-08-12/recording-report.json` | 12 August scenario/preflight exit 0; 516.32-second 1920×1080 live-mode master, seven clips and two downloaded PDFs |
 | Regression evidence is 32 scenarios / 244 steps | `docs-site/docs/confidence/testing.md`; retained E2E reports | Private-beta closure PR set on 11 August |
 | Capacity ladder completed 1/5/10/15/20/25 | `docs/capacity-report-2026-08-11.md`; raw benchmark results | Infrastructure capacity correction and closure work |
 | The earlier 0/25 result was a frontend identity-stability defect | `docs/aws-capacity-decision-2026-08-10.md` and `2026-08-11.md`; E2E capacity feature | Stable provider-job tracking correction before final benchmark |
@@ -41,9 +41,9 @@ Internal traceability for the v2 detailed dossier. Public prose deliberately avo
 | Rich-profile testing exposed duplicate structure and output/deadline limits | Real-manual incident evidence, CV/Gateway/LLM tests and current recovery source | CV PR #69; LLM #27; Generation #122; Export #21; CV #71 |
 | Contracts are producer-owned and generated reproducibly | ADR 0002; contract lock/checksum scripts; producer OpenAPI and consumer build plugins | Migration PRs from 20–27 July; Infrastructure PRs #20/#24/#25 |
 | Seven services own PostgreSQL state | Compose database services and `docs-site/docs/architecture/data-ownership.md` | Persistence migrations across identity/profile/job/app/document/payment/generation |
-| Main authenticated application is not deployed or load-tested on AWS | AWS capacity decision documents and current runtime docs | Deployment blocker `infrastructure#38` remains blocked |
-| Live browser Stripe purchasing remains disabled | Client BFF payment route and Payment Gateway README/runtime profile | Client PR #19 fail-closed route; payment epic remains post-beta |
-| Bernard’s role is product conception, engineering direction, integration and evaluation with AI assistance | Git/PR/issue history, architectural decision records, real-user audits and iterative acceptance feedback | Portfolio brief and documented delivery history; no claim that every line was manually typed |
+| The separate public landing/waitlist AWS stack has deployed evidence | Landing `docs/launch/contact-e2e-verification-2026-07-22.md` and `ses-bounce-complaint-verification-2026-07-22.md` | CloudFormation `UPDATE_COMPLETE`; browser-to-email delivery and controlled SES bounce/complaint paths passed in `eu-west-2` |
+| Main authenticated application is not deployed or load-tested on AWS | `docs/aws-capacity-decision-2026-08-11.md`; current runtime docs; projected portfolio topology | ECS-on-EC2 `m7i.2xlarge` is a calculated single-node candidate, not deployment evidence |
+| Payment BFF/backend boundary is composed while ordinary purchasing and standard live Stripe remain unavailable | Client `src/server.ts`; Payment Gateway/Stripe routes; `real-providers` profile | Current source supersedes the earlier fail-closed BFF description; no live Stripe checkout is claimed |
 
 ## Evidence-handling rules
 

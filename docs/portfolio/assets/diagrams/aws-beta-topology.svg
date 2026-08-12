@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img" aria-labelledby="title description">
+  <title id="title">Candidate AWS topology for the Job Seeker Copilot private beta</title>
+  <desc id="description">A projected, not yet deployed, AWS architecture with a browser, TLS ingress, ECS on one EC2 host, managed data services, secrets, email and observability.</desc>
+  <defs>
+    <linearGradient id="header" x1="0" x2="1"><stop stop-color="#172645"/><stop offset="1" stop-color="#4936a7"/></linearGradient>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#315fb9"/></marker>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="5" stdDeviation="6" flood-color="#172645" flood-opacity=".14"/></filter>
+    <style>
+      .title{font:700 37px Arial,sans-serif;fill:white}.sub{font:22px Arial,sans-serif;fill:#dbe7ff}.label{font:700 25px Arial,sans-serif;fill:#172645}.copy{font:20px Arial,sans-serif;fill:#40506c}.small{font:18px Arial,sans-serif;fill:#52627d}.box{fill:white;stroke:#b9c8e6;stroke-width:3;rx:18;filter:url(#shadow)}.aws{fill:#f5f8ff;stroke:#315fb9;stroke-width:4;stroke-dasharray:10 8;rx:22}.planned{fill:#fff8e8;stroke:#d28717;stroke-width:3;rx:18}.arrow{fill:none;stroke:#315fb9;stroke-width:5;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect width="1600" height="1000" fill="#f5f7fb"/>
+  <rect width="1600" height="128" fill="url(#header)"/>
+  <text x="62" y="58" class="title">Candidate AWS private-beta implementation</text>
+  <text x="62" y="96" class="sub">Projected architecture · no main-application AWS workload has yet been deployed or load-tested</text>
+
+  <rect x="48" y="165" width="1504" height="770" class="aws"/>
+  <text x="78" y="205" class="label">AWS · eu-west-2 (London)</text>
+
+  <rect x="78" y="270" width="220" height="116" class="box"/>
+  <text x="108" y="316" class="label">Candidate browser</text>
+  <text x="108" y="350" class="copy">HTTPS only</text>
+
+  <rect x="370" y="250" width="260" height="156" class="planned"/>
+  <text x="405" y="295" class="label">TLS ingress</text>
+  <text x="405" y="330" class="copy">ALB / routing</text>
+  <text x="405" y="365" class="small">Health checks and</text>
+  <text x="405" y="390" class="small">rate limits to define</text>
+
+  <rect x="710" y="225" width="410" height="230" class="box"/>
+  <text x="748" y="270" class="label">Amazon ECS on EC2</text>
+  <text x="748" y="307" class="copy">One m7i.2xlarge candidate</text>
+  <text x="748" y="340" class="small">8 vCPU · 32 GiB · x86</text>
+  <rect x="748" y="365" width="152" height="54" rx="12" fill="#e9f1ff"/><text x="772" y="399" class="small">Client + BFF</text>
+  <rect x="918" y="365" width="164" height="54" rx="12" fill="#eeeaff"/><text x="946" y="399" class="small">28 services</text>
+
+  <rect x="1210" y="270" width="270" height="116" class="box"/>
+  <text x="1247" y="316" class="label">Amazon ECR</text>
+  <text x="1247" y="350" class="copy">Versioned images</text>
+
+  <path d="M298 328 H360" class="arrow"/><path d="M630 328 H700" class="arrow"/><path d="M1200 328 H1130" class="arrow"/>
+
+  <rect x="82" y="555" width="310" height="182" class="planned"/>
+  <text x="116" y="602" class="label">Managed PostgreSQL</text>
+  <text x="116" y="638" class="copy">RDS candidate</text>
+  <text x="116" y="674" class="small">Logical owner separation</text>
+  <text x="116" y="703" class="small">Backups and restore test</text>
+
+  <rect x="438" y="555" width="278" height="182" class="planned"/>
+  <text x="474" y="602" class="label">Amazon S3</text>
+  <text x="474" y="638" class="copy">Document bytes</text>
+  <text x="474" y="674" class="small">SSE-KMS · lifecycle</text>
+  <text x="474" y="703" class="small">Private access only</text>
+
+  <rect x="762" y="555" width="330" height="182" class="planned"/>
+  <text x="798" y="602" class="label">Secrets Manager / SSM</text>
+  <text x="798" y="638" class="copy">Runtime configuration</text>
+  <text x="798" y="674" class="small">Provider keys and DB secrets</text>
+  <text x="798" y="703" class="small">No secrets in images or Git</text>
+
+  <rect x="1138" y="555" width="328" height="182" class="planned"/>
+  <text x="1174" y="602" class="label">CloudWatch + SES</text>
+  <text x="1174" y="638" class="copy">Operations and email</text>
+  <text x="1174" y="674" class="small">Logs, metrics, alarms</text>
+  <text x="1174" y="703" class="small">Account lifecycle mail</text>
+
+  <path d="M840 465 C730 510 440 510 310 545" class="arrow"/>
+  <path d="M870 465 C805 520 650 520 590 545" class="arrow"/>
+  <path d="M930 465 V545" class="arrow"/>
+  <path d="M1000 465 C1085 520 1220 520 1280 545" class="arrow"/>
+
+  <rect x="84" y="798" width="1382" height="94" rx="18" fill="#172645"/>
+  <text x="118" y="838" class="sub">Evidence boundary</text>
+  <text x="118" y="872" class="sub">Local capacity informed the starting shape; networking, RDS, storage, recovery and AWS workload validation remain implementation gates.</text>
+</svg>

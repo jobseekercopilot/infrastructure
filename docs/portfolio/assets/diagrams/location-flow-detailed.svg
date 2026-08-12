@@ -8,5 +8,5 @@
   <g transform="translate(930 70)"><rect class="g" width="270" height="140" rx="16"/><text class="h" x="28" y="48">Postcodes.io Gateway</text><text class="p" x="28" y="82">persistable UK canonical fields</text><text class="p" x="28" y="110">fixture or public live API</text></g>
   <g transform="translate(930 320)"><rect class="g" width="270" height="140" rx="16"/><text class="h" x="28" y="48">Google Maps Gateway</text><text class="p" x="28" y="82">key + provider DTO isolation</text><text class="p" x="28" y="110">Places · Routes · attribution</text></g>
   <path class="a" d="M840 235 H885 V140 H925"/><path class="a" d="M840 295 H885 V390 H925"/>
-  <g transform="translate(1040 500)"><rect class="b" width="300" height="70" rx="16"/><text class="p" x="22" y="43">route estimates remain transient/advisory</text></g>
+  <g transform="translate(1010 495)"><rect class="b" width="340" height="82" rx="16"/><text class="p" x="24" y="36">Route estimates remain transient</text><text class="p" x="24" y="62">and advisory</text></g>
 </svg>

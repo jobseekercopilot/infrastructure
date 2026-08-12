@@ -7,7 +7,7 @@
   <path class="a" d="M220 310 H265"/><path class="a" d="M470 310 H515"/>
   <g transform="translate(850 35)"><rect class="g" width="240" height="100" rx="16"/><text class="h" x="24" y="42">Reed</text><text class="p" x="24" y="72">search + detail</text></g>
   <g transform="translate(850 160)"><rect class="g" width="240" height="100" rx="16"/><text class="h" x="24" y="42">Adzuna</text><text class="p" x="24" y="72">credentialed paging</text></g>
-  <g transform="translate(850 285)"><rect class="g" width="240" height="100" rx="16"/><text class="h" x="24" y="42">JSearch</text><text class="p" x="24" y="72">RapidAPI mapping</text></g>
+  <g transform="translate(850 285)"><rect class="g" width="240" height="100" rx="16"/><text class="h" x="24" y="42">JSearch</text><text class="p" x="24" y="72">OpenWeb Ninja mapping</text></g>
   <g transform="translate(850 410)"><rect class="g" width="240" height="100" rx="16"/><text class="h" x="24" y="42">NHS Jobs</text><text class="p" x="24" y="72">official XML adverts</text></g>
   <g transform="translate(850 535)"><rect class="g" width="240" height="100" rx="16"/><text class="h" x="24" y="42">Apprenticeships</text><text class="p" x="24" y="72">DfE snapshot</text></g>
   <path class="a" d="M765 250 H815 V85 H845"/><path class="a" d="M815 210 H845"/><path class="a" d="M815 335 H845"/><path class="a" d="M815 460 H845"/><path class="a" d="M815 585 H845"/>

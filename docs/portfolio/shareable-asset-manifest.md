@@ -1,32 +1,34 @@
 # Shareable asset manifest
 
-Reviewed on 11 August 2026. Hashes identify the exact artifacts reviewed during the documentation and portfolio audit.
+Reviewed on 12 August 2026. Hashes identify the exact artifacts reviewed during the documentation, portfolio and live-showcase audit.
 
 ## Recommended application pack
 
 | Asset | Location | Review status | Provenance and use | SHA-256 |
 |---|---|---|---|---|
-| Detailed engineering portfolio PDF | `infrastructure/docs/portfolio/output/Bernard-McGeever-Job-Seeker-Copilot-Detailed-Engineering-Portfolio-2026.pdf` | Shareable | 42-page v2 dossier with architecture evolution, full 31-repository catalogue, implementation deep dives, failure case studies and evidence boundaries. Contains no personal email address, phone number, credentials or private-repository URLs. | `d945e6a405607a1984442da0455994a6a9c68188d9d81b7d91aaeda3a9027ccf` |
+| Product and engineering confidence dossier | `infrastructure/docs/portfolio/output/Bernard-McGeever-Job-Seeker-Copilot-Detailed-Engineering-Portfolio-2026.pdf` | Shareable | Tagged/bookmarked 45-page v3 dossier centred on working software, dated verification, a projected authenticated-app AWS topology and a readable 31-repository communication catalogue. Contains no real contact details, credentials or private-repository URLs. | `8d78186d5638b8ea05602a553ad87ed954b80b1822b7a820c63586b3795783ae` |
 | Technical portfolio PDF | `infrastructure/docs/portfolio/output/Bernard-McGeever-Job-Seeker-Copilot-Technical-Portfolio-2026.pdf` | Shareable | 16-page, evidence-backed dossier built from the audited HTML source. Contains no personal email address, phone number, credentials or private-repository URLs. | `dbec2270db01ef1dfaf3fcf72addec5c2a42dea14c54257a750b052b7ce97f3a` |
-| Master product showcase | `e2e/demo-recordings/final/JOB-SEEKER-COPILOT-SHOWCASE.mp4` | Shareable with fixture disclosure | 204.40-second deterministic showcase recorded from canonical System Data. Useful for demonstrating journeys; it is not evidence of live provider availability. | `5fd8a8b95aaa86812d77aed029ec69a7d417bd0a962abd748c08e05bd0b9c790` |
-| Example generated CV | `e2e/demo-recordings/final/downloads/alex-taylor-java-software-developer-cv.pdf` | Shareable as a synthetic example | Fictional Alex Taylor fixture output. Demonstrates export format and workflow only; use a separately reviewed, job-specific real CV for an application. | `f8344bae60253ebb1cd891c1ea071d0675439d49ed0b2c43089ebba89fc3f276` |
-| Example generated cover letter | `e2e/demo-recordings/final/downloads/alex-taylor-java-software-developer-cover-letter.pdf` | Shareable as a synthetic example | Fictional Alex Taylor fixture output. Demonstrates export format and workflow only; use a separately reviewed, job-specific real letter for an application. | `a0920d02efcab917adc9a2cda0ac32aeb8733e3f1b4bb78404e16c1053405f51` |
+| Master product showcase | `e2e/demo-recordings/live-showcase-2026-08-12/JOB-SEEKER-COPILOT-SHOWCASE.mp4` | Shareable with live-mode disclosure | 516.32-second, 1920×1080 executable showcase using a fictional System Data identity with live job-provider and OpenAI paths. Scenario and preflight exit 0; this is bounded point-in-time evidence, not an availability guarantee. | `e9d89ea149f5b0b80c5e4b789f11bbb31e4ec052ea3155b175005345df865748` |
+| Example generated CV | `e2e/demo-recordings/live-showcase-2026-08-12/alex-taylor-tailored-cv.pdf` | Shareable as a synthetic live-path example | Fictional Alex Taylor output produced during the passing live-provider/OpenAI showcase. Demonstrates structured generation, export and download; it is not a real candidate document. | `e34979003b3f5f317dc21d243da1962603e226826f525a1e6581610320be1083` |
+| Example generated cover letter | `e2e/demo-recordings/live-showcase-2026-08-12/alex-taylor-tailored-cover-letter.pdf` | Shareable as a synthetic live-path example | Fictional Alex Taylor output produced during the same passing showcase. Use a separately reviewed real letter for an actual application. | `a46e712e7086e0bea4bdbfd8c4a35ff1491809bd6da64ca25209e2f589a63169` |
 
 The job-specific CV and cover letter sent to an employer remain private candidate documents. They are not committed to Git or included in this manifest.
 
 ## Feature clips
 
-All clips below were recorded from the deterministic fixture environment. They are safe to share when labelled accordingly.
+All clips below were cut from the same 12 August live-mode master. They use a
+fictional persona but real provider/model boundaries and must be labelled as
+bounded point-in-time live evidence.
 
 | Clip | Duration | SHA-256 |
 |---|---:|---|
-| `ONBOARDING.mp4` | 19.28 s | `fd3a119704ae40373ca91b7ab02663f5cd502b8e5d6b5a4b6f7efa08768e2035` |
-| `PROFILE.mp4` | 68.92 s | `78a2dc8626a2d6347cc5f87564286fecfe8dae013f559ddb733ba5976cfd14af` |
-| `DISCOVER.mp4` | 8.76 s | `37c0e77123d65a63555f8da15d12801516e36cb2ca0aba4517fec6c71d6ee033` |
-| `GENERATE.mp4` | 12.84 s | `13e7e1cccb886027a0cba73899c4f6b9b5caed47e6d035271c1c0986d408866e` |
-| `DOCUMENTS.mp4` | 34.72 s | `c1d47eaf8126a44b5d63e27b90c4d5f6df01b23e8f189b14b03cb85e5d3d5e70` |
-| `TRACKING.mp4` | 27.84 s | `70503db9bbd617bfb0f1058a0c6b5567036e6a114ca8eaec967965ab807566e8` |
-| `REPORTING.mp4` | 10.68 s | `a664b8b0a1ed69b5fd5ed75d7c543782c2c29e3ca4809ab8773ad26e67133f1b` |
+| `live-review/ONBOARDING.mp4` | 19.76 s | `3b0dcfe1c6e0117d0ad4bf87074a0bbde1f0fad5f189a04cd77dff30ba99c2db` |
+| `live-review/PROFILE.mp4` | 264.36 s | `8eb1ab3da7d8560733ace84872a6f5947ddc7e6eec06f896267cfda2dbc864de` |
+| `live-review/DISCOVER.mp4` | 17.64 s | `bb31b03c5e5b08f88d6a3d8d3dc9bc643f01f187d2b0de87ad8b45c5a8bc5757` |
+| `live-review/GENERATE.mp4` | 108.80 s | `4b5ba201333917fb8771bf6a2db47eed79eec00862f95cfbe1fca2b7dd8f0d66` |
+| `live-review/DOCUMENTS.mp4` | 39.08 s | `915afcc2d00aba506b94b201fcc5fc846387e797ce35f42e817a9aba71bacfc6` |
+| `live-review/REPORTING.mp4` | 11.04 s | `2281545a2e2d529167e5a3f3a3427099c21529e14a2592638335d3ba371b1a16` |
+| `live-review/TRACKING.mp4` | 54.96 s | `2dfe91532402e3ff3c9059c6238bef9656aca869a262aa819edf44dae97ccf8e` |
 
 ## Screenshot set
 
@@ -44,7 +46,8 @@ They exclude account identity and contact data. Provider-backed vacancy screensh
 
 The detailed edition additionally embeds privacy-reviewed synthetic fixture
 screenshots for registration, profile structure, the Evidence Library,
-purpose-bound evidence selection, job details and generated-CV layout. These
+purpose-bound evidence selection and job details. The generated-CV preview is
+the richer fictional output from the live showcase. These
 use the fictional Alex Taylor System Data persona and are explicitly labelled
 as synthetic in the dossier. `registration-current.png` contains no submitted
 identity or contact data.
@@ -52,6 +55,6 @@ identity or contact data.
 ## Distribution notes
 
 - Send the dossier with a job-specific CV and cover letter, not the synthetic examples, unless an evaluator explicitly asks to inspect generated fixture output.
-- Label the video as a deterministic product demonstration. Do not describe it as a live-provider recording.
+- Label the current video as a synthetic-persona, live-provider/OpenAI product demonstration. Do not describe it as a production availability or reliability result.
 - Rebuild and re-review hashes after changing any source, screenshot or artifact.
 - Never add the real candidate CV, phone number, email, environment files, API keys, cookies or tokens to this directory.
