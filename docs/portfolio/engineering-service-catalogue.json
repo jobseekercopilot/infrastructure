@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0",
-  "reviewedAt": "2026-08-11",
+  "reviewedAt": "2026-08-12",
   "repositories": [
     {
       "name": "job-seeker-copilot-client",
@@ -9,7 +9,7 @@
       "responsibility": "Authenticated product UI and same-origin BFF with an explicit downstream route allowlist.",
       "ownedState": "HttpOnly browser session cookies only; no application database.",
       "inbound": ["Browser"],
-      "outbound": ["User Management Gateway", "Job Finder Gateway", "Location Gateway", "Document Generation Gateway", "Document Store Service", "Reporting Gateway"],
+      "outbound": ["User Management Gateway", "Job Finder Gateway", "Location Gateway", "Document Generation Gateway", "Document Store Service", "Reporting Gateway", "Payment Gateway"],
       "contract": "Angular models/generated clients plus Express /api proxy routes",
       "external": [],
       "noteworthy": "Removes bearer tokens from browser storage, applies CSRF and provider-link boundaries, and presents explicit live/fixture/failure states."
@@ -20,7 +20,7 @@
       "technology": "Java 17, Spring Boot 4.1, PostgreSQL, Flyway",
       "responsibility": "Account registration, credential verification, reset, refresh/logout lifecycle, RS256 access tokens and JWKS.",
       "ownedState": "Accounts, credentials and refresh/session records.",
-      "inbound": ["User Management Gateway", "account lifecycle services"],
+      "inbound": ["User Management Gateway", "JWT resource services via JWKS", "account lifecycle services"],
       "outbound": ["User Profile Service", "Application Tracker Service", "Document Store Service", "optional SES adapter"],
       "contract": "Authentication OpenAPI 1.1; /api/auth/** and JWKS",
       "external": ["SES when explicitly configured"],
@@ -32,7 +32,7 @@
       "technology": "Java 17, Spring Boot 3.5",
       "responsibility": "Browser-facing registration, session, profile and evidence facade.",
       "ownedState": "Stateless.",
-      "inbound": ["Client BFF", "Job Finder identity resolution"],
+      "inbound": ["Client BFF, including payment owner resolution"],
       "outbound": ["Authentication Service", "User Profile Service"],
       "contract": "Versioned browser-session and profile routes under /api/auth/**",
       "external": [],
@@ -45,7 +45,7 @@
       "responsibility": "Progressive profile, preferences, Evidence Library, immutable revisions and purpose-bound snapshots.",
       "ownedState": "Profile, canonical preferences, evidence entries/revisions and evidence snapshots.",
       "inbound": ["User Management Gateway", "Job Finder Gateway", "Document Generation Gateway", "Reporting Service"],
-      "outbound": [],
+      "outbound": ["Authentication Service JWKS"],
       "contract": "User Profile OpenAPI 2.2; /api/profiles/me and /api/evidence/**",
       "external": [],
       "noteworthy": "Optimistic revisions, confirmation state, provenance and SHA-256 digests prevent mutable biography from becoming generation truth."
@@ -57,7 +57,7 @@
       "responsibility": "JWT-protected search, saved-job and application facade for the browser.",
       "ownedState": "Stateless.",
       "inbound": ["Client BFF"],
-      "outbound": ["Job Service", "User Profile Service", "User Management Gateway", "Application Tracker Service"],
+      "outbound": ["Authentication Service JWKS", "Job Service", "User Profile Service", "Application Tracker Service"],
       "contract": "Job Finder OpenAPI 1.12; /api/jobs/**",
       "external": [],
       "noteworthy": "Forwards verified subject identity, preserves source provenance and exposes partial-provider status truthfully."
@@ -69,7 +69,7 @@
       "responsibility": "Five-provider fan-out, canonical mapping, deduplication, detail hydration and saved immutable job snapshots.",
       "ownedState": "Saved jobs and bounded search/detail cache.",
       "inbound": ["Job Finder Gateway", "Document Generation Gateway"],
-      "outbound": ["Reed Gateway", "Adzuna Gateway", "JSearch Gateway", "NHS Jobs Gateway", "Apprenticeships Gateway", "Job Matching Service"],
+      "outbound": ["Authentication Service JWKS", "Reed Gateway", "Adzuna Gateway", "JSearch Gateway", "NHS Jobs Gateway", "Apprenticeships Gateway", "Job Matching Service"],
       "contract": "Provider-neutral Job OpenAPI 2.x",
       "external": [],
       "noteworthy": "Keeps source references and field provenance while tolerating partial provider failure and heterogeneous identifiers."
@@ -114,13 +114,13 @@
       "name": "jsearch-gateway",
       "domain": "Job provider",
       "technology": "Java 17, Spring Boot 3.2",
-      "responsibility": "RapidAPI JSearch request authentication and mapping.",
+      "responsibility": "OpenWeb Ninja JSearch request authentication and mapping.",
       "ownedState": "Stateless.",
       "inbound": ["Job Service"],
-      "outbound": ["RapidAPI JSearch", "System Data Service in fixture mode"],
+      "outbound": ["OpenWeb Ninja JSearch", "System Data Service in fixture mode"],
       "contract": "Provider search/mode OpenAPI",
-      "external": ["JSearch via RapidAPI"],
-      "noteworthy": "Separates RapidAPI credentials/DTOs and maps inconsistent dates, descriptions and job identifiers."
+      "external": ["OpenWeb Ninja JSearch"],
+      "noteworthy": "Separates provider credentials/DTOs and maps inconsistent dates, descriptions and job identifiers."
     },
     {
       "name": "nhs-jobs-gateway",
@@ -260,11 +260,11 @@
       "technology": "Java 17, Spring Boot 3.2",
       "responsibility": "Wallet, pricing and checkout facade.",
       "ownedState": "Stateless.",
-      "inbound": ["Potential browser/payment clients"],
+      "inbound": ["Client BFF payment routes"],
       "outbound": ["Payment Service", "Stripe Gateway"],
       "contract": "Payment Gateway OpenAPI 2.0",
       "external": [],
-      "noteworthy": "Backend fixture path is composed, while the ordinary browser checkout route deliberately fails closed."
+      "noteworthy": "The backend and BFF boundary are composed; ordinary purchasing UI and the standard live Stripe profile remain unavailable."
     },
     {
       "name": "stripe-gateway",
@@ -348,7 +348,7 @@
       "outbound": ["Client browser routes", "System Data lifecycle APIs"],
       "contract": "Feature files, step definitions and tagged runtime profiles",
       "external": [],
-      "noteworthy": "The product-showcase video is generated from an executable 26-step journey rather than hand-staged interaction."
+      "noteworthy": "The current showcase is generated from an executable 22-top-level-step offer-acceptance journey rather than hand-staged interaction."
     },
     {
       "name": "infrastructure",
