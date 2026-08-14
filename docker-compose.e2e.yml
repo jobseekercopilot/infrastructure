@@ -70,8 +70,8 @@ services:
   user-management-gateway:
     ports: !override
       - "127.0.0.1:${E2E_USER_MANAGEMENT_GATEWAY_PORT:-9130}:8083"
-      - "127.0.0.1:${E2E_USER_MANAGEMENT_DEBUG_PORT:-9505}:5005"
     environment:
+      JAVA_TOOL_OPTIONS: ""
       SPRING_PROFILES_ACTIVE: "e2e"
       GATEWAY_AUTH_RATE_MAXIMUM: "100"
 
@@ -278,3 +278,7 @@ services:
     environment:
       - NODE_ENV=production
       - BFF_PASSWORD_RESET_RATE_MAXIMUM=100
+
+networks:
+  host-access:
+    internal: true

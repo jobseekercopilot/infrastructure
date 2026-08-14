@@ -483,6 +483,9 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
                 "e2e",
             )
     if e2e:
+        host_access = model.get("networks", {}).get("host-access", {})
+        if host_access.get("internal") is not True:
+            raise ValueError("E2E host-access network must be internal")
         for service_name, configuration in model.get("services", {}).items():
             for published_port in configuration.get("ports", []):
                 if (
@@ -492,6 +495,19 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
                     raise ValueError(
                         f"{service_name} E2E published ports must bind to loopback only"
                     )
+        user_management = model.get("services", {}).get(
+            "user-management-gateway", {}
+        )
+        if any(
+            published_port.get("target") == 5005
+            for published_port in user_management.get("ports", [])
+            if isinstance(published_port, dict)
+        ):
+            raise ValueError("E2E must not publish the user-management debug port")
+        if environment(model, "user-management-gateway").get(
+            "JAVA_TOOL_OPTIONS", ""
+        ).strip():
+            raise ValueError("E2E must not enable the user-management debug agent")
         for service in (
             "application-tracker-service",
             "document-store-service",

@@ -217,7 +217,8 @@ class RenderedModeIsolationTests(unittest.TestCase):
         )
 
     def test_e2e_published_ports_are_loopback_only(self) -> None:
-        e2e_services = self.model("e2e")["services"]
+        e2e_model = self.model("e2e")
+        e2e_services = e2e_model["services"]
         published_services = 0
         for service_name, configuration in e2e_services.items():
             ports = configuration.get("ports", [])
@@ -227,12 +228,31 @@ class RenderedModeIsolationTests(unittest.TestCase):
                 with self.subTest(service=service_name, port=published_port):
                     self.assertEqual("127.0.0.1", published_port.get("host_ip"))
         self.assertGreater(published_services, 0)
+        self.assertTrue(e2e_model["networks"]["host-access"]["internal"])
+        user_management = e2e_services["user-management-gateway"]
+        self.assertEqual("", user_management["environment"]["JAVA_TOOL_OPTIONS"])
+        self.assertNotIn(
+            5005,
+            [published_port["target"] for published_port in user_management["ports"]],
+        )
 
         unsafe = self.model("e2e")
         unsafe["services"]["job-seeker-copilot-client"]["ports"][0].pop(
             "host_ip"
         )
         with self.assertRaisesRegex(ValueError, "bind to loopback only"):
+            validate_model(unsafe, "e2e")
+
+        unsafe = self.model("e2e")
+        unsafe["networks"]["host-access"]["internal"] = False
+        with self.assertRaisesRegex(ValueError, "host-access network must be internal"):
+            validate_model(unsafe, "e2e")
+
+        unsafe = self.model("e2e")
+        unsafe["services"]["user-management-gateway"]["environment"][
+            "JAVA_TOOL_OPTIONS"
+        ] = "-agentlib:jdwp=transport=dt_socket,server=y,address=*:5005"
+        with self.assertRaisesRegex(ValueError, "must not enable.*debug agent"):
             validate_model(unsafe, "e2e")
 
     def test_all_seven_rendered_modes_pass_the_policy(self) -> None:
