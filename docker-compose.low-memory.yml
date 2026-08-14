@@ -82,8 +82,11 @@ services:
     # services while retaining native headroom inside the 512 MiB container.
     mem_limit: 512m
   application-tracker-service:
-    <<: *java-small
-    mem_limit: 512m
+    <<: *java-profile
+    # Hibernate/application-history metadata exhausted the shared 96 MiB
+    # metaspace ceiling during the governed multi-persona regression while
+    # the container itself retained ample headroom. Use the reviewed profile
+    # budget so non-health requests remain serviceable throughout the suite.
   reporting-service:
     <<: *java-small
   reporting-gateway:

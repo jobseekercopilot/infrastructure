@@ -40,40 +40,40 @@
     {
       "service": "cv-cover-letter-service",
       "repository": "jobseekercopilot/cv-cover-letter-service",
-      "revision": "87fc2393309ad3007cba6ac27aa618fc3cc81aa9",
+      "revision": "3129864cca5c0eca8fcf9a4df59ce4bda91ef1a1",
       "path": "contracts/openapi.json",
-      "contractVersion": "2.0.0",
-      "sha256": "8583f844b297bc32472e1fbf0b4bc273972477cc81cb0a25eba6e2ac5a048d95",
+      "contractVersion": "4.2.0",
+      "sha256": "72f997ab962e4cc2dc2d41f8c4c7df852de06d1c2cab66569851f2351c586a1d",
       "consumers": [
         "document-generation-gateway"
       ],
       "javaPackage": {
         "groupId": "com.jobseekercopilot.clients",
         "artifactId": "cv-cover-letter-service-client",
-        "version": "2.0.0-rev.87fc2393309a",
+        "version": "4.2.0-rev.3129864cca5c",
         "generator": "java-resttemplate",
         "releaseState": "published",
-        "buildRevision": "8798c9ed8be43ce69b1615438c23d8a68d9495c0",
+        "buildRevision": "abe61343581cf267b8f2566322a2adb9122b7288",
         "modulePath": "api/client/pom.xml"
       }
     },
     {
       "service": "document-export-service",
       "repository": "jobseekercopilot/document-export-service",
-      "revision": "a35fff34f86b77457df4b9e324000a32819d5aba",
+      "revision": "cda9a2af811bafe99ecd686faab14db67f21ae32",
       "path": "contracts/openapi.json",
-      "contractVersion": "2.0.0",
-      "sha256": "e696b76efc05149778d1a31df684b6ba5687120396fb6e000ce4f888346f5072",
+      "contractVersion": "3.1.0",
+      "sha256": "2848a72e78c2bfaa48ac5879e99528be0daaee6371cd6bd8a99c59e3131d585a",
       "consumers": [
         "document-generation-gateway"
       ],
       "javaPackage": {
         "groupId": "com.jobseekercopilot.clients",
         "artifactId": "document-export-service-client",
-        "version": "2.0.0-rev.a35fff34f86b",
+        "version": "3.1.0-rev.cda9a2af811b",
         "generator": "java-resttemplate",
         "releaseState": "published",
-        "buildRevision": "4f4ec8d3eea2286426c6308de405125e80d98be6",
+        "buildRevision": "66614d9f71d914c37b964d168500f5bec521e855",
         "modulePath": "api/client/pom.xml"
       }
     },
@@ -91,20 +91,20 @@
     {
       "service": "user-profile-service",
       "repository": "jobseekercopilot/user-profile-service",
-      "revision": "03d24c68342f86d573623541a4f8506acdf1b047",
+      "revision": "a880add6e5c7106a2f3abec08a147823f88edf20",
       "path": "api/openapi.json",
-      "contractVersion": "2.0.0",
-      "sha256": "962254757585bfd1339df0ffdd3196a4b0b720f8dc16bc0f6c439dedb84771b8",
+      "contractVersion": "2.3.0",
+      "sha256": "3326ffc4c3f78fbd97325fe071d3848fdb3319ea997571f98cd792619905fc04",
       "consumers": [
         "document-generation-gateway"
       ],
       "javaPackage": {
         "groupId": "com.jobseekercopilot.clients",
         "artifactId": "user-profile-service-client",
-        "version": "2.0.0-rev.03d24c68342f",
+        "version": "2.3.0-rev.a880add6e5c7",
         "generator": "java-resttemplate",
-        "releaseState": "pilot",
-        "buildRevision": "b6f33a3a0bdd3571eb8736b0f30fe146c220d689",
+        "releaseState": "published",
+        "buildRevision": "1776cf83c38b7f0acbaa663a50b344e718888b06",
         "modulePath": "api/client/pom.xml"
       }
     }

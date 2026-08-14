@@ -185,7 +185,7 @@ class RenderedModeIsolationTests(unittest.TestCase):
             ],
         )
 
-    def test_e2e_fixture_gateways_are_loopback_reachable_for_preflight(self) -> None:
+    def test_e2e_fixture_gateways_remain_internal(self) -> None:
         local_services = self.model("local")["services"]
         e2e_services = self.model("e2e")["services"]
         fixture_gateways = (
@@ -202,7 +202,7 @@ class RenderedModeIsolationTests(unittest.TestCase):
         for gateway in fixture_gateways:
             with self.subTest(gateway=gateway):
                 self.assertNotIn("host-access", local_services[gateway]["networks"])
-                self.assertIn("host-access", e2e_services[gateway]["networks"])
+                self.assertNotIn("host-access", e2e_services[gateway]["networks"])
         self.assertEqual(
             "5",
             local_services["job-seeker-copilot-client"]["environment"][
@@ -215,6 +215,192 @@ class RenderedModeIsolationTests(unittest.TestCase):
                 "BFF_PASSWORD_RESET_RATE_MAXIMUM"
             ],
         )
+
+    def test_e2e_published_ports_are_loopback_only(self) -> None:
+        e2e_model = self.model("e2e")
+        e2e_services = e2e_model["services"]
+        expected_boundaries = {
+            "authentication-service": (
+                8084,
+                "E2E_AUTHENTICATION_SERVICE_PORT",
+            ),
+            "system-data-service": (8103, "E2E_SYSTEM_DATA_SERVICE_PORT"),
+            "job-seeker-copilot-client": (3000, "E2E_FRONTEND_PORT"),
+        }
+        published_services = set()
+        for service_name, configuration in e2e_services.items():
+            ports = configuration.get("ports", [])
+            if ports:
+                published_services.add(service_name)
+            for published_port in ports:
+                with self.subTest(service=service_name, port=published_port):
+                    self.assertEqual("127.0.0.1", published_port.get("host_ip"))
+        self.assertEqual(set(expected_boundaries), published_services)
+        infrastructure_root = Path(__file__).resolve().parents[1]
+        template_ports = {
+            name: value
+            for line in (
+                infrastructure_root / ".env.e2e.example"
+            ).read_text(encoding="utf-8").splitlines()
+            if line.startswith("E2E_") and "=" in line
+            for name, value in [line.split("=", 1)]
+            if name.endswith("_PORT")
+        }
+        runtime_schema = json.loads(
+            (
+                infrastructure_root / "config/runtime-environment.schema.json"
+            ).read_text(encoding="utf-8")
+        )
+        schema_ports = {
+            variable["name"]: variable
+            for variable in runtime_schema["variables"]
+            if variable["name"].startswith("E2E_")
+            and variable["name"].endswith("_PORT")
+        }
+        expected_port_variables = {
+            port_variable
+            for _, port_variable in expected_boundaries.values()
+        }
+        self.assertEqual(expected_port_variables, set(template_ports))
+        self.assertEqual(expected_port_variables, set(schema_ports))
+
+        for service_name, (target_port, port_variable) in expected_boundaries.items():
+            published_port = e2e_services[service_name]["ports"][0]
+            self.assertEqual(
+                [target_port],
+                [port["target"] for port in e2e_services[service_name]["ports"]],
+            )
+            self.assertEqual(template_ports[port_variable], published_port["published"])
+            self.assertEqual(
+                template_ports[port_variable],
+                schema_ports[port_variable]["example"],
+            )
+        host_access = e2e_model["networks"]["host-access"]
+        self.assertFalse(host_access.get("internal", False))
+        self.assertEqual(
+            "127.0.0.1",
+            host_access["driver_opts"][
+                "com.docker.network.bridge.host_binding_ipv4"
+            ],
+        )
+        self.assertEqual(
+            "false",
+            host_access["driver_opts"][
+                "com.docker.network.bridge.enable_ip_masquerade"
+            ],
+        )
+        self.assertEqual(
+            set(expected_boundaries),
+            {
+                service_name
+                for service_name, configuration in e2e_services.items()
+                if "host-access" in configuration.get("networks", {})
+            },
+        )
+        user_management = e2e_services["user-management-gateway"]
+        self.assertEqual("", user_management["environment"]["JAVA_TOOL_OPTIONS"])
+        self.assertNotIn(
+            5005,
+            [
+                published_port["target"]
+                for published_port in user_management.get("ports", [])
+            ],
+        )
+
+        unsafe = self.model("e2e")
+        unsafe["services"]["job-seeker-copilot-client"]["ports"][0].pop(
+            "host_ip"
+        )
+        with self.assertRaisesRegex(ValueError, "bind to loopback only"):
+            validate_model(unsafe, "e2e")
+
+        unsafe = self.model("e2e")
+        unsafe["networks"]["host-access"]["internal"] = True
+        with self.assertRaisesRegex(ValueError, "must permit loopback ingress"):
+            validate_model(unsafe, "e2e")
+
+        unsafe = self.model("e2e")
+        unsafe["networks"]["host-access"]["driver_opts"][
+            "com.docker.network.bridge.enable_ip_masquerade"
+        ] = "true"
+        with self.assertRaisesRegex(ValueError, "must disable IP masquerading"):
+            validate_model(unsafe, "e2e")
+
+        for gateway in ("reed-gateway", "llm-gateway", "stripe-gateway"):
+            unsafe = self.model("e2e")
+            unsafe["services"][gateway]["networks"]["host-access"] = None
+            with self.subTest(gateway=gateway), self.assertRaisesRegex(
+                ValueError, "host-access membership"
+            ):
+                validate_model(unsafe, "e2e")
+
+        unsafe = self.model("e2e")
+        unsafe["services"]["authentication-service"]["networks"].pop(
+            "host-access"
+        )
+        with self.assertRaisesRegex(ValueError, "host-access membership"):
+            validate_model(unsafe, "e2e")
+
+        unsafe = self.model("e2e")
+        unsafe["services"]["user-management-gateway"]["environment"][
+            "JAVA_TOOL_OPTIONS"
+        ] = "-agentlib:jdwp=transport=dt_socket,server=y,address=*:5005"
+        with self.assertRaisesRegex(ValueError, "must not enable.*debug agent"):
+            validate_model(unsafe, "e2e")
+
+        low_memory = self.model("e2e")
+        low_memory["services"]["user-management-gateway"]["environment"][
+            "JAVA_TOOL_OPTIONS"
+        ] = "-Xms24m -Xmx160m -XX:+UseSerialGC"
+        validate_model(low_memory, "e2e")
+
+    def test_actual_low_memory_e2e_model_passes_the_policy(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            env_file = Path(directory) / ".env.e2e"
+            render("e2e", PROFILE_TEMPLATES["e2e"], env_file)
+            model = compose_model(
+                env_file,
+                [
+                    Path("docker-compose.e2e.yml"),
+                    Path("docker-compose.low-memory.yml"),
+                ],
+                "e2e",
+            )
+
+        validate_model(model, "e2e")
+        self.assertIn(
+            "-Xmx160m",
+            model["services"]["user-management-gateway"]["environment"][
+                "JAVA_TOOL_OPTIONS"
+            ],
+        )
+
+    def test_e2e_validator_cli_rejects_missing_or_reordered_overlays(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            env_file = Path(directory) / ".env.e2e"
+            render("e2e", PROFILE_TEMPLATES["e2e"], env_file)
+            arguments = [
+                "validate_compose_runtime",
+                "--profile",
+                "e2e",
+                "--env-file",
+                str(env_file),
+                "--overlay",
+                "docker-compose.low-memory.yml",
+                "--overlay",
+                "docker-compose.e2e.yml",
+            ]
+            with patch("sys.argv", arguments), redirect_stderr(StringIO()):
+                with self.assertRaises(SystemExit):
+                    validate_compose_runtime()
+
+    def test_e2e_rejects_stale_fixture_dataset_versions(self) -> None:
+        stale = self.model("e2e")
+        stale["services"]["system-data-service"]["environment"][
+            "FIXTURE_DATASET_VERSION"
+        ] = "1.0.0"
+        with self.assertRaisesRegex(ValueError, "FIXTURE_DATASET_VERSION"):
+            validate_model(stale, "e2e")
 
     def test_all_seven_rendered_modes_pass_the_policy(self) -> None:
         for profile, model in self.models.items():
@@ -612,14 +798,6 @@ class RenderedModeIsolationTests(unittest.TestCase):
                         "job-seeker-copilot-client",
                         "authentication-service",
                         "system-data-service",
-                        "adzuna-gateway",
-                        "jsearch-gateway",
-                        "nhs-jobs-gateway",
-                        "apprenticeships-gateway",
-                        "reed-gateway",
-                        "postcode-io-gateway",
-                        "llm-gateway",
-                        "stripe-gateway",
                     }
                 )
                 self.assertEqual(
@@ -1152,6 +1330,15 @@ class RenderedModeIsolationTests(unittest.TestCase):
             4,
         )
         self.assertNotEqual(acquisition.project, e2e.project)
+        self.assertEqual(
+            e2e.files,
+            (
+                "docker-compose.yml",
+                "docker-compose.e2e.yml",
+                "docker-compose.low-memory.yml",
+            ),
+        )
+        self.assertEqual(e2e.parallel_limit, 1)
         self.assertEqual(
             acquisition.files, ("docker-compose.data-acquisition.yml",)
         )

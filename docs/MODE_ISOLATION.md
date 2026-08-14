@@ -11,6 +11,7 @@ payment/LLM provider mode that can incur external activity unexpectedly.
 | --- | --- | --- | --- |
 | `basic-fixture` | Job, postcode and Google/LLM paths are deterministic or disabled | Disabled in normal runtime | Dedicated `job-seeker-copilot-basic` volumes; normal stop preserves state |
 | `full-fixture` | Complete application; job, postcode, LLM and Stripe provider boundaries use reviewed fixtures and Google is disabled | Disabled in normal runtime; guarded E2E tooling uses explicit named-state APIs | Dedicated `job-seeker-copilot-full` volumes; reproducible fixture data |
+| `e2e` | Complete application with all job, postcode, LLM, payment and email boundaries fixture-backed; ClamAV is the only service intended to make outbound maintenance calls | Guarded named-state reset, seed and verification APIs enabled only for browser tests | Dedicated `job-seeker-copilot-e2e` volumes; only the browser, System Data and Authentication boundaries publish ports, all on `127.0.0.1`; low-memory limits applied |
 | `full-local-ses` | Same provider boundary as `full-fixture`; account email uses the production SES adapter against LocalStack | Same as full fixture | Dedicated project/volumes; LocalStack mail is ephemeral |
 | `google-maps-smoke` | Google Places/Routes may be LIVE; every other external provider remains fixture-backed | Disabled | Dedicated `job-seeker-copilot-google-maps` state; bounded live validation only |
 | `real-job-providers` | Reed, Adzuna, JSearch, NHS Jobs, Find an apprenticeship and Postcodes.io may be LIVE; LLM and Stripe remain `FIXTURE`; Google remains disabled | Disabled | Dedicated `job-seeker-copilot-real-jobs` persistent volumes; not production evidence |
@@ -21,7 +22,13 @@ Fixture and E2E use an internal-only application network and do not inject live
 provider credentials. The rendered-model policy rejects accidental crossover.
 E2E additionally requires `SPRING_PROFILES_ACTIVE=e2e`,
 `DEPLOYMENT_ENVIRONMENT_CLASS=TEST` for postcode, fixture modes for every
-external gateway, and the exact reset/seed allowlists.
+external gateway, and the exact reset/seed allowlists. Every required E2E host
+port is published on `127.0.0.1` only; the rendered-model policy rejects any
+wider binding before startup. Docker requires a non-internal bridge for those
+host publications, so E2E limits `host-access` membership to the browser,
+System Data and Authentication services and disables IP masquerading on that
+bridge. Provider, LLM and payment-provider gateways remain only on the internal
+application network. The User Management debug agent and port remain disabled.
 
 The sole security-maintenance exception is the pinned ClamAV container. It
 joins a dedicated egress bridge only to refresh public malware signatures and
@@ -57,6 +64,10 @@ Generate the selected ignored environment through the supported lifecycle:
 ./scripts/bootstrap.sh --profile basic-fixture
 ./scripts/start-local.sh --profile basic-fixture --build
 ./scripts/health-check.sh --profile basic-fixture
+
+./scripts/build-all.sh --profile e2e
+./scripts/start-local.sh --profile e2e --build
+./scripts/health-check.sh --profile e2e
 
 ./scripts/start-local.sh --profile real-providers --build
 ./scripts/health-check.sh --profile real-providers

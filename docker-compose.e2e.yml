@@ -2,16 +2,13 @@ services:
   authentication-postgres:
 
   portainer:
-    ports: !override
-      - "${E2E_PORTAINER_PORT:-9900}:9000"
+    ports: !override []
 
   dozzle:
-    ports: !override
-      - "${E2E_DOZZLE_PORT:-9998}:8080"
+    ports: !override []
 
   postcode-io-gateway:
-    ports: !override
-      - "${E2E_POSTCODE_IO_GATEWAY_PORT:-9102}:8082"
+    ports: !override []
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
       - DEPLOYMENT_ENVIRONMENT_CLASS=TEST
@@ -19,35 +16,29 @@ services:
       - PROVIDER_MODE_ENDPOINT_ENABLED=true
       - SYSTEM_DATA_SERVICE_URL=http://system-data-service:8103
       - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
-      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.0.0}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.1.0}
       - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
-    networks:
-      - job-seeker-network
-      - host-access
 
   google-maps-gateway:
-    ports: !override
-      - "${E2E_GOOGLE_MAPS_GATEWAY_PORT:-9205}:8105"
+    ports: !override []
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
       - GOOGLE_MAPS_ENABLED=false
 
   location-service:
-    ports: !override
-      - "${E2E_LOCATION_SERVICE_PORT:-9204}:8104"
+    ports: !override []
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
       - GOOGLE_MAPS_ENABLED=false
 
   location-gateway:
-    ports: !override
-      - "${E2E_LOCATION_GATEWAY_PORT:-9101}:8081"
+    ports: !override []
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
 
   authentication-service:
     ports: !override
-      - "${E2E_AUTHENTICATION_SERVICE_PORT:-9104}:8084"
+      - "127.0.0.1:${E2E_AUTHENTICATION_SERVICE_PORT:-9104}:8084"
     environment:
       - SPRING_PROFILES_ACTIVE=e2e,local
       - ENVIRONMENT_DATA_ENABLED=true
@@ -60,86 +51,64 @@ services:
       - host-access
 
   user-profile-service:
-    ports: !override
-      - "${E2E_USER_PROFILE_SERVICE_PORT:-9105}:8085"
+    ports: !override []
     environment:
       - SPRING_PROFILES_ACTIVE=e2e,environment-data
       - ENVIRONMENT_DATA_ENABLED=true
       - ENVIRONMENT_DATA_ALLOWED_ENVIRONMENTS=e2e
 
   user-management-gateway:
-    ports: !override
-      - "${E2E_USER_MANAGEMENT_GATEWAY_PORT:-9130}:8083"
-      - "${E2E_USER_MANAGEMENT_DEBUG_PORT:-9505}:5005"
+    ports: !override []
     environment:
+      JAVA_TOOL_OPTIONS: ""
       SPRING_PROFILES_ACTIVE: "e2e"
       GATEWAY_AUTH_RATE_MAXIMUM: "100"
 
   reed-gateway:
-    ports: !override
-      - "${E2E_REED_GATEWAY_PORT:-9107}:8087"
+    ports: !override []
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
       - EXTERNAL_PROVIDER_MODE=FIXTURE
       - SYSTEM_DATA_SERVICE_URL=http://system-data-service:8103
       - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
-      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.0.0}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.1.0}
       - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
-    networks:
-      - job-seeker-network
-      - host-access
 
   adzuna-gateway:
-    ports: !override
-      - "${E2E_ADZUNA_GATEWAY_PORT:-9108}:8101"
+    ports: !override []
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
       - EXTERNAL_PROVIDER_MODE=FIXTURE
       - SYSTEM_DATA_SERVICE_URL=http://system-data-service:8103
       - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
-      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.0.0}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.1.0}
       - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
-    networks:
-      - job-seeker-network
-      - host-access
 
   jsearch-gateway:
-    ports: !override
-      - "${E2E_JSEARCH_GATEWAY_PORT:-9109}:8102"
+    ports: !override []
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
       - EXTERNAL_PROVIDER_MODE=FIXTURE
       - SYSTEM_DATA_SERVICE_URL=http://system-data-service:8103
       - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
-      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.0.0}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.1.0}
       - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
-    networks:
-      - job-seeker-network
-      - host-access
 
   nhs-jobs-gateway:
-    ports: !override
-      - "${E2E_NHS_JOBS_GATEWAY_PORT:-9124}:8104"
+    ports: !override []
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
       - EXTERNAL_PROVIDER_MODE=FIXTURE
-    networks:
-      - job-seeker-network
-      - host-access
 
   apprenticeships-gateway:
-    ports: !override
-      - "${E2E_APPRENTICESHIPS_GATEWAY_PORT:-9125}:8105"
+    ports: !override []
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
       - EXTERNAL_PROVIDER_MODE=FIXTURE
-    networks:
-      - job-seeker-network
-      - host-access
 
   system-data-service:
     ports: !override
-      - "${E2E_SYSTEM_DATA_SERVICE_PORT:-9103}:8103"
+      - "127.0.0.1:${E2E_SYSTEM_DATA_SERVICE_PORT:-9103}:8103"
     environment:
       - SPRING_PROFILES_ACTIVE=test
       - SYSTEM_DATA_ENVIRONMENT_MANAGEMENT_ENABLED=true
@@ -147,48 +116,40 @@ services:
       - SYSTEM_DATA_FIXTURES_ENABLED=true
       - SYSTEM_DATA_FIXTURE_ALLOWED_PROFILES=test
       - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
-      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.0.0}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.1.0}
       - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
     networks:
       - job-seeker-network
       - host-access
 
   job-service:
-    ports: !override
-      - "${E2E_JOB_SERVICE_PORT:-9110}:8086"
+    ports: !override []
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
 
   job-matching-service:
-    ports: !override
-      - "${E2E_JOB_MATCHING_SERVICE_PORT:-9111}:8097"
+    ports: !override []
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
 
   job-finder-gateway:
-    ports: !override
-      - "${E2E_JOB_FINDER_GATEWAY_PORT:-9112}:8080"
+    ports: !override []
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
 
   llm-gateway:
     env_file: !override []
-    ports: !override
-      - "${E2E_LLM_GATEWAY_PORT:-9113}:8090"
+    ports: !override []
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
       - EXTERNAL_PROVIDER_MODE=FIXTURE
       - SYSTEM_DATA_SERVICE_URL=http://system-data-service:8103
       - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
-      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.0.0}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.1.0}
       - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
-    networks:
-      - job-seeker-network
-      - host-access
 
   document-store-service:
-    ports: !override
-      - "${E2E_DOCUMENT_STORE_SERVICE_PORT:-9114}:8089"
+    ports: !override []
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
       - ENVIRONMENT_DATA_ENABLED=true
@@ -198,16 +159,14 @@ services:
   document-store-postgres:
 
   document-export-service:
-    ports: !override
-      - "${E2E_DOCUMENT_EXPORT_SERVICE_PORT:-9115}:8094"
+    ports: !override []
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
 
   application-tracker-postgres:
 
   application-tracker-service:
-    ports: !override
-      - "${E2E_APPLICATION_TRACKER_SERVICE_PORT:-9116}:8088"
+    ports: !override []
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
       - ENVIRONMENT_DATA_ENABLED=true
@@ -215,32 +174,27 @@ services:
       - ENVIRONMENT_DATA_ISOLATED_DATABASE=true
 
   cv-cover-letter-service:
-    ports: !override
-      - "${E2E_CV_COVER_LETTER_SERVICE_PORT:-9117}:8091"
+    ports: !override []
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
 
   document-generation-gateway:
-    ports: !override
-      - "${E2E_DOCUMENT_GENERATION_GATEWAY_PORT:-9118}:8092"
+    ports: !override []
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
 
   reporting-service:
-    ports: !override
-      - "${E2E_REPORTING_SERVICE_PORT:-9119}:8096"
+    ports: !override []
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
 
   reporting-gateway:
-    ports: !override
-      - "${E2E_REPORTING_GATEWAY_PORT:-9120}:8095"
+    ports: !override []
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
 
   payment-service:
-    ports: !override
-      - "${E2E_PAYMENT_SERVICE_PORT:-9121}:8099"
+    ports: !override []
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
       - ENVIRONMENT_DATA_ENABLED=true
@@ -251,30 +205,32 @@ services:
   payment-postgres:
 
   stripe-gateway:
-    ports: !override
-      - "${E2E_STRIPE_GATEWAY_PORT:-9122}:8100"
+    ports: !override []
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
       - EXTERNAL_PROVIDER_MODE=FIXTURE
       - SYSTEM_DATA_SERVICE_URL=http://system-data-service:8103
       - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
-      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.0.0}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.1.0}
       - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
       - STRIPE_SUCCESS_URL=http://localhost:${E2E_FRONTEND_PORT:-3100}/payment/success
       - STRIPE_CANCEL_URL=http://localhost:${E2E_FRONTEND_PORT:-3100}/payment/cancel
-    networks:
-      - job-seeker-network
-      - host-access
 
   payment-gateway:
-    ports: !override
-      - "${E2E_PAYMENT_GATEWAY_PORT:-9123}:8098"
+    ports: !override []
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
 
   job-seeker-copilot-client:
     ports: !override
-      - "${E2E_FRONTEND_PORT:-3100}:3000"
+      - "127.0.0.1:${E2E_FRONTEND_PORT:-3100}:3000"
     environment:
       - NODE_ENV=production
       - BFF_PASSWORD_RESET_RATE_MAXIMUM=100
+
+networks:
+  host-access:
+    internal: false
+    driver_opts:
+      com.docker.network.bridge.enable_ip_masquerade: "false"
+      com.docker.network.bridge.host_binding_ipv4: "127.0.0.1"

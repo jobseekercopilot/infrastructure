@@ -21,7 +21,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--profile",
-        choices=("basic-fixture", "full-fixture", "full-local-ses"),
+        choices=("basic-fixture", "full-fixture", "e2e", "full-local-ses"),
         default="basic-fixture",
     )
     parser.add_argument(

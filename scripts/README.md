@@ -34,13 +34,17 @@ python -m scripts.docker.stop_stack live
 - LLM is disabled and Stripe remains fixture-backed.
 - This is local real-provider integration, not a production deployment.
 
-E2E stack:
+E2E stack (preferred lock-aware lifecycle):
 
 ```bash
-python -m scripts.docker.start_stack e2e --build
-python -m scripts.docker.wait_for_stack e2e
-python -m scripts.docker.stop_stack e2e
+./scripts/build-all.sh --profile e2e
+./scripts/start-local.sh --profile e2e --build
+./scripts/health-check.sh --profile e2e
+./scripts/stop-local.sh --profile e2e
 ```
+
+The retained `python -m scripts.docker.* e2e` helpers resolve to the same
+three-file Compose model for capacity tooling compatibility.
 
 - Compose project: `job-seeker-copilot-e2e`
 - Frontend: `http://localhost:3100`
@@ -56,7 +60,7 @@ Normal stop preserves the selected project's state. To permanently reset only
 one disposable local/E2E project's named volumes, require both flags:
 
 ```bash
-python -m scripts.docker.stop_stack e2e --delete-volumes --yes
+./scripts/stop-local.sh --profile e2e --delete-volumes --yes
 ```
 
 ## Quarantined job-provider acquisition

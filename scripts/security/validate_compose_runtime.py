@@ -46,6 +46,11 @@ FIXTURE_GATEWAYS = (
     "llm-gateway",
     "stripe-gateway",
 )
+E2E_HOST_ACCESS_SERVICES = {
+    "authentication-service": 8084,
+    "system-data-service": 8103,
+    "job-seeker-copilot-client": 3000,
+}
 JOB_PROVIDER_GATEWAYS = (
     "reed-gateway",
     "adzuna-gateway",
@@ -483,6 +488,80 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
                 "e2e",
             )
     if e2e:
+        expected_host_access_services = dict(E2E_HOST_ACCESS_SERVICES)
+        if profile == "e2e-local-ses":
+            expected_host_access_services["localstack"] = 4566
+        host_access = model.get("networks", {}).get("host-access", {})
+        if host_access.get("driver") != "bridge":
+            raise ValueError("E2E host-access network must use the bridge driver")
+        if host_access.get("internal") is True:
+            raise ValueError("E2E host-access network must permit loopback ingress")
+        driver_options = host_access.get("driver_opts", {})
+        if driver_options.get(
+            "com.docker.network.bridge.host_binding_ipv4"
+        ) != "127.0.0.1":
+            raise ValueError("E2E host-access network must bind to loopback")
+        if driver_options.get(
+            "com.docker.network.bridge.enable_ip_masquerade"
+        ) != "false":
+            raise ValueError("E2E host-access network must disable IP masquerading")
+
+        host_access_members = {
+            service_name
+            for service_name, configuration in model.get("services", {}).items()
+            if "host-access" in service_networks(configuration)
+        }
+        if host_access_members != set(expected_host_access_services):
+            raise ValueError(
+                "E2E host-access membership must contain only the browser, "
+                "System Data and Authentication boundaries"
+            )
+
+        published_services = {
+            service_name
+            for service_name, configuration in model.get("services", {}).items()
+            if configuration.get("ports", [])
+        }
+        if published_services != set(expected_host_access_services):
+            raise ValueError(
+                "E2E must publish only the browser, System Data and "
+                "Authentication boundaries"
+            )
+        for service_name, configuration in model.get("services", {}).items():
+            for published_port in configuration.get("ports", []):
+                if (
+                    not isinstance(published_port, dict)
+                    or published_port.get("host_ip") != "127.0.0.1"
+                ):
+                    raise ValueError(
+                        f"{service_name} E2E published ports must bind to loopback only"
+                    )
+        for service_name, target_port in expected_host_access_services.items():
+            published_ports = model["services"][service_name].get("ports", [])
+            if (
+                len(published_ports) != 1
+                or published_ports[0].get("target") != target_port
+            ):
+                raise ValueError(
+                    f"{service_name} must publish exactly its E2E boundary port"
+                )
+        user_management = model.get("services", {}).get(
+            "user-management-gateway", {}
+        )
+        if any(
+            published_port.get("target") == 5005
+            for published_port in user_management.get("ports", [])
+            if isinstance(published_port, dict)
+        ):
+            raise ValueError("E2E must not publish the user-management debug port")
+        java_tool_options = environment(
+            model, "user-management-gateway"
+        ).get("JAVA_TOOL_OPTIONS", "").lower()
+        if any(
+            debug_token in java_tool_options
+            for debug_token in ("jdwp", "agentlib", "address=*:5005")
+        ):
+            raise ValueError("E2E must not enable the user-management debug agent")
         for service in (
             "application-tracker-service",
             "document-store-service",
@@ -494,6 +573,16 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
                 "ENVIRONMENT_DATA_ISOLATED_DATABASE",
                 "true",
             )
+        for service in (
+            "system-data-service",
+            "postcode-io-gateway",
+            "reed-gateway",
+            "adzuna-gateway",
+            "jsearch-gateway",
+            "llm-gateway",
+            "stripe-gateway",
+        ):
+            require_value(model, service, "FIXTURE_DATASET_VERSION", "1.1.0")
 
     authentication = environment(model, "authentication-service")
     if local_ses:
@@ -1215,6 +1304,17 @@ def main() -> int:
     args = parser.parse_args()
     if args.profile == "data-acquisition" and len(args.overlay) != 1:
         parser.error("data-acquisition requires exactly one standalone Compose file")
+    if args.profile == "e2e":
+        expected = (
+            (ROOT / "docker-compose.e2e.yml").resolve(),
+            (ROOT / "docker-compose.low-memory.yml").resolve(),
+        )
+        actual = tuple(path.resolve() for path in args.overlay)
+        if actual != expected:
+            parser.error(
+                "e2e requires overlays in exact order: "
+                "docker-compose.e2e.yml then docker-compose.low-memory.yml"
+            )
     if args.profile == "real-providers":
         expected = (
             (ROOT / "docker-compose.real-job-providers.yml").resolve(),

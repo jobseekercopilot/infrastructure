@@ -56,6 +56,7 @@ The principal application network is Docker-internal. The client is the normal h
 |---|---|---|
 | `basic-fixture` | Account/profile/location/job-search development | Fixtures |
 | `full-fixture` | Complete composed platform | Fixtures |
+| `e2e` | Complete isolated browser-test platform with named-state controls and loopback-only host ports | Fixtures; ClamAV signature refresh only |
 | `full-local-ses` | Full fixture plus production SES adapter against LocalStack | Fixtures + local SES |
 | `real-job-providers` | Full platform with five live job providers | Live job providers; fixture LLM/Stripe |
 | `google-maps-smoke` | Full fixture platform with one bounded Google validation path | Google Maps live; other providers fixture |
