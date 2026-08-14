@@ -21,7 +21,9 @@ Fixture and E2E use an internal-only application network and do not inject live
 provider credentials. The rendered-model policy rejects accidental crossover.
 E2E additionally requires `SPRING_PROFILES_ACTIVE=e2e`,
 `DEPLOYMENT_ENVIRONMENT_CLASS=TEST` for postcode, fixture modes for every
-external gateway, and the exact reset/seed allowlists.
+external gateway, and the exact reset/seed allowlists. Every E2E host port,
+including the optional JVM debug port, is published on `127.0.0.1` only; the
+rendered-model policy rejects any wider binding before startup.
 
 The sole security-maintenance exception is the pinned ClamAV container. It
 joins a dedicated egress bridge only to refresh public malware signatures and

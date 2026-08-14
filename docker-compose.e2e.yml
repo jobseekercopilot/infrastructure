@@ -3,15 +3,15 @@ services:
 
   portainer:
     ports: !override
-      - "${E2E_PORTAINER_PORT:-9900}:9000"
+      - "127.0.0.1:${E2E_PORTAINER_PORT:-9900}:9000"
 
   dozzle:
     ports: !override
-      - "${E2E_DOZZLE_PORT:-9998}:8080"
+      - "127.0.0.1:${E2E_DOZZLE_PORT:-9998}:8080"
 
   postcode-io-gateway:
     ports: !override
-      - "${E2E_POSTCODE_IO_GATEWAY_PORT:-9102}:8082"
+      - "127.0.0.1:${E2E_POSTCODE_IO_GATEWAY_PORT:-9102}:8082"
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
       - DEPLOYMENT_ENVIRONMENT_CLASS=TEST
@@ -27,27 +27,27 @@ services:
 
   google-maps-gateway:
     ports: !override
-      - "${E2E_GOOGLE_MAPS_GATEWAY_PORT:-9205}:8105"
+      - "127.0.0.1:${E2E_GOOGLE_MAPS_GATEWAY_PORT:-9205}:8105"
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
       - GOOGLE_MAPS_ENABLED=false
 
   location-service:
     ports: !override
-      - "${E2E_LOCATION_SERVICE_PORT:-9204}:8104"
+      - "127.0.0.1:${E2E_LOCATION_SERVICE_PORT:-9204}:8104"
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
       - GOOGLE_MAPS_ENABLED=false
 
   location-gateway:
     ports: !override
-      - "${E2E_LOCATION_GATEWAY_PORT:-9101}:8081"
+      - "127.0.0.1:${E2E_LOCATION_GATEWAY_PORT:-9101}:8081"
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
 
   authentication-service:
     ports: !override
-      - "${E2E_AUTHENTICATION_SERVICE_PORT:-9104}:8084"
+      - "127.0.0.1:${E2E_AUTHENTICATION_SERVICE_PORT:-9104}:8084"
     environment:
       - SPRING_PROFILES_ACTIVE=e2e,local
       - ENVIRONMENT_DATA_ENABLED=true
@@ -61,7 +61,7 @@ services:
 
   user-profile-service:
     ports: !override
-      - "${E2E_USER_PROFILE_SERVICE_PORT:-9105}:8085"
+      - "127.0.0.1:${E2E_USER_PROFILE_SERVICE_PORT:-9105}:8085"
     environment:
       - SPRING_PROFILES_ACTIVE=e2e,environment-data
       - ENVIRONMENT_DATA_ENABLED=true
@@ -69,15 +69,15 @@ services:
 
   user-management-gateway:
     ports: !override
-      - "${E2E_USER_MANAGEMENT_GATEWAY_PORT:-9130}:8083"
-      - "${E2E_USER_MANAGEMENT_DEBUG_PORT:-9505}:5005"
+      - "127.0.0.1:${E2E_USER_MANAGEMENT_GATEWAY_PORT:-9130}:8083"
+      - "127.0.0.1:${E2E_USER_MANAGEMENT_DEBUG_PORT:-9505}:5005"
     environment:
       SPRING_PROFILES_ACTIVE: "e2e"
       GATEWAY_AUTH_RATE_MAXIMUM: "100"
 
   reed-gateway:
     ports: !override
-      - "${E2E_REED_GATEWAY_PORT:-9107}:8087"
+      - "127.0.0.1:${E2E_REED_GATEWAY_PORT:-9107}:8087"
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
       - EXTERNAL_PROVIDER_MODE=FIXTURE
@@ -91,7 +91,7 @@ services:
 
   adzuna-gateway:
     ports: !override
-      - "${E2E_ADZUNA_GATEWAY_PORT:-9108}:8101"
+      - "127.0.0.1:${E2E_ADZUNA_GATEWAY_PORT:-9108}:8101"
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
       - EXTERNAL_PROVIDER_MODE=FIXTURE
@@ -105,7 +105,7 @@ services:
 
   jsearch-gateway:
     ports: !override
-      - "${E2E_JSEARCH_GATEWAY_PORT:-9109}:8102"
+      - "127.0.0.1:${E2E_JSEARCH_GATEWAY_PORT:-9109}:8102"
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
       - EXTERNAL_PROVIDER_MODE=FIXTURE
@@ -119,7 +119,7 @@ services:
 
   nhs-jobs-gateway:
     ports: !override
-      - "${E2E_NHS_JOBS_GATEWAY_PORT:-9124}:8104"
+      - "127.0.0.1:${E2E_NHS_JOBS_GATEWAY_PORT:-9124}:8104"
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
       - EXTERNAL_PROVIDER_MODE=FIXTURE
@@ -129,7 +129,7 @@ services:
 
   apprenticeships-gateway:
     ports: !override
-      - "${E2E_APPRENTICESHIPS_GATEWAY_PORT:-9125}:8105"
+      - "127.0.0.1:${E2E_APPRENTICESHIPS_GATEWAY_PORT:-9125}:8105"
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
       - EXTERNAL_PROVIDER_MODE=FIXTURE
@@ -139,7 +139,7 @@ services:
 
   system-data-service:
     ports: !override
-      - "${E2E_SYSTEM_DATA_SERVICE_PORT:-9103}:8103"
+      - "127.0.0.1:${E2E_SYSTEM_DATA_SERVICE_PORT:-9103}:8103"
     environment:
       - SPRING_PROFILES_ACTIVE=test
       - SYSTEM_DATA_ENVIRONMENT_MANAGEMENT_ENABLED=true
@@ -155,26 +155,26 @@ services:
 
   job-service:
     ports: !override
-      - "${E2E_JOB_SERVICE_PORT:-9110}:8086"
+      - "127.0.0.1:${E2E_JOB_SERVICE_PORT:-9110}:8086"
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
 
   job-matching-service:
     ports: !override
-      - "${E2E_JOB_MATCHING_SERVICE_PORT:-9111}:8097"
+      - "127.0.0.1:${E2E_JOB_MATCHING_SERVICE_PORT:-9111}:8097"
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
 
   job-finder-gateway:
     ports: !override
-      - "${E2E_JOB_FINDER_GATEWAY_PORT:-9112}:8080"
+      - "127.0.0.1:${E2E_JOB_FINDER_GATEWAY_PORT:-9112}:8080"
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
 
   llm-gateway:
     env_file: !override []
     ports: !override
-      - "${E2E_LLM_GATEWAY_PORT:-9113}:8090"
+      - "127.0.0.1:${E2E_LLM_GATEWAY_PORT:-9113}:8090"
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
       - EXTERNAL_PROVIDER_MODE=FIXTURE
@@ -188,7 +188,7 @@ services:
 
   document-store-service:
     ports: !override
-      - "${E2E_DOCUMENT_STORE_SERVICE_PORT:-9114}:8089"
+      - "127.0.0.1:${E2E_DOCUMENT_STORE_SERVICE_PORT:-9114}:8089"
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
       - ENVIRONMENT_DATA_ENABLED=true
@@ -199,7 +199,7 @@ services:
 
   document-export-service:
     ports: !override
-      - "${E2E_DOCUMENT_EXPORT_SERVICE_PORT:-9115}:8094"
+      - "127.0.0.1:${E2E_DOCUMENT_EXPORT_SERVICE_PORT:-9115}:8094"
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
 
@@ -207,7 +207,7 @@ services:
 
   application-tracker-service:
     ports: !override
-      - "${E2E_APPLICATION_TRACKER_SERVICE_PORT:-9116}:8088"
+      - "127.0.0.1:${E2E_APPLICATION_TRACKER_SERVICE_PORT:-9116}:8088"
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
       - ENVIRONMENT_DATA_ENABLED=true
@@ -216,31 +216,31 @@ services:
 
   cv-cover-letter-service:
     ports: !override
-      - "${E2E_CV_COVER_LETTER_SERVICE_PORT:-9117}:8091"
+      - "127.0.0.1:${E2E_CV_COVER_LETTER_SERVICE_PORT:-9117}:8091"
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
 
   document-generation-gateway:
     ports: !override
-      - "${E2E_DOCUMENT_GENERATION_GATEWAY_PORT:-9118}:8092"
+      - "127.0.0.1:${E2E_DOCUMENT_GENERATION_GATEWAY_PORT:-9118}:8092"
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
 
   reporting-service:
     ports: !override
-      - "${E2E_REPORTING_SERVICE_PORT:-9119}:8096"
+      - "127.0.0.1:${E2E_REPORTING_SERVICE_PORT:-9119}:8096"
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
 
   reporting-gateway:
     ports: !override
-      - "${E2E_REPORTING_GATEWAY_PORT:-9120}:8095"
+      - "127.0.0.1:${E2E_REPORTING_GATEWAY_PORT:-9120}:8095"
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
 
   payment-service:
     ports: !override
-      - "${E2E_PAYMENT_SERVICE_PORT:-9121}:8099"
+      - "127.0.0.1:${E2E_PAYMENT_SERVICE_PORT:-9121}:8099"
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
       - ENVIRONMENT_DATA_ENABLED=true
@@ -252,7 +252,7 @@ services:
 
   stripe-gateway:
     ports: !override
-      - "${E2E_STRIPE_GATEWAY_PORT:-9122}:8100"
+      - "127.0.0.1:${E2E_STRIPE_GATEWAY_PORT:-9122}:8100"
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
       - EXTERNAL_PROVIDER_MODE=FIXTURE
@@ -268,13 +268,13 @@ services:
 
   payment-gateway:
     ports: !override
-      - "${E2E_PAYMENT_GATEWAY_PORT:-9123}:8098"
+      - "127.0.0.1:${E2E_PAYMENT_GATEWAY_PORT:-9123}:8098"
     environment:
       - SPRING_PROFILES_ACTIVE=e2e
 
   job-seeker-copilot-client:
     ports: !override
-      - "${E2E_FRONTEND_PORT:-3100}:3000"
+      - "127.0.0.1:${E2E_FRONTEND_PORT:-3100}:3000"
     environment:
       - NODE_ENV=production
       - BFF_PASSWORD_RESET_RATE_MAXIMUM=100

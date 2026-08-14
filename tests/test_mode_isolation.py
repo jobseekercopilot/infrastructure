@@ -216,6 +216,25 @@ class RenderedModeIsolationTests(unittest.TestCase):
             ],
         )
 
+    def test_e2e_published_ports_are_loopback_only(self) -> None:
+        e2e_services = self.model("e2e")["services"]
+        published_services = 0
+        for service_name, configuration in e2e_services.items():
+            ports = configuration.get("ports", [])
+            if ports:
+                published_services += 1
+            for published_port in ports:
+                with self.subTest(service=service_name, port=published_port):
+                    self.assertEqual("127.0.0.1", published_port.get("host_ip"))
+        self.assertGreater(published_services, 0)
+
+        unsafe = self.model("e2e")
+        unsafe["services"]["job-seeker-copilot-client"]["ports"][0].pop(
+            "host_ip"
+        )
+        with self.assertRaisesRegex(ValueError, "bind to loopback only"):
+            validate_model(unsafe, "e2e")
+
     def test_all_seven_rendered_modes_pass_the_policy(self) -> None:
         for profile, model in self.models.items():
             validate_model(model, profile)

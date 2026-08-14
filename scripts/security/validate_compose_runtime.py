@@ -483,6 +483,15 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
                 "e2e",
             )
     if e2e:
+        for service_name, configuration in model.get("services", {}).items():
+            for published_port in configuration.get("ports", []):
+                if (
+                    not isinstance(published_port, dict)
+                    or published_port.get("host_ip") != "127.0.0.1"
+                ):
+                    raise ValueError(
+                        f"{service_name} E2E published ports must bind to loopback only"
+                    )
         for service in (
             "application-tracker-service",
             "document-store-service",

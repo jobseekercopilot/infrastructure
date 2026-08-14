@@ -664,7 +664,7 @@ class ContractLockTests(unittest.TestCase):
         self.assertNotIn("javaPackage", services["authentication-service"])
         self.assertEqual(
             services["cv-cover-letter-service"]["javaPackage"]["version"],
-            "2.0.0-rev.87fc2393309a",
+            "4.2.0-rev.3129864cca5c",
         )
         self.assertEqual(
             services["cv-cover-letter-service"]["javaPackage"]["releaseState"],
@@ -672,11 +672,11 @@ class ContractLockTests(unittest.TestCase):
         )
         self.assertEqual(
             services["cv-cover-letter-service"]["revision"],
-            "87fc2393309ad3007cba6ac27aa618fc3cc81aa9",
+            "3129864cca5c0eca8fcf9a4df59ce4bda91ef1a1",
         )
         self.assertEqual(
             services["document-export-service"]["javaPackage"]["version"],
-            "2.0.0-rev.a35fff34f86b",
+            "3.1.0-rev.cda9a2af811b",
         )
         self.assertEqual(
             services["document-export-service"]["javaPackage"]["releaseState"],
@@ -684,19 +684,19 @@ class ContractLockTests(unittest.TestCase):
         )
         self.assertEqual(
             services["document-export-service"]["revision"],
-            "a35fff34f86b77457df4b9e324000a32819d5aba",
+            "cda9a2af811bafe99ecd686faab14db67f21ae32",
         )
         self.assertEqual(
             services["user-profile-service"]["javaPackage"]["version"],
-            "2.0.0-rev.03d24c68342f",
+            "2.3.0-rev.a880add6e5c7",
         )
         self.assertEqual(
             services["user-profile-service"]["javaPackage"]["releaseState"],
-            "pilot",
+            "published",
         )
         self.assertEqual(
             services["user-profile-service"]["revision"],
-            "03d24c68342f86d573623541a4f8506acdf1b047",
+            "a880add6e5c7106a2f3abec08a147823f88edf20",
         )
 
     def test_package_version_must_match_contract_and_revision(self) -> None:
