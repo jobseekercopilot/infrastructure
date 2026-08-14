@@ -3,11 +3,13 @@ from __future__ import annotations
 import json
 import tempfile
 import unittest
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
 import yaml
 
+from scripts.security.generate_profile_env import PROFILE_TEMPLATES
 from scripts.contracts.lock import load_contract_lock, validate_contract_lock
 from scripts.workspace.bootstrap import expected_remote, inspect_checkout, plan
 from scripts.workspace.catalog import (
@@ -18,6 +20,7 @@ from scripts.workspace.catalog import (
 from scripts.workspace.lifecycle import (
     compose_command,
     controlled_environment,
+    ensure_environment,
     environment_path,
     main as lifecycle_main,
     parse_compose_status,
@@ -25,9 +28,39 @@ from scripts.workspace.lifecycle import (
     stage_runtime_image_contexts,
     validate_runtime_boundary,
 )
+from scripts.workspace.onboard import main as onboard_main
 
 
 class CatalogTests(unittest.TestCase):
+    def test_missing_e2e_environment_uses_the_e2e_template(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / ".env.e2e"
+            profile = replace(
+                load_catalog().profile("e2e"), environment_file=output
+            )
+
+            self.assertEqual(ensure_environment(profile), output)
+
+            text = output.read_text(encoding="utf-8")
+            self.assertIn("FIXTURE_DATASET_VERSION=1.1.0", text)
+            self.assertIn("E2E_FRONTEND_PORT=3100", text)
+            self.assertEqual(output.stat().st_mode & 0o777, 0o600)
+            self.assertEqual(
+                PROFILE_TEMPLATES[profile.environment_profile].name,
+                ".env.e2e.example",
+            )
+
+    def test_clean_workspace_onboarding_accepts_e2e(self) -> None:
+        with patch(
+            "sys.argv", ["onboard", "--profile", "e2e", "--skip-build"]
+        ), patch("scripts.workspace.onboard.run") as run, patch(
+            "scripts.workspace.onboard.ensure_environment"
+        ) as ensure:
+            self.assertEqual(onboard_main(), 0)
+
+        self.assertEqual(run.call_count, 3)
+        ensure.assert_called_once_with(load_catalog().profile("e2e"))
+
     def test_compose_status_parser_supports_array_and_line_delimited_json(
         self,
     ) -> None:
@@ -107,6 +140,7 @@ class CatalogTests(unittest.TestCase):
             {
                 "basic-fixture",
                 "full-fixture",
+                "e2e",
                 "full-local-ses",
                 "google-maps-smoke",
                 "real-job-providers",
@@ -169,6 +203,19 @@ class CatalogTests(unittest.TestCase):
             google_maps.secret_environment_file,
             WORKSPACE_ROOT / "config" / ".secrets.env",
         )
+        e2e = catalog.profile("e2e")
+        self.assertEqual(
+            e2e.compose_files,
+            (
+                "docker-compose.yml",
+                "docker-compose.e2e.yml",
+                "docker-compose.low-memory.yml",
+            ),
+        )
+        self.assertEqual(e2e.compose_project, "job-seeker-copilot-e2e")
+        self.assertEqual(e2e.compose_parallel_limit, 1)
+        self.assertEqual(e2e.environment_profile, "e2e")
+        self.assertEqual(e2e.frontend_url, "http://localhost:3100")
         command = compose_command(real_openai, expected_real_environment, "ps")
         self.assertEqual(
             command,
@@ -408,6 +455,65 @@ class CatalogTests(unittest.TestCase):
             secret_env_file=WORKSPACE_ROOT / "config" / ".secrets.env",
         )
         validate.assert_called_once_with(rendered, "real-providers")
+
+    def test_e2e_lifecycle_dispatch_and_compose_command_are_catalogued(self) -> None:
+        profile = load_catalog().profile("e2e")
+        dispatches = (
+            ("start", "scripts.workspace.lifecycle.start", (profile, False)),
+            ("stop", "scripts.workspace.lifecycle.stop", (profile, False, False)),
+            ("health", "scripts.workspace.lifecycle.health", (profile, 600)),
+        )
+        for command, target, expected in dispatches:
+            with self.subTest(command=command), patch(
+                "sys.argv", ["lifecycle", command, "--profile", "e2e"]
+            ), patch(target) as operation:
+                self.assertEqual(lifecycle_main(), 0)
+                operation.assert_called_once_with(*expected)
+
+        command = compose_command(profile, profile.environment_file, "ps")
+        self.assertEqual(
+            command,
+            [
+                "docker",
+                "compose",
+                "--parallel",
+                "1",
+                "-p",
+                "job-seeker-copilot-e2e",
+                "--env-file",
+                str(profile.environment_file),
+                "-f",
+                "docker-compose.yml",
+                "-f",
+                "docker-compose.e2e.yml",
+                "-f",
+                "docker-compose.low-memory.yml",
+                "ps",
+            ],
+        )
+
+    def test_e2e_startup_preflight_uses_isolation_then_low_memory(self) -> None:
+        profile = load_catalog().profile("e2e")
+        rendered = {"services": {}}
+        with patch(
+            "scripts.workspace.lifecycle.compose_security_model",
+            return_value=rendered,
+        ) as compose, patch(
+            "scripts.workspace.lifecycle.validate_security_model"
+        ) as validate:
+            validate_runtime_boundary(profile, profile.environment_file)
+
+        compose.assert_called_once_with(
+            profile.environment_file,
+            [
+                WORKSPACE_ROOT / "infrastructure" / "docker-compose.e2e.yml",
+                WORKSPACE_ROOT
+                / "infrastructure"
+                / "docker-compose.low-memory.yml",
+            ],
+            "e2e",
+        )
+        validate.assert_called_once_with(rendered, "e2e")
 
     def test_google_maps_startup_preflight_enforces_the_gateway_boundary(
         self,

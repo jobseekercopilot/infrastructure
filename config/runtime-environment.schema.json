@@ -451,7 +451,6 @@
     {"name": "E2E_PAYMENT_SERVICE_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9099"},
     {"name": "E2E_STRIPE_GATEWAY_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9100"},
     {"name": "E2E_PAYMENT_GATEWAY_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9098"},
-    {"name": "E2E_USER_MANAGEMENT_GATEWAY_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9083"},
-    {"name": "E2E_USER_MANAGEMENT_DEBUG_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "5905"}
+    {"name": "E2E_USER_MANAGEMENT_GATEWAY_PORT", "owner": "Infrastructure", "consumers": ["docker-compose.e2e.yml"], "classification": "configuration", "profiles": ["e2e"], "example": "9083"}
   ]
 }

@@ -17,7 +17,7 @@ from pathlib import Path
 from xml.etree import ElementTree
 
 from scripts.contracts.lock import load_contract_lock, verify_checkout
-from scripts.security.generate_profile_env import render
+from scripts.security.generate_profile_env import PROFILE_TEMPLATES, render
 from scripts.security.provider_secrets import (
     secret_files_inside_repositories,
     validate_store,
@@ -82,7 +82,7 @@ def ensure_environment(profile: Profile) -> Path:
     if not output.exists():
         render(
             profile.environment_profile,
-            INFRASTRUCTURE_ROOT / ".env.example",
+            PROFILE_TEMPLATES[profile.environment_profile],
             output,
         )
         print(f"Generated owner-only base runtime configuration: {output}")
@@ -90,7 +90,25 @@ def ensure_environment(profile: Profile) -> Path:
 
 
 def validate_runtime_boundary(profile: Profile, environment_file: Path) -> None:
-    """Fail closed on the combined real-provider trust boundary before startup."""
+    """Fail closed on isolated or live-provider trust boundaries before startup."""
+    if profile.name == "e2e":
+        expected_files = (
+            "docker-compose.yml",
+            "docker-compose.e2e.yml",
+            "docker-compose.low-memory.yml",
+        )
+        if profile.compose_files != expected_files:
+            raise RuntimeError(
+                "e2e Compose order must be base, E2E isolation, then low memory"
+            )
+        model = compose_security_model(
+            environment_file,
+            [INFRASTRUCTURE_ROOT / path for path in profile.compose_files[1:]],
+            "e2e",
+        )
+        validate_security_model(model, "e2e")
+        print("e2e runtime boundary is valid; external providers remain fixtures.")
+        return
     if profile.name == "google-maps-smoke":
         validate_google_maps_boundary(profile, environment_file)
         return

@@ -54,7 +54,19 @@ Bootstrap validates tools/access, clones missing sibling repositories, verifies 
     ./scripts/health-check.sh --profile full-fixture
     ```
 
-Open <http://localhost:3000> after the health check succeeds.
+=== "Isolated E2E"
+
+    The complete browser-test runtime with guarded named-state controls,
+    loopback-only ports and reviewed low-memory limits.
+
+    ```bash
+    ./scripts/build-all.sh --profile e2e
+    ./scripts/start-local.sh --profile e2e --build
+    ./scripts/health-check.sh --profile e2e
+    ```
+
+Open <http://localhost:3000> for fixture profiles, or
+<http://localhost:3100> for E2E, after the health check succeeds.
 
 ## Daily commands
 

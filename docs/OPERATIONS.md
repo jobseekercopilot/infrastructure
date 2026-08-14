@@ -17,6 +17,8 @@ update path and only fast-forwards clean expected branches.
 - `basic-fixture`: registration, profile, location and fixture-backed job
   search.
 - `full-fixture`: the complete deterministic private-beta runtime.
+- `e2e`: the complete isolated browser-test runtime with named-state controls,
+  loopback-only published ports and reviewed low-memory limits.
 - `full-local-ses`: the complete fixture runtime with account email delivered
   to pinned local SES.
 - `real-job-providers`: the complete runtime with Reed, Adzuna, JSearch, NHS
@@ -75,9 +77,10 @@ Never add `docker-compose.live.yml` to this sequence. That older job-only
 overlay deliberately configures the LLM as `DISABLED` and is rejected by the
 combined real-provider trust-boundary validation.
 
-The older `local`, `e2e`, `live` and one-shot `data-acquisition` names belong
-to the dedicated isolation/test helpers under `scripts/docker` and
-`scripts/data`; they are not workspace lifecycle profile names.
+The older `local`, `live` and one-shot `data-acquisition` names belong to the
+dedicated isolation/test helpers under `scripts/docker` and `scripts/data`.
+The `e2e` name is supported by both the workspace lifecycle and the retained
+test helper; both resolve to the same base, isolation and low-memory overlays.
 
 The document path's current identity matrix, local PostgreSQL/object-storage
 boundary, validation commands, rotation procedure and production gaps are in

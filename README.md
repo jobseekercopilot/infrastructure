@@ -60,6 +60,8 @@ fast-forward to a newly reviewed lock.
   search.
 - `full-fixture`: every private-beta runtime component, with job providers,
   LLM and payments fixture-backed.
+- `e2e`: the complete fixture-backed browser-test runtime, with named-state
+  controls, loopback-only host ports and checked low-memory limits.
 - `full-local-ses`: the same complete fixture-backed runtime, with account
   email sent by the Authentication Service production SES adapter to pinned,
   ephemeral LocalStack SES.
@@ -76,6 +78,18 @@ fast-forward to a newly reviewed lock.
 ./scripts/status.sh --profile basic-fixture
 ./scripts/logs.sh --profile basic-fixture
 ./scripts/stop-local.sh --profile basic-fixture
+```
+
+For the isolated full-browser stack, use the same lifecycle with `e2e`; the
+catalog applies the base, E2E-isolation and low-memory Compose files in that
+order and validates the rendered trust boundary before startup:
+
+```bash
+./scripts/build-all.sh --profile e2e
+./scripts/start-local.sh --profile e2e --build
+./scripts/health-check.sh --profile e2e
+./scripts/status.sh --profile e2e
+./scripts/stop-local.sh --profile e2e
 ```
 
 Do not use real provider or payment credentials for fixture/E2E execution.

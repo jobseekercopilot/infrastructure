@@ -255,6 +255,60 @@ class RenderedModeIsolationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "must not enable.*debug agent"):
             validate_model(unsafe, "e2e")
 
+        low_memory = self.model("e2e")
+        low_memory["services"]["user-management-gateway"]["environment"][
+            "JAVA_TOOL_OPTIONS"
+        ] = "-Xms24m -Xmx160m -XX:+UseSerialGC"
+        validate_model(low_memory, "e2e")
+
+    def test_actual_low_memory_e2e_model_passes_the_policy(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            env_file = Path(directory) / ".env.e2e"
+            render("e2e", PROFILE_TEMPLATES["e2e"], env_file)
+            model = compose_model(
+                env_file,
+                [
+                    Path("docker-compose.e2e.yml"),
+                    Path("docker-compose.low-memory.yml"),
+                ],
+                "e2e",
+            )
+
+        validate_model(model, "e2e")
+        self.assertIn(
+            "-Xmx160m",
+            model["services"]["user-management-gateway"]["environment"][
+                "JAVA_TOOL_OPTIONS"
+            ],
+        )
+
+    def test_e2e_validator_cli_rejects_missing_or_reordered_overlays(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            env_file = Path(directory) / ".env.e2e"
+            render("e2e", PROFILE_TEMPLATES["e2e"], env_file)
+            arguments = [
+                "validate_compose_runtime",
+                "--profile",
+                "e2e",
+                "--env-file",
+                str(env_file),
+                "--overlay",
+                "docker-compose.low-memory.yml",
+                "--overlay",
+                "docker-compose.e2e.yml",
+            ]
+            with patch("sys.argv", arguments), redirect_stderr(StringIO()):
+                with self.assertRaises(SystemExit):
+                    validate_compose_runtime()
+
+    def test_e2e_rejects_stale_fixture_dataset_versions(self) -> None:
+        stale = self.model("e2e")
+        stale["services"]["system-data-service"]["environment"][
+            "FIXTURE_DATASET_VERSION"
+        ] = "1.0.0"
+        with self.assertRaisesRegex(ValueError, "FIXTURE_DATASET_VERSION"):
+            validate_model(stale, "e2e")
+
     def test_all_seven_rendered_modes_pass_the_policy(self) -> None:
         for profile, model in self.models.items():
             validate_model(model, profile)
@@ -1191,6 +1245,15 @@ class RenderedModeIsolationTests(unittest.TestCase):
             4,
         )
         self.assertNotEqual(acquisition.project, e2e.project)
+        self.assertEqual(
+            e2e.files,
+            (
+                "docker-compose.yml",
+                "docker-compose.e2e.yml",
+                "docker-compose.low-memory.yml",
+            ),
+        )
+        self.assertEqual(e2e.parallel_limit, 1)
         self.assertEqual(
             acquisition.files, ("docker-compose.data-acquisition.yml",)
         )

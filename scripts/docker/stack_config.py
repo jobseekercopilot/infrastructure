@@ -17,16 +17,21 @@ class StackConfig:
     system_data_url: str | None
     validator_profile: str
     startable: bool = True
+    parallel_limit: int | None = None
 
     def compose_command(self, env_file: str | None = None) -> list[str]:
         command = [
             "docker",
             "compose",
+        ]
+        if self.parallel_limit is not None:
+            command.extend(("--parallel", str(self.parallel_limit)))
+        command.extend([
             "-p",
             self.project,
             "--env-file",
             env_file or self.env_file,
-        ]
+        ])
         for compose_file in self.files:
             command.extend(["-f", compose_file])
         return command
@@ -70,11 +75,16 @@ STACKS = {
     "e2e": StackConfig(
         name="e2e",
         project="job-seeker-copilot-e2e",
-        files=("docker-compose.yml", "docker-compose.e2e.yml"),
+        files=(
+            "docker-compose.yml",
+            "docker-compose.e2e.yml",
+            "docker-compose.low-memory.yml",
+        ),
         env_file=".env.e2e",
         frontend_url="http://localhost:3100",
         system_data_url="http://localhost:9103",
         validator_profile="e2e",
+        parallel_limit=1,
     ),
     "data-acquisition": StackConfig(
         name="data-acquisition",

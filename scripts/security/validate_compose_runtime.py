@@ -504,9 +504,13 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
             if isinstance(published_port, dict)
         ):
             raise ValueError("E2E must not publish the user-management debug port")
-        if environment(model, "user-management-gateway").get(
-            "JAVA_TOOL_OPTIONS", ""
-        ).strip():
+        java_tool_options = environment(
+            model, "user-management-gateway"
+        ).get("JAVA_TOOL_OPTIONS", "").lower()
+        if any(
+            debug_token in java_tool_options
+            for debug_token in ("jdwp", "agentlib", "address=*:5005")
+        ):
             raise ValueError("E2E must not enable the user-management debug agent")
         for service in (
             "application-tracker-service",
@@ -519,6 +523,16 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
                 "ENVIRONMENT_DATA_ISOLATED_DATABASE",
                 "true",
             )
+        for service in (
+            "system-data-service",
+            "postcode-io-gateway",
+            "reed-gateway",
+            "adzuna-gateway",
+            "jsearch-gateway",
+            "llm-gateway",
+            "stripe-gateway",
+        ):
+            require_value(model, service, "FIXTURE_DATASET_VERSION", "1.1.0")
 
     authentication = environment(model, "authentication-service")
     if local_ses:
@@ -1240,6 +1254,17 @@ def main() -> int:
     args = parser.parse_args()
     if args.profile == "data-acquisition" and len(args.overlay) != 1:
         parser.error("data-acquisition requires exactly one standalone Compose file")
+    if args.profile == "e2e":
+        expected = (
+            (ROOT / "docker-compose.e2e.yml").resolve(),
+            (ROOT / "docker-compose.low-memory.yml").resolve(),
+        )
+        actual = tuple(path.resolve() for path in args.overlay)
+        if actual != expected:
+            parser.error(
+                "e2e requires overlays in exact order: "
+                "docker-compose.e2e.yml then docker-compose.low-memory.yml"
+            )
     if args.profile == "real-providers":
         expected = (
             (ROOT / "docker-compose.real-job-providers.yml").resolve(),

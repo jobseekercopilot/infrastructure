@@ -33,7 +33,8 @@ generation price from a search session.
 ## Safety and reruns
 
 ```bash
-python -m scripts.docker.start_stack e2e --build
+./scripts/build-all.sh --profile e2e
+./scripts/start-local.sh --profile e2e --build
 python -m scripts.benchmark.run_capacity --profile idle
 python -m scripts.benchmark.run_capacity --profile single-user
 python -m scripts.benchmark.run_capacity --profile concurrent-5
@@ -80,5 +81,6 @@ The seven-profile `real-world-personas-v2` System Data state validates profile
 shape and lifecycle coverage. It is deliberately separate from this concurrent
 browser workload: persona variety is not a substitute for measured active
 sessions, and measured capacity must not be multiplied by persona count. The
-infrastructure E2E overlay is pinned to governed fixture dataset `1.0.0` so
+infrastructure E2E overlay is pinned to the current governed fixture dataset
+`1.1.0` so
 lifecycle preparation fails on genuine contract drift.

@@ -50,6 +50,20 @@
       "frontendUrl": "http://localhost:3000",
       "services": "all-runtime"
     },
+    "e2e": {
+      "description": "The complete isolated browser-test application with fixture-backed providers, named-state controls and loopback-only host ports.",
+      "composeFiles": [
+        "docker-compose.yml",
+        "docker-compose.e2e.yml",
+        "docker-compose.low-memory.yml"
+      ],
+      "composeProject": "job-seeker-copilot-e2e",
+      "composeParallelLimit": 1,
+      "environmentProfile": "e2e",
+      "environmentFile": ".env.e2e",
+      "frontendUrl": "http://localhost:3100",
+      "services": "all-runtime"
+    },
     "full-local-ses": {
       "description": "The complete fixture-backed private-beta application with account email sent through the production SES adapter to LocalStack.",
       "composeFiles": ["docker-compose.yml", "docker-compose.local-ses.yml"],

@@ -50,6 +50,19 @@ account email through the production SES adapter to local, ephemeral LocalStack:
 ./scripts/stop-local.sh --profile full-local-ses
 ```
 
+Use `e2e` for the isolated full-browser runtime on `http://localhost:3100`.
+This profile enables guarded named-state controls, binds every published port
+to loopback, removes the debug listener and applies the reviewed low-memory
+overlay through the same lock-aware lifecycle:
+
+```bash
+./scripts/build-all.sh --profile e2e
+./scripts/start-local.sh --profile e2e --build
+./scripts/health-check.sh --profile e2e
+./scripts/status.sh --profile e2e
+./scripts/stop-local.sh --profile e2e
+```
+
 ## Two safe workstreams
 
 Create feature branches in the individual repository being changed. Keep

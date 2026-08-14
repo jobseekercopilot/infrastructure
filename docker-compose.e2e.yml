@@ -19,7 +19,7 @@ services:
       - PROVIDER_MODE_ENDPOINT_ENABLED=true
       - SYSTEM_DATA_SERVICE_URL=http://system-data-service:8103
       - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
-      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.0.0}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.1.0}
       - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
     networks:
       - job-seeker-network
@@ -83,7 +83,7 @@ services:
       - EXTERNAL_PROVIDER_MODE=FIXTURE
       - SYSTEM_DATA_SERVICE_URL=http://system-data-service:8103
       - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
-      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.0.0}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.1.0}
       - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
     networks:
       - job-seeker-network
@@ -97,7 +97,7 @@ services:
       - EXTERNAL_PROVIDER_MODE=FIXTURE
       - SYSTEM_DATA_SERVICE_URL=http://system-data-service:8103
       - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
-      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.0.0}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.1.0}
       - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
     networks:
       - job-seeker-network
@@ -111,7 +111,7 @@ services:
       - EXTERNAL_PROVIDER_MODE=FIXTURE
       - SYSTEM_DATA_SERVICE_URL=http://system-data-service:8103
       - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
-      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.0.0}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.1.0}
       - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
     networks:
       - job-seeker-network
@@ -147,7 +147,7 @@ services:
       - SYSTEM_DATA_FIXTURES_ENABLED=true
       - SYSTEM_DATA_FIXTURE_ALLOWED_PROFILES=test
       - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
-      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.0.0}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.1.0}
       - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
     networks:
       - job-seeker-network
@@ -180,7 +180,7 @@ services:
       - EXTERNAL_PROVIDER_MODE=FIXTURE
       - SYSTEM_DATA_SERVICE_URL=http://system-data-service:8103
       - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
-      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.0.0}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.1.0}
       - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
     networks:
       - job-seeker-network
@@ -258,7 +258,7 @@ services:
       - EXTERNAL_PROVIDER_MODE=FIXTURE
       - SYSTEM_DATA_SERVICE_URL=http://system-data-service:8103
       - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
-      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.0.0}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.1.0}
       - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
       - STRIPE_SUCCESS_URL=http://localhost:${E2E_FRONTEND_PORT:-3100}/payment/success
       - STRIPE_CANCEL_URL=http://localhost:${E2E_FRONTEND_PORT:-3100}/payment/cancel
