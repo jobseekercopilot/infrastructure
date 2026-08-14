@@ -43,7 +43,21 @@ class CatalogTests(unittest.TestCase):
 
             text = output.read_text(encoding="utf-8")
             self.assertIn("FIXTURE_DATASET_VERSION=1.1.0", text)
-            self.assertIn("E2E_FRONTEND_PORT=3100", text)
+            e2e_ports = {
+                name: value
+                for line in text.splitlines()
+                if line.startswith("E2E_") and "=" in line
+                for name, value in [line.split("=", 1)]
+                if name.endswith("_PORT")
+            }
+            self.assertEqual(
+                e2e_ports,
+                {
+                    "E2E_FRONTEND_PORT": "3100",
+                    "E2E_SYSTEM_DATA_SERVICE_PORT": "9103",
+                    "E2E_AUTHENTICATION_SERVICE_PORT": "9104",
+                },
+            )
             self.assertEqual(output.stat().st_mode & 0o777, 0o600)
             self.assertEqual(
                 PROFILE_TEMPLATES[profile.environment_profile].name,
@@ -348,6 +362,22 @@ class CatalogTests(unittest.TestCase):
         self.assertIn(
             "-Xmx160m",
             low_memory_services["payment-service"]["environment"][
+                "JAVA_TOOL_OPTIONS"
+            ],
+        )
+        self.assertEqual(
+            low_memory_services["application-tracker-service"]["mem_limit"],
+            "512m",
+        )
+        self.assertIn(
+            "-Xmx192m",
+            low_memory_services["application-tracker-service"]["environment"][
+                "JAVA_TOOL_OPTIONS"
+            ],
+        )
+        self.assertIn(
+            "-XX:MaxMetaspaceSize=160m",
+            low_memory_services["application-tracker-service"]["environment"][
                 "JAVA_TOOL_OPTIONS"
             ],
         )

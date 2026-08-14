@@ -46,6 +46,11 @@ FIXTURE_GATEWAYS = (
     "llm-gateway",
     "stripe-gateway",
 )
+E2E_HOST_ACCESS_SERVICES = {
+    "authentication-service": 8084,
+    "system-data-service": 8103,
+    "job-seeker-copilot-client": 3000,
+}
 JOB_PROVIDER_GATEWAYS = (
     "reed-gateway",
     "adzuna-gateway",
@@ -483,9 +488,45 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
                 "e2e",
             )
     if e2e:
+        expected_host_access_services = dict(E2E_HOST_ACCESS_SERVICES)
+        if profile == "e2e-local-ses":
+            expected_host_access_services["localstack"] = 4566
         host_access = model.get("networks", {}).get("host-access", {})
-        if host_access.get("internal") is not True:
-            raise ValueError("E2E host-access network must be internal")
+        if host_access.get("driver") != "bridge":
+            raise ValueError("E2E host-access network must use the bridge driver")
+        if host_access.get("internal") is True:
+            raise ValueError("E2E host-access network must permit loopback ingress")
+        driver_options = host_access.get("driver_opts", {})
+        if driver_options.get(
+            "com.docker.network.bridge.host_binding_ipv4"
+        ) != "127.0.0.1":
+            raise ValueError("E2E host-access network must bind to loopback")
+        if driver_options.get(
+            "com.docker.network.bridge.enable_ip_masquerade"
+        ) != "false":
+            raise ValueError("E2E host-access network must disable IP masquerading")
+
+        host_access_members = {
+            service_name
+            for service_name, configuration in model.get("services", {}).items()
+            if "host-access" in service_networks(configuration)
+        }
+        if host_access_members != set(expected_host_access_services):
+            raise ValueError(
+                "E2E host-access membership must contain only the browser, "
+                "System Data and Authentication boundaries"
+            )
+
+        published_services = {
+            service_name
+            for service_name, configuration in model.get("services", {}).items()
+            if configuration.get("ports", [])
+        }
+        if published_services != set(expected_host_access_services):
+            raise ValueError(
+                "E2E must publish only the browser, System Data and "
+                "Authentication boundaries"
+            )
         for service_name, configuration in model.get("services", {}).items():
             for published_port in configuration.get("ports", []):
                 if (
@@ -495,6 +536,15 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
                     raise ValueError(
                         f"{service_name} E2E published ports must bind to loopback only"
                     )
+        for service_name, target_port in expected_host_access_services.items():
+            published_ports = model["services"][service_name].get("ports", [])
+            if (
+                len(published_ports) != 1
+                or published_ports[0].get("target") != target_port
+            ):
+                raise ValueError(
+                    f"{service_name} must publish exactly its E2E boundary port"
+                )
         user_management = model.get("services", {}).get(
             "user-management-gateway", {}
         )
