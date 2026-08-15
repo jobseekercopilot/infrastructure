@@ -12,14 +12,14 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 0
       - name: Test fail-closed history scanning
         run: ./scripts/security/test-secret-history.sh
       - name: Scan complete Git history
         run: ./scripts/security/verify-secret-history.sh
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
       - name: Install Python test dependencies
@@ -31,6 +31,11 @@ jobs:
           python3 -m json.tool config/runtime-environment.schema.json >/dev/null
           python3 -m json.tool config/release-policy.json >/dev/null
           python3 -m json.tool config/release-evidence.schema.json >/dev/null
+          python3 -m json.tool aws/public-beta/config/runtime-services.json >/dev/null
+          python3 -m json.tool aws/public-beta/config/image-manifest.json >/dev/null
+          python3 -m json.tool aws/public-beta/config/launch-approvals.json >/dev/null
+      - name: Validate account-free public-beta AWS contract
+        run: python3 scripts/aws/validate_public_beta.py
       - name: Reject tracked credential literals
         run: python3 -m scripts.security.check_tracked_secrets
       - name: Validate contract and generated-client lock
@@ -39,14 +44,22 @@ jobs:
         run: python3 -m unittest discover -s tests
       - name: Compile Python
         run: python3 -m compileall -q scripts
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4
+        with:
+          terraform_version: 1.15.8
+          terraform_wrapper: false
+      - name: Format and validate public-beta Terraform
+        run: |
+          terraform -chdir=aws/public-beta fmt -check -recursive
+          scripts/aws/offline_terraform_plan.sh
       - name: Exercise bootstrap dry run
         run: python3 scripts/workspace/bootstrap.py
 
   build-tools:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: temurin
           java-version: "17"
@@ -72,7 +85,7 @@ jobs:
       DATA_ACQUISITION_JSEARCH_ENABLED: "true"
       DATA_ACQUISITION_REED_ENABLED: "true"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - name: Validate Compose model
         run: |
           umask 077

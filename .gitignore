@@ -21,6 +21,14 @@ docs/contracts/
 *.jar
 *.class
 *.log
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+crash.log
 
 # LocalStack state and captured-message exports are always disposable.
 localstack/state/

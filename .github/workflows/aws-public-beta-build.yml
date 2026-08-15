@@ -1,0 +1,217 @@
+name: AWS Public Beta Immutable Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_id:
+        description: Optional YYYYMMDDTHHMMSSZ-GITSHA release ID; blank derives one from main.
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    environment: production-build
+    permissions:
+      contents: read
+    outputs:
+      release_id: ${{ steps.release.outputs.release_id }}
+      prepared_artifact_digest: ${{ steps.prepared-upload.outputs.artifact-digest }}
+    steps:
+      - name: Check out exact main source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Create read-only cross-repository token
+        id: app-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        with:
+          app-id: ${{ vars.RELEASE_READER_APP_ID }}
+          private-key: ${{ secrets.RELEASE_READER_APP_PRIVATE_KEY }}
+          owner: jobseekercopilot
+          permission-contents: read
+          repositories: |
+            authentication-service
+            user-profile-service
+            user-management-gateway
+            postcode-io-gateway
+            location-gateway
+            location-service
+            google-maps-gateway
+            reed-gateway
+            adzuna-gateway
+            jsearch-gateway
+            nhs-jobs-gateway
+            apprenticeships-gateway
+            system-data-service
+            job-service
+            job-matching-service
+            job-finder-gateway
+            llm-gateway
+            document-store-service
+            document-export-service
+            application-tracker-service
+            cv-cover-letter-service
+            document-generation-gateway
+            reporting-service
+            reporting-gateway
+            payment-service
+            stripe-gateway
+            payment-gateway
+            job-seeker-copilot-client
+            job-seeker-copilot-landing
+            e2e
+      - name: Configure read-only Git transport
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: gh auth setup-git
+      - name: Materialise only locked sibling revisions
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: python3 scripts/workspace/bootstrap.py --apply
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Derive immutable release ID
+        id: release
+        env:
+          REQUESTED_RELEASE_ID: ${{ inputs.release_id }}
+        run: |
+          release_id="$REQUESTED_RELEASE_ID"
+          if [ -z "$release_id" ]; then
+            release_id="$(date -u +%Y%m%dT%H%M%SZ)-$(git rev-parse --short=12 HEAD)"
+          fi
+          case "$release_id" in
+            [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T[0-9][0-9][0-9][0-9][0-9][0-9]Z-[0-9a-f]*) ;;
+            *) echo "Invalid release ID" >&2; exit 2 ;;
+          esac
+          echo "release_id=$release_id" >> "$GITHUB_OUTPUT"
+      - name: Prepare protected non-secret launch approval
+        env:
+          LAUNCH_APPROVALS_B64: ${{ secrets.LAUNCH_APPROVALS_B64 }}
+        run: |
+          umask 077
+          printenv LAUNCH_APPROVALS_B64 | base64 --decode > "${RUNNER_TEMP}/launch-approvals.json"
+          jq -e 'type == "object"' "${RUNNER_TEMP}/launch-approvals.json" >/dev/null
+      - name: Build and verify release artifacts without AWS credentials
+        env:
+          AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+          AWS_REGION: eu-west-2
+          GITHUB_REF: ${{ github.ref }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          LANDING_RUNTIME_ENV_B64: ${{ secrets.LANDING_RUNTIME_ENV_B64 }}
+          LAUNCH_APPROVALS_FILE: ${{ runner.temp }}/launch-approvals.json
+          POSTGRES_IMAGE: ${{ vars.POSTGRES_IMAGE_BY_DIGEST }}
+          RDS_CA_BUNDLE_URL: ${{ vars.RDS_CA_BUNDLE_URL }}
+          RDS_CA_BUNDLE_SHA256: ${{ vars.RDS_CA_BUNDLE_SHA256 }}
+        run: >-
+          scripts/aws/build_release_images.sh
+          '${{ steps.release.outputs.release_id }}'
+          '${{ runner.temp }}/public-beta-release'
+      - name: Prove source builds did not modify Infrastructure
+        run: test -z "$(git status --porcelain)"
+      - name: Upload short-lived prepared image archive
+        id: prepared-upload
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: public-beta-prepared-${{ steps.release.outputs.release_id }}
+          path: ${{ runner.temp }}/public-beta-release/
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
+  publish:
+    needs: prepare
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    environment: production-build
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Check out exact main source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Download checksum-verified prepared image archive
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: public-beta-prepared-${{ needs.prepare.outputs.release_id }}
+          path: ${{ runner.temp }}/public-beta-release
+      - name: Prepare protected non-secret launch approval
+        env:
+          LAUNCH_APPROVALS_B64: ${{ secrets.LAUNCH_APPROVALS_B64 }}
+        run: |
+          umask 077
+          printenv LAUNCH_APPROVALS_B64 | base64 --decode > "${RUNNER_TEMP}/launch-approvals.json"
+          jq -e 'type == "object"' "${RUNNER_TEMP}/launch-approvals.json" >/dev/null
+      - name: Load and validate source-built artifacts without AWS credentials
+        run: |
+          scripts/aws/load_prepared_release_images.sh \
+            '${{ needs.prepare.outputs.release_id }}' \
+            '${{ runner.temp }}/public-beta-release'
+          python3 scripts/aws/validate_public_beta.py --landing-only \
+            --approval-manifest '${{ runner.temp }}/launch-approvals.json' \
+            --landing-archive '${{ runner.temp }}/public-beta-release/landing-static.tar'
+      - name: Configure build-only AWS role
+        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5
+        with:
+          role-to-assume: ${{ vars.AWS_BUILD_ROLE_ARN }}
+          aws-region: eu-west-2
+          role-session-name: jsc-${{ github.run_id }}-build
+          role-duration-seconds: 10800
+      - name: Publish, scan and finalise immutable images
+        env:
+          AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+          AWS_REGION: eu-west-2
+          GITHUB_REF: ${{ github.ref }}
+          LAUNCH_APPROVALS_FILE: ${{ runner.temp }}/launch-approvals.json
+          PREPARED_ARTIFACT_DIGEST: ${{ needs.prepare.outputs.prepared_artifact_digest }}
+          RDS_CA_BUNDLE_URL: ${{ vars.RDS_CA_BUNDLE_URL }}
+          RDS_CA_BUNDLE_SHA256: ${{ vars.RDS_CA_BUNDLE_SHA256 }}
+        run: >-
+          scripts/aws/publish_release_images.sh
+          '${{ needs.prepare.outputs.release_id }}'
+          '${{ runner.temp }}/public-beta-release'
+      - name: Clear AWS session from evidence actions
+        run: |
+          echo 'AWS_ACCESS_KEY_ID=' >> "$GITHUB_ENV"
+          echo 'AWS_SECRET_ACCESS_KEY=' >> "$GITHUB_ENV"
+          echo 'AWS_SESSION_TOKEN=' >> "$GITHUB_ENV"
+      - name: Attest the non-secret release manifest
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
+        with:
+          subject-path: ${{ runner.temp }}/public-beta-release/image-manifest.json
+      - name: Upload immutable release evidence
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: public-beta-release-${{ needs.prepare.outputs.release_id }}
+          path: |
+            ${{ runner.temp }}/public-beta-release/image-manifest.json
+            ${{ runner.temp }}/public-beta-release/provenance.json
+            ${{ runner.temp }}/public-beta-release/landing-artifact.json
+            ${{ runner.temp }}/public-beta-release/landing-static.tar
+            ${{ runner.temp }}/public-beta-release/landing-waitlist-backend-template.yaml
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0

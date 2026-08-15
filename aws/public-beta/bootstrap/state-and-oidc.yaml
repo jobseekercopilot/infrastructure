@@ -1,0 +1,471 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  Manual, one-time Job Seeker Copilot public-beta bootstrap. Creates only the
+  encrypted Terraform backend and GitHub OIDC roles. This template is never
+  invoked by a repository workflow.
+
+Parameters:
+  StateBucketName:
+    Type: String
+    AllowedPattern: '^[a-z0-9][a-z0-9.-]{3,61}[a-z0-9]$'
+  GitHubOrganisation:
+    Type: String
+    Default: jobseekercopilot
+  GitHubRepository:
+    Type: String
+    Default: infrastructure
+  ExistingGitHubOidcProviderArn:
+    Type: String
+    Default: ''
+    Description: Supply the account's existing token.actions.githubusercontent.com provider, if present.
+  GitHubOidcThumbprint:
+    Type: String
+    AllowedPattern: '^[0-9a-f]{40}$'
+    NoEcho: true
+    Description: Review against GitHub/AWS guidance immediately before a manual bootstrap change set.
+  Route53HostedZoneArn:
+    Type: String
+    AllowedPattern: '^arn:aws:route53:::hostedzone/[A-Z0-9]+$'
+  AppDomainName:
+    Type: String
+    Default: app.jobseekercopilot.com
+    AllowedPattern: '^[a-z0-9.-]+\.[a-z]{2,}$'
+    Description: Exact application host; IAM permits only it and its ACM validation records in the shared zone.
+  PlanEnvironmentName:
+    Type: String
+    Default: production-aws-plan
+  BuildEnvironmentName:
+    Type: String
+    Default: production-build
+  ApplyEnvironmentName:
+    Type: String
+    Default: production-aws
+
+Conditions:
+  CreateGitHubOidcProvider: !Equals [!Ref ExistingGitHubOidcProviderArn, '']
+
+Resources:
+  StateKey:
+    Type: AWS::KMS::Key
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: Job Seeker Copilot public-beta Terraform state
+      EnableKeyRotation: true
+      PendingWindowInDays: 30
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: EnableAccountIamPolicies
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:root
+            Action: kms:*
+            Resource: '*'
+      Tags:
+        - Key: Application
+          Value: Job Seeker Copilot
+        - Key: Environment
+          Value: public-beta
+        - Key: ManagedBy
+          Value: CloudFormation-bootstrap
+        - Key: CostCentre
+          Value: public-beta
+
+  StateKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/jsc-public-beta-terraform-state
+      TargetKeyId: !Ref StateKey
+
+  StateBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Ref StateBucketName
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - BucketKeyEnabled: true
+            ServerSideEncryptionByDefault:
+              KMSMasterKeyID: !GetAtt StateKey.Arn
+              SSEAlgorithm: aws:kms
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: RetainRecoverableNoncurrentState
+            Status: Enabled
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 90
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+      Tags:
+        - Key: Application
+          Value: Job Seeker Copilot
+        - Key: Environment
+          Value: public-beta
+        - Key: ManagedBy
+          Value: CloudFormation-bootstrap
+        - Key: CostCentre
+          Value: public-beta
+
+  StateBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref StateBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: '*'
+            Action: s3:*
+            Resource:
+              - !GetAtt StateBucket.Arn
+              - !Sub '${StateBucket.Arn}/*'
+            Condition:
+              Bool:
+                aws:SecureTransport: 'false'
+          - Sid: DenyUnencryptedObjectWrites
+            Effect: Deny
+            Principal: '*'
+            Action: s3:PutObject
+            Resource: !Sub '${StateBucket.Arn}/*'
+            Condition:
+              StringNotEquals:
+                s3:x-amz-server-side-encryption: aws:kms
+
+  GitHubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Condition: CreateGitHubOidcProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList:
+        - sts.amazonaws.com
+      ThumbprintList:
+        - !Ref GitHubOidcThumbprint
+      Tags:
+        - Key: Application
+          Value: Job Seeker Copilot
+        - Key: ManagedBy
+          Value: CloudFormation-bootstrap
+
+  PlanRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: jsc-public-beta-github-plan
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !If
+                - CreateGitHubOidcProvider
+                - !Ref GitHubOidcProvider
+                - !Ref ExistingGitHubOidcProviderArn
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubOrganisation}/${GitHubRepository}:environment:${PlanEnvironmentName}
+      Policies:
+        - PolicyName: StateRead
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource:
+                  - !GetAtt StateBucket.Arn
+                  - !Sub '${StateBucket.Arn}/*'
+              - Effect: Allow
+                Action:
+                  - s3:DeleteObject
+                  - s3:PutObject
+                Resource: !Sub '${StateBucket.Arn}/public-beta/terraform.tfstate.tflock'
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                  - kms:Encrypt
+                  - kms:GenerateDataKey
+                Resource: !GetAtt StateKey.Arn
+        - PolicyName: PublicBetaReadOnlyPlan
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - acm:DescribeCertificate
+                  - acm:ListTagsForCertificate
+                  - application-autoscaling:Describe*
+                  - application-autoscaling:ListTagsForResource
+                  - autoscaling:Describe*
+                  - backup:Describe*
+                  - backup:Get*
+                  - backup:List*
+                  - budgets:Describe*
+                  - budgets:ListTagsForResource
+                  - ce:Get*
+                  - ce:ListTagsForResource
+                  - cloudwatch:Describe*
+                  - cloudwatch:GetDashboard
+                  - cloudwatch:List*
+                  - ec2:Describe*
+                  - ecr:Describe*
+                  - ecr:GetLifecyclePolicy
+                  - ecr:GetRepositoryPolicy
+                  - ecr:List*
+                  - ecs:Describe*
+                  - ecs:List*
+                  - elasticloadbalancing:Describe*
+                  - iam:Get*
+                  - iam:List*
+                  - kms:Describe*
+                  - kms:GetKeyPolicy
+                  - kms:List*
+                  - logs:Describe*
+                  - logs:List*
+                  - rds:Describe*
+                  - rds:ListTagsForResource
+                  - route53:Get*
+                  - route53:List*
+                  - s3:GetBucket*
+                  - s3:GetEncryptionConfiguration
+                  - s3:GetLifecycleConfiguration
+                  - s3:GetPublicAccessBlock
+                  - s3:GetReplicationConfiguration
+                  - s3:ListAllMyBuckets
+                  - s3:ListBucket
+                  - secretsmanager:DescribeSecret
+                  - secretsmanager:GetResourcePolicy
+                  - secretsmanager:ListSecrets
+                  - servicediscovery:Get*
+                  - servicediscovery:List*
+                  - sns:GetSubscriptionAttributes
+                  - sns:GetTopicAttributes
+                  - sns:List*
+                  - ssm:GetParameter
+                  - ssm:ListTagsForResource
+                  - wafv2:Get*
+                  - wafv2:List*
+                Resource: '*'
+
+  BuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: jsc-public-beta-github-build
+      MaxSessionDuration: 10800
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !If
+                - CreateGitHubOidcProvider
+                - !Ref GitHubOidcProvider
+                - !Ref ExistingGitHubOidcProviderArn
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubOrganisation}/${GitHubRepository}:environment:${BuildEnvironmentName}
+      Policies:
+        - PolicyName: ImmutableReleaseImagePublisher
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: ecr:GetAuthorizationToken
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:BatchGetImage
+                  - ecr:CompleteLayerUpload
+                  - ecr:DescribeImageScanFindings
+                  - ecr:DescribeImages
+                  - ecr:InitiateLayerUpload
+                  - ecr:PutImage
+                  - ecr:StartImageScan
+                  - ecr:UploadLayerPart
+                Resource: !Sub arn:${AWS::Partition}:ecr:${AWS::Region}:${AWS::AccountId}:repository/jsc-public-beta/*
+
+  ApplyRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: jsc-public-beta-github-apply
+      MaxSessionDuration: 10800
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !If
+                - CreateGitHubOidcProvider
+                - !Ref GitHubOidcProvider
+                - !Ref ExistingGitHubOidcProviderArn
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubOrganisation}/${GitHubRepository}:environment:${ApplyEnvironmentName}
+      Policies:
+        - PolicyName: TerraformState
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:DeleteObject
+                  - s3:GetObject
+                  - s3:ListBucket
+                  - s3:PutObject
+                Resource:
+                  - !GetAtt StateBucket.Arn
+                  - !Sub '${StateBucket.Arn}/*'
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                  - kms:Encrypt
+                  - kms:GenerateDataKey
+                Resource: !GetAtt StateKey.Arn
+        - PolicyName: PublicBetaTerraform
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: ScopedServiceControlPlanes
+                Effect: Allow
+                Action:
+                  - acm:*
+                  - application-autoscaling:*
+                  - autoscaling:*
+                  - backup:*
+                  - budgets:*
+                  - ce:*
+                  - cloudwatch:*
+                  - ec2:*
+                  - ecr:*
+                  - ecs:*
+                  - elasticloadbalancing:*
+                  - kms:*
+                  - logs:*
+                  - rds:*
+                  - s3:*
+                  - secretsmanager:*
+                  - servicediscovery:*
+                  - sns:*
+                  - ssm:*
+                  - wafv2:*
+                Resource: '*'
+              - Sid: HostedZoneRecordsOnly
+                Effect: Allow
+                Action: route53:ChangeResourceRecordSets
+                Resource: !Ref Route53HostedZoneArn
+                Condition:
+                  ForAllValues:StringLike:
+                    route53:ChangeResourceRecordSetsNormalizedRecordNames:
+                      - !Ref AppDomainName
+                      - !Sub '${AppDomainName}.'
+                      - !Sub '*.${AppDomainName}'
+                      - !Sub '*.${AppDomainName}.'
+                  ForAllValues:StringEquals:
+                    route53:ChangeResourceRecordSetsRecordTypes:
+                      - A
+                      - CNAME
+                    route53:ChangeResourceRecordSetsActions:
+                      - CREATE
+                      - UPSERT
+                      - DELETE
+              - Sid: HostedZoneReads
+                Effect: Allow
+                Action:
+                  - route53:GetHostedZone
+                  - route53:ListResourceRecordSets
+                  - route53:ListTagsForResource
+                Resource: !Ref Route53HostedZoneArn
+              - Sid: ChangeStatusRead
+                Effect: Allow
+                Action: route53:GetChange
+                Resource: !Sub arn:${AWS::Partition}:route53:::change/*
+              - Sid: NamedPublicBetaIamResources
+                Effect: Allow
+                Action:
+                  - iam:AttachRolePolicy
+                  - iam:CreateInstanceProfile
+                  - iam:CreatePolicy
+                  - iam:CreatePolicyVersion
+                  - iam:CreateRole
+                  - iam:DeleteInstanceProfile
+                  - iam:DeletePolicy
+                  - iam:DeletePolicyVersion
+                  - iam:DeleteRole
+                  - iam:DeleteRolePolicy
+                  - iam:DetachRolePolicy
+                  - iam:Get*
+                  - iam:List*
+                  - iam:PutRolePolicy
+                  - iam:RemoveRoleFromInstanceProfile
+                  - iam:AddRoleToInstanceProfile
+                  - iam:Tag*
+                  - iam:Untag*
+                  - iam:UpdateAssumeRolePolicy
+                  - iam:UpdateRoleDescription
+                Resource:
+                  - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-*
+                  - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/jsc-public-beta-*
+                  - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/jsc-public-beta-*
+              - Sid: PassOnlyPublicBetaRoles
+                Effect: Allow
+                Action: iam:PassRole
+                Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-*
+                Condition:
+                  StringEquals:
+                    iam:PassedToService:
+                      - application-autoscaling.amazonaws.com
+                      - backup.amazonaws.com
+                      - ec2.amazonaws.com
+                      - ecs-tasks.amazonaws.com
+                      - monitoring.rds.amazonaws.com
+                      - vpc-flow-logs.amazonaws.com
+              - Sid: RequiredServiceLinkedRoles
+                Effect: Allow
+                Action: iam:CreateServiceLinkedRole
+                Resource: '*'
+                Condition:
+                  StringEquals:
+                    iam:AWSServiceName:
+                      - autoscaling.amazonaws.com
+                      - ecs.amazonaws.com
+                      - elasticloadbalancing.amazonaws.com
+                      - rds.amazonaws.com
+
+Outputs:
+  StateBucketName:
+    Value: !Ref StateBucket
+  StateKeyArn:
+    Value: !GetAtt StateKey.Arn
+  PlanRoleArn:
+    Value: !GetAtt PlanRole.Arn
+  BuildRoleArn:
+    Value: !GetAtt BuildRole.Arn
+  ApplyRoleArn:
+    Value: !GetAtt ApplyRole.Arn
+  GitHubOidcProviderArn:
+    Value: !If
+      - CreateGitHubOidcProvider
+      - !Ref GitHubOidcProvider
+      - !Ref ExistingGitHubOidcProviderArn

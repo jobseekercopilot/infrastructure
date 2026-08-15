@@ -118,6 +118,11 @@ Full onboarding, update, test, recovery and clean-room instructions are in
 [`docs/LOCAL_DEVELOPMENT.md`](docs/LOCAL_DEVELOPMENT.md) and
 [`docs/OPERATIONS.md`](docs/OPERATIONS.md).
 
+The non-deployed AWS public-beta production design, account-free validation,
+protected release workflow and operator checklists start at
+[`aws/public-beta/README.md`](aws/public-beta/README.md). Its checked-in
+defaults are deliberately dark and cannot start a release.
+
 See `docs/ARCHITECTURE.md`, `docs/OPERATIONS.md`, and
 `docs/ROOT_EXTRACTION_AUDIT.md`.
 
