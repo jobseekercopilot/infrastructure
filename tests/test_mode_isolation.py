@@ -823,6 +823,78 @@ class RenderedModeIsolationTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     validate_model(model, "e2e")
 
+    def test_e2e_payment_acceptance_requires_guarded_signed_fixture_settlement(
+        self,
+    ) -> None:
+        model = self.model("e2e")
+        services = model["services"]
+        self.assertEqual(
+            services["system-data-service"]["environment"]["STRIPE_GATEWAY_URL"],
+            "http://stripe-gateway:8100",
+        )
+        self.assertEqual(
+            services["stripe-gateway"]["environment"][
+                "STRIPE_FIXTURE_PAYMENT_CONTROL_ENABLED"
+            ],
+            "true",
+        )
+        self.assertEqual(
+            services["stripe-gateway"]["environment"][
+                "STRIPE_FIXTURE_PAYMENT_CONTROL_TOKEN"
+            ],
+            services["payment-service"]["environment"]["ENVIRONMENT_DATA_TOKEN"],
+        )
+        self.assertEqual(
+            services["stripe-gateway"]["environment"][
+                "STRIPE_FIXTURE_WEBHOOK_SECRET"
+            ],
+            services["payment-service"]["environment"]["ENVIRONMENT_DATA_TOKEN"],
+        )
+        self.assertEqual(
+            services["payment-service"]["environment"][
+                "PAYMENT_SERVICE_TO_STRIPE_GATEWAY_LIFECYCLE_TOKEN"
+            ],
+            services["stripe-gateway"]["environment"][
+                "PAYMENT_SERVICE_TO_STRIPE_GATEWAY_LIFECYCLE_TOKEN"
+            ],
+        )
+        self.assertEqual(
+            services["authentication-service"]["environment"][
+                "ACCOUNT_LIFECYCLE_TO_PAYMENT_SERVICE_TOKEN"
+            ],
+            services["payment-service"]["environment"][
+                "ACCOUNT_LIFECYCLE_TO_PAYMENT_SERVICE_TOKEN"
+            ],
+        )
+
+        for service, variable, unsafe in (
+            ("stripe-gateway", "STRIPE_FIXTURE_PAYMENT_CONTROL_ENABLED", "false"),
+            ("stripe-gateway", "STRIPE_FIXTURE_PAYMENT_CONTROL_TOKEN", "short"),
+            ("stripe-gateway", "STRIPE_FIXTURE_WEBHOOK_SECRET", "different-secret-00000000000000000001"),
+            ("system-data-service", "STRIPE_GATEWAY_URL", "http://localhost:8100"),
+            ("payment-service", "PAYMENT_CHECKOUT_RELEASE_AUTHORISED", "false"),
+            ("payment-service", "PAYMENT_LEGACY_STRIPE_CONFIRMATION_ENABLED", "true"),
+            ("payment-service", "ACCOUNT_LIFECYCLE_TO_PAYMENT_SERVICE_TOKEN", "different-account-lifecycle-token-0001"),
+            ("stripe-gateway", "PAYMENT_SERVICE_TO_STRIPE_GATEWAY_LIFECYCLE_TOKEN", "different-payment-lifecycle-token-0001"),
+        ):
+            with self.subTest(service=service, variable=variable):
+                mutated = self.model("e2e")
+                mutated["services"][service]["environment"][variable] = unsafe
+                with self.assertRaises(ValueError):
+                    validate_model(mutated, "e2e")
+
+    def test_non_e2e_profiles_cannot_enable_fixture_payment_control(self) -> None:
+        for profile in ("local", "live-provider", "real-providers"):
+            with self.subTest(profile=profile):
+                model = self.model(profile)
+                model["services"]["stripe-gateway"]["environment"][
+                    "STRIPE_FIXTURE_PAYMENT_CONTROL_ENABLED"
+                ] = "true"
+                with self.assertRaisesRegex(
+                    ValueError, "fixture payment control is restricted"
+                ):
+                    validate_model(model, profile)
+
     def test_e2e_requires_exact_seed_profile_allowlist_and_database_isolation(self) -> None:
         for service, variable in (
             ("application-tracker-service", "ENVIRONMENT_DATA_ENABLED"),
