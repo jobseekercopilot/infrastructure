@@ -61,6 +61,8 @@ class RuntimeEnvironmentSchemaTests(unittest.TestCase):
             "PAYMENT_GATEWAY_TO_PAYMENT_SERVICE_TOKEN",
             "PAYMENT_GATEWAY_TO_STRIPE_GATEWAY_TOKEN",
             "STRIPE_GATEWAY_TO_PAYMENT_SERVICE_TOKEN",
+            "PAYMENT_SERVICE_TO_STRIPE_GATEWAY_LIFECYCLE_TOKEN",
+            "ACCOUNT_LIFECYCLE_TO_PAYMENT_SERVICE_TOKEN",
         }
         self.assertTrue(required.issubset(variables))
         for name in required:

@@ -165,6 +165,7 @@ services:
       - JWT_KEY_ID=local-generated
       - AUTH_SERVICE_TOKEN=${AUTH_SERVICE_TOKEN:?Generate the selected untracked environment file}
       - AUTH_ENVIRONMENT_DATA_TOKEN=${ENVIRONMENT_DATA_TOKEN:?Generate the selected untracked environment file}
+      - ACCOUNT_LIFECYCLE_TO_PAYMENT_SERVICE_TOKEN=${ACCOUNT_LIFECYCLE_TO_PAYMENT_SERVICE_TOKEN:?Generate the selected untracked environment file}
       - AUTH_PASSWORD_RESET_TOKEN_LIFETIME=30m
       - AUTH_PASSWORD_RESET_REQUEST_COOLDOWN=60s
       - USER_PROFILE_SERVICE_URL=http://user-profile-service:8085
@@ -967,6 +968,8 @@ services:
       - CV_COVER_LETTER_TO_PAYMENT_SERVICE_TOKEN=${CV_COVER_LETTER_TO_PAYMENT_SERVICE_TOKEN:?Generate the selected untracked environment file}
       - DOCUMENT_GENERATION_GATEWAY_TO_PAYMENT_SERVICE_TOKEN=${DOCUMENT_GENERATION_GATEWAY_TO_PAYMENT_SERVICE_TOKEN:?Generate the selected untracked environment file}
       - STRIPE_GATEWAY_TO_PAYMENT_SERVICE_TOKEN=${STRIPE_GATEWAY_TO_PAYMENT_SERVICE_TOKEN:?Generate the selected untracked environment file}
+      - PAYMENT_SERVICE_TO_STRIPE_GATEWAY_LIFECYCLE_TOKEN=${PAYMENT_SERVICE_TO_STRIPE_GATEWAY_LIFECYCLE_TOKEN:?Generate the selected untracked environment file}
+      - ACCOUNT_LIFECYCLE_TO_PAYMENT_SERVICE_TOKEN=${ACCOUNT_LIFECYCLE_TO_PAYMENT_SERVICE_TOKEN:?Generate the selected untracked environment file}
     depends_on:
       payment-postgres:
         condition: service_healthy
@@ -998,6 +1001,7 @@ services:
       - PAYMENT_SERVICE_URL=http://payment-service:8099
       - PAYMENT_GATEWAY_TO_STRIPE_GATEWAY_TOKEN=${PAYMENT_GATEWAY_TO_STRIPE_GATEWAY_TOKEN:?Generate the selected untracked environment file}
       - STRIPE_GATEWAY_TO_PAYMENT_SERVICE_TOKEN=${STRIPE_GATEWAY_TO_PAYMENT_SERVICE_TOKEN:?Generate the selected untracked environment file}
+      - PAYMENT_SERVICE_TO_STRIPE_GATEWAY_LIFECYCLE_TOKEN=${PAYMENT_SERVICE_TO_STRIPE_GATEWAY_LIFECYCLE_TOKEN:?Generate the selected untracked environment file}
     depends_on:
       payment-service:
         condition: service_healthy

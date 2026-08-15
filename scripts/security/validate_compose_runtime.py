@@ -35,6 +35,8 @@ CORE_CREDENTIALS = (
     "PAYMENT_GATEWAY_TO_PAYMENT_SERVICE_TOKEN",
     "PAYMENT_GATEWAY_TO_STRIPE_GATEWAY_TOKEN",
     "STRIPE_GATEWAY_TO_PAYMENT_SERVICE_TOKEN",
+    "PAYMENT_SERVICE_TO_STRIPE_GATEWAY_LIFECYCLE_TOKEN",
+    "ACCOUNT_LIFECYCLE_TO_PAYMENT_SERVICE_TOKEN",
 )
 FIXTURE_GATEWAYS = (
     "reed-gateway",
@@ -488,6 +490,62 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
                 "e2e",
             )
     if e2e:
+        require_value(
+            model,
+            "system-data-service",
+            "STRIPE_GATEWAY_URL",
+            "http://stripe-gateway:8100",
+        )
+        for variable, expected in (
+            ("FREE_DOCUMENT_CREDITS", "2"),
+            ("PAYMENT_CATALOG_VERSION", "public-beta-2026-08-15"),
+            ("PAYMENT_CHECKOUT_ENABLED", "true"),
+            ("PAYMENT_CHECKOUT_RELEASE_AUTHORISED", "true"),
+            ("PAYMENT_PROVIDER_LIVE_MODE_EXPECTED", "false"),
+            ("PAYMENT_CHECKOUT_ORDER_TTL", "PT1H"),
+            ("PAYMENT_CONSUMER_TERMS_VERSION", "uk-consumer-terms-2026-08-15"),
+            ("PAYMENT_TAX_STATUS", "NOT_VAT_REGISTERED"),
+            ("PAYMENT_TAX_TREATMENT", "VAT_NOT_CHARGED"),
+            ("PAYMENT_LEGAL_ENTITY_TYPE", "SOLE_TRADER"),
+            ("PAYMENT_LEGAL_ENTITY_CONFIGURATION_VERSION", "e2e-reviewed-fixture-v1"),
+            ("PAYMENT_LEGAL_ENTITY_REVIEWED", "true"),
+            ("PAYMENT_FOUNDING_PROMOTION_ENABLED", "true"),
+            ("PAYMENT_FOUNDING_PROMOTION_RELEASE_AUTHORISED", "true"),
+            ("PAYMENT_DEMO_PURCHASE_ENABLED", "false"),
+            ("PAYMENT_LEGACY_STRIPE_CONFIRMATION_ENABLED", "false"),
+        ):
+            require_value(model, "payment-service", variable, expected)
+        require_value(
+            model,
+            "stripe-gateway",
+            "STRIPE_FIXTURE_PAYMENT_CONTROL_ENABLED",
+            "true",
+        )
+        require_value(
+            model,
+            "stripe-gateway",
+            "STRIPE_LEGACY_CHECKOUT_ENABLED",
+            "false",
+        )
+        fixture_payment_token = environment(model, "stripe-gateway").get(
+            "STRIPE_FIXTURE_PAYMENT_CONTROL_TOKEN", ""
+        )
+        fixture_webhook_secret = environment(model, "stripe-gateway").get(
+            "STRIPE_FIXTURE_WEBHOOK_SECRET", ""
+        )
+        environment_data_token = environment(model, "payment-service").get(
+            "ENVIRONMENT_DATA_TOKEN", ""
+        )
+        if (
+            not isinstance(fixture_payment_token, str)
+            or len(fixture_payment_token) < 32
+            or fixture_payment_token != environment_data_token
+            or fixture_webhook_secret != environment_data_token
+        ):
+            raise ValueError(
+                "E2E Stripe fixture payment controls must use the existing "
+                "strong isolated environment-data credential"
+            )
         expected_host_access_services = dict(E2E_HOST_ACCESS_SERVICES)
         if profile == "e2e-local-ses":
             expected_host_access_services["localstack"] = 4566
@@ -584,6 +642,13 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
         ):
             require_value(model, service, "FIXTURE_DATASET_VERSION", "1.1.0")
 
+    if not e2e and str(environment(model, "stripe-gateway").get(
+        "STRIPE_FIXTURE_PAYMENT_CONTROL_ENABLED", "false"
+    )).lower() == "true":
+        raise ValueError(
+            "Stripe fixture payment control is restricted to E2E profiles"
+        )
+
     authentication = environment(model, "authentication-service")
     if local_ses:
         required = {
@@ -624,7 +689,12 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
 
     if e2e:
         for service in FIXTURE_GATEWAYS:
-            require_value(model, service, "SPRING_PROFILES_ACTIVE", "e2e")
+            require_value(
+                model,
+                service,
+                "SPRING_PROFILES_ACTIVE",
+                "test" if service == "stripe-gateway" else "e2e",
+            )
         require_value(
             model,
             "postcode-io-gateway",
@@ -874,6 +944,34 @@ def validate_runtime_model(model: dict, profile: str) -> None:
             (
                 ("stripe-gateway", "STRIPE_GATEWAY_TO_PAYMENT_SERVICE_TOKEN"),
                 ("payment-service", "STRIPE_GATEWAY_TO_PAYMENT_SERVICE_TOKEN"),
+            ),
+        ),
+        "PAYMENT_SERVICE_TO_STRIPE_GATEWAY_LIFECYCLE_TOKEN": require_shared(
+            model,
+            "PAYMENT_SERVICE_TO_STRIPE_GATEWAY_LIFECYCLE_TOKEN",
+            (
+                (
+                    "payment-service",
+                    "PAYMENT_SERVICE_TO_STRIPE_GATEWAY_LIFECYCLE_TOKEN",
+                ),
+                (
+                    "stripe-gateway",
+                    "PAYMENT_SERVICE_TO_STRIPE_GATEWAY_LIFECYCLE_TOKEN",
+                ),
+            ),
+        ),
+        "ACCOUNT_LIFECYCLE_TO_PAYMENT_SERVICE_TOKEN": require_shared(
+            model,
+            "ACCOUNT_LIFECYCLE_TO_PAYMENT_SERVICE_TOKEN",
+            (
+                (
+                    "authentication-service",
+                    "ACCOUNT_LIFECYCLE_TO_PAYMENT_SERVICE_TOKEN",
+                ),
+                (
+                    "payment-service",
+                    "ACCOUNT_LIFECYCLE_TO_PAYMENT_SERVICE_TOKEN",
+                ),
             ),
         ),
     }
