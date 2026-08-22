@@ -738,7 +738,8 @@ def validate_approvals(approvals: dict[str, Any], release: bool) -> None:
     github_environment = approvals.get("githubEnvironmentProtection")
     github_fields = {
         "reviewed", "reviewedBy", "reviewedOn", "evidenceReference", "environments",
-        "requiredReviewersVerified", "preventSelfReviewVerified", "exactMainBranchVerified",
+        "reviewerUsername", "requiredReviewersVerified", "preventSelfReview",
+        "soloOperatorSelfReviewAuthorised", "exactMainBranchVerified",
         "administratorBypassDisabled",
     }
     require(
@@ -749,13 +750,18 @@ def validate_approvals(approvals: dict[str, Any], release: bool) -> None:
         github_environment["environments"] == ["production-build", "production-aws-plan", "production-aws"],
         "GitHub protection evidence must cover the exact three production environments",
     )
+    require(
+        github_environment["reviewerUsername"] == "jobseekercopilot",
+        "GitHub protection evidence must name the authorised sole-operator reviewer",
+    )
     if not release:
         require(github_environment["reviewed"] is False, "checked-in GitHub environment evidence must fail closed")
         require(
             all(
                 github_environment[field] is False
                 for field in (
-                    "requiredReviewersVerified", "preventSelfReviewVerified",
+                    "requiredReviewersVerified", "preventSelfReview",
+                    "soloOperatorSelfReviewAuthorised",
                     "exactMainBranchVerified", "administratorBypassDisabled",
                 )
             ),
@@ -772,15 +778,16 @@ def validate_approvals(approvals: dict[str, Any], release: bool) -> None:
             github_environment["reviewedOn"], "githubEnvironmentProtection.reviewedOn"
         )
         require(github_reviewed_on <= reviewed_at.date(), "GitHub environment review follows release provenance")
+        require(github_environment["requiredReviewersVerified"] is True, "release requires its named reviewer")
         require(
-            all(
-                github_environment[field] is True
-                for field in (
-                    "requiredReviewersVerified", "preventSelfReviewVerified",
-                    "exactMainBranchVerified", "administratorBypassDisabled",
-                )
-            ),
-            "release requires reviewer, self-review, exact-main and administrator-bypass controls",
+            github_environment["preventSelfReview"] is False
+            and github_environment["soloOperatorSelfReviewAuthorised"] is True,
+            "release requires explicit sole-operator self-review authorisation",
+        )
+        require(
+            github_environment["exactMainBranchVerified"] is True
+            and github_environment["administratorBypassDisabled"] is True,
+            "release requires exact-main and administrator-bypass controls",
         )
     erasure = approvals.get("documentStorePermanentErasure")
     erasure_fields = {
