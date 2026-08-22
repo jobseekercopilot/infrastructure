@@ -1484,12 +1484,12 @@ class PublicBetaAwsContractTest(unittest.TestCase):
                 "authentication-service": "5c67f6ef36478ffa6a4d2fcbb76c210478229651",
                 "user-management-gateway": "1c3ad16acbe7c4c6f18ea52493a14ffbfe614760",
                 "document-generation-gateway": "d0d0f37780d9f8fa0db1e9ea45e37c9bdccd5cb1",
-                "payment-service": "4caa12969f058b96f02ebce10ce2f562039cac0c",
-                "payment-gateway": "c2c53e7faaea61f169e04663893a3a692d2e8135",
-                "stripe-gateway": "29838e838049f7cc3387d86c094b873cb6ef219c",
+                "payment-service": "48bf0f8487d8f21049299c34987f5bde6c169c45",
+                "payment-gateway": "63527cb3ea286a48ba25c31e024304e9bfdfbc9c",
+                "stripe-gateway": "9ff7e15315797f2e4fac56783a00f9ae17036005",
                 "system-data-service": "7b8f85d2ffa3e5e44b5ad63e7f0150fc4713d05f",
-                "job-seeker-copilot-client": "3092e46157105a3d8702221c53623184f276a896",
-                "e2e": "e5dae5425a1fa50a4858a43de9d993b460fc0716",
+                "job-seeker-copilot-client": "146aea47bcc2d8550464ef2c95b56cc3bc82aa4e",
+                "e2e": "4806c5db5767579ab68dedd6fbe821dae241ff1a",
             },
         )
         self.assertFalse(images["capabilities"]["paymentV2ProductionContractVerified"])
@@ -1510,7 +1510,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
                 "openApiSha256": "864ba3c36b2ba4bcd1749edc597ed903a21e7dfa515bb2809d3bc9b9cf878f42",
             },
             "paymentService": {
-                "revision": "63a2f3f2c6e29bb2d2744124c4b1ebe3a3b895ff",
+                "revision": "39005690b2fe5a1da6208b25c3e0e4c9c57c7eb3",
                 "openApiSha256": "40aa59f62a4ad4d956c2324c9c8d9fa154e4b04b49c029cbda0d80cc2c5dcdc9",
             },
             "paymentGateway": {
@@ -1524,7 +1524,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         })
         self.assertEqual(images["dependencyEvidence"]["paymentFixtureAcceptance"], {
             "systemDataServiceRevision": "ca4bafeafbfe41b25a8507f6f08d97490ef71a28",
-            "e2eRevision": "1541d92f34a3068bb160e1638834a06af6a60796",
+            "e2eRevision": "cfa1a70a0028f11f8019c889b9057ba8124ff8f5",
             "infrastructureRevision": "412566a750ead55740e0b2b4b81cebe29d3e0ad9",
             "profile": "test",
             "providerMode": "FIXTURE",
@@ -1539,12 +1539,12 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         self.assertFalse(images["capabilities"]["frontendArtifactsVerified"])
         self.assertEqual(images["dependencyEvidence"]["frontendArtifacts"], {
             "client": {
-                "revision": "3092e46157105a3d8702221c53623184f276a896",
+                "revision": "146aea47bcc2d8550464ef2c95b56cc3bc82aa4e",
                 "artifactContractSha256": "801fab5beb7ea81798677086ef00a94759294a1e85915f74da843632de2c6f75",
                 "packaging": "OCI_SSR_BFF",
             },
             "landing": {
-                "revision": "3888dd2b94d91b4f3d3fe9a7e24001f0966cf5ea",
+                "revision": "533a8086b3af8019cfcd585e50e44e64a0bc2e0d",
                 "artifactContractSha256": "9682372ef2d909de3b2b49c6d0fed232565b61e1b1fe0ac666ace58bfdb0804f",
                 "staticArtifactSha256": "PENDING",
                 "runtimeConfigSha256": "PENDING",

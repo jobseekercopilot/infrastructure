@@ -160,12 +160,12 @@ locals {
     local.document_store_permanent_erasure_image_ready
   )
   expected_catalog_plans = [
-    { id = "starter", documentCredits = 10, priceGbpPence = 799 },
-    { id = "active", documentCredits = 25, priceGbpPence = 1699 },
-    { id = "power", documentCredits = 60, priceGbpPence = 3499 },
+    { id = "starter", documentCredits = 10, priceGbpPence = 499 },
+    { id = "active", documentCredits = 25, priceGbpPence = 1199 },
+    { id = "power", documentCredits = 60, priceGbpPence = 1999 },
   ]
   payment_contract_complete = (
-    try(local.payment_contract.catalogVersion, "") == "public-beta-2026-08-15" &&
+    try(local.payment_contract.catalogVersion, "") == "public-beta-2026-08-22" &&
     try(local.payment_contract.catalogPlans, []) == local.expected_catalog_plans &&
     try(local.payment_contract.freeDocumentCredits, 0) == 2 &&
     try(local.payment_contract.billingCountry, "") == "GB" &&
@@ -478,11 +478,11 @@ locals {
   zero_digest          = "sha256:${join("", [for _ in range(64) : "0"])}"
 
   frontend_release_ready = (
-    try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.revision, "") == "3092e46157105a3d8702221c53623184f276a896" &&
+    try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.revision, "") == "146aea47bcc2d8550464ef2c95b56cc3bc82aa4e" &&
     try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.artifactContractSha256, "") == "801fab5beb7ea81798677086ef00a94759294a1e85915f74da843632de2c6f75" &&
     try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.packaging, "") == "OCI_SSR_BFF" &&
     try(local.image_manifest.images["job-seeker-copilot-client"].revision, "") == try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.revision, "") &&
-    try(local.image_manifest.dependencyEvidence.frontendArtifacts.landing.revision, "") == "3888dd2b94d91b4f3d3fe9a7e24001f0966cf5ea" &&
+    try(local.image_manifest.dependencyEvidence.frontendArtifacts.landing.revision, "") == "533a8086b3af8019cfcd585e50e44e64a0bc2e0d" &&
     try(local.image_manifest.dependencyEvidence.frontendArtifacts.landing.artifactContractSha256, "") == "9682372ef2d909de3b2b49c6d0fed232565b61e1b1fe0ac666ace58bfdb0804f" &&
     alltrue([
       for digest in [
@@ -543,7 +543,7 @@ locals {
         openApiSha256 = "864ba3c36b2ba4bcd1749edc597ed903a21e7dfa515bb2809d3bc9b9cf878f42"
       }
       paymentService = {
-        revision      = "63a2f3f2c6e29bb2d2744124c4b1ebe3a3b895ff"
+        revision      = "39005690b2fe5a1da6208b25c3e0e4c9c57c7eb3"
         openApiSha256 = "40aa59f62a4ad4d956c2324c9c8d9fa154e4b04b49c029cbda0d80cc2c5dcdc9"
       }
       paymentGateway = {
@@ -557,7 +557,7 @@ locals {
     } &&
     try(local.image_manifest.dependencyEvidence.paymentFixtureAcceptance, {}) == {
       systemDataServiceRevision = "ca4bafeafbfe41b25a8507f6f08d97490ef71a28"
-      e2eRevision               = "1541d92f34a3068bb160e1638834a06af6a60796"
+      e2eRevision               = "cfa1a70a0028f11f8019c889b9057ba8124ff8f5"
       infrastructureRevision    = "412566a750ead55740e0b2b4b81cebe29d3e0ad9"
       profile                   = "test"
       providerMode              = "FIXTURE"

@@ -83,14 +83,14 @@ Complete the [launch checklist](launch-checklist.md). In particular:
   `95811cb81b0c32ad2f9c5cc42cd8f85c0385359cdade6c0f9e67e3ed63950dc0`.
   The final payment chain is Document Generation Gateway
   `cd9b71a3d4dbfbe41d6784f3eeeb7b1b113f5218`, Payment Service
-  `63a2f3f2c6e29bb2d2744124c4b1ebe3a3b895ff`, Payment Gateway
+  `39005690b2fe5a1da6208b25c3e0e4c9c57c7eb3`, Payment Gateway
   `c49f9dc7441d146e58b428793a9c1a833c24aec5`, and Stripe Gateway
   `0e84d1bd97a00194809322307682c557069f30d4`, each bound to the exact exported
   OpenAPI hash in the manifest. The release builder proves every reviewed SHA
   is an ancestor of the locked image before setting the capability true. It
   separately ancestor-verifies the isolated signed-settlement acceptance
   evidence: System Data `ca4bafeafbfe41b25a8507f6f08d97490ef71a28`, E2E
-  `1541d92f34a3068bb160e1638834a06af6a60796` and Infrastructure
+  `cfa1a70a0028f11f8019c889b9057ba8124ff8f5` and Infrastructure
   `412566a750ead55740e0b2b4b81cebe29d3e0ad9`, which proved 36 healthy services
   and 4/4 scenarios (33/33 steps). Those are test-only provenance: System Data
   and E2E remain absent from production tasks/ECR/ALB. Stripe's single reviewed

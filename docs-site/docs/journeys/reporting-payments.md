@@ -86,7 +86,7 @@ deployed as production services, and the exact production Stripe image is
 probed to show those conditional controls are dormant.
 
 The launch catalogue is non-renewing: 2 free document credits, then 10 for
-£7.99, 25 for £16.99, or 60 for £34.99. A document credit is one generated CV
+£4.99, 25 for £11.99, or 60 for £19.99. A document credit is one generated CV
 or cover letter. The displayed GBP price is the Checkout total; automatic
 renewal is false. Promotion bonuses are displayed only while the server says
 the bounded promotion is available.

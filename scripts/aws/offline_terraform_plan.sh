@@ -93,7 +93,7 @@ jq \
        | .value.scanStatus="PASSED"
        | .value.revision=(
            if .key == "clamav" then "1.4.5"
-           elif .key == "job-seeker-copilot-client" then "3092e46157105a3d8702221c53623184f276a896"
+           elif .key == "job-seeker-copilot-client" then "146aea47bcc2d8550464ef2c95b56cc3bc82aa4e"
            else $sourceRevision
            end
          )
@@ -256,7 +256,7 @@ jq \
        merchantTermsTraderDisclosureVerified:true,
        taxTreatment:"VAT_NOT_CHARGED",
        taxStatus:"NOT_VAT_REGISTERED",
-       catalogVersion:"public-beta-2026-08-15",
+       catalogVersion:"public-beta-2026-08-22",
        consumerTermsVersion:$legalVersion,
        consumerTermsEffectiveOn:$reviewDate,
        consumerTermsUrl:"https://app.jobseekercopilot.com/terms",

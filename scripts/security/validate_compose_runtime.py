@@ -519,7 +519,7 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
         )
         for variable, expected in (
             ("FREE_DOCUMENT_CREDITS", "2"),
-            ("PAYMENT_CATALOG_VERSION", "public-beta-2026-08-15"),
+            ("PAYMENT_CATALOG_VERSION", "public-beta-2026-08-22"),
             ("PAYMENT_CHECKOUT_ENABLED", "true"),
             ("PAYMENT_CHECKOUT_RELEASE_AUTHORISED", "true"),
             ("PAYMENT_PROVIDER_LIVE_MODE_EXPECTED", "false"),

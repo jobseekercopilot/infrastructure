@@ -35,18 +35,18 @@ UMG_PAYMENT_V2_OPENAPI_SHA256 = "dde3349e015f2cd7ef7bf9bc810681bebe98fca1ed15100
 UMG_AUTH_SNAPSHOT_SHA256 = "95811cb81b0c32ad2f9c5cc42cd8f85c0385359cdade6c0f9e67e3ed63950dc0"
 DGG_PAYMENT_V2_REVISION = "cd9b71a3d4dbfbe41d6784f3eeeb7b1b113f5218"
 DGG_PAYMENT_V2_OPENAPI_SHA256 = "864ba3c36b2ba4bcd1749edc597ed903a21e7dfa515bb2809d3bc9b9cf878f42"
-PAYMENT_SERVICE_V2_REVISION = "63a2f3f2c6e29bb2d2744124c4b1ebe3a3b895ff"
+PAYMENT_SERVICE_V2_REVISION = "39005690b2fe5a1da6208b25c3e0e4c9c57c7eb3"
 PAYMENT_SERVICE_V2_OPENAPI_SHA256 = "40aa59f62a4ad4d956c2324c9c8d9fa154e4b04b49c029cbda0d80cc2c5dcdc9"
 PAYMENT_GATEWAY_V2_REVISION = "c49f9dc7441d146e58b428793a9c1a833c24aec5"
 PAYMENT_GATEWAY_V2_OPENAPI_SHA256 = "addd12e77307194d1635e49da9195dfe616a7e7653662492592764dd9092a4ec"
 STRIPE_GATEWAY_V2_REVISION = "0e84d1bd97a00194809322307682c557069f30d4"
 STRIPE_GATEWAY_V2_OPENAPI_SHA256 = "9fff5cff738ab51c24be85e989dcb6b9fe01bd2397289695660deff2c83a6ef7"
 SYSTEM_DATA_PAYMENT_FIXTURE_REVISION = "ca4bafeafbfe41b25a8507f6f08d97490ef71a28"
-E2E_PAYMENT_FIXTURE_REVISION = "1541d92f34a3068bb160e1638834a06af6a60796"
+E2E_PAYMENT_FIXTURE_REVISION = "cfa1a70a0028f11f8019c889b9057ba8124ff8f5"
 INFRASTRUCTURE_PAYMENT_FIXTURE_REVISION = "412566a750ead55740e0b2b4b81cebe29d3e0ad9"
-CLIENT_RELEASE_REVISION = "3092e46157105a3d8702221c53623184f276a896"
+CLIENT_RELEASE_REVISION = "146aea47bcc2d8550464ef2c95b56cc3bc82aa4e"
 CLIENT_ARTIFACT_CONTRACT_SHA256 = "801fab5beb7ea81798677086ef00a94759294a1e85915f74da843632de2c6f75"
-LANDING_RELEASE_REVISION = "3888dd2b94d91b4f3d3fe9a7e24001f0966cf5ea"
+LANDING_RELEASE_REVISION = "533a8086b3af8019cfcd585e50e44e64a0bc2e0d"
 LANDING_ARTIFACT_CONTRACT_SHA256 = "9682372ef2d909de3b2b49c6d0fed232565b61e1b1fe0ac666ace58bfdb0804f"
 EXCLUDED_REPOSITORIES = {"system-data-service", "e2e"}
 DATABASE_SERVICES = {
@@ -1013,11 +1013,11 @@ def validate_approvals(approvals: dict[str, Any], release: bool) -> None:
     require(payment_fields.issubset(stripe), "Stripe/payment commercial release metadata is incomplete")
     require(
         stripe["catalogPlans"] == [
-            {"id": "starter", "documentCredits": 10, "priceGbpPence": 799},
-            {"id": "active", "documentCredits": 25, "priceGbpPence": 1699},
-            {"id": "power", "documentCredits": 60, "priceGbpPence": 3499},
+            {"id": "starter", "documentCredits": 10, "priceGbpPence": 499},
+            {"id": "active", "documentCredits": 25, "priceGbpPence": 1199},
+            {"id": "power", "documentCredits": 60, "priceGbpPence": 1999},
         ],
-        "Payment catalog must retain the approved 10/25/60-credit GBP pricing",
+        "Payment catalog must retain the approved £4.99/£11.99/£19.99 10/25/60-credit pricing",
     )
     require(stripe["freeDocumentCredits"] == 2, "Payment free allowance must remain two document credits")
     if release:
