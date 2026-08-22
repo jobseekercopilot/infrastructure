@@ -24,13 +24,13 @@
     {"name": "document-export-service", "branch": "develop", "revision": "844dec04888d381bc3f117081167f07a0e563ee2"},
     {"name": "application-tracker-service", "branch": "develop", "revision": "839a47f26df661ca28ee46f98e58434f43222453"},
     {"name": "cv-cover-letter-service", "branch": "develop", "revision": "de374613580602e081f6048e553642b1de198d38"},
-    {"name": "document-generation-gateway", "branch": "develop", "revision": "d0d0f37780d9f8fa0db1e9ea45e37c9bdccd5cb1"},
+    {"name": "document-generation-gateway", "branch": "develop", "revision": "74b55b675816f5415099fbfa82c526709d486ff2"},
     {"name": "reporting-service", "branch": "develop", "revision": "05a6fb43edc7dd6284a21e0c9bfcd7ba1385fa4f"},
     {"name": "reporting-gateway", "branch": "develop", "revision": "2f53ce1dc7719c49ef20423b16e06bcb87b3d585"},
-    {"name": "payment-service", "branch": "develop", "revision": "48bf0f8487d8f21049299c34987f5bde6c169c45"},
+    {"name": "payment-service", "branch": "develop", "revision": "b9428a00284cec3a1f9014be64cefd972b645afd"},
     {"name": "stripe-gateway", "branch": "develop", "revision": "9ff7e15315797f2e4fac56783a00f9ae17036005"},
-    {"name": "payment-gateway", "branch": "develop", "revision": "63527cb3ea286a48ba25c31e024304e9bfdfbc9c"},
-    {"name": "job-seeker-copilot-client", "branch": "develop", "revision": "146aea47bcc2d8550464ef2c95b56cc3bc82aa4e"},
-    {"name": "e2e", "branch": "develop", "revision": "4806c5db5767579ab68dedd6fbe821dae241ff1a"}
+    {"name": "payment-gateway", "branch": "develop", "revision": "71bdb46a48910a7e30afefd63e3fcda171db9f51"},
+    {"name": "job-seeker-copilot-client", "branch": "develop", "revision": "36e71873b25e25343de283846fe40dd498adcda2"},
+    {"name": "e2e", "branch": "develop", "revision": "e6d008572a9ddd9dfcff7170273362d88e7f7c94"}
   ]
 }
