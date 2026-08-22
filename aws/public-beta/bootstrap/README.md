@@ -14,6 +14,12 @@ whether a GitHub OIDC provider already exists, and the current GitHub
 OIDC certificate thumbprint from authoritative AWS/GitHub guidance. Review the
 complete change set; then execute it manually only after approval.
 
+Supply the immutable GitHub owner and repository IDs as
+`GitHubOrganisationId` and `GitHubRepositoryId`. GitHub repositories created
+after 15 July 2026 include these IDs in the default OIDC `sub` claim. Confirm
+the exact `sub_claim_prefix` with the repository OIDC settings API and do not
+substitute the older name-only subject format.
+
 The administrator must also supply the owner mailbox that will receive the
 encrypted operations-topic email subscription and either the existing
 account-wide AWS-services Cost Anomaly monitor ARN or confirm that none exists.

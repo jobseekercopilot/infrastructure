@@ -1624,6 +1624,18 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         self.assertEqual(resources["StateBucket"]["DeletionPolicy"], "Retain")
         self.assertEqual(resources["StateKey"]["DeletionPolicy"], "Retain")
 
+        expected_oidc_subjects = {
+            "PlanRole": "repo:${GitHubOrganisation}@${GitHubOrganisationId}/${GitHubRepository}@${GitHubRepositoryId}:environment:${PlanEnvironmentName}",
+            "BuildRole": "repo:${GitHubOrganisation}@${GitHubOrganisationId}/${GitHubRepository}@${GitHubRepositoryId}:environment:${BuildEnvironmentName}",
+            "ApplyRole": "repo:${GitHubOrganisation}@${GitHubOrganisationId}/${GitHubRepository}@${GitHubRepositoryId}:environment:${ApplyEnvironmentName}",
+        }
+        for role_name, expected_subject in expected_oidc_subjects.items():
+            trust = resources[role_name]["Properties"]["AssumeRolePolicyDocument"]
+            condition = trust["Statement"][0]["Condition"]["StringEquals"]
+            self.assertEqual(condition["token.actions.githubusercontent.com:sub"], expected_subject)
+        self.assertEqual(template["Parameters"]["GitHubOrganisationId"]["AllowedPattern"], "^[0-9]+$")
+        self.assertEqual(template["Parameters"]["GitHubRepositoryId"]["AllowedPattern"], "^[0-9]+$")
+
         # The foundation deliberately exceeds CloudFormation's inline
         # TemplateBody limit, but stays well inside the versioned TemplateURL
         # limit. The operator runbook must therefore use a checksum-pinned S3
