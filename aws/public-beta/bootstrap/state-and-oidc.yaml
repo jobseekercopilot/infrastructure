@@ -2673,7 +2673,7 @@ Resources:
                   - wafv2:TagResource
                 Resource: '*'
                 Condition:
-                  Null:
+                  'Null':
                     aws:RequestTag/Application: 'false'
                   StringNotEquals:
                     aws:RequestTag/Application: Job Seeker Copilot
@@ -2700,7 +2700,7 @@ Resources:
                   - wafv2:TagResource
                 Resource: '*'
                 Condition:
-                  Null:
+                  'Null':
                     aws:RequestTag/Environment: 'false'
                   StringNotEquals:
                     aws:RequestTag/Environment: public-beta
@@ -2727,7 +2727,7 @@ Resources:
                   - wafv2:TagResource
                 Resource: '*'
                 Condition:
-                  Null:
+                  'Null':
                     aws:RequestTag/ManagedBy: 'false'
                   StringNotEquals:
                     aws:RequestTag/ManagedBy: Terraform
