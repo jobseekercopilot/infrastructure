@@ -93,7 +93,7 @@ jq \
        | .value.scanStatus="PASSED"
        | .value.revision=(
            if .key == "clamav" then "1.4.5"
-           elif .key == "job-seeker-copilot-client" then "146aea47bcc2d8550464ef2c95b56cc3bc82aa4e"
+           elif .key == "job-seeker-copilot-client" then "4a237103a0bbad9220d6d1ecb0c7de3d0d995565"
            else $sourceRevision
            end
          )
@@ -257,6 +257,11 @@ jq \
        taxTreatment:"VAT_NOT_CHARGED",
        taxStatus:"NOT_VAT_REGISTERED",
        catalogVersion:"public-beta-2026-08-22",
+       liveStripeCatalog:[
+         {id:"starter",productId:"prod_offlineStarter",priceId:"price_offlineStarter499"},
+         {id:"active",productId:"prod_offlineActive",priceId:"price_offlineActive1199"},
+         {id:"power",productId:"prod_offlinePower",priceId:"price_offlinePower1999"}
+       ],
        consumerTermsVersion:$legalVersion,
        consumerTermsEffectiveOn:$reviewDate,
        consumerTermsUrl:"https://app.jobseekercopilot.com/terms",

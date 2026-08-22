@@ -117,10 +117,10 @@ Terraform plan or AWS credit award alone is not launch approval.
       `864ba3c36b2ba4bcd1749edc597ed903a21e7dfa515bb2809d3bc9b9cf878f42`,
       Payment is `39005690b2fe5a1da6208b25c3e0e4c9c57c7eb3` /
       `40aa59f62a4ad4d956c2324c9c8d9fa154e4b04b49c029cbda0d80cc2c5dcdc9`,
-      Payment Gateway is `c49f9dc7441d146e58b428793a9c1a833c24aec5` /
-      `addd12e77307194d1635e49da9195dfe616a7e7653662492592764dd9092a4ec`,
-      and Stripe Gateway is `0e84d1bd97a00194809322307682c557069f30d4` /
-      `9fff5cff738ab51c24be85e989dcb6b9fe01bd2397289695660deff2c83a6ef7`.
+      Payment Gateway is `99ee685a6809a254305a4cbb4dd92ba0fa7751bc` /
+      `9da54edec5a264e541433bf16dbc3826d8e0aa813ceb8e91fcdafab05f324b0b`,
+      and Stripe Gateway is `04dd9fa7c095f65120afd37cfc11380176756216` /
+      `4fc3c82918d2c062c56a5326b783dfabcf2c3fd68dfdeb56626cca260fa225a7`.
       Auth calls only Payment for lifecycle work; Payment owns Stripe expiry
       with its distinct receiver token and recovery.
 - [ ] Isolated signed-settlement acceptance evidence is ancestor-verified at
@@ -214,7 +214,9 @@ Terraform plan or AWS credit award alone is not launch approval.
       reference and trader disclosure, distinct service tokens, webhook secret,
       refund/reconciliation runbooks, and fail-closed readiness status `PASS`.
       `NOT_CONFIGURED` cannot reach live checkout; no legal-name placeholder is
-      accepted as evidence.
+      accepted as evidence. The protected `liveStripeCatalog` records the exact
+      three permanent live Product/Price pairs; each Price is one-off GBP at
+      £4.99, £11.99 or £19.99 and maps only to Starter, Active or Power.
 - [ ] SES production access, SPF/DKIM, configuration set, suppression/bounce/
       complaint handling and sender-domain ownership are verified.
 - [ ] Provider secret versions were supplied through the protected operator;

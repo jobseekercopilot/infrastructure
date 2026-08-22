@@ -84,8 +84,8 @@ Complete the [launch checklist](launch-checklist.md). In particular:
   The final payment chain is Document Generation Gateway
   `cd9b71a3d4dbfbe41d6784f3eeeb7b1b113f5218`, Payment Service
   `39005690b2fe5a1da6208b25c3e0e4c9c57c7eb3`, Payment Gateway
-  `c49f9dc7441d146e58b428793a9c1a833c24aec5`, and Stripe Gateway
-  `0e84d1bd97a00194809322307682c557069f30d4`, each bound to the exact exported
+  `99ee685a6809a254305a4cbb4dd92ba0fa7751bc`, and Stripe Gateway
+  `04dd9fa7c095f65120afd37cfc11380176756216`, each bound to the exact exported
   OpenAPI hash in the manifest. The release builder proves every reviewed SHA
   is an ancestor of the locked image before setting the capability true. It
   separately ancestor-verifies the isolated signed-settlement acceptance
@@ -201,6 +201,13 @@ Supply external credentials one integration at a time with
 that integration is approved. Do not enable it yet. Core tokens, JWT keys and
 seven database-user passwords are generated/idempotently preserved by the
 protected release operator; values are never returned in workflow output.
+
+For Stripe, store only the live runtime secret/restricted key and live endpoint
+signing secret in `jsc-public-beta/integration/stripe`. Record the safe,
+permanent Product and Price identifiers in `integrations.stripe.liveStripeCatalog`
+in the protected approval manifest. Terraform injects only the three approved
+Price IDs into Stripe Gateway. Live readiness fails closed if an ID is missing,
+malformed, duplicated or not bound to the approved catalogue evidence.
 
 Dispatch `prepare` with the exact build artifact and:
 

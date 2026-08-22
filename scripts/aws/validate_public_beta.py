@@ -37,14 +37,14 @@ DGG_PAYMENT_V2_REVISION = "cd9b71a3d4dbfbe41d6784f3eeeb7b1b113f5218"
 DGG_PAYMENT_V2_OPENAPI_SHA256 = "864ba3c36b2ba4bcd1749edc597ed903a21e7dfa515bb2809d3bc9b9cf878f42"
 PAYMENT_SERVICE_V2_REVISION = "39005690b2fe5a1da6208b25c3e0e4c9c57c7eb3"
 PAYMENT_SERVICE_V2_OPENAPI_SHA256 = "40aa59f62a4ad4d956c2324c9c8d9fa154e4b04b49c029cbda0d80cc2c5dcdc9"
-PAYMENT_GATEWAY_V2_REVISION = "c49f9dc7441d146e58b428793a9c1a833c24aec5"
-PAYMENT_GATEWAY_V2_OPENAPI_SHA256 = "addd12e77307194d1635e49da9195dfe616a7e7653662492592764dd9092a4ec"
-STRIPE_GATEWAY_V2_REVISION = "0e84d1bd97a00194809322307682c557069f30d4"
-STRIPE_GATEWAY_V2_OPENAPI_SHA256 = "9fff5cff738ab51c24be85e989dcb6b9fe01bd2397289695660deff2c83a6ef7"
+PAYMENT_GATEWAY_V2_REVISION = "99ee685a6809a254305a4cbb4dd92ba0fa7751bc"
+PAYMENT_GATEWAY_V2_OPENAPI_SHA256 = "9da54edec5a264e541433bf16dbc3826d8e0aa813ceb8e91fcdafab05f324b0b"
+STRIPE_GATEWAY_V2_REVISION = "04dd9fa7c095f65120afd37cfc11380176756216"
+STRIPE_GATEWAY_V2_OPENAPI_SHA256 = "4fc3c82918d2c062c56a5326b783dfabcf2c3fd68dfdeb56626cca260fa225a7"
 SYSTEM_DATA_PAYMENT_FIXTURE_REVISION = "ca4bafeafbfe41b25a8507f6f08d97490ef71a28"
 E2E_PAYMENT_FIXTURE_REVISION = "cfa1a70a0028f11f8019c889b9057ba8124ff8f5"
 INFRASTRUCTURE_PAYMENT_FIXTURE_REVISION = "412566a750ead55740e0b2b4b81cebe29d3e0ad9"
-CLIENT_RELEASE_REVISION = "146aea47bcc2d8550464ef2c95b56cc3bc82aa4e"
+CLIENT_RELEASE_REVISION = "4a237103a0bbad9220d6d1ecb0c7de3d0d995565"
 CLIENT_ARTIFACT_CONTRACT_SHA256 = "801fab5beb7ea81798677086ef00a94759294a1e85915f74da843632de2c6f75"
 LANDING_RELEASE_REVISION = "533a8086b3af8019cfcd585e50e44e64a0bc2e0d"
 LANDING_ARTIFACT_CONTRACT_SHA256 = "9682372ef2d909de3b2b49c6d0fed232565b61e1b1fe0ac666ace58bfdb0804f"
@@ -458,6 +458,8 @@ def validate_runtime(catalog: dict[str, Any], runtime: dict[str, Any]) -> set[st
     require(stripe.get("STRIPE_LEGACY_CHECKOUT_ENABLED") == "false", "legacy Stripe checkout must stay disabled")
     require(stripe.get("STRIPE_API_BASE_URL") == "https://api.stripe.com", "Stripe API host must remain authoritative")
     require(stripe.get("STRIPE_API_VERSION") == "UNAPPROVED", "Stripe API version template must fail closed")
+    for price_variable in ("STRIPE_PRICE_STARTER", "STRIPE_PRICE_ACTIVE", "STRIPE_PRICE_POWER"):
+        require(stripe.get(price_variable) == "UNAPPROVED", f"{price_variable}: checked-in live Price must fail closed")
     for return_url in ("STRIPE_SUCCESS_URL", "STRIPE_CANCEL_URL"):
         value = stripe.get(return_url, "")
         require(value.startswith("{{application_base_url}}/payment/"), f"{return_url}: plain application HTTPS page required")
@@ -1004,6 +1006,7 @@ def validate_approvals(approvals: dict[str, Any], release: bool) -> None:
         "stripeLiveReleaseAuthorised", "stripeApiVersion", "legalEntityType",
         "legalEntityConfigurationVersion", "legalEntityReviewed", "legalEntityEvidenceReference",
         "merchantTermsTraderDisclosureVerified", "taxTreatment", "taxStatus", "catalogVersion", "catalogPlans",
+        "liveStripeCatalog",
         "freeDocumentCredits", "billingCountry", "currency", "creditUnit", "automaticRenewal",
         "displayedPriceIsCheckoutTotal", "consumerTermsVersion", "consumerTermsEffectiveOn",
         "consumerTermsUrl", "consumerTermsContentSha256", "financialRecordRetentionYears",
@@ -1020,6 +1023,22 @@ def validate_approvals(approvals: dict[str, Any], release: bool) -> None:
         "Payment catalog must retain the approved £4.99/£11.99/£19.99 10/25/60-credit pricing",
     )
     require(stripe["freeDocumentCredits"] == 2, "Payment free allowance must remain two document credits")
+    live_catalog = stripe["liveStripeCatalog"]
+    require(
+        isinstance(live_catalog, list)
+        and [entry.get("id") for entry in live_catalog] == ["starter", "active", "power"]
+        and all(set(entry) == {"id", "productId", "priceId"} for entry in live_catalog),
+        "Live Stripe catalogue must contain exactly the three approved packs",
+    )
+    identifiers = [entry[field] for entry in live_catalog for field in ("productId", "priceId")]
+    empty_catalog = all(value == "" for value in identifiers)
+    configured_catalog = (
+        all(re.fullmatch(r"prod_[A-Za-z0-9]+", entry["productId"] or "") for entry in live_catalog)
+        and all(re.fullmatch(r"price_[A-Za-z0-9]+", entry["priceId"] or "") for entry in live_catalog)
+        and len({entry["productId"] for entry in live_catalog}) == 3
+        and len({entry["priceId"] for entry in live_catalog}) == 3
+    )
+    require(empty_catalog or configured_catalog, "Live Stripe Product/Price identifiers are partial or invalid")
     if release:
         require(stripe["legalEntityType"] == legal["legalEntityType"], "Payment seller type differs from public legal contract")
         require(
@@ -1044,6 +1063,7 @@ def validate_approvals(approvals: dict[str, Any], release: bool) -> None:
             "Payment financial retention differs from public legal contract",
         )
         if stripe["approved"]:
+            require(configured_catalog, "approved Stripe release needs the exact live Product/Price catalogue")
             require(stripe["paymentReadinessStatus"] == "PASS", "approved Stripe release needs PASS readiness")
             for field, minimum in (
                 ("refundRunbookReference", 8), ("reconciliationRunbookReference", 8),
@@ -1108,6 +1128,9 @@ def validate_source_guards() -> None:
         'document_store_permanent_erasure_runtime_enabled': "permanent-erasure evidence/runtime launch gate",
         'POSTCODES_IO_NORTHERN_IRELAND_ENABLED': "fail-closed NI/BT postcode runtime binding",
         'STRIPE_API_VERSION': "explicit Stripe API version contract",
+        'STRIPE_PRICE_STARTER': "approved Starter live Stripe Price",
+        'STRIPE_PRICE_ACTIVE': "approved Active live Stripe Price",
+        'STRIPE_PRICE_POWER': "approved Power live Stripe Price",
         'release_attestation_id': "runtime-configuration-bound release markers",
         'output "emergency_darken_contract"': "state-bound emergency containment identifiers",
         'filesha256(local.approval_manifest_path)': "signed launch-approval checksum binding",

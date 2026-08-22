@@ -1148,6 +1148,9 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         self.assertEqual(payment["PAYMENT_CHECKOUT_ORDER_TTL"], "PT1H")
         self.assertEqual(stripe["EXTERNAL_PROVIDER_MODE"], "DISABLED")
         self.assertEqual(stripe["STRIPE_LIVE_RELEASE_AUTHORISED"], "false")
+        self.assertEqual(stripe["STRIPE_PRICE_STARTER"], "UNAPPROVED")
+        self.assertEqual(stripe["STRIPE_PRICE_ACTIVE"], "UNAPPROVED")
+        self.assertEqual(stripe["STRIPE_PRICE_POWER"], "UNAPPROVED")
         self.assertNotIn("?", stripe["STRIPE_SUCCESS_URL"])
         self.assertNotIn("?", stripe["STRIPE_CANCEL_URL"])
 
@@ -1431,6 +1434,11 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             "legalEntityReviewed": True,
             "legalEntityEvidenceReference": "reviewed-seller-identity-record",
             "merchantTermsTraderDisclosureVerified": True,
+            "liveStripeCatalog": [
+                {"id": "starter", "productId": "prod_liveStarter", "priceId": "price_liveStarter499"},
+                {"id": "active", "productId": "prod_liveActive", "priceId": "price_liveActive1199"},
+                {"id": "power", "productId": "prod_livePower", "priceId": "price_livePower1999"},
+            ],
         })
         live_stripe["refundRunbookReference"] = "TBD"
         with self.assertRaisesRegex(module.ContractError, "refundRunbookReference"):
@@ -1485,10 +1493,10 @@ class PublicBetaAwsContractTest(unittest.TestCase):
                 "user-management-gateway": "1c3ad16acbe7c4c6f18ea52493a14ffbfe614760",
                 "document-generation-gateway": "74b55b675816f5415099fbfa82c526709d486ff2",
                 "payment-service": "b9428a00284cec3a1f9014be64cefd972b645afd",
-                "payment-gateway": "71bdb46a48910a7e30afefd63e3fcda171db9f51",
-                "stripe-gateway": "9ff7e15315797f2e4fac56783a00f9ae17036005",
+                "payment-gateway": "99ee685a6809a254305a4cbb4dd92ba0fa7751bc",
+                "stripe-gateway": "04dd9fa7c095f65120afd37cfc11380176756216",
                 "system-data-service": "7b8f85d2ffa3e5e44b5ad63e7f0150fc4713d05f",
-                "job-seeker-copilot-client": "36e71873b25e25343de283846fe40dd498adcda2",
+                "job-seeker-copilot-client": "4a237103a0bbad9220d6d1ecb0c7de3d0d995565",
                 "e2e": "e6d008572a9ddd9dfcff7170273362d88e7f7c94",
             },
         )
@@ -1514,12 +1522,12 @@ class PublicBetaAwsContractTest(unittest.TestCase):
                 "openApiSha256": "40aa59f62a4ad4d956c2324c9c8d9fa154e4b04b49c029cbda0d80cc2c5dcdc9",
             },
             "paymentGateway": {
-                "revision": "c49f9dc7441d146e58b428793a9c1a833c24aec5",
-                "openApiSha256": "addd12e77307194d1635e49da9195dfe616a7e7653662492592764dd9092a4ec",
+                "revision": "99ee685a6809a254305a4cbb4dd92ba0fa7751bc",
+                "openApiSha256": "9da54edec5a264e541433bf16dbc3826d8e0aa813ceb8e91fcdafab05f324b0b",
             },
             "stripeGateway": {
-                "revision": "0e84d1bd97a00194809322307682c557069f30d4",
-                "openApiSha256": "9fff5cff738ab51c24be85e989dcb6b9fe01bd2397289695660deff2c83a6ef7",
+                "revision": "04dd9fa7c095f65120afd37cfc11380176756216",
+                "openApiSha256": "4fc3c82918d2c062c56a5326b783dfabcf2c3fd68dfdeb56626cca260fa225a7",
             },
         })
         self.assertEqual(images["dependencyEvidence"]["paymentFixtureAcceptance"], {
@@ -1539,7 +1547,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         self.assertFalse(images["capabilities"]["frontendArtifactsVerified"])
         self.assertEqual(images["dependencyEvidence"]["frontendArtifacts"], {
             "client": {
-                "revision": "146aea47bcc2d8550464ef2c95b56cc3bc82aa4e",
+                "revision": "4a237103a0bbad9220d6d1ecb0c7de3d0d995565",
                 "artifactContractSha256": "801fab5beb7ea81798677086ef00a94759294a1e85915f74da843632de2c6f75",
                 "packaging": "OCI_SSR_BFF",
             },

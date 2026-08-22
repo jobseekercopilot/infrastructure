@@ -441,6 +441,9 @@
         "STRIPE_LEGACY_CHECKOUT_ENABLED": "false",
         "STRIPE_API_BASE_URL": "https://api.stripe.com",
         "STRIPE_API_VERSION": "UNAPPROVED",
+        "STRIPE_PRICE_STARTER": "UNAPPROVED",
+        "STRIPE_PRICE_ACTIVE": "UNAPPROVED",
+        "STRIPE_PRICE_POWER": "UNAPPROVED",
         "STRIPE_SUCCESS_URL": "{{application_base_url}}/payment/success",
         "STRIPE_CANCEL_URL": "{{application_base_url}}/payment/cancel"
       },
