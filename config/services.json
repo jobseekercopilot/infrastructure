@@ -153,7 +153,7 @@
     {
       "name": "authentication-service",
       "kind": "service",
-      "branch": "develop",
+      "branch": "main",
       "build": "maven",
       "composeServices": ["authentication-service"],
       "port": 8084,
@@ -163,7 +163,7 @@
     {
       "name": "user-profile-service",
       "kind": "service",
-      "branch": "develop",
+      "branch": "main",
       "build": "maven",
       "composeServices": ["user-profile-service"],
       "port": 8085,
@@ -173,7 +173,7 @@
     {
       "name": "user-management-gateway",
       "kind": "gateway",
-      "branch": "develop",
+      "branch": "main",
       "build": "maven",
       "composeServices": ["user-management-gateway"],
       "port": 8083,
@@ -183,7 +183,7 @@
     {
       "name": "postcode-io-gateway",
       "kind": "gateway",
-      "branch": "develop",
+      "branch": "main",
       "build": "maven",
       "composeServices": ["postcode-io-gateway"],
       "port": 8082,
@@ -193,7 +193,7 @@
     {
       "name": "location-gateway",
       "kind": "gateway",
-      "branch": "develop",
+      "branch": "main",
       "build": "maven",
       "composeServices": ["location-gateway"],
       "port": 8081,
@@ -203,7 +203,7 @@
     {
       "name": "location-service",
       "kind": "service",
-      "branch": "develop",
+      "branch": "main",
       "build": "maven",
       "composeServices": ["location-service"],
       "port": 8104,
@@ -213,7 +213,7 @@
     {
       "name": "google-maps-gateway",
       "kind": "gateway",
-      "branch": "develop",
+      "branch": "main",
       "build": "maven",
       "composeServices": ["google-maps-gateway"],
       "port": 8105,
@@ -223,7 +223,7 @@
     {
       "name": "reed-gateway",
       "kind": "gateway",
-      "branch": "develop",
+      "branch": "main",
       "build": "maven",
       "composeServices": ["reed-gateway"],
       "port": 8087,
@@ -233,7 +233,7 @@
     {
       "name": "adzuna-gateway",
       "kind": "gateway",
-      "branch": "develop",
+      "branch": "main",
       "build": "maven",
       "composeServices": ["adzuna-gateway"],
       "port": 8101,
@@ -243,7 +243,7 @@
     {
       "name": "jsearch-gateway",
       "kind": "gateway",
-      "branch": "develop",
+      "branch": "main",
       "build": "maven",
       "composeServices": ["jsearch-gateway"],
       "port": 8102,
@@ -253,7 +253,7 @@
     {
       "name": "nhs-jobs-gateway",
       "kind": "gateway",
-      "branch": "develop",
+      "branch": "main",
       "build": "maven",
       "composeServices": ["nhs-jobs-gateway"],
       "port": 8104,
@@ -263,7 +263,7 @@
     {
       "name": "apprenticeships-gateway",
       "kind": "gateway",
-      "branch": "develop",
+      "branch": "main",
       "build": "maven",
       "composeServices": ["apprenticeships-gateway"],
       "port": 8105,
@@ -273,7 +273,7 @@
     {
       "name": "system-data-service",
       "kind": "service",
-      "branch": "develop",
+      "branch": "main",
       "build": "maven",
       "composeServices": ["system-data-service"],
       "port": 8103,
@@ -293,7 +293,7 @@
     {
       "name": "job-service",
       "kind": "service",
-      "branch": "develop",
+      "branch": "main",
       "build": "maven",
       "composeServices": ["job-service"],
       "port": 8086,
@@ -310,7 +310,7 @@
     {
       "name": "job-matching-service",
       "kind": "service",
-      "branch": "develop",
+      "branch": "main",
       "build": "maven",
       "composeServices": ["job-matching-service"],
       "port": 8097,
@@ -320,7 +320,7 @@
     {
       "name": "job-finder-gateway",
       "kind": "gateway",
-      "branch": "develop",
+      "branch": "main",
       "build": "maven",
       "composeServices": ["job-finder-gateway"],
       "port": 8080,
@@ -334,7 +334,7 @@
     {
       "name": "llm-gateway",
       "kind": "gateway",
-      "branch": "develop",
+      "branch": "main",
       "build": "maven",
       "composeServices": ["llm-gateway"],
       "port": 8090,
@@ -344,7 +344,7 @@
     {
       "name": "document-store-service",
       "kind": "service",
-      "branch": "develop",
+      "branch": "main",
       "build": "maven",
       "composeServices": ["document-store-service"],
       "port": 8089,
@@ -354,7 +354,7 @@
     {
       "name": "document-export-service",
       "kind": "service",
-      "branch": "develop",
+      "branch": "main",
       "build": "maven",
       "composeServices": ["document-export-service"],
       "port": 8094,
@@ -364,7 +364,7 @@
     {
       "name": "application-tracker-service",
       "kind": "service",
-      "branch": "develop",
+      "branch": "main",
       "build": "maven",
       "composeServices": ["application-tracker-service"],
       "port": 8088,
@@ -374,7 +374,7 @@
     {
       "name": "cv-cover-letter-service",
       "kind": "service",
-      "branch": "develop",
+      "branch": "main",
       "build": "maven",
       "composeServices": ["cv-cover-letter-service"],
       "port": 8091,
@@ -389,7 +389,7 @@
     {
       "name": "document-generation-gateway",
       "kind": "gateway",
-      "branch": "develop",
+      "branch": "main",
       "build": "maven",
       "composeServices": ["document-generation-gateway"],
       "port": 8092,
@@ -408,7 +408,7 @@
     {
       "name": "reporting-service",
       "kind": "service",
-      "branch": "develop",
+      "branch": "main",
       "build": "maven",
       "composeServices": ["reporting-service"],
       "port": 8096,
@@ -418,7 +418,7 @@
     {
       "name": "reporting-gateway",
       "kind": "gateway",
-      "branch": "develop",
+      "branch": "main",
       "build": "maven",
       "composeServices": ["reporting-gateway"],
       "port": 8095,
@@ -428,7 +428,7 @@
     {
       "name": "payment-service",
       "kind": "service",
-      "branch": "develop",
+      "branch": "main",
       "build": "maven",
       "composeServices": ["payment-service"],
       "port": 8099,
@@ -438,7 +438,7 @@
     {
       "name": "stripe-gateway",
       "kind": "gateway",
-      "branch": "develop",
+      "branch": "main",
       "build": "maven",
       "composeServices": ["stripe-gateway"],
       "port": 8100,
@@ -448,7 +448,7 @@
     {
       "name": "payment-gateway",
       "kind": "gateway",
-      "branch": "develop",
+      "branch": "main",
       "build": "maven",
       "composeServices": ["payment-gateway"],
       "port": 8098,
@@ -458,7 +458,7 @@
     {
       "name": "job-seeker-copilot-client",
       "kind": "frontend",
-      "branch": "develop",
+      "branch": "main",
       "build": "npm",
       "composeServices": ["job-seeker-copilot-client"],
       "port": 3000,
@@ -475,7 +475,7 @@
     {
       "name": "e2e",
       "kind": "test",
-      "branch": "develop",
+      "branch": "main",
       "build": "npm",
       "composeServices": [],
       "dependsOn": ["job-seeker-copilot-client"]
