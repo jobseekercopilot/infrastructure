@@ -177,7 +177,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         self.assertIn('if [ "$RELEASE_ACTION" = rollback ]; then', release)
         self.assertNotIn('"$RELEASE_ACTION" = rollback ] || [ "$RELEASE_ACTION" = activate', release)
 
-    def test_github_environment_guard_fails_closed_for_solo_reviewer_and_branch_policy(self) -> None:
+    def test_github_environment_guard_fails_closed_for_owner_actor_and_branch_policy(self) -> None:
         guard = ROOT / "scripts" / "aws" / "verify_github_environment_protection.sh"
         with tempfile.TemporaryDirectory() as directory:
             fake_bin = Path(directory)
@@ -192,15 +192,12 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             fake_gh.chmod(0o755)
             environment = {
                 "name": "production-build",
+                "can_admins_bypass": False,
                 "deployment_branch_policy": {
                     "protected_branches": False,
                     "custom_branch_policies": True,
                 },
-                "protection_rules": [{
-                    "type": "required_reviewers",
-                    "prevent_self_review": False,
-                    "reviewers": [{"type": "User", "reviewer": {"login": "jobseekercopilot"}}],
-                }],
+                "protection_rules": [{"type": "branch_policy"}],
             }
             branch_policy = {
                 "total_count": 1,
@@ -213,31 +210,28 @@ class PublicBetaAwsContractTest(unittest.TestCase):
                 "BRANCH_POLICY_JSON": json.dumps(branch_policy),
             }
             command = [
-                "bash", str(guard), "jobseekercopilot/infrastructure", "production-build", "jobseekercopilot"
+                "bash", str(guard), "jobseekercopilot/infrastructure", "production-build",
+                "jobseekercopilot", "jobseekercopilot",
             ]
             valid = subprocess.run(command, env=command_environment, check=False, capture_output=True, text=True)
             self.assertEqual(valid.returncode, 0, valid.stderr)
 
-            environment["protection_rules"][0]["reviewers"] = []
+            wrong_actor = subprocess.run(
+                [*command[:-1], "another-user"],
+                env=command_environment, check=False, capture_output=True, text=True,
+            )
+            self.assertNotEqual(wrong_actor.returncode, 0)
+            self.assertIn("only repository owner jobseekercopilot", wrong_actor.stderr)
+
+            environment["can_admins_bypass"] = True
             command_environment["ENVIRONMENT_JSON"] = json.dumps(environment)
-            missing_reviewer = subprocess.run(
+            admin_bypass = subprocess.run(
                 command, env=command_environment, check=False, capture_output=True, text=True
             )
-            self.assertNotEqual(missing_reviewer.returncode, 0)
-            self.assertIn("must require the authorised solo reviewer jobseekercopilot", missing_reviewer.stderr)
+            self.assertNotEqual(admin_bypass.returncode, 0)
+            self.assertIn("disable administrator bypass", admin_bypass.stderr)
 
-            environment["protection_rules"][0]["reviewers"] = [
-                {"type": "User", "reviewer": {"login": "jobseekercopilot"}}
-            ]
-            environment["protection_rules"][0]["prevent_self_review"] = True
-            command_environment["ENVIRONMENT_JSON"] = json.dumps(environment)
-            self_review_disabled = subprocess.run(
-                command, env=command_environment, check=False, capture_output=True, text=True
-            )
-            self.assertNotEqual(self_review_disabled.returncode, 0)
-            self.assertIn("allow self-review", self_review_disabled.stderr)
-
-            environment["protection_rules"][0]["prevent_self_review"] = False
+            environment["can_admins_bypass"] = False
             branch_policy["branch_policies"][0]["name"] = "develop"
             command_environment["ENVIRONMENT_JSON"] = json.dumps(environment)
             command_environment["BRANCH_POLICY_JSON"] = json.dumps(branch_policy)
@@ -248,8 +242,8 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             self.assertIn("exact main branch", develop_allowed.stderr)
 
         guard_source = guard.read_text(encoding="utf-8")
-        self.assertNotIn("can_admins_bypass", guard_source)
-        self.assertIn("separately signed launch-approval gate", guard_source)
+        self.assertIn("can_admins_bypass == false", guard_source)
+        self.assertIn('"$actor_login" != "$operator_login"', guard_source)
         approvals = json.loads((ROOT / "aws" / "public-beta" / "config" / "launch-approvals.json").read_text())
         github_evidence = approvals["githubEnvironmentProtection"]
         self.assertFalse(github_evidence["reviewed"])
@@ -263,7 +257,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             workflow = (ROOT / ".github" / "workflows" / workflow_name).read_text(encoding="utf-8")
             self.assertIn(
                 f'verify_github_environment_protection.sh "$GITHUB_REPOSITORY" {environment_name} '
-                '"$GITHUB_REPOSITORY_OWNER"',
+                '"$GITHUB_REPOSITORY_OWNER" "$GITHUB_ACTOR"',
                 workflow,
             )
         build = (ROOT / ".github" / "workflows" / "aws-public-beta-build.yml").read_text(encoding="utf-8")
@@ -1302,9 +1296,8 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             "reviewedBy": "Bernard McGeever, sole operator",
             "reviewedOn": today.isoformat(),
             "evidenceReference": "github-environment-protection-review-2026-08-15",
-            "requiredReviewersVerified": True,
-            "preventSelfReview": False,
-            "soloOperatorSelfReviewAuthorised": True,
+            "ownerOnlyWorkflowActorVerified": True,
+            "soloOperatorSelfApprovalAuthorised": True,
             "exactMainBranchVerified": True,
             "administratorBypassDisabled": True,
         })

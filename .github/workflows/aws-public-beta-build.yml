@@ -32,7 +32,7 @@ jobs:
       - name: Verify protected production environment
         env:
           GH_TOKEN: ${{ github.token }}
-        run: scripts/aws/verify_github_environment_protection.sh "$GITHUB_REPOSITORY" production-build "$GITHUB_REPOSITORY_OWNER"
+        run: scripts/aws/verify_github_environment_protection.sh "$GITHUB_REPOSITORY" production-build "$GITHUB_REPOSITORY_OWNER" "$GITHUB_ACTOR"
       - name: Create read-only cross-repository token
         id: app-token
         uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
@@ -159,7 +159,7 @@ jobs:
       - name: Verify protected production environment
         env:
           GH_TOKEN: ${{ github.token }}
-        run: scripts/aws/verify_github_environment_protection.sh "$GITHUB_REPOSITORY" production-build "$GITHUB_REPOSITORY_OWNER"
+        run: scripts/aws/verify_github_environment_protection.sh "$GITHUB_REPOSITORY" production-build "$GITHUB_REPOSITORY_OWNER" "$GITHUB_ACTOR"
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12'

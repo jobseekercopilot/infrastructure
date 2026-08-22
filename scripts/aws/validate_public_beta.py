@@ -738,8 +738,9 @@ def validate_approvals(approvals: dict[str, Any], release: bool) -> None:
     github_environment = approvals.get("githubEnvironmentProtection")
     github_fields = {
         "reviewed", "reviewedBy", "reviewedOn", "evidenceReference", "environments",
-        "reviewerUsername", "requiredReviewersVerified", "preventSelfReview",
-        "soloOperatorSelfReviewAuthorised", "exactMainBranchVerified",
+        "operatorUsername", "paidEnvironmentReviewerProtectionAvailable",
+        "ownerOnlyWorkflowActorVerified", "soloOperatorSelfApprovalAuthorised",
+        "exactMainBranchVerified",
         "administratorBypassDisabled",
     }
     require(
@@ -751,8 +752,12 @@ def validate_approvals(approvals: dict[str, Any], release: bool) -> None:
         "GitHub protection evidence must cover the exact three production environments",
     )
     require(
-        github_environment["reviewerUsername"] == "jobseekercopilot",
-        "GitHub protection evidence must name the authorised sole-operator reviewer",
+        github_environment["operatorUsername"] == "jobseekercopilot",
+        "GitHub protection evidence must name the authorised sole operator",
+    )
+    require(
+        github_environment["paidEnvironmentReviewerProtectionAvailable"] is False,
+        "GitHub protection evidence must record the unavailable paid reviewer control",
     )
     if not release:
         require(github_environment["reviewed"] is False, "checked-in GitHub environment evidence must fail closed")
@@ -760,8 +765,7 @@ def validate_approvals(approvals: dict[str, Any], release: bool) -> None:
             all(
                 github_environment[field] is False
                 for field in (
-                    "requiredReviewersVerified", "preventSelfReview",
-                    "soloOperatorSelfReviewAuthorised",
+                    "ownerOnlyWorkflowActorVerified", "soloOperatorSelfApprovalAuthorised",
                     "exactMainBranchVerified", "administratorBypassDisabled",
                 )
             ),
@@ -778,11 +782,10 @@ def validate_approvals(approvals: dict[str, Any], release: bool) -> None:
             github_environment["reviewedOn"], "githubEnvironmentProtection.reviewedOn"
         )
         require(github_reviewed_on <= reviewed_at.date(), "GitHub environment review follows release provenance")
-        require(github_environment["requiredReviewersVerified"] is True, "release requires its named reviewer")
         require(
-            github_environment["preventSelfReview"] is False
-            and github_environment["soloOperatorSelfReviewAuthorised"] is True,
-            "release requires explicit sole-operator self-review authorisation",
+            github_environment["ownerOnlyWorkflowActorVerified"] is True
+            and github_environment["soloOperatorSelfApprovalAuthorised"] is True,
+            "release requires explicit owner-only sole-operator approval authorisation",
         )
         require(
             github_environment["exactMainBranchVerified"] is True
