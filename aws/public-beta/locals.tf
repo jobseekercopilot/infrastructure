@@ -478,11 +478,11 @@ locals {
   zero_digest          = "sha256:${join("", [for _ in range(64) : "0"])}"
 
   frontend_release_ready = (
-    try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.revision, "") == "3092e46157105a3d8702221c53623184f276a896" &&
+    try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.revision, "") == "146aea47bcc2d8550464ef2c95b56cc3bc82aa4e" &&
     try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.artifactContractSha256, "") == "801fab5beb7ea81798677086ef00a94759294a1e85915f74da843632de2c6f75" &&
     try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.packaging, "") == "OCI_SSR_BFF" &&
     try(local.image_manifest.images["job-seeker-copilot-client"].revision, "") == try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.revision, "") &&
-    try(local.image_manifest.dependencyEvidence.frontendArtifacts.landing.revision, "") == "3888dd2b94d91b4f3d3fe9a7e24001f0966cf5ea" &&
+    try(local.image_manifest.dependencyEvidence.frontendArtifacts.landing.revision, "") == "533a8086b3af8019cfcd585e50e44e64a0bc2e0d" &&
     try(local.image_manifest.dependencyEvidence.frontendArtifacts.landing.artifactContractSha256, "") == "9682372ef2d909de3b2b49c6d0fed232565b61e1b1fe0ac666ace58bfdb0804f" &&
     alltrue([
       for digest in [
@@ -557,7 +557,7 @@ locals {
     } &&
     try(local.image_manifest.dependencyEvidence.paymentFixtureAcceptance, {}) == {
       systemDataServiceRevision = "ca4bafeafbfe41b25a8507f6f08d97490ef71a28"
-      e2eRevision               = "1541d92f34a3068bb160e1638834a06af6a60796"
+      e2eRevision               = "cfa1a70a0028f11f8019c889b9057ba8124ff8f5"
       infrastructureRevision    = "412566a750ead55740e0b2b4b81cebe29d3e0ad9"
       profile                   = "test"
       providerMode              = "FIXTURE"

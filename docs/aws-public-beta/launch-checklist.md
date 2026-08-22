@@ -125,7 +125,7 @@ Terraform plan or AWS credit award alone is not launch approval.
       with its distinct receiver token and recovery.
 - [ ] Isolated signed-settlement acceptance evidence is ancestor-verified at
       System Data `ca4bafeafbfe41b25a8507f6f08d97490ef71a28`, E2E
-      `1541d92f34a3068bb160e1638834a06af6a60796` and Infrastructure
+      `cfa1a70a0028f11f8019c889b9057ba8124ff8f5` and Infrastructure
       `412566a750ead55740e0b2b4b81cebe29d3e0ad9`; its recorded result is 36/36
       healthy services, 4/4 scenarios and 33/33 steps. System Data/E2E remain
       outside production tasks, repositories and ALB. On the exact Stripe

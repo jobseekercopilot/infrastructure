@@ -90,7 +90,7 @@ Complete the [launch checklist](launch-checklist.md). In particular:
   is an ancestor of the locked image before setting the capability true. It
   separately ancestor-verifies the isolated signed-settlement acceptance
   evidence: System Data `ca4bafeafbfe41b25a8507f6f08d97490ef71a28`, E2E
-  `1541d92f34a3068bb160e1638834a06af6a60796` and Infrastructure
+  `cfa1a70a0028f11f8019c889b9057ba8124ff8f5` and Infrastructure
   `412566a750ead55740e0b2b4b81cebe29d3e0ad9`, which proved 36 healthy services
   and 4/4 scenarios (33/33 steps). Those are test-only provenance: System Data
   and E2E remain absent from production tasks/ECR/ALB. Stripe's single reviewed
