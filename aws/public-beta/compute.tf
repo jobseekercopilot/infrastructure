@@ -803,10 +803,11 @@ resource "aws_ecs_task_definition" "clamav" {
         "CMD-SHELL",
         "set -eu; clamdcheck.sh; daemon=\"$(clamdscan --version)\"; disk=\"$(freshclam --version)\"; daemon_version=\"$(echo \"$daemon\" | cut -d/ -f2)\"; disk_version=\"$(echo \"$disk\" | cut -d/ -f2)\"; if [ \"$daemon_version\" != \"$disk_version\" ]; then clamdscan --reload >/dev/null 2>&1; exit 42; fi; signature=\"$${daemon#*/*/}\"; signature_epoch=\"$(date -u -D '%a %b %e %H:%M:%S %Y' -d \"$signature\" +%s)\"; now=\"$(date -u +%s)\"; test \"$((now - signature_epoch))\" -le 172800",
       ]
-      interval    = 30
-      timeout     = 10
-      retries     = 3
-      startPeriod = 600
+      interval = 30
+      timeout  = 10
+      retries  = 3
+      # ECS rejects values above its API maximum of 300 seconds.
+      startPeriod = 300
     }
     logConfiguration = {
       logDriver = "awslogs"
