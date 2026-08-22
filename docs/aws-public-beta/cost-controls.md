@@ -22,14 +22,21 @@ release-gated/disabled and no live charge is claimed by this plan.
 | WAF, Route 53, KMS, S3, ECR, logs, SES | $45–85 | requests, logs, scans, document volume |
 | expected planning total | **about $560** | traffic and retained data |
 
-The retained bootstrap `MonthlyCostAlertBudget` owns the **USD 750 alert
-budget**; Terraform must consume the identical `MonthlyAlertBudgetUsd` output
-as `foundation_monthly_alert_budget_usd` and `monthly_budget_usd`. It is not a
-hard cap. Actual alerts are sent at 50%, 80% and 100%, forecast alerts at 80%,
-and a daily Cost Anomaly Detection subscription triggers from a $20 absolute impact.
-Email subscriptions must be confirmed. Cost-allocation tags may take time to
-activate, so the billing console must confirm that `CostCentre=public-beta` is
-an active cost-allocation tag before relying on the filtered budget.
+The retained bootstrap budget structure owns the **USD 750 alert ceiling**;
+Terraform must consume the identical `MonthlyAlertBudgetUsd` output as
+`foundation_monthly_alert_budget_usd` and `monthly_budget_usd`. It is not a
+hard cap. Actual-spend notifications are sent at USD 350, 500, 560, 650, 700
+and 750. Forecast notifications use the same six levels. The split across
+three AWS Budget resources is intentional because AWS limits one budget to
+five notifications. A Cost Anomaly Detection subscription triggers from a
+USD 20 absolute impact and reuses an existing account-wide AWS-services
+monitor when one already exists.
+
+All budget, anomaly, backup and operational messages publish through the
+encrypted operations topic. Its owner email subscription must be confirmed
+before activation. Cost-allocation tags may take time to activate, so the
+billing console must confirm that `CostCentre=public-beta` is an active
+cost-allocation tag before relying on the filtered budgets.
 
 Harder engineering bounds are separate:
 
