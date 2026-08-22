@@ -514,7 +514,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
 
         exact_pass_pairs = {
             "PassOnlyEcsInstanceRoleToEc2": "ec2.amazonaws.com",
-            "PassOnlyMonitoringRoleToRdsMonitoring": "monitoring.rds.amazonaws.com",
+            "PassOnlyMonitoringRoleToRdsMonitoring": "rds.amazonaws.com",
             "PassOnlyFlowRoleToVpcFlowLogs": "vpc-flow-logs.amazonaws.com",
             "PassOnlyBackupRolesToBackup": "backup.amazonaws.com",
             "PassOnlyTaskRolesToEcsTasks": "ecs-tasks.amazonaws.com",
@@ -1699,6 +1699,61 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             "s3:x-amz-server-side-encryption-bucket-key-enabled",
             bootstrap_bytes.decode("utf-8"),
         )
+
+        application_key_policy = resources["ApplicationDataKey"]["Properties"]["KeyPolicy"]["Statement"]
+        application_key_by_sid = {statement["Sid"]: statement for statement in application_key_policy}
+        autoscaling_principal = (
+            "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/"
+            "autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling"
+        )
+        self.assertEqual(
+            application_key_by_sid["AllowAutoScalingServiceLinkedRoleUse"]["Principal"]["AWS"],
+            autoscaling_principal,
+        )
+        autoscaling_grant = application_key_by_sid["AllowAutoScalingServiceLinkedRoleGrant"]
+        self.assertEqual(autoscaling_grant["Principal"]["AWS"], autoscaling_principal)
+        self.assertEqual(autoscaling_grant["Condition"]["Bool"]["kms:GrantIsForAWSResource"], "true")
+
+        discovery_statements = resources["ApplyDiscoveryPolicy"]["Properties"]["PolicyDocument"]["Statement"]
+        discovery_actions = {
+            action
+            for statement in discovery_statements
+            for action in (
+                statement["Action"] if isinstance(statement["Action"], list) else [statement["Action"]]
+            )
+        }
+        self.assertIn("s3:GetAccelerateConfiguration", discovery_actions)
+
+        compute_statements = resources["ApplyComputePolicy"]["Properties"]["PolicyDocument"]["Statement"]
+        compute_by_sid = {statement["Sid"]: statement for statement in compute_statements}
+        private_zone = compute_by_sid["CreateOnlyPrivateHostedZoneForRegionalVpc"]
+        self.assertEqual(private_zone["Action"], "route53:CreateHostedZone")
+        self.assertEqual(
+            private_zone["Condition"]["StringLike"]["route53:VPCs"],
+            "VPCId=vpc-*,VPCRegion=${AWS::Region}",
+        )
+
+        observability_statements = resources["ApplyObservabilityPolicy"]["Properties"]["PolicyDocument"]["Statement"]
+        observability_by_sid = {statement["Sid"]: statement for statement in observability_statements}
+        managed_waf = observability_by_sid["ReferenceOnlyAwsManagedWafRuleSets"]
+        self.assertEqual(set(managed_waf["Action"]), {"wafv2:CreateWebACL", "wafv2:UpdateWebACL"})
+        self.assertTrue(managed_waf["Resource"].endswith(":regional/managedruleset/AWS/*"))
+
+        iam_statements = resources["ApplyReleaseOperationsPolicy"]["Properties"]["PolicyDocument"]["Statement"]
+        iam_by_sid = {statement["Sid"]: statement for statement in iam_statements}
+        self.assertEqual(
+            iam_by_sid["PassOnlyMonitoringRoleToRdsMonitoring"]["Condition"]["StringEquals"][
+                "iam:PassedToService"
+            ],
+            "rds.amazonaws.com",
+        )
+
+        compute = (ROOT / "aws" / "public-beta" / "compute.tf").read_text(encoding="utf-8")
+        clamav = compute.split('resource "aws_ecs_task_definition" "clamav" {', maxsplit=1)[1].split(
+            'resource "aws_ecs_service" "clamav"', maxsplit=1
+        )[0]
+        self.assertIn("startPeriod = 300", clamav)
+        self.assertNotIn("startPeriod = 600", clamav)
         for statement in journal_policy:
             if statement["Sid"] != "DenyInsecureTransport":
                 self.assertIn("/permanent-erasures/v1/*", statement["Resource"])

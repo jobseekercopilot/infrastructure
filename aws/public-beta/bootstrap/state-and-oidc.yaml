@@ -243,6 +243,26 @@ Resources:
             Condition:
               ArnLike:
                 kms:EncryptionContext:aws:logs:arn: !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/jsc/public-beta/*
+          - Sid: AllowAutoScalingServiceLinkedRoleUse
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling
+            Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:GenerateDataKey*
+              - kms:ReEncrypt*
+            Resource: '*'
+          - Sid: AllowAutoScalingServiceLinkedRoleGrant
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling
+            Action: kms:CreateGrant
+            Resource: '*'
+            Condition:
+              Bool:
+                kms:GrantIsForAWSResource: 'true'
       Tags:
         - Key: Application
           Value: Job Seeker Copilot
@@ -1353,6 +1373,7 @@ Resources:
               - rds:Describe*
               - rds:ListTagsForResource
               - s3:GetAccountPublicAccessBlock
+              - s3:GetAccelerateConfiguration
               - s3:GetBucket*
               - s3:GetEncryptionConfiguration
               - s3:GetLifecycleConfiguration
@@ -1797,6 +1818,13 @@ Resources:
                 aws:RequestTag/Application: Job Seeker Copilot
                 aws:RequestTag/Environment: public-beta
                 aws:RequestTag/ManagedBy: Terraform
+          - Sid: CreateOnlyPrivateHostedZoneForRegionalVpc
+            Effect: Allow
+            Action: route53:CreateHostedZone
+            Resource: '*'
+            Condition:
+              StringLike:
+                route53:VPCs: !Sub VPCId=vpc-*,VPCRegion=${AWS::Region}
           - Sid: TagServiceDiscoveryOnlyWithReviewedCreateTags
             Effect: Allow
             Action: servicediscovery:TagResource
@@ -2139,6 +2167,12 @@ Resources:
                 aws:RequestTag/Application: Job Seeker Copilot
                 aws:RequestTag/Environment: public-beta
                 aws:RequestTag/ManagedBy: Terraform
+          - Sid: ReferenceOnlyAwsManagedWafRuleSets
+            Effect: Allow
+            Action:
+              - wafv2:CreateWebACL
+              - wafv2:UpdateWebACL
+            Resource: !Sub arn:${AWS::Partition}:wafv2:${AWS::Region}:${AWS::AccountId}:regional/managedruleset/AWS/*
           - Sid: TagOnlyNamedPublicBetaAlarms
             Effect: Allow
             Action: cloudwatch:TagResource
@@ -2259,7 +2293,7 @@ Resources:
             Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-rds-monitoring
             Condition:
               StringEquals:
-                iam:PassedToService: monitoring.rds.amazonaws.com
+                iam:PassedToService: rds.amazonaws.com
           - Sid: PassOnlyFlowRoleToVpcFlowLogs
             Effect: Allow
             Action: iam:PassRole
