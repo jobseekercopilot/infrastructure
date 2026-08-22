@@ -1486,10 +1486,10 @@ class PublicBetaAwsContractTest(unittest.TestCase):
                 "document-generation-gateway": "d0d0f37780d9f8fa0db1e9ea45e37c9bdccd5cb1",
                 "payment-service": "4caa12969f058b96f02ebce10ce2f562039cac0c",
                 "payment-gateway": "c2c53e7faaea61f169e04663893a3a692d2e8135",
-                "stripe-gateway": "7d2cc958bc06ea05234868b3b34e943e68bc9785",
-                "system-data-service": "99e0e5984c7b68199a178df707804e0d7f0aeb18",
+                "stripe-gateway": "29838e838049f7cc3387d86c094b873cb6ef219c",
+                "system-data-service": "7b8f85d2ffa3e5e44b5ad63e7f0150fc4713d05f",
                 "job-seeker-copilot-client": "3092e46157105a3d8702221c53623184f276a896",
-                "e2e": "caec5576b016c0c34c36900f1a733bc60a4126c4",
+                "e2e": "e5dae5425a1fa50a4858a43de9d993b460fc0716",
             },
         )
         self.assertFalse(images["capabilities"]["paymentV2ProductionContractVerified"])
