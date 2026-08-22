@@ -492,7 +492,7 @@ locals {
   zero_digest          = "sha256:${join("", [for _ in range(64) : "0"])}"
 
   frontend_release_ready = (
-    try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.revision, "") == "146aea47bcc2d8550464ef2c95b56cc3bc82aa4e" &&
+    try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.revision, "") == "4a237103a0bbad9220d6d1ecb0c7de3d0d995565" &&
     try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.artifactContractSha256, "") == "801fab5beb7ea81798677086ef00a94759294a1e85915f74da843632de2c6f75" &&
     try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.packaging, "") == "OCI_SSR_BFF" &&
     try(local.image_manifest.images["job-seeker-copilot-client"].revision, "") == try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.revision, "") &&
@@ -561,12 +561,12 @@ locals {
         openApiSha256 = "40aa59f62a4ad4d956c2324c9c8d9fa154e4b04b49c029cbda0d80cc2c5dcdc9"
       }
       paymentGateway = {
-        revision      = "c49f9dc7441d146e58b428793a9c1a833c24aec5"
-        openApiSha256 = "addd12e77307194d1635e49da9195dfe616a7e7653662492592764dd9092a4ec"
+        revision      = "99ee685a6809a254305a4cbb4dd92ba0fa7751bc"
+        openApiSha256 = "9da54edec5a264e541433bf16dbc3826d8e0aa813ceb8e91fcdafab05f324b0b"
       }
       stripeGateway = {
-        revision      = "0e84d1bd97a00194809322307682c557069f30d4"
-        openApiSha256 = "9fff5cff738ab51c24be85e989dcb6b9fe01bd2397289695660deff2c83a6ef7"
+        revision      = "04dd9fa7c095f65120afd37cfc11380176756216"
+        openApiSha256 = "4fc3c82918d2c062c56a5326b783dfabcf2c3fd68dfdeb56626cca260fa225a7"
       }
     } &&
     try(local.image_manifest.dependencyEvidence.paymentFixtureAcceptance, {}) == {
@@ -580,7 +580,7 @@ locals {
       stepCount                 = 33
     } &&
     try(local.image_manifest.dependencyEvidence.stripeFixtureProductionIsolation, {}) == {
-      revision                         = "0e84d1bd97a00194809322307682c557069f30d4"
+      revision                         = "04dd9fa7c095f65120afd37cfc11380176756216"
       profile                          = "production"
       providerMode                     = "DISABLED"
       fixtureModeStartupRejected       = true
