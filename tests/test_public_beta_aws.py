@@ -1650,6 +1650,23 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             self.assertEqual(resources[retained].get("DeletionPolicy"), "Retain")
             self.assertEqual(resources[retained].get("UpdateReplacePolicy"), "Retain")
 
+        topic_statements = resources["OperationsTopicPolicy"]["Properties"]["PolicyDocument"]["Statement"]
+        topic_by_sid = {statement["Sid"]: statement for statement in topic_statements}
+        self.assertEqual(
+            set(topic_by_sid["OwnerAdministration"]["Action"]),
+            {
+                "sns:AddPermission",
+                "sns:DeleteTopic",
+                "sns:GetTopicAttributes",
+                "sns:ListSubscriptionsByTopic",
+                "sns:Publish",
+                "sns:RemovePermission",
+                "sns:SetTopicAttributes",
+                "sns:Subscribe",
+            },
+        )
+        self.assertNotIn("sns:*", topic_by_sid["OwnerAdministration"]["Action"])
+
         state_policy = resources["StateBucketPolicy"]["Properties"]["PolicyDocument"]["Statement"]
         state_by_sid = {statement["Sid"]: statement for statement in state_policy}
         self.assertEqual(
