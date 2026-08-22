@@ -214,7 +214,9 @@ Terraform plan or AWS credit award alone is not launch approval.
       reference and trader disclosure, distinct service tokens, webhook secret,
       refund/reconciliation runbooks, and fail-closed readiness status `PASS`.
       `NOT_CONFIGURED` cannot reach live checkout; no legal-name placeholder is
-      accepted as evidence.
+      accepted as evidence. The protected `liveStripeCatalog` records the exact
+      three permanent live Product/Price pairs; each Price is one-off GBP at
+      £4.99, £11.99 or £19.99 and maps only to Starter, Active or Power.
 - [ ] SES production access, SPF/DKIM, configuration set, suppression/bounce/
       complaint handling and sender-domain ownership are verified.
 - [ ] Provider secret versions were supplied through the protected operator;

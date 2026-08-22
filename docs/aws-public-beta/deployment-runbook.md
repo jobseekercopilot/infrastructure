@@ -202,6 +202,13 @@ that integration is approved. Do not enable it yet. Core tokens, JWT keys and
 seven database-user passwords are generated/idempotently preserved by the
 protected release operator; values are never returned in workflow output.
 
+For Stripe, store only the live runtime secret/restricted key and live endpoint
+signing secret in `jsc-public-beta/integration/stripe`. Record the safe,
+permanent Product and Price identifiers in `integrations.stripe.liveStripeCatalog`
+in the protected approval manifest. Terraform injects only the three approved
+Price IDs into Stripe Gateway. Live readiness fails closed if an ID is missing,
+malformed, duplicated or not bound to the approved catalogue evidence.
+
 Dispatch `prepare` with the exact build artifact and:
 
 ```text

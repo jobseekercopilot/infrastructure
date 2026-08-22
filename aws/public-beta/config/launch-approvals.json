@@ -189,6 +189,11 @@
         {"id": "active", "documentCredits": 25, "priceGbpPence": 1199},
         {"id": "power", "documentCredits": 60, "priceGbpPence": 1999}
       ],
+      "liveStripeCatalog": [
+        {"id": "starter", "productId": "", "priceId": ""},
+        {"id": "active", "productId": "", "priceId": ""},
+        {"id": "power", "productId": "", "priceId": ""}
+      ],
       "freeDocumentCredits": 2,
       "billingCountry": "GB",
       "currency": "GBP",

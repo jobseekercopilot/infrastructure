@@ -1148,6 +1148,9 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         self.assertEqual(payment["PAYMENT_CHECKOUT_ORDER_TTL"], "PT1H")
         self.assertEqual(stripe["EXTERNAL_PROVIDER_MODE"], "DISABLED")
         self.assertEqual(stripe["STRIPE_LIVE_RELEASE_AUTHORISED"], "false")
+        self.assertEqual(stripe["STRIPE_PRICE_STARTER"], "UNAPPROVED")
+        self.assertEqual(stripe["STRIPE_PRICE_ACTIVE"], "UNAPPROVED")
+        self.assertEqual(stripe["STRIPE_PRICE_POWER"], "UNAPPROVED")
         self.assertNotIn("?", stripe["STRIPE_SUCCESS_URL"])
         self.assertNotIn("?", stripe["STRIPE_CANCEL_URL"])
 
@@ -1431,6 +1434,11 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             "legalEntityReviewed": True,
             "legalEntityEvidenceReference": "reviewed-seller-identity-record",
             "merchantTermsTraderDisclosureVerified": True,
+            "liveStripeCatalog": [
+                {"id": "starter", "productId": "prod_liveStarter", "priceId": "price_liveStarter499"},
+                {"id": "active", "productId": "prod_liveActive", "priceId": "price_liveActive1199"},
+                {"id": "power", "productId": "prod_livePower", "priceId": "price_livePower1999"},
+            ],
         })
         live_stripe["refundRunbookReference"] = "TBD"
         with self.assertRaisesRegex(module.ContractError, "refundRunbookReference"):

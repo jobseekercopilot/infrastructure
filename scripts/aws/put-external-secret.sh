@@ -41,10 +41,10 @@ jq -e \
   }
 if [[ "$integration" == stripe ]]; then
   jq -e \
-    '.secret_key | startswith("sk_live_")' "$json_path" >/dev/null &&
+    '.secret_key | (startswith("sk_live_") or startswith("rk_live_"))' "$json_path" >/dev/null &&
   jq -e \
     '.webhook_secret | startswith("whsec_")' "$json_path" >/dev/null || {
-      echo "Refusing non-live Stripe credentials in the protected production secret." >&2
+    echo "Refusing non-live Stripe credentials in the protected production secret." >&2
       exit 3
     }
 fi

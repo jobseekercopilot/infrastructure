@@ -164,9 +164,20 @@ locals {
     { id = "active", documentCredits = 25, priceGbpPence = 1199 },
     { id = "power", documentCredits = 60, priceGbpPence = 1999 },
   ]
+  live_stripe_catalog_by_id = {
+    for entry in try(local.payment_contract.liveStripeCatalog, []) : entry.id => entry
+  }
   payment_contract_complete = (
     try(local.payment_contract.catalogVersion, "") == "public-beta-2026-08-22" &&
     try(local.payment_contract.catalogPlans, []) == local.expected_catalog_plans &&
+    toset(keys(local.live_stripe_catalog_by_id)) == toset(["starter", "active", "power"]) &&
+    alltrue([
+      for entry in values(local.live_stripe_catalog_by_id) :
+      can(regex("^prod_[A-Za-z0-9]+$", try(entry.productId, ""))) &&
+      can(regex("^price_[A-Za-z0-9]+$", try(entry.priceId, "")))
+    ]) &&
+    length(distinct([for entry in values(local.live_stripe_catalog_by_id) : entry.productId])) == 3 &&
+    length(distinct([for entry in values(local.live_stripe_catalog_by_id) : entry.priceId])) == 3 &&
     try(local.payment_contract.freeDocumentCredits, 0) == 2 &&
     try(local.payment_contract.billingCountry, "") == "GB" &&
     try(local.payment_contract.currency, "") == "GBP" &&
@@ -331,6 +342,9 @@ locals {
     STRIPE_LEGACY_CHECKOUT_ENABLED = "false"
     STRIPE_API_BASE_URL            = "https://api.stripe.com"
     STRIPE_API_VERSION             = try(local.payment_contract.stripeApiVersion, "UNAPPROVED")
+    STRIPE_PRICE_STARTER           = try(local.live_stripe_catalog_by_id["starter"].priceId, "UNAPPROVED")
+    STRIPE_PRICE_ACTIVE            = try(local.live_stripe_catalog_by_id["active"].priceId, "UNAPPROVED")
+    STRIPE_PRICE_POWER             = try(local.live_stripe_catalog_by_id["power"].priceId, "UNAPPROVED")
   }
 
   public_legal_environment = {

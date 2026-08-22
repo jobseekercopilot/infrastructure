@@ -257,6 +257,11 @@ jq \
        taxTreatment:"VAT_NOT_CHARGED",
        taxStatus:"NOT_VAT_REGISTERED",
        catalogVersion:"public-beta-2026-08-22",
+       liveStripeCatalog:[
+         {id:"starter",productId:"prod_offlineStarter",priceId:"price_offlineStarter499"},
+         {id:"active",productId:"prod_offlineActive",priceId:"price_offlineActive1199"},
+         {id:"power",productId:"prod_offlinePower",priceId:"price_offlinePower1999"}
+       ],
        consumerTermsVersion:$legalVersion,
        consumerTermsEffectiveOn:$reviewDate,
        consumerTermsUrl:"https://app.jobseekercopilot.com/terms",
