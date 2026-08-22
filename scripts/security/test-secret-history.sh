@@ -33,7 +33,9 @@ git -C "$test_repository" add README.md
 git -C "$test_repository" commit --quiet -m clean
 
 printf '%s\n' 'second clean history fixture' > "$test_repository/CHANGELOG.md"
-git -C "$test_repository" add CHANGELOG.md
+printf '%s\n' '{"openApiSha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}' \
+    > "$test_repository/reviewed-contract-evidence.json"
+git -C "$test_repository" add CHANGELOG.md reviewed-contract-evidence.json
 git -C "$test_repository" commit --quiet -m clean-follow-up
 
 git clone --quiet --depth 1 "file://$test_repository" "$shallow_repository"

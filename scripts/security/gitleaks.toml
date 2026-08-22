@@ -1,0 +1,13 @@
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+
+  [rules.allowlist]
+  description = "Reviewed source and OpenAPI evidence digests are not credentials"
+  regexTarget = "match"
+  regexes = [
+    '''(?i)(?:open_?api_?sha256|auth_?snapshot_?sha256|auth_payment_v2_revision)[^0-9a-f]{1,32}[0-9a-f]{40,64}''',
+    '''(?i)authentication-service"?\s*:\s*"[0-9a-f]{40}"'''
+  ]
