@@ -1,6 +1,7 @@
 locals {
-  name_prefix    = "jsc-${var.environment}"
-  namespace_name = "${var.environment}.internal"
+  name_prefix                 = "jsc-${var.environment}"
+  namespace_name              = "${var.environment}.internal"
+  release_placeholder_pattern = "(?i)(^|[^a-z0-9])(todo|tbd|placeholder|pending|not[ _-]?configured|unapproved|unknown|none|n[ /]?a|draft|sample|example|test|change[ _-]?me|replace[ _-]?me)([^a-z0-9]|$)"
 
   runtime_manifest_path  = "${path.module}/config/runtime-services.json"
   image_manifest_path    = startswith(var.image_manifest_path, "/") ? var.image_manifest_path : "${path.module}/${var.image_manifest_path}"
@@ -46,16 +47,20 @@ locals {
     for name, enabled in var.enabled_integrations : name => (
       !enabled || (
         try(local.approval_manifest.integrations[name].approved, false) &&
-        length(trimspace(try(local.approval_manifest.integrations[name].approvalReference, ""))) >= 3 &&
+        length(trimspace(try(local.approval_manifest.integrations[name].approvalReference, ""))) >= 8 &&
+        !can(regex(local.release_placeholder_pattern, trimspace(try(local.approval_manifest.integrations[name].approvalReference, "")))) &&
         length(trimspace(try(local.approval_manifest.integrations[name].approvedBy, ""))) >= 3 &&
+        !can(regex(local.release_placeholder_pattern, trimspace(try(local.approval_manifest.integrations[name].approvedBy, "")))) &&
         can(regex("^20[0-9]{2}-[0-9]{2}-[0-9]{2}$", try(local.approval_manifest.integrations[name].termsReviewedOn, ""))) &&
         can(regex("^20[0-9]{2}-[0-9]{2}-[0-9]{2}$", try(local.approval_manifest.integrations[name].expiresOn, ""))) &&
         try(timecmp("${local.approval_manifest.integrations[name].termsReviewedOn}T00:00:00Z", plantimestamp()) <= 0, false) &&
         try(timecmp("${local.approval_manifest.integrations[name].expiresOn}T23:59:59Z", plantimestamp()) >= 0, false) &&
         try(timecmp("${local.approval_manifest.integrations[name].termsReviewedOn}T00:00:00Z", "${local.approval_manifest.integrations[name].expiresOn}T23:59:59Z") <= 0, false) &&
+        try(timecmp("${local.approval_manifest.integrations[name].termsReviewedOn}T00:00:00Z", local.approval_manifest.reviewedAt) <= 0, false) &&
         try(local.approval_manifest.integrations[name].monthlyRequestLimit, 0) > 0 &&
         try(local.approval_manifest.integrations[name].monthlyCostCeilingGbp, -1) >= 0 &&
-        length(trimspace(try(local.approval_manifest.integrations[name].attributionRequirement, ""))) >= 10
+        length(trimspace(try(local.approval_manifest.integrations[name].attributionRequirement, ""))) >= 10 &&
+        !can(regex(local.release_placeholder_pattern, trimspace(try(local.approval_manifest.integrations[name].attributionRequirement, ""))))
       )
     )
   }
@@ -63,32 +68,97 @@ locals {
   google_approval_complete = !var.enabled_integrations.google_maps || (
     local.approval_complete.google_maps &&
     try(local.approval_manifest.integrations.google_maps.googleBillingQuotasVerified, false) &&
-    length(trimspace(try(local.approval_manifest.integrations.google_maps.billingQuotaEvidenceReference, ""))) >= 3 &&
+    length(trimspace(try(local.approval_manifest.integrations.google_maps.billingQuotaEvidenceReference, ""))) >= 8 &&
+    !can(regex(local.release_placeholder_pattern, trimspace(try(local.approval_manifest.integrations.google_maps.billingQuotaEvidenceReference, "")))) &&
     length(trimspace(try(local.approval_manifest.integrations.google_maps.gcpProjectId, ""))) >= 4 &&
+    !can(regex(local.release_placeholder_pattern, trimspace(try(local.approval_manifest.integrations.google_maps.gcpProjectId, "")))) &&
     length(trimspace(try(local.approval_manifest.integrations.google_maps.placesQuotaId, ""))) >= 3 &&
+    !can(regex(local.release_placeholder_pattern, trimspace(try(local.approval_manifest.integrations.google_maps.placesQuotaId, "")))) &&
     try(local.approval_manifest.integrations.google_maps.placesDailyQuota, 0) > 0 &&
     length(trimspace(try(local.approval_manifest.integrations.google_maps.routeMatrixEssentialsQuotaId, ""))) >= 3 &&
+    !can(regex(local.release_placeholder_pattern, trimspace(try(local.approval_manifest.integrations.google_maps.routeMatrixEssentialsQuotaId, "")))) &&
     try(local.approval_manifest.integrations.google_maps.routeMatrixEssentialsDailyElementQuota, 0) > 0 &&
     length(trimspace(try(local.approval_manifest.integrations.google_maps.routeMatrixProQuotaId, ""))) >= 3 &&
+    !can(regex(local.release_placeholder_pattern, trimspace(try(local.approval_manifest.integrations.google_maps.routeMatrixProQuotaId, "")))) &&
     try(local.approval_manifest.integrations.google_maps.routeMatrixProDailyElementQuota, 0) > 0 &&
     try(local.approval_manifest.integrations.google_maps.gcpBudgetAlertGbp, 0) > 0 &&
     try(local.approval_manifest.integrations.google_maps.gcpBudgetAlertGbp, 0) <= try(local.approval_manifest.integrations.google_maps.monthlyCostCeilingGbp, -1) &&
     try(local.approval_manifest.integrations.google_maps.gcpBudgetAlertThresholdPercents, []) == [50, 75, 90, 100] &&
     length(trimspace(try(local.approval_manifest.integrations.google_maps.emergencyDisableOwner, ""))) >= 3 &&
-    length(trimspace(try(local.approval_manifest.integrations.google_maps.emergencyDisableRunbookReference, ""))) >= 3
+    !can(regex(local.release_placeholder_pattern, trimspace(try(local.approval_manifest.integrations.google_maps.emergencyDisableOwner, "")))) &&
+    length(trimspace(try(local.approval_manifest.integrations.google_maps.emergencyDisableRunbookReference, ""))) >= 8 &&
+    !can(regex(local.release_placeholder_pattern, trimspace(try(local.approval_manifest.integrations.google_maps.emergencyDisableRunbookReference, ""))))
   )
 
   openai_approval_complete = !var.enabled_integrations.openai || (
     local.approval_complete.openai &&
     length(trimspace(try(local.approval_manifest.integrations.openai.privacyPolicyVersion, ""))) >= 3 &&
-    length(trimspace(try(local.approval_manifest.integrations.openai.privacyDecisionId, ""))) >= 3 &&
+    !can(regex(local.release_placeholder_pattern, trimspace(try(local.approval_manifest.integrations.openai.privacyPolicyVersion, "")))) &&
+    length(trimspace(try(local.approval_manifest.integrations.openai.privacyDecisionId, ""))) >= 8 &&
+    !can(regex(local.release_placeholder_pattern, trimspace(try(local.approval_manifest.integrations.openai.privacyDecisionId, "")))) &&
     length(trimspace(try(local.approval_manifest.integrations.openai.privacyOwner, ""))) >= 3 &&
+    !can(regex(local.release_placeholder_pattern, trimspace(try(local.approval_manifest.integrations.openai.privacyOwner, "")))) &&
     can(regex("^20[0-9]{2}-[0-9]{2}-[0-9]{2}$", try(local.approval_manifest.integrations.openai.privacyReviewedOn, ""))) &&
     try(timecmp("${local.approval_manifest.integrations.openai.privacyReviewedOn}T00:00:00Z", plantimestamp()) <= 0, false)
   )
 
-  public_legal_contract = local.approval_manifest.publicLegal
-  payment_contract      = local.approval_manifest.integrations.stripe
+  public_legal_contract           = local.approval_manifest.publicLegal
+  payment_contract                = local.approval_manifest.integrations.stripe
+  document_store_erasure_approval = try(local.approval_manifest.documentStorePermanentErasure, {})
+  github_environment_protection   = try(local.approval_manifest.githubEnvironmentProtection, {})
+  github_environment_protection_complete = (
+    try(local.github_environment_protection.reviewed, false) &&
+    try(local.github_environment_protection.environments, []) == ["production-build", "production-aws-plan", "production-aws"] &&
+    try(local.github_environment_protection.requiredReviewersVerified, false) &&
+    try(local.github_environment_protection.preventSelfReviewVerified, false) &&
+    try(local.github_environment_protection.exactMainBranchVerified, false) &&
+    try(local.github_environment_protection.administratorBypassDisabled, false) &&
+    length(trimspace(try(local.github_environment_protection.reviewedBy, ""))) >= 3 &&
+    !can(regex(local.release_placeholder_pattern, trimspace(try(local.github_environment_protection.reviewedBy, "")))) &&
+    length(trimspace(try(local.github_environment_protection.evidenceReference, ""))) >= 8 &&
+    !can(regex(local.release_placeholder_pattern, trimspace(try(local.github_environment_protection.evidenceReference, "")))) &&
+    can(regex("^20[0-9]{2}-[0-9]{2}-[0-9]{2}$", try(local.github_environment_protection.reviewedOn, ""))) &&
+    try(timecmp("${local.github_environment_protection.reviewedOn}T00:00:00Z", plantimestamp()) <= 0, false) &&
+    try(timecmp("${local.github_environment_protection.reviewedOn}T00:00:00Z", local.approval_manifest.reviewedAt) <= 0, false)
+  )
+  document_store_erasure_approval_complete = (
+    try(local.document_store_erasure_approval.reviewed, false) &&
+    length(trimspace(try(local.document_store_erasure_approval.reviewedBy, ""))) >= 3 &&
+    !can(regex(local.release_placeholder_pattern, trimspace(try(local.document_store_erasure_approval.reviewedBy, "")))) &&
+    length(trimspace(try(local.document_store_erasure_approval.evidenceReference, ""))) >= 8 &&
+    !can(regex(local.release_placeholder_pattern, trimspace(try(local.document_store_erasure_approval.evidenceReference, "")))) &&
+    can(regex("^20[0-9]{2}-[0-9]{2}-[0-9]{2}$", try(local.document_store_erasure_approval.reviewedOn, ""))) &&
+    try(timecmp("${local.document_store_erasure_approval.reviewedOn}T00:00:00Z", plantimestamp()) <= 0, false) &&
+    try(timecmp("${local.document_store_erasure_approval.reviewedOn}T00:00:00Z", local.approval_manifest.reviewedAt) <= 0, false) &&
+    can(regex("^[A-Za-z0-9][A-Za-z0-9._:-]{7,63}$", try(local.document_store_erasure_approval.retentionPolicyVersion, ""))) &&
+    !can(regex(local.release_placeholder_pattern, trimspace(try(local.document_store_erasure_approval.retentionPolicyVersion, "")))) &&
+    can(regex("^[A-Za-z0-9][A-Za-z0-9._:-]{7,63}$", try(local.document_store_erasure_approval.backupRetentionPolicyVersion, ""))) &&
+    !can(regex(local.release_placeholder_pattern, trimspace(try(local.document_store_erasure_approval.backupRetentionPolicyVersion, "")))) &&
+    can(regex("^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$", try(local.document_store_erasure_approval.journalRetentionPolicyVersion, ""))) &&
+    !can(regex(local.release_placeholder_pattern, trimspace(try(local.document_store_erasure_approval.journalRetentionPolicyVersion, "")))) &&
+    try(local.document_store_erasure_approval.maximumBackupRetentionDays, 0) == 35 &&
+    try(local.document_store_erasure_approval.journalRetentionDays, 0) == var.foundation_erasure_journal_retention_days &&
+    try(local.document_store_erasure_approval.journalRetentionDays, 0) > 35 &&
+    try(local.document_store_erasure_approval.externalDeletionJournalVerified, false) &&
+    try(local.document_store_erasure_approval.isolatedRestoreReplayVerified, false) &&
+    try(local.document_store_erasure_approval.journalRetentionDays, 0) >= try(local.public_legal_contract.accountDeletionCompletionDays, 0) &&
+    try(local.document_store_erasure_approval.journalRetentionDays, 0) >= try(local.public_legal_contract.documentDeletionCompletionDays, 0)
+  )
+  document_store_permanent_erasure_image_ready = (
+    try(local.image_manifest.capabilities.documentStorePermanentErasureVerified, false) &&
+    can(regex("^[0-9a-f]{40}$", try(local.image_manifest.dependencyEvidence.documentStorePermanentErasure.revision, ""))) &&
+    try(local.image_manifest.dependencyEvidence.documentStorePermanentErasure.revision, "") != "0000000000000000000000000000000000000000" &&
+    can(regex("^[0-9a-f]{64}$", try(local.image_manifest.dependencyEvidence.documentStorePermanentErasure.openApiSha256, ""))) &&
+    try(local.image_manifest.dependencyEvidence.documentStorePermanentErasure.openApiSha256, "") != "0000000000000000000000000000000000000000000000000000000000000000" &&
+    try(local.image_manifest.dependencyEvidence.documentStorePermanentErasure.maximumBackupRetentionDays, 0) == 35 &&
+    try(local.image_manifest.dependencyEvidence.documentStorePermanentErasure.restoreReplayRunbook, "") == "docs/aws-public-beta/document-store-permanent-erasure.md" &&
+    can(regex("^[0-9a-f]{64}$", try(local.image_manifest.dependencyEvidence.documentStorePermanentErasure.restoreReplayRunbookSha256, ""))) &&
+    try(local.image_manifest.dependencyEvidence.documentStorePermanentErasure.restoreReplayRunbookSha256, "") != "0000000000000000000000000000000000000000000000000000000000000000"
+  )
+  document_store_permanent_erasure_runtime_enabled = (
+    local.document_store_erasure_approval_complete &&
+    local.document_store_permanent_erasure_image_ready
+  )
   expected_catalog_plans = [
     { id = "starter", documentCredits = 10, priceGbpPence = 799 },
     { id = "active", documentCredits = 25, priceGbpPence = 1699 },
@@ -109,18 +179,22 @@ locals {
       (try(local.payment_contract.taxStatus, "") == "NOT_VAT_REGISTERED" && try(local.payment_contract.taxTreatment, "") == "VAT_NOT_CHARGED")
     ) &&
     length(trimspace(try(local.payment_contract.consumerTermsVersion, ""))) >= 3 &&
+    !can(regex(local.release_placeholder_pattern, trimspace(try(local.payment_contract.consumerTermsVersion, "")))) &&
     can(regex("^20[0-9]{2}-[0-9]{2}-[0-9]{2}$", try(local.payment_contract.consumerTermsEffectiveOn, ""))) &&
     try(timecmp("${local.payment_contract.consumerTermsEffectiveOn}T00:00:00Z", plantimestamp()) <= 0, false) &&
     can(regex("^https://", try(local.payment_contract.consumerTermsUrl, ""))) &&
     can(regex("^[0-9a-f]{64}$", try(local.payment_contract.consumerTermsContentSha256, ""))) &&
+    try(local.payment_contract.consumerTermsContentSha256, "") != "0000000000000000000000000000000000000000000000000000000000000000" &&
     try(local.payment_contract.financialRecordRetentionYears, 0) >= 7 &&
     try(local.payment_contract.financialRecordRetentionYears, 0) <= 10 &&
     try(local.payment_contract.stripeApiVersion, "") == "2026-02-25.clover" &&
     contains(["SOLE_TRADER", "LIMITED_COMPANY"], try(local.payment_contract.legalEntityType, "NOT_CONFIGURED")) &&
     can(regex("^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$", try(local.payment_contract.legalEntityConfigurationVersion, ""))) &&
     try(local.payment_contract.legalEntityConfigurationVersion, "NOT_CONFIGURED") != "NOT_CONFIGURED" &&
+    !can(regex(local.release_placeholder_pattern, trimspace(try(local.payment_contract.legalEntityConfigurationVersion, "")))) &&
     try(local.payment_contract.legalEntityReviewed, false) &&
-    length(trimspace(try(local.payment_contract.legalEntityEvidenceReference, ""))) >= 3 &&
+    length(trimspace(try(local.payment_contract.legalEntityEvidenceReference, ""))) >= 8 &&
+    !can(regex(local.release_placeholder_pattern, trimspace(try(local.payment_contract.legalEntityEvidenceReference, "")))) &&
     try(local.payment_contract.merchantTermsTraderDisclosureVerified, false) &&
     try(local.payment_contract.checkoutEnabled, false) == var.enabled_integrations.stripe &&
     try(local.payment_contract.checkoutReleaseAuthorised, false) == var.enabled_integrations.stripe &&
@@ -133,20 +207,29 @@ locals {
   )
 
   public_legal_contract_complete = (
+    can(regex("^20[0-9]{2}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$", try(local.approval_manifest.reviewedAt, ""))) &&
+    try(timecmp(local.approval_manifest.reviewedAt, plantimestamp()) <= 0, false) &&
     try(local.public_legal_contract.reviewed, false) &&
     length(trimspace(try(local.public_legal_contract.reviewedBy, ""))) >= 3 &&
-    length(trimspace(try(local.public_legal_contract.evidenceReference, ""))) >= 3 &&
+    !can(regex(local.release_placeholder_pattern, trimspace(try(local.public_legal_contract.reviewedBy, "")))) &&
+    length(trimspace(try(local.public_legal_contract.evidenceReference, ""))) >= 8 &&
+    !can(regex(local.release_placeholder_pattern, trimspace(try(local.public_legal_contract.evidenceReference, "")))) &&
     can(regex("^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$", try(local.public_legal_contract.legalVersion, ""))) &&
     try(local.public_legal_contract.legalVersion, "NOT_CONFIGURED") != "NOT_CONFIGURED" &&
+    !can(regex(local.release_placeholder_pattern, trimspace(try(local.public_legal_contract.legalVersion, "")))) &&
     can(regex("^20[0-9]{2}-[0-9]{2}-[0-9]{2}$", try(local.public_legal_contract.effectiveOn, ""))) &&
     try(timecmp("${local.public_legal_contract.effectiveOn}T00:00:00Z", plantimestamp()) <= 0, false) &&
+    try(timecmp("${local.public_legal_contract.effectiveOn}T00:00:00Z", local.approval_manifest.reviewedAt) <= 0, false) &&
     contains(["SOLE_TRADER", "LIMITED_COMPANY"], try(local.public_legal_contract.legalEntityType, "NOT_CONFIGURED")) &&
     contains(["NOT_VAT_REGISTERED", "VAT_REGISTERED"], try(local.public_legal_contract.taxStatus, "NOT_CONFIGURED")) &&
     length(trimspace(try(local.public_legal_contract.legalEntityName, ""))) >= 2 &&
+    !can(regex(local.release_placeholder_pattern, trimspace(try(local.public_legal_contract.legalEntityName, "")))) &&
     length(trimspace(try(local.public_legal_contract.tradingName, ""))) >= 2 &&
+    !can(regex(local.release_placeholder_pattern, trimspace(try(local.public_legal_contract.tradingName, "")))) &&
     length(trimspace(try(local.public_legal_contract.businessAddress, ""))) >= 8 &&
-    can(regex("^[^@[:space:]]+@[^@[:space:]]+[.][^@[:space:]]+$", try(local.public_legal_contract.privacyEmail, ""))) &&
-    can(regex("^[^@[:space:]]+@[^@[:space:]]+[.][^@[:space:]]+$", try(local.public_legal_contract.supportEmail, ""))) &&
+    !can(regex(local.release_placeholder_pattern, trimspace(try(local.public_legal_contract.businessAddress, "")))) &&
+    can(regex("^[^@[:space:]]+@([a-z0-9-]+[.])*jobseekercopilot[.]com$", lower(try(local.public_legal_contract.privacyEmail, "")))) &&
+    can(regex("^[^@[:space:]]+@([a-z0-9-]+[.])*jobseekercopilot[.]com$", lower(try(local.public_legal_contract.supportEmail, "")))) &&
     (
       try(local.public_legal_contract.icoRegistrationStatus, "NOT_CONFIGURED") == "NOT_REQUIRED_CONFIRMED" ||
       (
@@ -160,21 +243,24 @@ locals {
     try(local.public_legal_contract.documentDeletionCompletionDays, 0) <= 365 &&
     try(local.public_legal_contract.securityLogRetentionDays, 0) >= 30 &&
     try(local.public_legal_contract.securityLogRetentionDays, 0) <= 3650 &&
+    try(local.public_legal_contract.securityLogRetentionDays, 0) == var.log_retention_days &&
     try(local.public_legal_contract.supportRecordRetentionDays, 0) >= 30 &&
     try(local.public_legal_contract.supportRecordRetentionDays, 0) <= 3650 &&
     try(local.public_legal_contract.financialRecordRetentionYears, 0) >= 7 &&
     try(local.public_legal_contract.financialRecordRetentionYears, 0) <= 10 &&
     try(local.public_legal_contract.termsUrl, "") == "${trimsuffix(var.application_base_url, "/")}/terms" &&
     try(local.public_legal_contract.privacyNoticeUrl, "") == "${trimsuffix(var.application_base_url, "/")}/privacy" &&
-    can(regex("^[0-9a-f]{64}$", try(local.public_legal_contract.termsContentSha256, ""))) &&
-    can(regex("^[0-9a-f]{64}$", try(local.public_legal_contract.privacyNoticeContentSha256, ""))) &&
+    can(regex("^[0-9a-f]{64}$", try(local.public_legal_contract.clientLegalArtifactSha256, ""))) &&
+    try(local.public_legal_contract.clientLegalArtifactSha256, "") != "0000000000000000000000000000000000000000000000000000000000000000" &&
+    can(regex("^[0-9a-f]{64}$", try(local.public_legal_contract.landingLegalArtifactSha256, ""))) &&
+    try(local.public_legal_contract.landingLegalArtifactSha256, "") != "0000000000000000000000000000000000000000000000000000000000000000" &&
     try(local.payment_contract.legalEntityType, "") == try(local.public_legal_contract.legalEntityType, "") &&
     try(local.payment_contract.legalEntityConfigurationVersion, "") == try(local.public_legal_contract.legalVersion, "") &&
     try(local.payment_contract.taxStatus, "") == try(local.public_legal_contract.taxStatus, "") &&
     try(local.payment_contract.consumerTermsVersion, "") == try(local.public_legal_contract.legalVersion, "") &&
     try(local.payment_contract.consumerTermsEffectiveOn, "") == try(local.public_legal_contract.effectiveOn, "") &&
     try(local.payment_contract.consumerTermsUrl, "") == try(local.public_legal_contract.termsUrl, "") &&
-    try(local.payment_contract.consumerTermsContentSha256, "") == try(local.public_legal_contract.termsContentSha256, "") &&
+    try(local.payment_contract.consumerTermsContentSha256, "") == try(local.public_legal_contract.clientLegalArtifactSha256, "") &&
     try(local.payment_contract.financialRecordRetentionYears, 0) == try(local.public_legal_contract.financialRecordRetentionYears, 0)
   )
 
@@ -182,8 +268,10 @@ locals {
     local.approval_complete.stripe &&
     local.payment_contract_complete &&
     try(local.approval_manifest.integrations.stripe.paymentReadinessStatus, "BLOCKED") == "PASS" &&
-    length(trimspace(try(local.approval_manifest.integrations.stripe.refundRunbookReference, ""))) >= 3 &&
-    length(trimspace(try(local.approval_manifest.integrations.stripe.reconciliationRunbookReference, ""))) >= 3
+    length(trimspace(try(local.approval_manifest.integrations.stripe.refundRunbookReference, ""))) >= 8 &&
+    !can(regex(local.release_placeholder_pattern, trimspace(try(local.approval_manifest.integrations.stripe.refundRunbookReference, "")))) &&
+    length(trimspace(try(local.approval_manifest.integrations.stripe.reconciliationRunbookReference, ""))) >= 8 &&
+    !can(regex(local.release_placeholder_pattern, trimspace(try(local.approval_manifest.integrations.stripe.reconciliationRunbookReference, ""))))
   )
 
   any_job_provider_enabled = (
@@ -203,7 +291,7 @@ locals {
     "{{account_email_mode}}"            = var.enabled_integrations.account_email ? "ses" : "fixture"
     "{{ses_configuration_set}}"         = var.ses_configuration_set
     "{{document_bucket}}"               = aws_s3_bucket.documents.bucket
-    "{{kms_key_arn}}"                   = aws_kms_key.data.arn
+    "{{kms_key_arn}}"                   = var.foundation_data_kms_key_arn
     "{{google_enabled}}"                = tostring(var.enabled_integrations.google_maps)
     "{{google_maximum_sessions}}"       = tostring(var.google_maximum_sessions)
     "{{google_maximum_destinations}}"   = tostring(var.google_maximum_destinations)
@@ -314,6 +402,22 @@ locals {
       name == "postcode-io-gateway" ? {
         POSTCODES_IO_NORTHERN_IRELAND_ENABLED = tostring(var.enabled_integrations.postcodes_ni)
       } : {},
+      name == "document-store-service" ? {
+        DOCUMENT_STORE_PURGE_ENABLED                            = tostring(local.document_store_permanent_erasure_runtime_enabled)
+        DOCUMENT_STORE_PERMANENT_ERASURE_ENABLED                = tostring(local.document_store_permanent_erasure_runtime_enabled)
+        DOCUMENT_STORE_PERMANENT_ERASURE_WRITE_FENCE_ENABLED    = "true"
+        DOCUMENT_STORE_VERSIONED_OBJECT_ERASURE_ENABLED         = tostring(local.document_store_permanent_erasure_runtime_enabled)
+        DOCUMENT_STORE_RETENTION_POLICY_VERSION                 = try(local.document_store_erasure_approval.retentionPolicyVersion, "NOT_CONFIGURED")
+        DOCUMENT_STORE_BACKUP_RETENTION_POLICY_VERSION          = try(local.document_store_erasure_approval.backupRetentionPolicyVersion, "NOT_CONFIGURED")
+        DOCUMENT_STORE_MAXIMUM_BACKUP_RETENTION_DAYS            = tostring(try(local.document_store_erasure_approval.maximumBackupRetentionDays, 0))
+        DOCUMENT_STORE_ERASURE_JOURNAL_PROVIDER                 = "s3"
+        DOCUMENT_STORE_ERASURE_JOURNAL_REGION                   = var.aws_region
+        DOCUMENT_STORE_ERASURE_JOURNAL_BUCKET                   = var.foundation_erasure_journal_bucket_name
+        DOCUMENT_STORE_ERASURE_JOURNAL_KMS_KEY_ID               = var.foundation_erasure_journal_kms_key_arn
+        DOCUMENT_STORE_ERASURE_JOURNAL_CREDENTIALS_PROVIDER     = "task-role"
+        DOCUMENT_STORE_ERASURE_JOURNAL_OBJECT_LOCK_ENABLED      = "true"
+        DOCUMENT_STORE_ERASURE_JOURNAL_RETENTION_POLICY_VERSION = try(local.document_store_erasure_approval.journalRetentionPolicyVersion, "NOT_CONFIGURED")
+      } : {},
       name == "authentication-service" ? {
         AUTH_LEGAL_DOCUMENTS_REVIEWED = tostring(try(local.public_legal_contract.reviewed, false))
         AUTH_LEGAL_CURRENT_VERSION    = try(local.public_legal_contract.legalVersion, "NOT_CONFIGURED")
@@ -356,12 +460,40 @@ locals {
     ses_configuration_set = var.ses_configuration_set
     waf_rate_limit        = var.waf_rate_limit_per_five_minutes
     log_retention_days    = var.log_retention_days
+    foundation = {
+      data_kms_key_arn               = var.foundation_data_kms_key_arn
+      operations_topic_arn           = var.foundation_operations_topic_arn
+      backup_plan_id                 = var.foundation_backup_plan_id
+      erasure_journal_kms_key_arn    = var.foundation_erasure_journal_kms_key_arn
+      erasure_journal_bucket_name    = var.foundation_erasure_journal_bucket_name
+      erasure_journal_retention_days = var.foundation_erasure_journal_retention_days
+      approved_ecs_ami_id            = var.foundation_approved_ecs_ami_id
+      monthly_alert_budget_usd       = var.foundation_monthly_alert_budget_usd
+    }
   }
   release_attestation_id = sha256(jsonencode(local.release_attestation_payload))
 
   required_image_names = setunion(toset(keys(local.raw_services)), toset(["clamav", "release-operator"]))
   manifest_image_names = toset(keys(local.image_manifest.images))
   zero_digest          = "sha256:${join("", [for _ in range(64) : "0"])}"
+
+  frontend_release_ready = (
+    try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.revision, "") == "3092e46157105a3d8702221c53623184f276a896" &&
+    try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.artifactContractSha256, "") == "801fab5beb7ea81798677086ef00a94759294a1e85915f74da843632de2c6f75" &&
+    try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.packaging, "") == "OCI_SSR_BFF" &&
+    try(local.image_manifest.images["job-seeker-copilot-client"].revision, "") == try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.revision, "") &&
+    try(local.image_manifest.dependencyEvidence.frontendArtifacts.landing.revision, "") == "743e42475319330be70e4d6d8f47000f913626f9" &&
+    try(local.image_manifest.dependencyEvidence.frontendArtifacts.landing.artifactContractSha256, "") == "9682372ef2d909de3b2b49c6d0fed232565b61e1b1fe0ac666ace58bfdb0804f" &&
+    alltrue([
+      for digest in [
+        try(local.image_manifest.dependencyEvidence.frontendArtifacts.landing.staticArtifactSha256, ""),
+        try(local.image_manifest.dependencyEvidence.frontendArtifacts.landing.runtimeConfigSha256, ""),
+        try(local.image_manifest.dependencyEvidence.frontendArtifacts.landing.selectedSamTemplateSha256, ""),
+      ] : can(regex("^[0-9a-f]{64}$", digest))
+    ]) &&
+    try(local.image_manifest.dependencyEvidence.frontendArtifacts.landing.selectedSamTemplate, "") == "infrastructure/waitlist-backend/template.yaml" &&
+    try(local.image_manifest.dependencyEvidence.frontendArtifacts.landing.deploymentStatus, "") == "NOT_DEPLOYED"
+  )
 
   images_release_ready = (
     local.image_manifest.schemaVersion == 1 &&
@@ -373,43 +505,15 @@ locals {
     try(local.image_manifest.dependencyEvidence.jsearchRuntimeHealth, "") == "79677c6586207f5aa30b9c6d0720f5ed2cfe728a" &&
     try(local.image_manifest.capabilities.documentStoreTaskRoleCredentials, false) &&
     try(local.image_manifest.capabilities.documentStoreS3KmsEncryption, false) &&
+    local.document_store_permanent_erasure_image_ready &&
     try(local.image_manifest.capabilities.runtimeHealthcheckCommandsVerified, false) &&
     try(local.image_manifest.capabilities.rdsCaBundleVerified, false) &&
     try(local.image_manifest.capabilities.postcodesNorthernIrelandCoverageChainVerified, false) &&
     try(local.image_manifest.capabilities.frontendArtifactsVerified, false) &&
     try(local.image_manifest.capabilities.paymentV2ProductionContractVerified, false) &&
     try(local.image_manifest.capabilities.paymentFixtureAcceptanceVerified, false) &&
-    try(local.image_manifest.dependencyEvidence.frontendArtifacts, {}) == {
-      client = {
-        revision               = "3092e46157105a3d8702221c53623184f276a896"
-        artifactContractSha256 = "801fab5beb7ea81798677086ef00a94759294a1e85915f74da843632de2c6f75"
-        packaging              = "OCI_SSR_BFF"
-      }
-      landing = {
-        revision                  = "743e42475319330be70e4d6d8f47000f913626f9"
-        artifactContractSha256    = "9682372ef2d909de3b2b49c6d0fed232565b61e1b1fe0ac666ace58bfdb0804f"
-        staticArtifactSha256      = "PENDING"
-        runtimeConfigSha256       = "PENDING"
-        selectedSamTemplate       = "infrastructure/waitlist-backend/template.yaml"
-        selectedSamTemplateSha256 = "PENDING"
-        deploymentStatus          = "NOT_DEPLOYED"
-      }
-    } &&
-    can(regex("^[0-9a-f]{40}$", try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.revision, ""))) &&
-    can(regex("^[0-9a-f]{64}$", try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.artifactContractSha256, ""))) &&
-    try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.packaging, "") == "OCI_SSR_BFF" &&
-    try(local.image_manifest.images["job-seeker-copilot-client"].revision, "") == try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.revision, "") &&
-    can(regex("^[0-9a-f]{40}$", try(local.image_manifest.dependencyEvidence.frontendArtifacts.landing.revision, ""))) &&
-    alltrue([
-      for digest in [
-        try(local.image_manifest.dependencyEvidence.frontendArtifacts.landing.artifactContractSha256, ""),
-        try(local.image_manifest.dependencyEvidence.frontendArtifacts.landing.staticArtifactSha256, ""),
-        try(local.image_manifest.dependencyEvidence.frontendArtifacts.landing.runtimeConfigSha256, ""),
-        try(local.image_manifest.dependencyEvidence.frontendArtifacts.landing.selectedSamTemplateSha256, ""),
-      ] : can(regex("^[0-9a-f]{64}$", digest))
-    ]) &&
-    try(local.image_manifest.dependencyEvidence.frontendArtifacts.landing.selectedSamTemplate, "") == "infrastructure/waitlist-backend/template.yaml" &&
-    try(local.image_manifest.dependencyEvidence.frontendArtifacts.landing.deploymentStatus, "") == "NOT_DEPLOYED" &&
+    try(local.image_manifest.capabilities.stripeFixtureProductionIsolationVerified, false) &&
+    local.frontend_release_ready &&
     try(local.image_manifest.dependencyEvidence.postcodesNorthernIrelandCoverageChain, {}) == {
       postcodeIoGateway = {
         revision      = "f5588e5b0a2ca9e63319674f4b6cd40048b9e0fb"
@@ -460,6 +564,19 @@ locals {
       healthyServiceCount       = 36
       scenarioCount             = 4
       stepCount                 = 33
+    } &&
+    try(local.image_manifest.dependencyEvidence.stripeFixtureProductionIsolation, {}) == {
+      revision                         = "0e84d1bd97a00194809322307682c557069f30d4"
+      profile                          = "production"
+      providerMode                     = "DISABLED"
+      fixtureModeStartupRejected       = true
+      fixturePaymentControlRouteStatus = 404
+      conditionalBeansAbsent = [
+        "FixturePaymentControlController",
+        "FixturePaymentControlService",
+        "FixtureStripeProviderClient",
+        "FixtureStripeSessionStore",
+      ]
     } &&
     alltrue([
       for evidence in values(try(local.image_manifest.dependencyEvidence.paymentV2ProductionContract, {})) :
@@ -554,13 +671,48 @@ locals {
 resource "terraform_data" "release_contract" {
   input = {
     image_release_id = local.image_manifest.releaseId
-    approvals        = local.approval_complete
+    approvals = merge(local.approval_complete, {
+      github_environment_protection = local.github_environment_protection_complete
+      public_legal                  = local.public_legal_contract_complete
+      document_store_erasure        = local.document_store_erasure_approval_complete
+    })
   }
 
   lifecycle {
     precondition {
-      condition     = !var.offline_validation || (!var.public_entrypoint_enabled && var.application_desired_count == 0)
-      error_message = "offline_validation may only plan the dark, zero-task topology."
+      condition = !var.offline_validation || (
+        startswith(abspath(path.root), "/tmp/jsc-public-beta-offline.") &&
+        var.aws_account_id == "000000000000" &&
+        var.ecs_ami_id == "ami-00000000000000000" &&
+        (
+          (var.application_desired_count == 0 && !var.public_entrypoint_enabled) ||
+          (var.offline_activation_validation && var.application_desired_count == 1)
+        )
+      )
+      error_message = "offline_validation is accepted only from the disposable backend-free /tmp harness with zero account/AMI sentinels; that harness may plan dark or the explicit one-task-per-service activation proof."
+    }
+
+    precondition {
+      condition = var.offline_validation ? (
+        var.foundation_data_kms_key_arn == "arn:aws:kms:eu-west-2:000000000000:key/00000000-0000-0000-0000-000000000000" &&
+        var.foundation_operations_topic_arn == "arn:aws:sns:eu-west-2:000000000000:jsc-public-beta-operations" &&
+        var.foundation_backup_plan_id == "00000000-0000-0000-0000-000000000000" &&
+        var.foundation_erasure_journal_kms_key_arn == "arn:aws:kms:eu-west-2:000000000000:key/11111111-1111-1111-1111-111111111111" &&
+        var.foundation_erasure_journal_bucket_name == "jsc-public-beta-erasure-journal-000000000000" &&
+        var.foundation_approved_ecs_ami_id == "ami-00000000000000000" &&
+        var.foundation_monthly_alert_budget_usd == 750 &&
+        var.monthly_budget_usd == 750
+        ) : (
+        startswith(var.foundation_data_kms_key_arn, "arn:aws:kms:${var.aws_region}:${var.aws_account_id}:key/") &&
+        var.foundation_operations_topic_arn == "arn:aws:sns:${var.aws_region}:${var.aws_account_id}:jsc-public-beta-operations" &&
+        var.foundation_backup_plan_id != "00000000-0000-0000-0000-000000000000" &&
+        startswith(var.foundation_erasure_journal_kms_key_arn, "arn:aws:kms:${var.aws_region}:${var.aws_account_id}:key/") &&
+        var.foundation_erasure_journal_kms_key_arn != var.foundation_data_kms_key_arn &&
+        var.foundation_erasure_journal_bucket_name == "jsc-public-beta-erasure-journal-${var.aws_account_id}" &&
+        var.foundation_approved_ecs_ami_id == var.ecs_ami_id &&
+        var.foundation_monthly_alert_budget_usd == var.monthly_budget_usd
+      )
+      error_message = "The normal stack requires exact retained data-key, operations-topic, backup-plan, alert-budget and isolated erasure-journal outputs from the reviewed manual bootstrap; offline validation accepts only zero-account sentinels."
     }
 
     precondition {
@@ -590,12 +742,22 @@ resource "terraform_data" "release_contract" {
 
     precondition {
       condition     = var.application_desired_count == 0 || local.payment_contract_complete
-      error_message = "Starting Payment requires a reviewed legal trading identity, the reviewed GBP catalog, confirmed tax treatment, published terms digest/effective date, retention, disabled-or-authorised promotion, pinned Stripe API version and checkout/live switches matching the integration gate."
+      error_message = "Starting Payment requires a reviewed legal trading identity, the reviewed GBP catalog, confirmed tax treatment, an exact immutable Client legal-artifact checksum/effective date, retention, disabled-or-authorised promotion, pinned Stripe API version and checkout/live switches matching the integration gate."
     }
 
     precondition {
       condition     = var.application_desired_count == 0 || local.public_legal_contract_complete
-      error_message = "Starting the application requires one reviewed, published legal identity/version shared by Client, Authentication and Payment, explicit seller/tax/ICO status, matching HTTPS terms/privacy digests, and bounded retention/deletion periods."
+      error_message = "Starting the application requires one reviewed, published legal identity/version shared by Client, Authentication and Payment, explicit seller/tax/ICO status, exact HTTPS terms/privacy URLs, checksum-bound Client/Landing legal artifacts, and bounded retention/deletion periods."
+    }
+
+    precondition {
+      condition     = var.application_desired_count == 0 || local.document_store_permanent_erasure_runtime_enabled
+      error_message = "Starting the application requires the pinned Document Store permanent-erasure contract, exact 35-day backup policy, stable write fence/fingerprint secret, version-scoped S3 IAM and reviewed external deletion-journal/isolated-restore replay evidence."
+    }
+
+    precondition {
+      condition     = !var.public_entrypoint_enabled || local.github_environment_protection_complete
+      error_message = "Public activation requires substantive evidence that all three GitHub environments enforce reviewers, no self-review, exact-main deployment and disabled administrator bypass; the REST API alone cannot prove the final control."
     }
 
     precondition {
@@ -603,7 +765,8 @@ resource "terraform_data" "release_contract" {
         (!local.expanded_cost_shape && var.monthly_budget_usd <= 750) ||
         (
           local.expanded_cost_shape &&
-          length(trimspace(var.expanded_capacity_approval_reference)) >= 3 &&
+          length(trimspace(var.expanded_capacity_approval_reference)) >= 8 &&
+          !can(regex(local.release_placeholder_pattern, trimspace(var.expanded_capacity_approval_reference))) &&
           var.monthly_budget_usd > 750
         )
       )
@@ -634,9 +797,18 @@ resource "terraform_data" "release_contract" {
           var.application_desired_count == 1 &&
           local.has_domain &&
           local.effective_certificate_arn != "" &&
-          !var.offline_validation &&
-          var.aws_account_id != "000000000000" &&
-          var.ecs_ami_id != "ami-00000000000000000" &&
+          (
+            (
+              !var.offline_validation &&
+              var.aws_account_id != "000000000000" &&
+              var.ecs_ami_id != "ami-00000000000000000"
+              ) || (
+              var.offline_validation &&
+              var.offline_activation_validation &&
+              var.aws_account_id == "000000000000" &&
+              var.ecs_ami_id == "ami-00000000000000000"
+            )
+          ) &&
           var.alarm_email != "" &&
           local.any_job_provider_enabled &&
           var.enabled_integrations.postcodes_gb &&

@@ -103,41 +103,10 @@ echo "Emergency public edge is fixed at HTTP 503 for $release_id; draining appli
 
 update_failures=0
 for service in "${services[@]}"; do
-  resource_id="service/$cluster_name/$service"
-  if ! target=$(aws application-autoscaling describe-scalable-targets \
-    --region "$region" \
-    --service-namespace ecs \
-    --scalable-dimension ecs:service:DesiredCount \
-    --resource-ids "$resource_id" \
-    --output json); then
-    echo "Failed to inspect autoscaling target for $service" >&2
-    update_failures=$((update_failures + 1))
-    target='{"ScalableTargets":[]}'
-  fi
-  target_count=$(jq -er '.ScalableTargets | length' <<<"$target")
-  if (( target_count > 1 )); then
-    echo "Unexpected duplicate scalable target for $service" >&2
-    update_failures=$((update_failures + 1))
-  elif (( target_count == 1 )); then
-    maximum=$(jq -er '.ScalableTargets[0].MaxCapacity' <<<"$target")
-    if (( maximum < 1 || maximum > 2 )); then
-      echo "Refusing unexpected autoscaling maximum for $service: $maximum" >&2
-      update_failures=$((update_failures + 1))
-    else
-      if ! aws application-autoscaling register-scalable-target \
-        --region "$region" \
-        --service-namespace ecs \
-        --scalable-dimension ecs:service:DesiredCount \
-        --resource-id "$resource_id" \
-        --min-capacity 0 \
-        --max-capacity "$maximum" \
-        --suspended-state \
-          DynamicScalingInSuspended=true,DynamicScalingOutSuspended=true,ScheduledScalingSuspended=true >/dev/null; then
-        echo "Failed to suspend/lower autoscaling for $service" >&2
-        update_failures=$((update_failures + 1))
-      fi
-    fi
-  fi
+  # Lean beta owns desired count directly in ECS and deliberately has no
+  # Application Auto Scaling targets. Keeping this containment path free of
+  # RegisterScalableTarget also prevents a protected release identity from
+  # claiming an unrelated opaque target before draining the exact fleet.
   if ! aws ecs update-service --region "$region" --cluster "$cluster_name" \
     --service "$service" --desired-count 0 >/dev/null; then
     echo "Failed to request task drain for $service" >&2

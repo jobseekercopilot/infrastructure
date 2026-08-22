@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import hashlib
 import json
 import re
 import sys
@@ -18,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[2]
 MODULE = ROOT / "aws" / "public-beta"
 ZERO_DIGEST = "sha256:" + "0" * 64
 DOCUMENT_STORE_TASK_ROLE_REVISION = "1183ce5a54ab60999ca37d826ceb16857d5763ff"
+DOCUMENT_STORE_ERASURE_RUNBOOK = "docs/aws-public-beta/document-store-permanent-erasure.md"
 ADZUNA_RUNTIME_HEALTH_REVISION = "594ac33862c6360fe05768905bab0e2cb9ac1898"
 JSEARCH_RUNTIME_HEALTH_REVISION = "79677c6586207f5aa30b9c6d0720f5ed2cfe728a"
 POSTCODES_NI_GATE_REVISION = "f5588e5b0a2ca9e63319674f4b6cd40048b9e0fb"
@@ -59,12 +61,14 @@ DATABASE_SERVICES = {
 CAPABILITIES = {
     "documentStoreTaskRoleCredentials",
     "documentStoreS3KmsEncryption",
+    "documentStorePermanentErasureVerified",
     "runtimeHealthcheckCommandsVerified",
     "rdsCaBundleVerified",
     "postcodesNorthernIrelandCoverageChainVerified",
     "frontendArtifactsVerified",
     "paymentV2ProductionContractVerified",
     "paymentFixtureAcceptanceVerified",
+    "stripeFixtureProductionIsolationVerified",
 }
 FORBIDDEN_AWS_CREDENTIAL_NAMES = {
     "AWS_ACCESS_KEY_ID",
@@ -118,6 +122,12 @@ LANDING_RUNTIME_FIELDS = {
     "contactMessageMaxLength",
     "copyrightNotice",
 }
+ZERO_SHA256 = "0" * 64
+PLACEHOLDER_PATTERN = re.compile(
+    r"(?i)(?:^|[^a-z0-9])(?:todo|tbd|placeholder|pending|not[ _-]?configured|unapproved|unknown|none|"
+    r"n[ /]?a|draft|sample|example|test|change[ _-]?me|replace[ _-]?me)(?:$|[^a-z0-9])"
+)
+RELEASE_EMAIL_PATTERN = re.compile(r"[^\s@]+@(?:[a-z0-9-]+\.)*jobseekercopilot\.com", re.IGNORECASE)
 
 
 class ContractError(RuntimeError):
@@ -230,6 +240,47 @@ def require(condition: bool, message: str) -> None:
         raise ContractError(message)
 
 
+def require_substantive(value: Any, label: str, minimum: int = 8) -> str:
+    text = str(value).strip()
+    require(
+        len(text) >= minimum
+        and PLACEHOLDER_PATTERN.search(text) is None
+        and len(set(text.casefold())) >= 3,
+        f"release value is missing, trivial or a placeholder: {label}",
+    )
+    return text
+
+
+def require_real_release_email(value: Any, label: str) -> str:
+    email = str(value).strip()
+    require(RELEASE_EMAIL_PATTERN.fullmatch(email) is not None, f"release public legal email/domain is invalid: {label}")
+    require(PLACEHOLDER_PATTERN.search(email) is None, f"release public legal email is a placeholder: {label}")
+    return email
+
+
+def parse_release_date(value: Any, label: str) -> datetime.date:
+    try:
+        parsed = datetime.date.fromisoformat(str(value))
+    except ValueError as exc:
+        raise ContractError(f"release requires a valid ISO date: {label}") from exc
+    require(2000 <= parsed.year <= 2099, f"release date is outside the reviewed range: {label}")
+    return parsed
+
+
+def parse_reviewed_at(value: Any) -> datetime.datetime:
+    text = str(value)
+    require(
+        re.fullmatch(r"20[0-9]{2}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z", text) is not None,
+        "release requires reviewedAt as an exact UTC RFC3339 timestamp",
+    )
+    try:
+        parsed = datetime.datetime.strptime(text, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=datetime.timezone.utc)
+    except ValueError as exc:
+        raise ContractError("release reviewedAt is not a real UTC timestamp") from exc
+    require(parsed <= datetime.datetime.now(datetime.timezone.utc), "release reviewedAt cannot be in the future")
+    return parsed
+
+
 def validate_runtime(catalog: dict[str, Any], runtime: dict[str, Any]) -> set[str]:
     catalog_repositories = catalog.get("repositories")
     services = runtime.get("services")
@@ -282,6 +333,39 @@ def validate_runtime(catalog: dict[str, Any], runtime: dict[str, Any]) -> set[st
     require(
         document["environment"].get("DOCUMENT_STORE_CLAMAV_HOST") == "clamav.{{namespace}}",
         "Document Store must use the isolated private ClamAV service",
+    )
+    document_erasure_defaults = {
+        "DOCUMENT_STORE_PURGE_ENABLED": "false",
+        "DOCUMENT_STORE_PERMANENT_ERASURE_ENABLED": "false",
+        "DOCUMENT_STORE_PERMANENT_ERASURE_WRITE_FENCE_ENABLED": "true",
+        "DOCUMENT_STORE_VERSIONED_OBJECT_ERASURE_ENABLED": "false",
+        "DOCUMENT_STORE_RETENTION_POLICY_VERSION": "UNAPPROVED",
+        "DOCUMENT_STORE_BACKUP_RETENTION_POLICY_VERSION": "UNAPPROVED",
+        "DOCUMENT_STORE_MAXIMUM_BACKUP_RETENTION_DAYS": "35",
+        "DOCUMENT_STORE_ERASURE_JOURNAL_PROVIDER": "s3",
+        "DOCUMENT_STORE_ERASURE_JOURNAL_REGION": "{{region}}",
+        "DOCUMENT_STORE_ERASURE_JOURNAL_BUCKET": "{{erasure_journal_bucket}}",
+        "DOCUMENT_STORE_ERASURE_JOURNAL_KMS_KEY_ID": "{{erasure_journal_kms_key_arn}}",
+        "DOCUMENT_STORE_ERASURE_JOURNAL_CREDENTIALS_PROVIDER": "task-role",
+        "DOCUMENT_STORE_ERASURE_JOURNAL_OBJECT_LOCK_ENABLED": "true",
+        "DOCUMENT_STORE_ERASURE_JOURNAL_RETENTION_POLICY_VERSION": "UNAPPROVED",
+        "DOCUMENT_STORE_PERMANENT_ERASURE_BATCH_SIZE": "10",
+        "DOCUMENT_STORE_PERMANENT_ERASURE_FIXED_DELAY_MS": "300000",
+        "TZ": "UTC",
+    }
+    require(
+        all(document["environment"].get(name) == value for name, value in document_erasure_defaults.items()),
+        "Document Store permanent erasure must default fail-closed with its stable write fence and 35-day bound",
+    )
+    require(
+        document["secrets"].get("DOCUMENT_STORE_ERASURE_FINGERPRINT_KEY")
+        == "core:DOCUMENT_STORE_ERASURE_FINGERPRINT_KEY",
+        "Document Store permanent erasure requires a stable, separately generated fingerprint key",
+    )
+    require(
+        document["secrets"].get("DOCUMENT_STORE_ERASURE_FINGERPRINT_PREVIOUS_KEYS")
+        == "core:DOCUMENT_STORE_ERASURE_FINGERPRINT_PREVIOUS_KEYS",
+        "Document Store permanent erasure requires its optional previous-key ring to remain server-only",
     )
     require(
         services["cv-cover-letter-service"]["environment"].get("REJECTED_GENERATION_QUARANTINE_ENABLED") == "false",
@@ -405,10 +489,47 @@ def validate_images(images: dict[str, Any], runtime_names: set[str], release: bo
     )
     require(evidence.get("adzunaRuntimeHealth") == ADZUNA_RUNTIME_HEALTH_REVISION, "image manifest must retain exact Adzuna health dependency evidence")
     require(evidence.get("jsearchRuntimeHealth") == JSEARCH_RUNTIME_HEALTH_REVISION, "image manifest must retain exact JSearch health dependency evidence")
+    erasure_evidence = evidence.get("documentStorePermanentErasure")
+    require(isinstance(erasure_evidence, dict), "Document Store permanent-erasure evidence must be an object")
+    require(
+        set(erasure_evidence) == {
+            "revision", "openApiSha256", "maximumBackupRetentionDays",
+            "restoreReplayRunbook", "restoreReplayRunbookSha256",
+        }
+        and erasure_evidence.get("maximumBackupRetentionDays") == 35
+        and erasure_evidence.get("restoreReplayRunbook") == DOCUMENT_STORE_ERASURE_RUNBOOK,
+        "image manifest must retain the exact Document Store erasure-evidence shape",
+    )
+    erasure_pending = all(
+        erasure_evidence.get(field) == "PENDING"
+        for field in ("revision", "openApiSha256", "restoreReplayRunbookSha256")
+    )
+    erasure_reviewed = (
+        re.fullmatch(r"[0-9a-f]{40}", str(erasure_evidence.get("revision", ""))) is not None
+        and erasure_evidence.get("revision") != "0" * 40
+        and re.fullmatch(r"[0-9a-f]{64}", str(erasure_evidence.get("openApiSha256", ""))) is not None
+        and erasure_evidence.get("openApiSha256") != ZERO_SHA256
+        and re.fullmatch(
+            r"[0-9a-f]{64}", str(erasure_evidence.get("restoreReplayRunbookSha256", ""))
+        ) is not None
+        and erasure_evidence.get("restoreReplayRunbookSha256") != ZERO_SHA256
+    )
+    require(erasure_pending or erasure_reviewed, "Document Store erasure evidence must be wholly PENDING or reviewed")
+    if release:
+        require(erasure_reviewed, "release requires reviewed Document Store permanent-erasure evidence")
+    erasure_runbook = ROOT / DOCUMENT_STORE_ERASURE_RUNBOOK
+    require(erasure_runbook.is_file() and not erasure_runbook.is_symlink(), "Document Store restore runbook is missing or unsafe")
+    if erasure_reviewed:
+        require(
+            hashlib.sha256(erasure_runbook.read_bytes()).hexdigest()
+            == erasure_evidence["restoreReplayRunbookSha256"],
+            "Document Store restore runbook differs from its immutable evidence hash",
+        )
     postcode_evidence = evidence.get("postcodesNorthernIrelandCoverageChain")
     frontend_evidence = evidence.get("frontendArtifacts")
     payment_evidence = evidence.get("paymentV2ProductionContract")
     fixture_evidence = evidence.get("paymentFixtureAcceptance")
+    fixture_isolation_evidence = evidence.get("stripeFixtureProductionIsolation")
     if not release:
         require(
             frontend_evidence == {
@@ -520,6 +641,22 @@ def validate_images(images: dict[str, Any], runtime_names: set[str], release: bo
         "payment fixture evidence must retain the exact isolated signed-settlement acceptance revisions/counts",
     )
     require(
+        fixture_isolation_evidence == {
+            "revision": STRIPE_GATEWAY_V2_REVISION,
+            "profile": "production",
+            "providerMode": "DISABLED",
+            "fixtureModeStartupRejected": True,
+            "fixturePaymentControlRouteStatus": 404,
+            "conditionalBeansAbsent": [
+                "FixturePaymentControlController",
+                "FixturePaymentControlService",
+                "FixtureStripeProviderClient",
+                "FixtureStripeSessionStore",
+            ],
+        },
+        "Stripe fixture evidence must describe exact production-profile dormancy, not bytecode absence",
+    )
+    require(
         postcode_evidence == {
             "postcodeIoGateway": {
                 "revision": POSTCODES_NI_GATE_REVISION,
@@ -594,14 +731,127 @@ def validate_images(images: dict[str, Any], runtime_names: set[str], release: bo
 
 
 def validate_approvals(approvals: dict[str, Any], release: bool) -> None:
+    require(approvals.get("schemaVersion") == 1, "launch approval schemaVersion must be 1")
+    require(approvals.get("environment") == "public-beta", "launch approval environment must be public-beta")
+    github_environment = approvals.get("githubEnvironmentProtection")
+    github_fields = {
+        "reviewed", "reviewedBy", "reviewedOn", "evidenceReference", "environments",
+        "requiredReviewersVerified", "preventSelfReviewVerified", "exactMainBranchVerified",
+        "administratorBypassDisabled",
+    }
+    require(
+        isinstance(github_environment, dict) and set(github_environment) == github_fields,
+        "GitHub production-environment protection evidence is incomplete",
+    )
+    require(
+        github_environment["environments"] == ["production-build", "production-aws-plan", "production-aws"],
+        "GitHub protection evidence must cover the exact three production environments",
+    )
+    if not release:
+        require(github_environment["reviewed"] is False, "checked-in GitHub environment evidence must fail closed")
+        require(
+            all(
+                github_environment[field] is False
+                for field in (
+                    "requiredReviewersVerified", "preventSelfReviewVerified",
+                    "exactMainBranchVerified", "administratorBypassDisabled",
+                )
+            ),
+            "checked-in GitHub environment controls must remain unverified",
+        )
+    else:
+        reviewed_at = parse_reviewed_at(approvals.get("reviewedAt"))
+        require(github_environment["reviewed"] is True, "release requires reviewed GitHub environment protection")
+        require_substantive(github_environment["reviewedBy"], "githubEnvironmentProtection.reviewedBy", 3)
+        require_substantive(
+            github_environment["evidenceReference"], "githubEnvironmentProtection.evidenceReference"
+        )
+        github_reviewed_on = parse_release_date(
+            github_environment["reviewedOn"], "githubEnvironmentProtection.reviewedOn"
+        )
+        require(github_reviewed_on <= reviewed_at.date(), "GitHub environment review follows release provenance")
+        require(
+            all(
+                github_environment[field] is True
+                for field in (
+                    "requiredReviewersVerified", "preventSelfReviewVerified",
+                    "exactMainBranchVerified", "administratorBypassDisabled",
+                )
+            ),
+            "release requires reviewer, self-review, exact-main and administrator-bypass controls",
+        )
+    erasure = approvals.get("documentStorePermanentErasure")
+    erasure_fields = {
+        "reviewed", "reviewedBy", "reviewedOn", "evidenceReference",
+        "retentionPolicyVersion", "backupRetentionPolicyVersion", "journalRetentionPolicyVersion",
+        "maximumBackupRetentionDays", "journalRetentionDays", "externalDeletionJournalVerified",
+        "isolatedRestoreReplayVerified",
+    }
+    require(
+        isinstance(erasure, dict) and set(erasure) == erasure_fields,
+        "Document Store permanent-erasure approval evidence is incomplete",
+    )
+    require(
+        type(erasure["maximumBackupRetentionDays"]) is int
+        and erasure["maximumBackupRetentionDays"] == 35,
+        "Document Store permanent erasure must use the exact 35-day platform backup maximum",
+    )
+    if not release:
+        require(erasure["reviewed"] is False, "checked-in permanent-erasure approval must fail closed")
+        require(
+            erasure["retentionPolicyVersion"] == "NOT_CONFIGURED"
+            and erasure["backupRetentionPolicyVersion"] == "NOT_CONFIGURED"
+            and erasure["journalRetentionPolicyVersion"] == "NOT_CONFIGURED"
+            and erasure["journalRetentionDays"] == 0
+            and erasure["externalDeletionJournalVerified"] is False
+            and erasure["isolatedRestoreReplayVerified"] is False,
+            "checked-in permanent-erasure policy and recovery evidence must remain unconfigured",
+        )
+    else:
+        reviewed_at = parse_reviewed_at(approvals.get("reviewedAt"))
+        require(erasure["reviewed"] is True, "release requires reviewed permanent-erasure controls")
+        require_substantive(erasure["reviewedBy"], "documentStorePermanentErasure.reviewedBy", 3)
+        require_substantive(erasure["evidenceReference"], "documentStorePermanentErasure.evidenceReference")
+        erasure_reviewed_on = parse_release_date(
+            erasure["reviewedOn"], "documentStorePermanentErasure.reviewedOn"
+        )
+        require(erasure_reviewed_on <= reviewed_at.date(), "permanent-erasure review follows release provenance")
+        for field in ("retentionPolicyVersion", "backupRetentionPolicyVersion"):
+            require_substantive(erasure[field], f"documentStorePermanentErasure.{field}", 8)
+            require(
+                re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{7,63}", str(erasure[field])) is not None,
+                f"Document Store policy version is malformed: {field}",
+            )
+        require_substantive(
+            erasure["journalRetentionPolicyVersion"],
+            "documentStorePermanentErasure.journalRetentionPolicyVersion",
+            8,
+        )
+        require(
+            re.fullmatch(
+                r"[A-Za-z0-9][A-Za-z0-9._:-]{7,127}",
+                str(erasure["journalRetentionPolicyVersion"]),
+            ) is not None,
+            "Document Store journal-retention policy version is malformed",
+        )
+        require(
+            type(erasure["journalRetentionDays"]) is int
+            and 36 <= erasure["journalRetentionDays"] <= 400,
+            "release erasure-journal retention must exceed the backup window and stay within the reviewed bound",
+        )
+        require(
+            erasure["externalDeletionJournalVerified"] is True
+            and erasure["isolatedRestoreReplayVerified"] is True,
+            "release requires reviewed external deletion-journal and isolated-restore replay evidence",
+        )
     legal = approvals.get("publicLegal")
     legal_fields = {
         "reviewed", "reviewedBy", "evidenceReference", "legalVersion", "effectiveOn",
         "legalEntityType", "taxStatus", "legalEntityName", "tradingName", "businessAddress",
         "privacyEmail", "supportEmail", "icoRegistrationStatus", "icoRegistrationReference",
         "accountDeletionCompletionDays", "documentDeletionCompletionDays", "securityLogRetentionDays",
-        "supportRecordRetentionDays", "financialRecordRetentionYears", "termsUrl", "termsContentSha256",
-        "privacyNoticeUrl", "privacyNoticeContentSha256",
+        "supportRecordRetentionDays", "financialRecordRetentionYears", "termsUrl", "privacyNoticeUrl",
+        "clientLegalArtifactSha256", "landingLegalArtifactSha256",
     }
     require(isinstance(legal, dict) and legal_fields.issubset(legal), "public legal approval metadata is incomplete")
     if not release:
@@ -610,28 +860,35 @@ def validate_approvals(approvals: dict[str, Any], release: bool) -> None:
         require(legal["legalEntityType"] == "NOT_CONFIGURED", "checked-in seller type must be NOT_CONFIGURED")
         require(legal["taxStatus"] == "NOT_CONFIGURED", "checked-in public tax status must be NOT_CONFIGURED")
     else:
+        reviewed_at = parse_reviewed_at(approvals.get("reviewedAt"))
         require(legal["reviewed"] is True, "release requires reviewed public legal identity")
-        require(len(str(legal["reviewedBy"]).strip()) >= 3, "release legal review needs an accountable reviewer")
-        require(len(str(legal["evidenceReference"]).strip()) >= 3, "release legal review needs evidence")
+        require_substantive(legal["reviewedBy"], "publicLegal.reviewedBy", 3)
+        require_substantive(legal["evidenceReference"], "publicLegal.evidenceReference")
         require(
             re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}", str(legal["legalVersion"])) is not None
-            and legal["legalVersion"] != "NOT_CONFIGURED",
+            and PLACEHOLDER_PATTERN.search(str(legal["legalVersion"])) is None,
             "release requires an exact non-placeholder legal version",
         )
-        try:
-            effective_on = datetime.date.fromisoformat(str(legal["effectiveOn"]))
-        except ValueError as exc:
-            raise ContractError("release requires a valid ISO legal effective date") from exc
-        require(2000 <= effective_on.year <= 2099, "release legal effective date is outside the reviewed range")
+        effective_on = parse_release_date(legal["effectiveOn"], "publicLegal.effectiveOn")
+        require(effective_on <= reviewed_at.date(), "public legal effective date cannot follow its review provenance")
         require(legal["legalEntityType"] in {"SOLE_TRADER", "LIMITED_COMPANY"}, "release seller type is not configured")
         require(legal["taxStatus"] in {"NOT_VAT_REGISTERED", "VAT_REGISTERED"}, "release tax status is not configured")
         for name, minimum in (("legalEntityName", 2), ("tradingName", 2), ("businessAddress", 8)):
-            value = str(legal[name]).strip()
-            require(len(value) >= minimum and re.search(r"(?i)\b(?:todo|tbd|placeholder|pending|not configured)\b", value) is None,
-                    f"release public legal value is missing or a placeholder: {name}")
+            require_substantive(legal[name], f"publicLegal.{name}", minimum)
         for name in ("privacyEmail", "supportEmail"):
-            require(re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", str(legal[name])) is not None,
-                    f"release public legal email is invalid: {name}")
+            require_real_release_email(legal[name], f"publicLegal.{name}")
+        for field, expected_path in (("termsUrl", "/terms"), ("privacyNoticeUrl", "/privacy")):
+            url = urlsplit(str(legal[field]))
+            require(
+                url.scheme == "https"
+                and url.hostname == "app.jobseekercopilot.com"
+                and url.path == expected_path
+                and url.username is None
+                and url.password is None
+                and not url.query
+                and not url.fragment,
+                f"release public legal URL must use the canonical credential-free HTTPS path: {field}",
+            )
         require(
             legal["icoRegistrationStatus"] == "NOT_REQUIRED_CONFIRMED"
             or (
@@ -649,9 +906,16 @@ def validate_approvals(approvals: dict[str, Any], release: bool) -> None:
         ):
             require(type(legal[name]) is int and minimum <= legal[name] <= maximum,
                     f"release legal retention is outside its reviewed bound: {name}")
-        for name in ("termsContentSha256", "privacyNoticeContentSha256"):
-            require(re.fullmatch(r"[0-9a-f]{64}", str(legal[name])) is not None,
-                    f"release legal content checksum is invalid: {name}")
+        for name in ("clientLegalArtifactSha256", "landingLegalArtifactSha256"):
+            require(
+                re.fullmatch(r"[0-9a-f]{64}", str(legal[name])) is not None and legal[name] != ZERO_SHA256,
+                f"release legal artifact checksum is invalid or zero: {name}",
+            )
+        require(
+            erasure["journalRetentionDays"] >= legal["accountDeletionCompletionDays"]
+            and erasure["journalRetentionDays"] >= legal["documentDeletionCompletionDays"],
+            "erasure-journal retention must cover both published deletion-completion windows",
+        )
 
     integrations = approvals.get("integrations")
     require(isinstance(integrations, dict), "launch approvals must contain integrations")
@@ -668,6 +932,25 @@ def validate_approvals(approvals: dict[str, Any], release: bool) -> None:
         require(common.issubset(approval), f"{name}: approval/quota/cost/attribution metadata is incomplete")
         if not release:
             require(approval["approved"] is False, f"{name}: checked-in approval template must fail closed")
+        elif approval["approved"] is True:
+            require_substantive(approval["approvalReference"], f"integrations.{name}.approvalReference")
+            require_substantive(approval["approvedBy"], f"integrations.{name}.approvedBy", 3)
+            require_substantive(approval["attributionRequirement"], f"integrations.{name}.attributionRequirement", 10)
+            terms_reviewed = parse_release_date(approval["termsReviewedOn"], f"integrations.{name}.termsReviewedOn")
+            expires_on = parse_release_date(approval["expiresOn"], f"integrations.{name}.expiresOn")
+            require(terms_reviewed <= reviewed_at.date(), f"{name}: approval review date follows reviewedAt provenance")
+            require(terms_reviewed <= expires_on, f"{name}: approval expiry precedes its review")
+            require(expires_on >= datetime.date.today(), f"{name}: approval has expired")
+            require(
+                type(approval["monthlyRequestLimit"]) is int and approval["monthlyRequestLimit"] > 0,
+                f"{name}: approved integration needs a positive monthly request limit",
+            )
+            require(
+                type(approval["monthlyCostCeilingGbp"]) in {int, float}
+                and not isinstance(approval["monthlyCostCeilingGbp"], bool)
+                and approval["monthlyCostCeilingGbp"] >= 0,
+                f"{name}: approved integration needs a non-negative monthly cost ceiling",
+            )
     google_fields = {
         "googleBillingQuotasVerified", "billingQuotaEvidenceReference", "gcpProjectId",
         "placesQuotaId", "placesDailyQuota", "routeMatrixEssentialsQuotaId",
@@ -684,6 +967,37 @@ def validate_approvals(approvals: dict[str, Any], release: bool) -> None:
     )
     if not release:
         require(google["googleBillingQuotasVerified"] is False, "checked-in Google billing quota capability must fail closed")
+    elif google["approved"]:
+        require(google["googleBillingQuotasVerified"] is True, "approved Google Maps requires verified billing quotas")
+        for field, minimum in (
+            ("billingQuotaEvidenceReference", 8), ("gcpProjectId", 4), ("placesQuotaId", 3),
+            ("routeMatrixEssentialsQuotaId", 3), ("routeMatrixProQuotaId", 3),
+            ("emergencyDisableOwner", 3), ("emergencyDisableRunbookReference", 8),
+        ):
+            require_substantive(google[field], f"integrations.google_maps.{field}", minimum)
+        for field in (
+            "placesDailyQuota", "routeMatrixEssentialsDailyElementQuota",
+            "routeMatrixProDailyElementQuota", "gcpBudgetAlertGbp",
+        ):
+            require(
+                type(google[field]) in {int, float} and not isinstance(google[field], bool) and google[field] > 0,
+                f"Google Maps approved quota/budget must be positive: {field}",
+            )
+        require(
+            google["gcpBudgetAlertGbp"] <= google["monthlyCostCeilingGbp"],
+            "Google Maps budget alert cannot exceed its reviewed monthly cost ceiling",
+        )
+    else:
+        require(google["googleBillingQuotasVerified"] is False, "unapproved Google Maps cannot attest billing quotas")
+
+    openai = integrations["openai"]
+    openai_fields = {"privacyPolicyVersion", "privacyDecisionId", "privacyOwner", "privacyReviewedOn"}
+    require(openai_fields.issubset(openai), "OpenAI approval needs privacy decision provenance")
+    if release and openai["approved"]:
+        for field, minimum in (("privacyPolicyVersion", 3), ("privacyDecisionId", 8), ("privacyOwner", 3)):
+            require_substantive(openai[field], f"integrations.openai.{field}", minimum)
+        privacy_reviewed = parse_release_date(openai["privacyReviewedOn"], "integrations.openai.privacyReviewedOn")
+        require(privacy_reviewed <= reviewed_at.date(), "OpenAI privacy review follows reviewedAt provenance")
     payment_fields = {
         "paymentReadinessStatus", "refundRunbookReference", "reconciliationRunbookReference",
         "checkoutEnabled", "checkoutReleaseAuthorised", "providerLiveModeExpected",
@@ -706,6 +1020,42 @@ def validate_approvals(approvals: dict[str, Any], release: bool) -> None:
         "Payment catalog must retain the approved 10/25/60-credit GBP pricing",
     )
     require(stripe["freeDocumentCredits"] == 2, "Payment free allowance must remain two document credits")
+    if release:
+        require(stripe["legalEntityType"] == legal["legalEntityType"], "Payment seller type differs from public legal contract")
+        require(
+            stripe["legalEntityConfigurationVersion"] == legal["legalVersion"],
+            "Payment legal configuration version differs from public legal contract",
+        )
+        require(stripe["taxStatus"] == legal["taxStatus"], "Payment tax status differs from public legal contract")
+        require(stripe["consumerTermsVersion"] == legal["legalVersion"], "Payment Terms version differs from public legal contract")
+        require(stripe["consumerTermsEffectiveOn"] == legal["effectiveOn"], "Payment Terms date differs from public legal contract")
+        require(stripe["consumerTermsUrl"] == legal["termsUrl"], "Payment Terms URL differs from public legal contract")
+        require(
+            stripe["consumerTermsContentSha256"] == legal["clientLegalArtifactSha256"],
+            "Payment Terms hash must bind the exact immutable Client legal artifact",
+        )
+        require(
+            re.fullmatch(r"[0-9a-f]{64}", str(stripe["consumerTermsContentSha256"])) is not None
+            and stripe["consumerTermsContentSha256"] != ZERO_SHA256,
+            "Payment Terms artifact checksum is invalid or zero",
+        )
+        require(
+            stripe["financialRecordRetentionYears"] == legal["financialRecordRetentionYears"],
+            "Payment financial retention differs from public legal contract",
+        )
+        if stripe["approved"]:
+            require(stripe["paymentReadinessStatus"] == "PASS", "approved Stripe release needs PASS readiness")
+            for field, minimum in (
+                ("refundRunbookReference", 8), ("reconciliationRunbookReference", 8),
+                ("legalEntityEvidenceReference", 8), ("legalEntityConfigurationVersion", 3),
+                ("consumerTermsVersion", 3),
+            ):
+                require_substantive(stripe[field], f"integrations.stripe.{field}", minimum)
+            require(stripe["legalEntityReviewed"] is True, "approved Stripe release needs reviewed seller identity")
+            require(
+                stripe["merchantTermsTraderDisclosureVerified"] is True,
+                "approved Stripe release needs reviewed merchant/trader disclosure",
+            )
     if not release:
         require(stripe["taxTreatment"] == "VAT_NOT_CHARGED", "Payment tax treatment must default VAT_NOT_CHARGED")
         require(stripe["taxStatus"] == "NOT_CONFIGURED", "payment tax status must default NOT_CONFIGURED")
@@ -730,7 +1080,6 @@ def validate_source_guards() -> None:
         'max_healthy_percentage       = 100': "instance refresh cannot add a cost node",
         'scale_in_protected_instances = "Refresh"': "ECS protected instances can be drained during refresh",
         'auto_rollback                = true': "failed host refresh rolls back",
-        'for_each = var.high_availability ? local.raw_services : {}': "autoscaling disabled in the fixed one-node lean shape",
         'deployment_maximum_percent         = 100': "capacity-bounded stop-first deployment",
         'deployment_minimum_healthy_percent = 0': "ordered replacement without extra task copies",
         'for_each = local.service_dependencies': "dependency-derived service security groups",
@@ -744,7 +1093,6 @@ def validate_source_guards() -> None:
         'authenticated_document_uploads': "exact WAF upload paths",
         'threshold           = 100': "RDS connection reserve alarm",
         'default     = 750': "$750 monthly alert budget",
-        'subscriber_sns_topic_arns': "budget SNS notifications",
         'aws_backup_selection': "RDS/S3 backup selection",
         'database_bootstrap': "database bootstrap release gate",
         'runtime_attestations': "exact-release SSM attestation gate",
@@ -757,19 +1105,46 @@ def validate_source_guards() -> None:
         'user                   = each.key == "job-seeker-copilot-client" ? "1000:1000" : "10001:10001"': "explicit non-root application task users",
         'payment_contract_complete': "payment catalog/tax/terms/retention release gate",
         'public_legal_contract_complete': "shared Client/Authentication/Payment legal release gate",
+        'document_store_permanent_erasure_runtime_enabled': "permanent-erasure evidence/runtime launch gate",
         'POSTCODES_IO_NORTHERN_IRELAND_ENABLED': "fail-closed NI/BT postcode runtime binding",
         'STRIPE_API_VERSION': "explicit Stripe API version contract",
         'release_attestation_id': "runtime-configuration-bound release markers",
         'output "emergency_darken_contract"': "state-bound emergency containment identifiers",
         'filesha256(local.approval_manifest_path)': "signed launch-approval checksum binding",
         'operator_preflight_secret': "least-privilege payment-readiness preflight identity",
+        'DOCUMENT_ERASURE_READINESS_ENDPOINT': "aggregate permanent-erasure release preflight",
+        's3:ListBucketVersions': "prefix-scoped Document Store version enumeration",
+        's3:DeleteObjectVersion': "prefix-scoped Document Store version erasure",
+        'sid     = "WriteOnlyImmutableErasureJournalRecords"': "machine-written immutable erasure journal",
+        'sid = "UseOnlyErasureJournalKeyThroughS3"': "S3-only erasure-journal KMS use",
+        'DOCUMENT_STORE_ERASURE_JOURNAL_CREDENTIALS_PROVIDER': "task-role erasure-journal credentials",
+        'DOCUMENT_STORE_ERASURE_JOURNAL_RETENTION_POLICY_VERSION': "independently reviewed journal retention policy",
         '/alb/AWSLogs/${var.aws_account_id}/*': "account-scoped ALB access-log delivery path",
         'elasticloadbalancing:${var.aws_region}:${var.aws_account_id}:loadbalancer/*': "source-scoped ALB log delivery",
         'variable = "aws:SourceAccount"': "source-account-bound ECS task trust",
         '"aws:SourceAccount" = var.aws_account_id': "source-account-bound AWS service trusts",
+        'sid     = "DenyMissingObjectEncryption"': "S3 upload encryption-header enforcement",
+        'sid     = "DenyWrongObjectKmsKey"': "S3 exact KMS-key enforcement",
+        'name         = "log_statement"': "PostgreSQL statement-text suppression",
+        'name         = "log_parameter_max_length_on_error"': "PostgreSQL bind-parameter suppression",
+        'try(local.public_legal_contract.securityLogRetentionDays, 0) == var.log_retention_days': "legal/runtime log-retention equality",
+        'retention_in_days = var.log_retention_days': "uniform CloudWatch retention",
+        'expiration { days = var.log_retention_days }': "uniform encrypted access-log retention",
+        'permissions_boundary = "arn:aws:iam::${var.aws_account_id}:policy/jsc-public-beta-workload-boundary"': "mandatory workload-role permissions boundary",
     }
     for fragment, description in required_fragments.items():
         require(fragment in source, f"Terraform is missing {description}")
+    require('resource "aws_appautoscaling_' not in source,
+            "lean/HA Terraform must not create opaque Application Auto Scaling targets")
+    bootstrap_source = (MODULE / "bootstrap" / "state-and-oidc.yaml").read_text(encoding="utf-8")
+    for fragment, description in {
+        "MonthlyCostAlertBudget": "retained foundation budget",
+        "Threshold: 50": "50% actual budget alert",
+        "Threshold: 80": "80% budget alerts",
+        "Threshold: 100": "100% actual budget alert",
+        "NotificationType: FORECASTED": "forecast budget alert",
+    }.items():
+        require(fragment in bootstrap_source, f"bootstrap is missing {description}")
     require('self        = true' not in source, "shared self-referencing task security group is forbidden")
     require("AWS_ACCESS_KEY_ID" not in source, "Terraform must not inject static AWS access keys")
     locals_source = (MODULE / "locals.tf").read_text(encoding="utf-8")
@@ -792,6 +1167,21 @@ def validate_source_guards() -> None:
         'containerPath = "/var/lib/clamav"' not in clamav_task,
         "ClamAV task must not hide the preloaded signature database behind an empty tmpfs",
     )
+
+    preflight = (MODULE / "operator" / "preflight.sh").read_text(encoding="utf-8")
+    require(
+        '.schemaVersion == "document-permanent-erasure-readiness.v2"' in preflight,
+        "release preflight must require the exact permanent-erasure readiness v2 schema",
+    )
+    for pending_count in (
+        "recoveryJournalWritePending", "recoveryJournalEvidenceMissing",
+        "liveErasureReconciliationPending", "restoreJournalReadPending",
+        "restoreReplayPending", "backupRetentionPending",
+    ):
+        require(
+            f".{pending_count} == 0" in preflight,
+            f"release preflight does not fail closed on {pending_count}",
+        )
 
     edge = (MODULE / "edge.tf").read_text(encoding="utf-8")
     for suffix in ("document-uploads$", "replace$"):
@@ -870,6 +1260,18 @@ def validate_workflow_boundary() -> None:
             "immutable build must ancestor-verify isolated payment acceptance without making fixture code runtime",
         )
         require(
+            "verify_release_contract_hashes.py" in prepare_script
+            and prepare_script.index("verify_release_contract_hashes.py")
+            < prepare_script.index(".capabilities.paymentV2ProductionContractVerified=true"),
+            "immutable build must hash exact locked exported contracts before asserting capabilities",
+        )
+        require(
+            ".capabilities.stripeFixtureProductionIsolationVerified=true" in prepare_script
+            and "fixture payment-control route was present" in prepare_script
+            and "mode-conditional fixture control/provider bean was active" in prepare_script,
+            "immutable Stripe image must prove production-profile fixture dormancy rather than bytecode absence",
+        )
+        require(
             'build_environment.pop("AMPLIFY_RELEASE_AUTHORISED", None)' in landing_builder,
             "central Landing evidence build must strip legacy Amplify publication authority",
         )
@@ -924,6 +1326,27 @@ def validate_workflow_boundary() -> None:
             "role-duration-seconds: 10800" in workflow,
             f"{path.name}: the reviewed three-hour OIDC session is required for {environment}",
         )
+        require(
+            "actions: read" in workflow
+            and 'verify_github_environment_protection.sh "$GITHUB_REPOSITORY"' in workflow
+            and workflow.index('verify_github_environment_protection.sh "$GITHUB_REPOSITORY"')
+            < workflow.index("configure-aws-credentials@"),
+            f"{path.name}: GitHub Environment protection must be API-verified before OIDC",
+        )
+
+    offline_plan = (ROOT / "scripts" / "aws" / "offline_terraform_plan.sh").read_text(encoding="utf-8")
+    release_script = (ROOT / "scripts" / "aws" / "public_beta_release.sh").read_text(encoding="utf-8")
+    require('refs/heads/main|refs/tags/*)' in offline_plan, "account-free plan must reject main and tags")
+    require('[[ ! -e "$validation_root/backend.tf" ]]' in offline_plan,
+            "account-free plan must prove its disposable module has no backend")
+    require("AWS_WEB_IDENTITY_TOKEN_FILE" in offline_plan and "AWS_ENDPOINT_URL_*" in offline_plan,
+            "account-free plan must reject inherited live AWS credentials/endpoints")
+    require("-var=offline_validation=false" in release_script,
+            "protected release script must force account-free validation off")
+    require("-var=public_entrypoint_enabled=true" in offline_plan and "-var=application_desired_count=1" in offline_plan,
+            "account-free suite must exercise the fully approved public activation topology")
+    require("Checked-in PENDING approvals/images correctly block" in offline_plan,
+            "account-free suite must prove checked-in PENDING inputs cannot activate")
 
 
 def main() -> int:

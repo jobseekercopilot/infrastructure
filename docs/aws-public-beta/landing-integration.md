@@ -42,7 +42,8 @@ creation is not publication permission.
 | waitlist/contact API, tables/functions and landing SAM outputs | centrally deployed landing SAM stack |
 | SES domain identity, DKIM and landing configuration-set resources | landing SAM/email stack |
 | existing public Route 53 hosted zone | shared account prerequisite |
-| `app.<domain>` A alias, app ACM certificate, ALB/WAF and application tasks | this Terraform stack |
+| reviewed eu-west-2 `app.<domain>` ACM certificate | account prerequisite; this Terraform stack consumes its exact ARN but cannot mutate it |
+| `app.<domain>` A alias, ALB/WAF and application tasks | this Terraform stack |
 | application account-email use of verified SES identity/configuration set | this stack consumes the landing-owned identifiers |
 
 Do not import, recreate, delete or rename landing-owned SES/SAM resources from

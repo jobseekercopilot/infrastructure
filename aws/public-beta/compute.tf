@@ -6,7 +6,7 @@ resource "aws_ecr_repository" "image" {
 
   encryption_configuration {
     encryption_type = "KMS"
-    kms_key         = aws_kms_key.data.arn
+    kms_key         = var.foundation_data_kms_key_arn
   }
 
   image_scanning_configuration { scan_on_push = true }
@@ -40,6 +40,7 @@ resource "aws_cloudwatch_log_group" "service" {
 
   name              = "/jsc/${var.environment}/${each.key}"
   retention_in_days = var.log_retention_days
+  kms_key_id        = var.foundation_data_kms_key_arn
 
   tags = {
     Service   = each.key
@@ -50,6 +51,7 @@ resource "aws_cloudwatch_log_group" "service" {
 resource "aws_cloudwatch_log_group" "clamav" {
   name              = "/jsc/${var.environment}/clamav"
   retention_in_days = var.log_retention_days
+  kms_key_id        = var.foundation_data_kms_key_arn
 
   tags = {
     Service   = "clamav"
@@ -60,12 +62,14 @@ resource "aws_cloudwatch_log_group" "clamav" {
 resource "aws_cloudwatch_log_group" "operator" {
   name              = "/jsc/${var.environment}/release-operator"
   retention_in_days = var.log_retention_days
+  kms_key_id        = var.foundation_data_kms_key_arn
   tags              = { DataClass = "operational-redacted" }
 }
 
 resource "aws_cloudwatch_log_group" "ecs_exec" {
   name              = "/jsc/${var.environment}/ecs-exec"
-  retention_in_days = 14
+  retention_in_days = var.log_retention_days
+  kms_key_id        = var.foundation_data_kms_key_arn
   tags              = { DataClass = "break-glass-session" }
 }
 
@@ -84,7 +88,7 @@ resource "aws_ecs_cluster" "main" {
 
   configuration {
     execute_command_configuration {
-      kms_key_id = aws_kms_key.data.arn
+      kms_key_id = var.foundation_data_kms_key_arn
       logging    = "OVERRIDE"
 
       log_configuration {
@@ -98,7 +102,8 @@ resource "aws_ecs_cluster" "main" {
 }
 
 resource "aws_iam_role" "ecs_instance" {
-  name = "${local.name_prefix}-ecs-instance"
+  name                 = "${local.name_prefix}-ecs-instance"
+  permissions_boundary = "arn:aws:iam::${var.aws_account_id}:policy/jsc-public-beta-workload-boundary"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -165,7 +170,7 @@ resource "aws_launch_template" "ecs" {
     ebs {
       delete_on_termination = true
       encrypted             = true
-      kms_key_id            = aws_kms_key.data.arn
+      kms_key_id            = var.foundation_data_kms_key_arn
       volume_size           = 100
       volume_type           = "gp3"
     }
@@ -174,14 +179,32 @@ resource "aws_launch_template" "ecs" {
   tag_specifications {
     resource_type = "instance"
     tags = {
-      Name       = "${local.name_prefix}-ecs"
-      PatchGroup = "jsc-public-beta"
+      Name        = "${local.name_prefix}-ecs"
+      PatchGroup  = "jsc-public-beta"
+      Application = "Job Seeker Copilot"
+      Environment = "public-beta"
+      ManagedBy   = "Terraform"
     }
   }
 
   tag_specifications {
     resource_type = "volume"
-    tags          = { Name = "${local.name_prefix}-ecs" }
+    tags = {
+      Name        = "${local.name_prefix}-ecs"
+      Application = "Job Seeker Copilot"
+      Environment = "public-beta"
+      ManagedBy   = "Terraform"
+    }
+  }
+
+  tag_specifications {
+    resource_type = "network-interface"
+    tags = {
+      Name        = "${local.name_prefix}-ecs"
+      Application = "Job Seeker Copilot"
+      Environment = "public-beta"
+      ManagedBy   = "Terraform"
+    }
   }
 
   lifecycle { create_before_destroy = true }
@@ -234,6 +257,27 @@ resource "aws_autoscaling_group" "ecs" {
   tag {
     key                 = "Name"
     value               = "${local.name_prefix}-ecs"
+    propagate_at_launch = true
+  }
+
+  # The AWS provider intentionally does not apply `default_tags` to Auto
+  # Scaling groups. These three explicit tags are therefore both a runtime
+  # ownership boundary and a prerequisite of the bootstrap Apply policy.
+  tag {
+    key                 = "Application"
+    value               = "Job Seeker Copilot"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Environment"
+    value               = "public-beta"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "ManagedBy"
+    value               = "Terraform"
     propagate_at_launch = true
   }
 
@@ -343,8 +387,9 @@ data "aws_iam_policy_document" "task_trust" {
 resource "aws_iam_role" "execution" {
   for_each = local.raw_services
 
-  name               = "${local.name_prefix}-${each.key}-execution"
-  assume_role_policy = data.aws_iam_policy_document.task_trust.json
+  name                 = "${local.name_prefix}-${each.key}-execution"
+  assume_role_policy   = data.aws_iam_policy_document.task_trust.json
+  permissions_boundary = "arn:aws:iam::${var.aws_account_id}:policy/jsc-public-beta-workload-boundary"
 }
 
 resource "aws_iam_role_policy_attachment" "execution" {
@@ -358,8 +403,9 @@ resource "aws_iam_role_policy_attachment" "execution" {
 # ECS_AWSVPC_BLOCK_IMDS enabled on every host, the upstream scanner cannot use
 # Document Store's S3/KMS permissions or any EC2 instance credentials.
 resource "aws_iam_role" "clamav_execution" {
-  name               = "${local.name_prefix}-clamav-execution"
-  assume_role_policy = data.aws_iam_policy_document.task_trust.json
+  name                 = "${local.name_prefix}-clamav-execution"
+  assume_role_policy   = data.aws_iam_policy_document.task_trust.json
+  permissions_boundary = "arn:aws:iam::${var.aws_account_id}:policy/jsc-public-beta-workload-boundary"
 }
 
 resource "aws_iam_role_policy_attachment" "clamav_execution" {
@@ -412,7 +458,7 @@ data "aws_iam_policy_document" "execution_secrets" {
     sid       = "DecryptRuntimeSecrets"
     effect    = "Allow"
     actions   = ["kms:Decrypt"]
-    resources = [aws_kms_key.data.arn]
+    resources = [var.foundation_data_kms_key_arn]
   }
 }
 
@@ -427,8 +473,9 @@ resource "aws_iam_role_policy" "execution_secrets" {
 resource "aws_iam_role" "task" {
   for_each = local.raw_services
 
-  name               = "${local.name_prefix}-${each.key}-task"
-  assume_role_policy = data.aws_iam_policy_document.task_trust.json
+  name                 = "${local.name_prefix}-${each.key}-task"
+  assume_role_policy   = data.aws_iam_policy_document.task_trust.json
+  permissions_boundary = "arn:aws:iam::${var.aws_account_id}:policy/jsc-public-beta-workload-boundary"
 }
 
 data "aws_iam_policy_document" "document_store" {
@@ -439,6 +486,21 @@ data "aws_iam_policy_document" "document_store" {
       "s3:ListBucket",
     ]
     resources = [aws_s3_bucket.documents.arn]
+  }
+
+  statement {
+    sid       = "ListExactPermanentErasureVersions"
+    actions   = ["s3:ListBucketVersions"]
+    resources = [aws_s3_bucket.documents.arn]
+
+    condition {
+      test     = "StringLike"
+      variable = "s3:prefix"
+      values = [
+        "documents/*",
+        "quarantine/application-uploads/*",
+      ]
+    }
   }
 
   statement {
@@ -456,6 +518,15 @@ data "aws_iam_policy_document" "document_store" {
   }
 
   statement {
+    sid     = "DeleteExactPermanentErasureVersions"
+    actions = ["s3:DeleteObjectVersion"]
+    resources = [
+      "${aws_s3_bucket.documents.arn}/documents/*",
+      "${aws_s3_bucket.documents.arn}/quarantine/application-uploads/*",
+    ]
+  }
+
+  statement {
     sid = "DocumentEncryption"
     actions = [
       "kms:Decrypt",
@@ -465,8 +536,69 @@ data "aws_iam_policy_document" "document_store" {
       "kms:ReEncryptFrom",
       "kms:ReEncryptTo",
     ]
-    resources = [aws_kms_key.data.arn]
+    resources = [var.foundation_data_kms_key_arn]
   }
+
+  statement {
+    sid     = "WriteOnlyImmutableErasureJournalRecords"
+    actions = ["s3:PutObject"]
+    resources = [
+      "arn:aws:s3:::${var.foundation_erasure_journal_bucket_name}/permanent-erasures/v1/*",
+    ]
+
+    condition {
+      test     = "StringEquals"
+      variable = "s3:x-amz-server-side-encryption"
+      values   = ["aws:kms"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "s3:x-amz-server-side-encryption-aws-kms-key-id"
+      values   = [var.foundation_erasure_journal_kms_key_arn]
+    }
+
+    condition {
+      test     = "Bool"
+      variable = "s3:x-amz-server-side-encryption-bucket-key-enabled"
+      values   = ["true"]
+    }
+  }
+
+  statement {
+    sid = "ReadOnlyBoundErasureJournalRecords"
+    actions = [
+      "s3:GetObject",
+      "s3:GetObjectVersion",
+    ]
+    resources = [
+      "arn:aws:s3:::${var.foundation_erasure_journal_bucket_name}/permanent-erasures/v1/*",
+    ]
+  }
+
+  statement {
+    sid = "UseOnlyErasureJournalKeyThroughS3"
+    actions = [
+      "kms:Decrypt",
+      "kms:GenerateDataKey",
+    ]
+    resources = [var.foundation_erasure_journal_kms_key_arn]
+
+    condition {
+      test     = "StringEquals"
+      variable = "kms:ViaService"
+      values   = ["s3.${var.aws_region}.amazonaws.com"]
+    }
+
+    # S3 Bucket Keys use the bucket ARN, rather than each object ARN, as the
+    # KMS encryption context. The object permission above remains prefix-exact.
+    condition {
+      test     = "StringEquals"
+      variable = "kms:EncryptionContext:aws:s3:arn"
+      values   = ["arn:aws:s3:::${var.foundation_erasure_journal_bucket_name}"]
+    }
+  }
+
 }
 
 resource "aws_iam_role_policy" "document_store" {
@@ -519,7 +651,7 @@ data "aws_iam_policy_document" "ecs_exec" {
 
   statement {
     actions   = ["kms:Decrypt"]
-    resources = [aws_kms_key.data.arn]
+    resources = [var.foundation_data_kms_key_arn]
   }
 
   statement {
@@ -817,48 +949,4 @@ resource "aws_ecs_service" "service" {
     terraform_data.release_contract,
     terraform_data.runtime_attestations,
   ]
-}
-
-resource "aws_appautoscaling_target" "service" {
-  for_each = var.high_availability ? local.raw_services : {}
-
-  max_capacity       = var.high_availability ? 2 : 1
-  min_capacity       = var.application_desired_count
-  resource_id        = "service/${aws_ecs_cluster.main.name}/${aws_ecs_service.service[each.key].name}"
-  scalable_dimension = "ecs:service:DesiredCount"
-  service_namespace  = "ecs"
-}
-
-resource "aws_appautoscaling_policy" "cpu" {
-  for_each = var.high_availability ? local.raw_services : {}
-
-  name               = "${local.name_prefix}-${each.key}-cpu"
-  policy_type        = "TargetTrackingScaling"
-  resource_id        = aws_appautoscaling_target.service[each.key].resource_id
-  scalable_dimension = aws_appautoscaling_target.service[each.key].scalable_dimension
-  service_namespace  = aws_appautoscaling_target.service[each.key].service_namespace
-
-  target_tracking_scaling_policy_configuration {
-    predefined_metric_specification { predefined_metric_type = "ECSServiceAverageCPUUtilization" }
-    target_value       = 65
-    scale_in_cooldown  = 300
-    scale_out_cooldown = 120
-  }
-}
-
-resource "aws_appautoscaling_policy" "memory" {
-  for_each = var.high_availability ? local.raw_services : {}
-
-  name               = "${local.name_prefix}-${each.key}-memory"
-  policy_type        = "TargetTrackingScaling"
-  resource_id        = aws_appautoscaling_target.service[each.key].resource_id
-  scalable_dimension = aws_appautoscaling_target.service[each.key].scalable_dimension
-  service_namespace  = aws_appautoscaling_target.service[each.key].service_namespace
-
-  target_tracking_scaling_policy_configuration {
-    predefined_metric_specification { predefined_metric_type = "ECSServiceAverageMemoryUtilization" }
-    target_value       = 75
-    scale_in_cooldown  = 300
-    scale_out_cooldown = 120
-  }
 }

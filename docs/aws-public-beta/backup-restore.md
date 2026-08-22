@@ -1,10 +1,12 @@
 # AWS public-beta backup and restore
 
 Initial public-beta objectives are a 24-hour recovery-point objective and an
-8-hour recovery-time objective. RDS automated backups/PITR may provide a newer
-database point, but the cross-store recovery guarantee remains the latest
-verified daily AWS Backup recovery points until restore drills prove tighter
-consistency. These objectives are operational targets, not an AWS SLA.
+8-hour recovery-time objective. The cross-store recovery guarantee is the
+latest verified daily AWS Backup recovery-point window until restore drills
+prove tighter consistency. Native RDS point-in-time recovery is deliberately
+outside the restricted drill role; using it requires a separate incident
+approval and source-resource IAM review. These objectives are operational
+targets, not an AWS SLA.
 
 ## Protected state
 
@@ -18,8 +20,41 @@ consistency. These objectives are operational targets, not an AWS SLA.
   expire after one day and application-upload quarantine after seven days.
 - Terraform state is separately versioned and encrypted in the bootstrap
   bucket; application backups do not include it.
+- The Object-Locked permanent-erasure journal is separately versioned and
+  encrypted with its own KMS key and is deliberately excluded from the
+  customer-data Backup plan/restore blast radius. Document Store is the only
+  runtime writer: it must bind the exact immutable S3 key/version/SHA-256
+  before live object erasure can begin. Its task policy permits only
+  `PutObject`, `GetObject` and `GetObjectVersion` on
+  `permanent-erasures/v1/*`, plus S3-mediated `GenerateDataKey`/`Decrypt` on
+  the dedicated key. It has no list, delete, governance-bypass or bucket
+  administration permission, and the release operator has no direct journal
+  data-plane access.
 - CloudWatch/S3 operational logs support diagnosis but are not customer-data
   restoration inputs.
+
+The scheduled backup and isolated restore roles use different retained
+permissions boundaries. Their effective permissions are the intersection of
+the exact attached AWS Backup managed policies and those boundaries. The
+backup boundary names only `jsc-public-beta-postgres`, the exact documents
+bucket, exact vault/recovery-point paths, the foundation data key and AWS
+Backup-managed EventBridge rules. The restore boundary names only
+`jsc-public-beta-restore-*` RDS identifiers and
+`jsc-public-beta-restore-<account>-*` S3 destinations; it cannot restore over
+the production database or documents bucket. It deliberately has no
+`s3:CreateBucket`, bucket-encryption, bucket-policy or public-access-block
+permission, so an AWS Backup job cannot create an under-protected destination.
+
+The reviewed managed-policy defaults and the action set that must survive each
+boundary are pinned in
+`aws/public-beta/config/aws-backup-managed-policy-contract.json`. Account-free
+tests prove the checked-in boundary intersection. Immediately before the first
+apply and every release, the trusted release preflight must retrieve each AWS
+managed policy's current default version and document and fail closed if it no
+longer matches that reviewed contract; an AWS-managed policy update is a
+review event, not an automatic permission expansion. The real backup-job and
+restore-drill evidence below remains mandatory because static policy analysis
+cannot prove the service workflow in the target account.
 
 Backup, copy and restore failures publish to the operations topic. The product
 owner owns RPO/RTO approval; the release operator owns job checks and restore
@@ -31,28 +66,45 @@ Never test by overwriting a production database or production S3 key.
 
 1. Put the public listener into fixed-`503` mode if this is an incident; record
    the time and intended recovery point.
-2. Select RDS and S3 recovery points from the same completed daily window, or
-   document why a PITR database point is consistent with the selected S3
-   versions.
-3. Use the protected restore role to restore to an isolated, private test RDS
-   identifier and a new isolated S3 destination/prefix. Apply production-like
-   encryption and public-access blocks.
-4. Allow access only from an ephemeral, audited verification task. Do not
+2. Select RDS and S3 recovery points from the same completed daily window.
+3. Before `StartRestoreJob`, create the empty S3 destination through a separate
+   reviewed infrastructure change. Its name must match
+   `jsc-public-beta-restore-<account>-*`, it must be in `eu-west-2`, and it must
+   have versioning `Enabled`, `BucketOwnerEnforced`, all four Block Public
+   Access controls true, default SSE-KMS with the exact foundation data-key
+   ARN, and TLS/exact-key bucket-policy enforcement. Record the outputs of
+   `get-bucket-location`, `get-bucket-versioning`,
+   `get-bucket-ownership-controls`, `get-public-access-block`,
+   `get-bucket-encryption` and `get-bucket-policy-status`; fail if any value is
+   absent or different. The restore role cannot create or weaken this bucket.
+4. Use the protected restore role to restore to an isolated private RDS target
+   named `jsc-public-beta-restore-*` with the exact reviewed parameter/subnet
+   groups, an isolated VPC security group and `PubliclyAccessible=false`.
+   Restore S3 to the pre-created destination with metadata
+   `DestinationBucketName=<exact bucket>`, `NewBucket=false`,
+   `EncryptionType=SSE-KMS`, `KMSKey=<exact foundation data-key ARN>` and
+   `RestoreACLs=false`. AWS documents metadata keys as case-insensitive; retain
+   the exact request and job ID as evidence without customer payloads.
+5. Allow access only from an ephemeral, audited verification task. Do not
    attach restored data to the public fleet.
-5. Verify all seven logical databases/roles, Flyway histories, row counts,
+6. Verify all seven logical databases/roles, Flyway histories, row counts,
    referential/domain invariants and payment-ledger reconciliation.
-6. Verify sampled Document Store metadata maps to readable, checksum-valid S3
+7. Verify sampled Document Store metadata maps to readable, checksum-valid S3
    objects; run retention/reconciliation in report-only mode. Treat missing or
    extra documents as an integrity incident.
-7. Exercise login/profile, application tracking and document retrieval against
+8. Exercise login/profile, application tracking and document retrieval against
    the isolated environment with approved synthetic or restored test records.
-8. Record recovery-point age, elapsed restore time, evidence and gaps without
+9. Record recovery-point age, elapsed restore time, evidence and gaps without
    recording credentials or customer payloads.
-9. Delete the isolated restore through an approved, recoverable clean-up change
+10. Delete the isolated restore through an approved, recoverable clean-up change
    after evidence retention is confirmed. Do not weaken the production vault.
 
-Before launch, complete at least one drill. Repeat quarterly and after material
-RDS/S3/KMS/retention/schema changes.
+Before launch, complete at least one drill. A rendered plan cannot prove that
+the service-linked workflow, KMS grants and managed-policy intersection work in
+the target account: activation evidence must also include one successful real
+RDS job, one successful real S3 job, readable recovery points, and the isolated
+restore result. Repeat quarterly and after material RDS/S3/KMS/retention/schema
+changes.
 
 ## Incident restoration
 

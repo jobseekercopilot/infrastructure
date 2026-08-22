@@ -6,6 +6,13 @@
   "launchApprovalManifestSha256": "PENDING",
   "dependencyEvidence": {
     "documentStoreTaskRoleStorage": "1183ce5a54ab60999ca37d826ceb16857d5763ff",
+    "documentStorePermanentErasure": {
+      "revision": "e35761d1b1f810dff3c727c317d2c9c4335bcb8d",
+      "openApiSha256": "66b0b21bc93928f2fc17c576692199878f250dbbdf7db632b191468137b896f1",
+      "maximumBackupRetentionDays": 35,
+      "restoreReplayRunbook": "docs/aws-public-beta/document-store-permanent-erasure.md",
+      "restoreReplayRunbookSha256": "1a6dc2b4604a833593d82c0e414745c12f59589aa7c0c7e21de023f01c8299b2"
+    },
     "adzunaRuntimeHealth": "594ac33862c6360fe05768905bab0e2cb9ac1898",
     "jsearchRuntimeHealth": "79677c6586207f5aa30b9c6d0720f5ed2cfe728a",
     "frontendArtifacts": {
@@ -74,17 +81,32 @@
       "healthyServiceCount": 36,
       "scenarioCount": 4,
       "stepCount": 33
+    },
+    "stripeFixtureProductionIsolation": {
+      "revision": "0e84d1bd97a00194809322307682c557069f30d4",
+      "profile": "production",
+      "providerMode": "DISABLED",
+      "fixtureModeStartupRejected": true,
+      "fixturePaymentControlRouteStatus": 404,
+      "conditionalBeansAbsent": [
+        "FixturePaymentControlController",
+        "FixturePaymentControlService",
+        "FixtureStripeProviderClient",
+        "FixtureStripeSessionStore"
+      ]
     }
   },
   "capabilities": {
     "documentStoreTaskRoleCredentials": false,
     "documentStoreS3KmsEncryption": false,
+    "documentStorePermanentErasureVerified": false,
     "runtimeHealthcheckCommandsVerified": false,
     "rdsCaBundleVerified": false,
     "postcodesNorthernIrelandCoverageChainVerified": false,
     "frontendArtifactsVerified": false,
     "paymentV2ProductionContractVerified": false,
-    "paymentFixtureAcceptanceVerified": false
+    "paymentFixtureAcceptanceVerified": false,
+    "stripeFixtureProductionIsolationVerified": false
   },
   "images": {
     "postcode-io-gateway": {"repository": "jobseekercopilot/postcode-io-gateway", "revision": "0000000000000000000000000000000000000000", "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000", "scanStatus": "UNSCANNED"},

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 077
 
 action=${1:-}
 region=${AWS_REGION:-eu-west-2}
@@ -24,11 +25,16 @@ done
 repository_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 module="$repository_root/aws/public-beta"
 template_manifest="$module/config/image-manifest.json"
+backup_policy_contract="$module/config/aws-backup-managed-policy-contract.json"
 manifest=${image_manifest:-$template_manifest}
 
 for path in "$tfvars_file" "$approval_manifest" "$manifest"; do
   [[ -f "$path" ]] || { echo "Missing release input: $path" >&2; exit 2; }
 done
+[[ -f "$backup_policy_contract" ]] || {
+  echo "Missing reviewed AWS Backup managed-policy contract." >&2
+  exit 2
+}
 
 if [[ "${GITHUB_REF:-}" != "refs/heads/main" ]]; then
   echo "Refusing AWS release work outside main." >&2
@@ -52,16 +58,54 @@ common_arguments=(
   -var="approval_manifest_path=$approval_manifest"
 )
 
+temporary_release_files=()
+cleanup_release_files() {
+  if (( ${#temporary_release_files[@]} > 0 )); then
+    rm -f -- "${temporary_release_files[@]}"
+  fi
+}
+trap cleanup_release_files EXIT
+
+verify_live_release_iam() {
+  local plan=$1
+  local plan_json
+  plan_json=$(mktemp /tmp/jsc-live-iam-plan.XXXXXX.json)
+  temporary_release_files+=("$plan_json")
+  terraform -chdir="$module" show -json "$plan" >"$plan_json"
+  python3 "$repository_root/scripts/aws/verify_live_release_iam.py" \
+    --plan-json "$plan_json" \
+    --backup-contract "$backup_policy_contract" \
+    --region "$region"
+  rm -f "$plan_json"
+}
+
+verify_current_iam_contract() {
+  local desired=$1
+  local public=$2
+  local label=$3
+  local plan
+  plan=$(mktemp "/tmp/jsc-${label}.XXXXXX.tfplan")
+  temporary_release_files+=("$plan")
+  terraform -chdir="$module" plan "${common_arguments[@]}" \
+    -var="application_desired_count=$desired" \
+    -var="public_entrypoint_enabled=$public" \
+    -out="$plan"
+  verify_live_release_iam "$plan"
+  rm -f "$plan"
+}
+
 plan_and_apply() {
   local desired=$1
   local public=$2
   local label=$3
   local plan
   plan=$(mktemp "/tmp/jsc-${label}.XXXXXX.tfplan")
+  temporary_release_files+=("$plan")
   terraform -chdir="$module" plan "${common_arguments[@]}" \
     -var="application_desired_count=$desired" \
     -var="public_entrypoint_enabled=$public" \
     -out="$plan"
+  verify_live_release_iam "$plan"
   terraform -chdir="$module" show -no-color "$plan"
   terraform -chdir="$module" apply -input=false "$plan"
   rm -f "$plan"
@@ -72,11 +116,31 @@ review_plan_only() {
   local public=${PUBLIC_ENTRYPOINT_ENABLED:-false}
   local plan
   plan=$(mktemp /tmp/jsc-review.XXXXXX.tfplan)
+  temporary_release_files+=("$plan")
   terraform -chdir="$module" plan "${common_arguments[@]}" \
     -var="application_desired_count=$desired" \
     -var="public_entrypoint_enabled=$public" \
     -out="$plan"
+  verify_live_release_iam "$plan"
   terraform -chdir="$module" show -no-color "$plan"
+  rm -f "$plan"
+}
+
+targeted_plan_and_apply() {
+  local target=$1
+  local label=$2
+  local plan
+  plan=$(mktemp "/tmp/jsc-target-${label}.XXXXXX.tfplan")
+  temporary_release_files+=("$plan")
+  terraform -chdir="$module" plan "${common_arguments[@]}" \
+    -parallelism=1 \
+    -target="$target" \
+    -var=application_desired_count=1 \
+    -var=public_entrypoint_enabled=false \
+    -out="$plan"
+  verify_live_release_iam "$plan"
+  terraform -chdir="$module" show -no-color "$plan"
+  terraform -chdir="$module" apply -input=false "$plan"
   rm -f "$plan"
 }
 
@@ -193,12 +257,7 @@ start_services_in_order() {
   while IFS= read -r service; do
     [[ -n "${required[$service]:-}" ]] || continue
     target="aws_ecs_service.service[\"$service\"]"
-    terraform -chdir="$module" apply "${common_arguments[@]}" \
-      -parallelism=1 \
-      -target="$target" \
-      -var=application_desired_count=1 \
-      -var=public_entrypoint_enabled=false \
-      -auto-approve
+    targeted_plan_and_apply "$target" "$service"
     contract=$(terraform -chdir="$module" output -json release_contract)
     cluster=$(jq -er '.cluster_arn' <<<"$contract")
     aws ecs wait services-stable --region "$region" --cluster "$cluster" --services "$service"
@@ -222,12 +281,7 @@ start_clamav_scanner() {
   # Start and prove the no-task-role scanner before Document Store or any
   # upstream document path. The full reviewed plan is still reconciled after
   # every application service has stabilised in dependency order.
-  terraform -chdir="$module" apply "${common_arguments[@]}" \
-    -parallelism=1 \
-    -target=aws_ecs_service.clamav \
-    -var=application_desired_count=1 \
-    -var=public_entrypoint_enabled=false \
-    -auto-approve
+  targeted_plan_and_apply aws_ecs_service.clamav clamav
   contract=$(terraform -chdir="$module" output -json release_contract)
   cluster=$(jq -er '.cluster_arn' <<<"$contract")
   aws ecs wait services-stable --region "$region" --cluster "$cluster" --services clamav
@@ -254,6 +308,7 @@ prepare_private_fleet() {
   plan_and_apply 0 false "${verb,,}-dark"
   "$repository_root/scripts/aws/seed-runtime-secrets.sh" public-beta
   assert_capacity_ready
+  verify_current_iam_contract 0 false database-bootstrap-iam
   "$repository_root/scripts/aws/run_release_operator.sh" database-bootstrap "$module"
   write_marker database-bootstrap
 
@@ -262,7 +317,9 @@ prepare_private_fleet() {
   start_clamav_scanner
   start_services_in_order
   plan_and_apply 1 false "${verb,,}-private"
+  verify_current_iam_contract 1 false migration-operator-iam
   "$repository_root/scripts/aws/run_release_operator.sh" migration-verification "$module"
+  verify_current_iam_contract 1 false preflight-operator-iam
   "$repository_root/scripts/aws/run_release_operator.sh" release-preflight "$module"
   write_marker preflight
   echo "$verb complete for $release_id; the public listener remains a fixed 503 until a separate ACTIVATE dispatch."
@@ -289,6 +346,7 @@ case "$action" in
       echo "Refusing: confirmation must equal 'ACTIVATE $release_id'." >&2; exit 2;
     }
     assert_exact_prepared_release
+    verify_current_iam_contract 1 false activation-operator-iam
     "$repository_root/scripts/aws/run_release_operator.sh" release-preflight "$module"
     write_marker preflight
     assert_marker preflight

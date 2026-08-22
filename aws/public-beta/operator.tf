@@ -1,6 +1,7 @@
 resource "aws_iam_role" "operator_database_execution" {
-  name               = "${local.name_prefix}-release-operator-execution"
-  assume_role_policy = data.aws_iam_policy_document.task_trust.json
+  name                 = "${local.name_prefix}-release-operator-execution"
+  assume_role_policy   = data.aws_iam_policy_document.task_trust.json
+  permissions_boundary = "arn:aws:iam::${var.aws_account_id}:policy/jsc-public-beta-workload-boundary"
 }
 
 resource "aws_iam_role_policy_attachment" "operator_database_execution" {
@@ -21,7 +22,7 @@ data "aws_iam_policy_document" "operator_secrets" {
   statement {
     sid       = "DecryptDatabaseBootstrapSecrets"
     actions   = ["kms:Decrypt"]
-    resources = [aws_kms_key.data.arn]
+    resources = [var.foundation_data_kms_key_arn]
   }
 }
 
@@ -32,8 +33,9 @@ resource "aws_iam_role_policy" "operator_database_secrets" {
 }
 
 resource "aws_iam_role" "operator_preflight_execution" {
-  name               = "${local.name_prefix}-release-preflight-execution"
-  assume_role_policy = data.aws_iam_policy_document.task_trust.json
+  name                 = "${local.name_prefix}-release-preflight-execution"
+  assume_role_policy   = data.aws_iam_policy_document.task_trust.json
+  permissions_boundary = "arn:aws:iam::${var.aws_account_id}:policy/jsc-public-beta-workload-boundary"
 }
 
 resource "aws_iam_role_policy_attachment" "operator_preflight_execution" {
@@ -51,7 +53,7 @@ data "aws_iam_policy_document" "operator_preflight_secret" {
   statement {
     sid       = "DecryptOnlyPreflightIdentity"
     actions   = ["kms:Decrypt"]
-    resources = [aws_kms_key.data.arn]
+    resources = [var.foundation_data_kms_key_arn]
   }
 }
 
@@ -62,8 +64,9 @@ resource "aws_iam_role_policy" "operator_preflight_secret" {
 }
 
 resource "aws_iam_role" "operator_task" {
-  name               = "${local.name_prefix}-release-operator-task"
-  assume_role_policy = data.aws_iam_policy_document.task_trust.json
+  name                 = "${local.name_prefix}-release-operator-role"
+  assume_role_policy   = data.aws_iam_policy_document.task_trust.json
+  permissions_boundary = "arn:aws:iam::${var.aws_account_id}:policy/jsc-public-beta-workload-boundary"
 }
 
 locals {
@@ -158,9 +161,14 @@ resource "aws_ecs_task_definition" "release_preflight" {
       { name = "SERVICE_ENDPOINTS", value = local.preflight_endpoints },
       { name = "PAYMENT_READINESS_ENDPOINT", value = "http://payment-gateway.${local.namespace_name}:8098/api/v2/payments/checkout-readiness" },
       { name = "EXPECTED_CHECKOUT_AVAILABLE", value = tostring(var.enabled_integrations.stripe) },
+      { name = "DOCUMENT_ERASURE_READINESS_ENDPOINT", value = "http://document-store-service.${local.namespace_name}:8089/internal/retention/v1/permanent-erasures/readiness" },
+      { name = "DOCUMENT_ERASURE_RETENTION_POLICY_VERSION", value = try(local.document_store_erasure_approval.retentionPolicyVersion, "NOT_CONFIGURED") },
+      { name = "DOCUMENT_ERASURE_BACKUP_POLICY_VERSION", value = try(local.document_store_erasure_approval.backupRetentionPolicyVersion, "NOT_CONFIGURED") },
+      { name = "DOCUMENT_ERASURE_MAXIMUM_BACKUP_RETENTION_DAYS", value = tostring(try(local.document_store_erasure_approval.maximumBackupRetentionDays, 0)) },
     ]
     secrets = [
       { name = "BFF_TO_PAYMENT_GATEWAY_TOKEN", valueFrom = "${aws_secretsmanager_secret.core.arn}:BFF_TO_PAYMENT_GATEWAY_TOKEN::" },
+      { name = "DOCUMENT_STORE_RETENTION_ADMIN_TOKEN", valueFrom = "${aws_secretsmanager_secret.core.arn}:DOCUMENT_STORE_RETENTION_ADMIN_TOKEN::" },
     ]
     readonlyRootFilesystem = true
     linuxParameters = {
@@ -240,26 +248,31 @@ resource "aws_ecs_task_definition" "migration_verification" {
 }
 
 data "aws_ssm_parameter" "database_bootstrap" {
-  count = var.application_desired_count > 0 ? 1 : 0
+  count = var.application_desired_count > 0 && !var.offline_activation_validation ? 1 : 0
   name  = "/jsc/${var.environment}/release/database-bootstrap"
 }
 
 data "aws_ssm_parameter" "release_preflight" {
-  count = var.public_entrypoint_enabled ? 1 : 0
+  count = var.public_entrypoint_enabled && !var.offline_activation_validation ? 1 : 0
   name  = "/jsc/${var.environment}/release/preflight"
 }
 
 resource "terraform_data" "runtime_attestations" {
   input = {
-    database_bootstrap = var.application_desired_count > 0 ? data.aws_ssm_parameter.database_bootstrap[0].value : "not-required"
-    release_preflight  = var.public_entrypoint_enabled ? data.aws_ssm_parameter.release_preflight[0].value : "not-required"
-    attestation_id     = local.release_attestation_id
+    database_bootstrap = var.offline_activation_validation ? "offline-validation-only" : (
+      var.application_desired_count > 0 ? data.aws_ssm_parameter.database_bootstrap[0].value : "not-required"
+    )
+    release_preflight = var.offline_activation_validation ? "offline-validation-only" : (
+      var.public_entrypoint_enabled ? data.aws_ssm_parameter.release_preflight[0].value : "not-required"
+    )
+    attestation_id = local.release_attestation_id
   }
 
   lifecycle {
     precondition {
       condition = (
         var.application_desired_count == 0 ||
+        var.offline_activation_validation ||
         data.aws_ssm_parameter.database_bootstrap[0].value == local.release_attestation_id
       )
       error_message = "Database bootstrap must complete for this exact release and runtime configuration before application tasks can start."
@@ -268,6 +281,7 @@ resource "terraform_data" "runtime_attestations" {
     precondition {
       condition = (
         !var.public_entrypoint_enabled ||
+        var.offline_activation_validation ||
         data.aws_ssm_parameter.release_preflight[0].value == local.release_attestation_id
       )
       error_message = "Private fleet preflight must pass for this exact release and runtime configuration before the public listener can activate."

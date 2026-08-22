@@ -16,7 +16,13 @@ an autoscaling surprise.
 Important boundaries:
 
 - `bootstrap/state-and-oidc.yaml` is a separate manual prerequisite for the
-  state bucket/KMS key and GitHub OIDC roles. No workflow invokes it.
+  state bucket/KMS key, retained application/journal foundations, reviewed ECS
+  AMI, GitHub OIDC roles and mandatory workload permissions boundaries. Its
+  reviewed bytes must be submitted by versioned S3 `TemplateURL` with
+  `CAPABILITY_NAMED_IAM`; no workflow invokes it.
+- TLS consumes a separately reviewed eu-west-2 ACM certificate ARN. Terraform
+  certificate creation is disabled because ACM deletion cannot be tag-scoped;
+  the apply role consequently has no ACM mutation permission.
 - Develop/PR CI performs an isolated local-backend plan with dummy credentials
   and has no `id-token: write` permission.
 - Only manually dispatched workflows on `main`, protected by required-reviewer

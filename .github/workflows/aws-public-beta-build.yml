@@ -18,6 +18,7 @@ jobs:
     timeout-minutes: 180
     environment: production-build
     permissions:
+      actions: read
       contents: read
     outputs:
       release_id: ${{ steps.release.outputs.release_id }}
@@ -28,6 +29,10 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Verify protected production environment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/aws/verify_github_environment_protection.sh "$GITHUB_REPOSITORY" production-build
       - name: Create read-only cross-repository token
         id: app-token
         uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
@@ -141,6 +146,7 @@ jobs:
     timeout-minutes: 180
     environment: production-build
     permissions:
+      actions: read
       contents: read
       id-token: write
       attestations: write
@@ -150,6 +156,10 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Verify protected production environment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/aws/verify_github_environment_protection.sh "$GITHUB_REPOSITORY" production-build
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12'

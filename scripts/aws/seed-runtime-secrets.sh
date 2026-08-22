@@ -49,6 +49,7 @@ token_keys=(
   APPLICATION_TRACKER_PRODUCER_TOKEN APPLICATION_TRACKER_READER_TOKEN
   REPORTING_GATEWAY_SERVICE_TOKEN DOCUMENT_STORE_PRODUCER_TOKEN
   DOCUMENT_STORE_READER_TOKEN DOCUMENT_STORE_RETENTION_ADMIN_TOKEN
+  DOCUMENT_STORE_ERASURE_FINGERPRINT_KEY
   DOCUMENT_EXPORT_GATEWAY_TOKEN CV_COVER_LETTER_GATEWAY_TOKEN
   CV_COVER_LETTER_TO_PAYMENT_SERVICE_TOKEN REJECTED_GENERATION_OPERATOR_TOKEN
   DOCUMENT_GENERATION_GATEWAY_TO_PAYMENT_SERVICE_TOKEN BFF_TO_PAYMENT_GATEWAY_TOKEN
@@ -129,6 +130,19 @@ for key in "${token_keys[@]}"; do
   ensure_random_key "$key" 48
 done
 ensure_random_key REJECTED_GENERATION_QUARANTINE_KEY_BASE64 32
+
+if jq -e 'has("DOCUMENT_STORE_ERASURE_FINGERPRINT_PREVIOUS_KEYS")' "$secure_tmp/core.json" >/dev/null; then
+  jq -e '.DOCUMENT_STORE_ERASURE_FINGERPRINT_PREVIOUS_KEYS | type == "string" and length <= 4103' \
+    "$secure_tmp/core.json" >/dev/null || {
+      echo "Refusing invalid previous Document Store erasure fingerprint key ring" >&2
+      exit 3
+    }
+else
+  next="$secure_tmp/core.next.json"
+  jq '.DOCUMENT_STORE_ERASURE_FINGERPRINT_PREVIOUS_KEYS = ""' "$secure_tmp/core.json" > "$next"
+  mv "$next" "$secure_tmp/core.json"
+  core_changed=true
+fi
 
 chmod 0600 "$secure_tmp/core.json"
 if [[ "$core_changed" == true ]]; then

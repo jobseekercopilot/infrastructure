@@ -32,7 +32,7 @@ if [[ -z "$launch_approvals_file" ]] || [[ ! -f "$launch_approvals_file" ]] || [
   exit 2
 fi
 
-for command_name in awk base64 curl docker gh git jq npm python3 sha256sum zstd; do
+for command_name in awk base64 curl docker gh git grep jq npm python3 sha256sum zstd; do
   command -v "$command_name" >/dev/null || { echo "Missing required command: $command_name" >&2; exit 2; }
 done
 
@@ -99,13 +99,37 @@ actual_client_revision=$(git -C "$workspace_root/job-seeker-copilot-client" rev-
 }
 echo "$client_contract_sha  $workspace_root/job-seeker-copilot-client/docs/release-artifact-contract.md" | sha256sum -c -
 
+# The approval no longer makes an unverifiable claim about separately rendered
+# Terms/Privacy response bytes.  Instead it checksum-binds the exact immutable
+# Client and Landing legal artifacts that central release is about to package.
+client_legal_artifact_sha=$(jq -er '.publicLegal.clientLegalArtifactSha256' "$launch_approvals_file")
+landing_legal_artifact_sha=$(jq -er '.publicLegal.landingLegalArtifactSha256' "$launch_approvals_file")
+for value in "$client_legal_artifact_sha" "$landing_legal_artifact_sha"; do
+  [[ "$value" =~ ^[0-9a-f]{64}$ ]] && [[ "$value" != "$(printf '0%.0s' {1..64})" ]] || {
+    echo "Protected legal artifact checksum is absent, zero or malformed." >&2
+    exit 3
+  }
+done
+echo "$client_legal_artifact_sha  $workspace_root/job-seeker-copilot-client/src/app/features/legal-notice/legal-notice.html" | sha256sum -c -
+echo "$landing_legal_artifact_sha  $landing_checkout/src/app/pages/legal/legal-page.html" | sha256sum -c -
+
 if [[ -z "$landing_runtime_env_b64" ]]; then
   echo "Refusing: protected LANDING_RUNTIME_ENV_B64 release input is required." >&2
   exit 3
 fi
 
+document_store_erasure_runbook=$(jq -er \
+  '.dependencyEvidence.documentStorePermanentErasure.restoreReplayRunbook' "$template_manifest")
+document_store_erasure_runbook_sha=$(jq -er \
+  '.dependencyEvidence.documentStorePermanentErasure.restoreReplayRunbookSha256' "$template_manifest")
+[[ "$document_store_erasure_runbook" == "docs/aws-public-beta/document-store-permanent-erasure.md" ]] || {
+  echo "Document Store permanent-erasure restore procedure path is not the reviewed contract." >&2
+  exit 3
+}
+echo "$document_store_erasure_runbook_sha  $repository_root/$document_store_erasure_runbook" | sha256sum -c -
+
 declare -A dependency_revision=(
-  [document-store-service]=1183ce5a54ab60999ca37d826ceb16857d5763ff
+  [document-store-service]="$(jq -r '.dependencyEvidence.documentStorePermanentErasure.revision' "$template_manifest")"
   [adzuna-gateway]=594ac33862c6360fe05768905bab0e2cb9ac1898
   [jsearch-gateway]=79677c6586207f5aa30b9c6d0720f5ed2cfe728a
   [postcode-io-gateway]="$(jq -r '.dependencyEvidence.postcodesNorthernIrelandCoverageChain.postcodeIoGateway.revision' "$template_manifest")"
@@ -130,6 +154,16 @@ for repository in "${!dependency_revision[@]}"; do
     exit 3
   fi
 done
+document_store_task_role_revision=$(jq -er '.dependencyEvidence.documentStoreTaskRoleStorage' "$template_manifest")
+[[ "$document_store_task_role_revision" =~ ^[0-9a-f]{40}$ ]] || {
+  echo "Document Store task-role dependency is not a reviewed commit SHA." >&2
+  exit 3
+}
+git -C "$workspace_root/document-store-service" merge-base --is-ancestor \
+  "$document_store_task_role_revision" HEAD || {
+    echo "Document Store release lock lost the reviewed task-role storage dependency." >&2
+    exit 3
+  }
 
 payment_fixture_infrastructure_revision=$(jq -r \
   '.dependencyEvidence.paymentFixtureAcceptance.infrastructureRevision' "$template_manifest")
@@ -170,6 +204,9 @@ trap - EXIT HUP INT TERM
 export COMPOSE_PROJECT_NAME=jsc-release
 "$repository_root/scripts/test-all.sh" --profile full-fixture
 "$repository_root/scripts/build-all.sh" --profile full-fixture
+python3 "$repository_root/scripts/aws/verify_release_contract_hashes.py" \
+  --workspace-root "$workspace_root" \
+  --image-manifest "$template_manifest"
 
 # The workspace lifecycle builds source artifacts but intentionally does not
 # publish OCI images. Materialise the exact Compose build contexts under an
@@ -269,6 +306,91 @@ while IFS=$'\t' read -r service port health_path; do
   fi
   echo "Verified release image contract: $service:$port$health_path"
 done < <(jq -r '.services | to_entries[] | [.key, (.value.port|tostring), .value.healthPath] | @tsv' "$runtime_manifest")
+
+# Fixture support is intentionally present in the one reviewed Stripe JAR so
+# isolated E2E can exercise signed settlement.  Prove the truthful production
+# boundary on the exact image: production+FIXTURE must fail startup, while
+# production+DISABLED is healthy, returns 404 for the control route, and does
+# not register any of the mode-conditional control/provider beans.
+stripe_image=jsc-release-stripe-gateway
+stripe_probe=
+cleanup_stripe_probe() {
+  if [[ -n "$stripe_probe" ]]; then
+    docker rm --force "$stripe_probe" >/dev/null 2>&1 || true
+  fi
+}
+trap cleanup_stripe_probe EXIT HUP INT TERM
+stripe_production_environment=(
+  --env SPRING_PROFILES_ACTIVE=production
+  --env SERVER_PORT=8100
+  --env STRIPE_LIVE_RELEASE_AUTHORISED=false
+  --env STRIPE_LEGACY_CHECKOUT_ENABLED=false
+  --env STRIPE_API_BASE_URL=https://api.stripe.com
+  --env STRIPE_API_VERSION=2026-02-25.clover
+  --env STRIPE_SUCCESS_URL=https://app.jobseekercopilot.com/payment/success
+  --env STRIPE_CANCEL_URL=https://app.jobseekercopilot.com/payment/cancel
+  --env PAYMENT_SERVICE_URL=http://payment-service.public-beta.internal:8099
+  --env PAYMENT_GATEWAY_TO_STRIPE_GATEWAY_TOKEN=release-probe-payment-gateway-token-000001
+  --env STRIPE_GATEWAY_TO_PAYMENT_SERVICE_TOKEN=release-probe-stripe-payment-token-000002
+  --env PAYMENT_SERVICE_TO_STRIPE_GATEWAY_LIFECYCLE_TOKEN=release-probe-payment-lifecycle-token-000003
+)
+
+stripe_probe=$(docker run --detach --read-only --tmpfs /tmp --user 10001:10001 \
+  "${stripe_production_environment[@]}" \
+  --env EXTERNAL_PROVIDER_MODE=FIXTURE \
+  --env STRIPE_FIXTURE_PAYMENT_CONTROL_ENABLED=false \
+  "$stripe_image")
+for _attempt in {1..15}; do
+  [[ "$(docker inspect --format '{{.State.Running}}' "$stripe_probe")" == "false" ]] && break
+  sleep 2
+done
+if [[ "$(docker inspect --format '{{.State.Running}}' "$stripe_probe")" != "false" ]] ||
+   [[ "$(docker inspect --format '{{.State.ExitCode}}' "$stripe_probe")" -eq 0 ]] ||
+   ! docker logs "$stripe_probe" 2>&1 | grep -Fq 'cannot start in FIXTURE mode with a production profile'; then
+  docker logs "$stripe_probe" >&2
+  echo "Stripe exact image did not reject production-profile FIXTURE startup." >&2
+  exit 3
+fi
+cleanup_stripe_probe
+stripe_probe=
+
+stripe_probe=$(docker run --detach --read-only --tmpfs /tmp --user 10001:10001 \
+  "${stripe_production_environment[@]}" \
+  --env EXTERNAL_PROVIDER_MODE=DISABLED \
+  --env STRIPE_FIXTURE_PAYMENT_CONTROL_ENABLED=false \
+  --env MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,beans \
+  "$stripe_image")
+stripe_ready=false
+for _attempt in {1..30}; do
+  if docker exec "$stripe_probe" curl --fail --silent http://127.0.0.1:8100/actuator/health >/dev/null; then
+    stripe_ready=true
+    break
+  fi
+  [[ "$(docker inspect --format '{{.State.Running}}' "$stripe_probe")" == "true" ]] || break
+  sleep 2
+done
+if [[ "$stripe_ready" != "true" ]]; then
+  docker logs "$stripe_probe" >&2
+  echo "Stripe exact image did not become healthy in production DISABLED mode." >&2
+  exit 3
+fi
+fixture_route_status=$(docker exec "$stripe_probe" curl --silent --output /dev/null --write-out '%{http_code}' \
+  http://127.0.0.1:8100/internal/fixtures/v2/stripe/owners/release-preflight)
+[[ "$fixture_route_status" == "404" ]] || {
+  echo "Stripe fixture payment-control route was present in production DISABLED mode: HTTP $fixture_route_status" >&2
+  exit 3
+}
+docker exec "$stripe_probe" curl --fail --silent http://127.0.0.1:8100/actuator/beans | jq -e '
+  [.. | strings |
+   select(test("FixturePaymentControlController|FixturePaymentControlService|FixtureStripeProviderClient|FixtureStripeSessionStore"))]
+  | length == 0
+' >/dev/null || {
+  echo "Stripe mode-conditional fixture control/provider bean was active in production DISABLED mode." >&2
+  exit 3
+}
+cleanup_stripe_probe
+stripe_probe=
+trap - EXIT HUP INT TERM
 
 operator_image=jsc-release-release-operator
 docker build \
@@ -373,12 +495,14 @@ jq \
    | .launchApprovalManifestSha256=$launchApprovalsSha
    | .capabilities.documentStoreTaskRoleCredentials=true
    | .capabilities.documentStoreS3KmsEncryption=true
+   | .capabilities.documentStorePermanentErasureVerified=true
    | .capabilities.runtimeHealthcheckCommandsVerified=true
    | .capabilities.rdsCaBundleVerified=true
    | .capabilities.postcodesNorthernIrelandCoverageChainVerified=true
    | .capabilities.frontendArtifactsVerified=true
    | .capabilities.paymentV2ProductionContractVerified=true
-   | .capabilities.paymentFixtureAcceptanceVerified=true' \
+   | .capabilities.paymentFixtureAcceptanceVerified=true
+   | .capabilities.stripeFixtureProductionIsolationVerified=true' \
   "$template_manifest" > "$manifest"
 
 landing_metadata="$output_directory/landing-artifact.json"

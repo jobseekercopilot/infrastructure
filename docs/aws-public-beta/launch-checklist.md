@@ -17,7 +17,9 @@ Terraform plan or AWS credit award alone is not launch approval.
       charges claimed before settlement evidence exists.
 - [ ] The protected public-legal record names the real reviewed sole trader or
       limited company (as applicable), explicit VAT/ICO status, contacts,
-      effective date, content digests and retention/deletion decisions. The
+      effective date, published URLs, exact immutable Client/Landing legal-
+      artifact checksums and retention/deletion decisions. The protected build
+      recomputed both checksums from the exact locked source files. The
       Authentication service receives `AUTH_LEGAL_DOCUMENTS_REVIEWED=true`
       only from that reviewed contract. The same non-placeholder
       `LEGAL_VERSION` is proven through Client,
@@ -50,11 +52,17 @@ Terraform plan or AWS credit award alone is not launch approval.
       is not represented as an enabled control.
 - [ ] The bootstrap CloudFormation change set was independently reviewed and
       manually executed in the intended account/`eu-west-2`.
+- [ ] The exact `app.<domain>` certificate is validated in eu-west-2 and its
+      reviewed ARN is supplied as `existing_certificate_arn`; the Terraform
+      apply role has no ACM write/delete access.
 - [ ] State bucket public-access block, versioning, KMS encryption and native
       lock file are verified; a state recovery exercise is recorded.
 - [ ] `production-build`, `production-aws-plan` and `production-aws` allow only
       `main`, require a reviewer other than the dispatcher and cannot be
-      bypassed by normal contributors.
+      bypassed by normal contributors. The pre-OIDC GitHub API check passed for
+      required reviewers, `prevent_self_review` and the sole `main` branch
+      policy; administrator-bypass state is separately evidenced where GitHub
+      does not expose it in that response.
 - [ ] Plan, build and apply OIDC role policies match the reviewed bootstrap
       output; there are no static AWS access keys in GitHub or tasks.
 - [ ] The source-build job has no OIDC permission/AWS credentials; only the
@@ -119,9 +127,13 @@ Terraform plan or AWS credit award alone is not launch approval.
       System Data `ca4bafeafbfe41b25a8507f6f08d97490ef71a28`, E2E
       `1541d92f34a3068bb160e1638834a06af6a60796` and Infrastructure
       `412566a750ead55740e0b2b4b81cebe29d3e0ad9`; its recorded result is 36/36
-      healthy services, 4/4 scenarios and 33/33 steps. The test-profile-only
-      fixture mode, controls, tokens and signing secret are absent from every
-      production task, image, ALB route and public OpenAPI.
+      healthy services, 4/4 scenarios and 33/33 steps. System Data/E2E remain
+      outside production tasks, repositories and ALB. On the exact Stripe
+      image, production-profile `FIXTURE` startup is rejected; production
+      `DISABLED` is healthy, returns 404 for the control route and registers no
+      conditional fixture control/provider beans. Production task definitions
+      contain no fixture token/signing secret, and public OpenAPI has no fixture
+      route. Do not claim the shared Stripe JAR lacks dormant fixture bytecode.
 - [ ] All seven DB-owning runtime images and the operator contain the same
       checksum-pinned official RDS CA bundle at
       `/etc/jsc/rds/global-bundle.pem`; hostname-verifying TLS was exercised.
@@ -152,13 +164,29 @@ Terraform plan or AWS credit award alone is not launch approval.
 - [ ] WAF tests prove ordinary CRS protection remains active and only the two
       exact authenticated upload paths count `SizeRestrictions_BODY`; the BFF
       still enforces authentication, content type and 10/25 MiB limits.
+- [ ] The live default versions and documents of all four attached AWS Backup
+      managed policies match the reviewed
+      `aws-backup-managed-policy-contract.json`; any AWS-side policy revision
+      was independently reviewed before the release preflight was rerun.
 - [ ] Latest RDS/S3 backup jobs succeeded, restore-role access is controlled,
       and a quarterly isolated restore drill meeting the declared RPO/RTO is
       recorded.
+- [ ] Permanent-erasure readiness v2 is `READY` for the exact reviewed
+      document, backup and independently reviewed journal-retention policy
+      versions. The 35-day maximum matches the foundation Backup plan; the
+      machine-written Object-Locked journal is outside that restore blast
+      radius; and `recoveryJournalWritePending`,
+      `recoveryJournalEvidenceMissing`, `liveErasureReconciliationPending`,
+      `restoreJournalReadPending`, `restoreReplayPending` and
+      `backupRetentionPending` are all zero. A completed isolated restore
+      replay and fresh backup-expiry attestation are recorded before traffic.
 - [ ] The complete stateful-path inventory was reviewed: no required durable
       data depends on a container or EC2-host filesystem.
 - [ ] Key/secret rotation owners, account-removal retention, S3 quarantine
       cleanup and log-access owners are assigned.
+- [ ] The reviewed `securityLogRetentionDays` value exactly matches every
+      CloudWatch group and the ALB/S3 access-log lifecycle; no shorter or longer
+      diagnostic store is silently published under a different promise.
 - [ ] The protected emergency-darkening path binds the typed release ID to
       applied state, fixes both HTTPS default and Stripe webhook at `503`
       before task drain, does not require an unexpired approval/build artifact,

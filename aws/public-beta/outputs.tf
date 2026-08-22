@@ -43,7 +43,7 @@ output "data_recovery" {
   value = {
     document_bucket_arn = aws_s3_bucket.documents.arn
     postgres_arn        = aws_db_instance.postgres.arn
-    backup_vault_arn    = aws_backup_vault.customer_data.arn
+    backup_vault_arn    = "arn:aws:backup:${var.aws_region}:${var.aws_account_id}:backup-vault:jsc-public-beta-customer-data"
     restore_role_arn    = aws_iam_role.backup_restore.arn
   }
 }
@@ -64,7 +64,23 @@ output "runtime_secret_arns" {
 }
 
 output "operations_topic_arn" {
-  value = aws_sns_topic.operations.arn
+  value = var.foundation_operations_topic_arn
+}
+
+output "monthly_alert_budget_usd" {
+  description = "Retained foundation alert threshold; AWS Budgets does not enforce a hard spending cap."
+  value       = var.foundation_monthly_alert_budget_usd
+}
+
+output "permanent_erasure_journal_contract" {
+  description = "Non-secret retained erasure-journal foundation contract used by Document Store and isolated restore replay."
+  value = {
+    bucket_name     = var.foundation_erasure_journal_bucket_name
+    kms_key_arn     = var.foundation_erasure_journal_kms_key_arn
+    object_prefix   = "permanent-erasures/v1/"
+    retention_days  = var.foundation_erasure_journal_retention_days
+    backup_selected = false
+  }
 }
 
 output "capacity_contract" {

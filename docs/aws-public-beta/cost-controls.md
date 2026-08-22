@@ -19,9 +19,11 @@ release-gated/disabled and no live charge is claimed by this plan.
 | WAF, Route 53, KMS, S3, ECR, logs, SES | $45–85 | requests, logs, scans, document volume |
 | expected planning total | **about $560** | traffic and retained data |
 
-The Terraform `monthly_budget_usd=750` value is an **alert budget**, not a hard
-cap. Actual alerts are sent at 50%, 80% and 100%, forecast alerts at 80%, and a
-daily Cost Anomaly Detection subscription triggers from a $20 absolute impact.
+The retained bootstrap `MonthlyCostAlertBudget` owns the **USD 750 alert
+budget**; Terraform must consume the identical `MonthlyAlertBudgetUsd` output
+as `foundation_monthly_alert_budget_usd` and `monthly_budget_usd`. It is not a
+hard cap. Actual alerts are sent at 50%, 80% and 100%, forecast alerts at 80%,
+and a daily Cost Anomaly Detection subscription triggers from a $20 absolute impact.
 Email subscriptions must be confirmed. Cost-allocation tags may take time to
 activate, so the billing console must confirm that `CostCentre=public-beta` is
 an active cost-allocation tag before relying on the filtered budget.
@@ -30,11 +32,13 @@ Harder engineering bounds are separate:
 
 - lean ASG min/desired/max are all one; ECS managed capacity cannot add a
   second node, and its `0/100` host refresh cannot add temporary capacity;
-- reviewed HA holds min/desired/max at two and refreshes at `50/100`, so host
-  replacement cannot add an unpriced third node;
+- the bootstrap Apply policy also caps ASG create/update at one node and pins
+  a numeric launch-template version; HA requires a separately reviewed
+  bootstrap/IAM and cost-ceiling change before Terraform can request it;
 - lean service maximum is one and deployment is stop-first;
 - RDS maximum storage is 200 GiB and backup retention is 35 days;
-- log retention is 30 days (90 days for access logs);
+- one reviewed `securityLogRetentionDays` value applies to both CloudWatch and
+  access-log S3 retention (30 days in the lean baseline);
 - external providers need manifest request and cost ceilings;
 - Google remains disabled without a named GCP project, exact billable quota IDs
   and daily limits, a true external verification record, separate GCP alerts at

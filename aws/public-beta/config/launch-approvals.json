@@ -2,6 +2,30 @@
   "schemaVersion": 1,
   "environment": "public-beta",
   "reviewedAt": null,
+  "githubEnvironmentProtection": {
+    "reviewed": false,
+    "reviewedBy": "",
+    "reviewedOn": "",
+    "evidenceReference": "",
+    "environments": ["production-build", "production-aws-plan", "production-aws"],
+    "requiredReviewersVerified": false,
+    "preventSelfReviewVerified": false,
+    "exactMainBranchVerified": false,
+    "administratorBypassDisabled": false
+  },
+  "documentStorePermanentErasure": {
+    "reviewed": false,
+    "reviewedBy": "",
+    "reviewedOn": "",
+    "evidenceReference": "",
+    "retentionPolicyVersion": "NOT_CONFIGURED",
+    "backupRetentionPolicyVersion": "NOT_CONFIGURED",
+    "journalRetentionPolicyVersion": "NOT_CONFIGURED",
+    "maximumBackupRetentionDays": 35,
+    "journalRetentionDays": 0,
+    "externalDeletionJournalVerified": false,
+    "isolatedRestoreReplayVerified": false
+  },
   "publicLegal": {
     "reviewed": false,
     "reviewedBy": "",
@@ -23,9 +47,9 @@
     "supportRecordRetentionDays": 0,
     "financialRecordRetentionYears": 0,
     "termsUrl": "",
-    "termsContentSha256": "",
     "privacyNoticeUrl": "",
-    "privacyNoticeContentSha256": ""
+    "clientLegalArtifactSha256": "",
+    "landingLegalArtifactSha256": ""
   },
   "integrations": {
     "postcodes_gb": {

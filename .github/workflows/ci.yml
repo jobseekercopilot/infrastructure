@@ -34,6 +34,7 @@ jobs:
           python3 -m json.tool aws/public-beta/config/runtime-services.json >/dev/null
           python3 -m json.tool aws/public-beta/config/image-manifest.json >/dev/null
           python3 -m json.tool aws/public-beta/config/launch-approvals.json >/dev/null
+          python3 -m json.tool aws/public-beta/config/aws-backup-managed-policy-contract.json >/dev/null
       - name: Validate account-free public-beta AWS contract
         run: python3 scripts/aws/validate_public_beta.py
       - name: Reject tracked credential literals

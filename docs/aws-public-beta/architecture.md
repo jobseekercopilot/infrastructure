@@ -99,8 +99,14 @@ revisions plus the reviewed ClamAV LTS version, and attests:
   Payment Gateway and Stripe Gateway production-v2 revisions and OpenAPI hashes;
 - separate ancestor-verified System Data, E2E and Infrastructure provenance for
   the isolated signed-settlement acceptance run (36 healthy services, 4/4
-  scenarios, 33/33 steps). This evidence never adds System Data, E2E or fixture
-  controls to production tasks, ECR runtime images, ALB routes or public APIs;
+  scenarios, 33/33 steps). System Data and E2E are excluded from production
+  tasks, ECR repositories and ALB routes. The reviewed Stripe JAR does contain
+  dormant fixture classes, so the builder tests the truthful boundary on the
+  exact image: production-profile `FIXTURE` startup fails, `DISABLED` is
+  healthy, the control route is 404 and its mode-conditional controller,
+  service, provider and store beans are not registered. Fixture tokens and
+  signing secrets are absent from the production task definition and fixture
+  routes remain absent from public OpenAPI;
 - one protected-`main` Client SSR/BFF OCI contract and one protected-`main`
   Landing static/config/SAM contract. The release binds the Client digest and
   Landing tar/config/template checksums, while recording Landing as
@@ -132,8 +138,10 @@ replacement; neither assumes four simultaneous copies. `DatabaseConnections >=
 
 The protected approval manifest owns one reviewed public legal contract. Its
 seller form, tax status, version, effective date, identity/contact/ICO status,
-published Terms/Privacy digests and retention periods are bound into the exact
-release attestation. Terraform supplies the same version to the Client and
+published Terms/Privacy URLs, exact immutable Client/Landing legal-artifact
+checksums and retention periods are bound into the release. The protected
+builder recomputes those checksums from the exact locked source files rather
+than trusting approval metadata alone. Terraform supplies the same version to the Client and
 Authentication registration requirements, and requires its seller/tax/terms/
 retention fields to match Payment. `NOT_CONFIGURED` or an unreviewed legal
 contract prevents even the private application fleet from starting.
@@ -149,7 +157,9 @@ Common Rule Set everywhere. Only two exact authenticated multipart paths get a
 and the BFF/application retain their 10/25 MiB and content validation.
 
 RDS, S3, secrets, EBS, backups and ECS Exec use encryption. Documents are
-versioned and backed up; access/ALB logs expire after 90 days. VPC flow logs
+versioned and backed up. The one reviewed `securityLogRetentionDays` value is
+applied exactly to ALB/S3 access logs and every CloudWatch diagnostic/security
+log group; the current lean default is 30 days. VPC flow logs
 store rejected traffic only. WAF request sampling is disabled to avoid payload
 exposure. Application scratch uses bounded hardened task `tmpfs`; ClamAV
 signatures start from the immutable image, refresh only on the disposable task

@@ -1,13 +1,16 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >-
-  Manual, one-time Job Seeker Copilot public-beta bootstrap. Creates only the
-  encrypted Terraform backend and GitHub OIDC roles. This template is never
-  invoked by a repository workflow.
+  Manual, one-time Job Seeker Copilot public-beta foundation. Creates the
+  encrypted Terraform backend, GitHub OIDC roles and retained opaque-ID
+  encryption/backup/notification/cost-anomaly resources that routine apply is
+  deliberately unable to claim or destroy. This template is never invoked by
+  a repository workflow.
 
 Parameters:
   StateBucketName:
     Type: String
-    AllowedPattern: '^[a-z0-9][a-z0-9.-]{3,61}[a-z0-9]$'
+    AllowedPattern: '^(?!jsc-public-beta-(access-logs|documents|erasure-journal)-)[a-z0-9][a-z0-9.-]{3,61}[a-z0-9]$'
+    ConstraintDescription: Must be a valid unique bucket name outside the reserved application bucket prefixes.
   GitHubOrganisation:
     Type: String
     Default: jobseekercopilot
@@ -40,6 +43,28 @@ Parameters:
   ApplyEnvironmentName:
     Type: String
     Default: production-aws
+  ErasureJournalRetentionDays:
+    Type: Number
+    MinValue: 36
+    MaxValue: 400
+    Description: >-
+      Reviewed retention for encrypted permanent-erasure replay material. It
+      must exceed the 35-day customer-data backup maximum and be approved by
+      the privacy and disaster-recovery owners.
+  MonthlyBudgetUsd:
+    Type: Number
+    Default: 750
+    MinValue: 100
+    MaxValue: 750
+    Description: >-
+      Monthly AWS alert budget in USD. This is an alert threshold, never a
+      hard spending cap; raising it requires a separately reviewed foundation
+      change.
+  EcsAmiId:
+    Type: AWS::EC2::Image::Id
+    Description: >-
+      Exact reviewed Amazon Linux 2023 ECS-optimised AMI. Rotate this manual
+      foundation input before a protected Terraform release changes AMI.
 
 Conditions:
   CreateGitHubOidcProvider: !Equals [!Ref ExistingGitHubOidcProviderArn, '']
@@ -74,6 +99,8 @@ Resources:
 
   StateKeyAlias:
     Type: AWS::KMS::Alias
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       AliasName: alias/jsc-public-beta-terraform-state
       TargetKeyId: !Ref StateKey
@@ -120,6 +147,8 @@ Resources:
 
   StateBucketPolicy:
     Type: AWS::S3::BucketPolicy
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       Bucket: !Ref StateBucket
       PolicyDocument:
@@ -143,6 +172,481 @@ Resources:
             Condition:
               StringNotEquals:
                 s3:x-amz-server-side-encryption: aws:kms
+          - Sid: DenyMissingStateKmsKey
+            Effect: Deny
+            Principal: '*'
+            Action: s3:PutObject
+            Resource: !Sub '${StateBucket.Arn}/*'
+            Condition:
+              'Null':
+                s3:x-amz-server-side-encryption-aws-kms-key-id: 'true'
+          - Sid: DenyWrongStateKmsKey
+            Effect: Deny
+            Principal: '*'
+            Action: s3:PutObject
+            Resource: !Sub '${StateBucket.Arn}/*'
+            Condition:
+              StringNotEquals:
+                s3:x-amz-server-side-encryption-aws-kms-key-id: !GetAtt StateKey.Arn
+
+  ApplicationDataKey:
+    Type: AWS::KMS::Key
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: Job Seeker Copilot public-beta customer-data encryption foundation
+      EnableKeyRotation: true
+      PendingWindowInDays: 30
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: EnableAccountIamPolicies
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:root
+            Action: kms:*
+            Resource: '*'
+          - Sid: EncryptOnlyPublicBetaCloudWatchLogs
+            Effect: Allow
+            Principal:
+              Service: !Sub logs.${AWS::Region}.amazonaws.com
+            Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:GenerateDataKey*
+              - kms:ReEncrypt*
+            Resource: '*'
+            Condition:
+              ArnLike:
+                kms:EncryptionContext:aws:logs:arn: !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/jsc/public-beta/*
+      Tags:
+        - Key: Application
+          Value: Job Seeker Copilot
+        - Key: Environment
+          Value: public-beta
+        - Key: ManagedBy
+          Value: CloudFormation-bootstrap
+        - Key: CostCentre
+          Value: public-beta
+        - Key: DataClass
+          Value: customer-confidential
+
+  ApplicationDataKeyAlias:
+    Type: AWS::KMS::Alias
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      AliasName: alias/jsc-public-beta-data
+      TargetKeyId: !Ref ApplicationDataKey
+
+  ErasureJournalKey:
+    Type: AWS::KMS::Key
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: Job Seeker Copilot permanent-erasure journal encryption foundation
+      EnableKeyRotation: true
+      PendingWindowInDays: 30
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: EnableAccountIamPolicies
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:root
+            Action: kms:*
+            Resource: '*'
+      Tags:
+        - Key: Foundation
+          Value: ErasureJournal
+        - Key: Environment
+          Value: public-beta
+        - Key: ManagedBy
+          Value: CloudFormation-bootstrap
+        - Key: CostCentre
+          Value: public-beta
+        - Key: DataClass
+          Value: restricted-recovery
+
+  ErasureJournalKeyAlias:
+    Type: AWS::KMS::Alias
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      AliasName: alias/jsc-public-beta-erasure-journal
+      TargetKeyId: !Ref ErasureJournalKey
+
+  ErasureJournalBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub jsc-public-beta-erasure-journal-${AWS::AccountId}
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - BucketKeyEnabled: true
+            ServerSideEncryptionByDefault:
+              KMSMasterKeyID: !GetAtt ErasureJournalKey.Arn
+              SSEAlgorithm: aws:kms
+      ObjectLockEnabled: true
+      ObjectLockConfiguration:
+        ObjectLockEnabled: Enabled
+        Rule:
+          DefaultRetention:
+            Mode: GOVERNANCE
+            Days: !Ref ErasureJournalRetentionDays
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireReviewedReplayMaterial
+            Status: Enabled
+            ExpirationInDays: !Ref ErasureJournalRetentionDays
+            NoncurrentVersionExpiration:
+              NoncurrentDays: !Ref ErasureJournalRetentionDays
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+      Tags:
+        - Key: Foundation
+          Value: ErasureJournal
+        - Key: Environment
+          Value: public-beta
+        - Key: ManagedBy
+          Value: CloudFormation-bootstrap
+        - Key: CostCentre
+          Value: public-beta
+        - Key: DataClass
+          Value: restricted-recovery
+        - Key: ExcludedFromCustomerDataBackup
+          Value: 'true'
+
+  ErasureJournalBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Bucket: !Ref ErasureJournalBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: '*'
+            Action: s3:*
+            Resource:
+              - !GetAtt ErasureJournalBucket.Arn
+              - !Sub '${ErasureJournalBucket.Arn}/*'
+            Condition:
+              Bool:
+                aws:SecureTransport: 'false'
+          - Sid: DenyMissingJournalEncryption
+            Effect: Deny
+            Principal: '*'
+            Action: s3:PutObject
+            Resource: !Sub '${ErasureJournalBucket.Arn}/permanent-erasures/v1/*'
+            Condition:
+              'Null':
+                s3:x-amz-server-side-encryption: 'true'
+          - Sid: DenyWrongJournalEncryptionAlgorithm
+            Effect: Deny
+            Principal: '*'
+            Action: s3:PutObject
+            Resource: !Sub '${ErasureJournalBucket.Arn}/permanent-erasures/v1/*'
+            Condition:
+              StringNotEquals:
+                s3:x-amz-server-side-encryption: aws:kms
+          - Sid: DenyMissingJournalKey
+            Effect: Deny
+            Principal: '*'
+            Action: s3:PutObject
+            Resource: !Sub '${ErasureJournalBucket.Arn}/permanent-erasures/v1/*'
+            Condition:
+              'Null':
+                s3:x-amz-server-side-encryption-aws-kms-key-id: 'true'
+          - Sid: DenyWrongJournalKey
+            Effect: Deny
+            Principal: '*'
+            Action: s3:PutObject
+            Resource: !Sub '${ErasureJournalBucket.Arn}/permanent-erasures/v1/*'
+            Condition:
+              StringNotEquals:
+                s3:x-amz-server-side-encryption-aws-kms-key-id: !GetAtt ErasureJournalKey.Arn
+          - Sid: DenyMissingJournalBucketKey
+            Effect: Deny
+            Principal: '*'
+            Action: s3:PutObject
+            Resource: !Sub '${ErasureJournalBucket.Arn}/permanent-erasures/v1/*'
+            Condition:
+              'Null':
+                s3:x-amz-server-side-encryption-bucket-key-enabled: 'true'
+          - Sid: DenyDisabledJournalBucketKey
+            Effect: Deny
+            Principal: '*'
+            Action: s3:PutObject
+            Resource: !Sub '${ErasureJournalBucket.Arn}/permanent-erasures/v1/*'
+            Condition:
+              Bool:
+                s3:x-amz-server-side-encryption-bucket-key-enabled: 'false'
+
+  NotificationKey:
+    Type: AWS::KMS::Key
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: Job Seeker Copilot public-beta operational notification encryption foundation
+      EnableKeyRotation: true
+      PendingWindowInDays: 30
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: EnableAccountIamPolicies
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:root
+            Action: kms:*
+            Resource: '*'
+          - Sid: EncryptOperationalNotifications
+            Effect: Allow
+            Principal:
+              Service:
+                - backup.amazonaws.com
+                - budgets.amazonaws.com
+                - cloudwatch.amazonaws.com
+                - costalerts.amazonaws.com
+                - sns.amazonaws.com
+            Action:
+              - kms:Decrypt
+              - kms:GenerateDataKey*
+            Resource: '*'
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+      Tags:
+        - Key: Application
+          Value: Job Seeker Copilot
+        - Key: Environment
+          Value: public-beta
+        - Key: ManagedBy
+          Value: CloudFormation-bootstrap
+        - Key: CostCentre
+          Value: public-beta
+        - Key: DataClass
+          Value: operational
+
+  NotificationKeyAlias:
+    Type: AWS::KMS::Alias
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      AliasName: alias/jsc-public-beta-notifications
+      TargetKeyId: !Ref NotificationKey
+
+  OperationsTopic:
+    Type: AWS::SNS::Topic
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TopicName: jsc-public-beta-operations
+      KmsMasterKeyId: !GetAtt NotificationKey.Arn
+      Tags:
+        - Key: Application
+          Value: Job Seeker Copilot
+        - Key: Environment
+          Value: public-beta
+        - Key: ManagedBy
+          Value: CloudFormation-bootstrap
+        - Key: CostCentre
+          Value: public-beta
+
+  OperationsTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Topics:
+        - !Ref OperationsTopic
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: OwnerAdministration
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:root
+            Action: sns:*
+            Resource: !Ref OperationsTopic
+          - Sid: AwsAlertPublishers
+            Effect: Allow
+            Principal:
+              Service:
+                - backup.amazonaws.com
+                - budgets.amazonaws.com
+                - cloudwatch.amazonaws.com
+                - costalerts.amazonaws.com
+            Action: sns:Publish
+            Resource: !Ref OperationsTopic
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+
+  MonthlyCostAlertBudget:
+    Type: AWS::Budgets::Budget
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    DependsOn: OperationsTopicPolicy
+    Properties:
+      Budget:
+        BudgetName: jsc-public-beta-monthly-alert-budget
+        BudgetType: COST
+        BudgetLimit:
+          Amount: !Ref MonthlyBudgetUsd
+          Unit: USD
+        TimeUnit: MONTHLY
+        CostFilters:
+          TagKeyValue:
+            - user:CostCentre$public-beta
+      NotificationsWithSubscribers:
+        - Notification:
+            ComparisonOperator: GREATER_THAN
+            NotificationType: ACTUAL
+            Threshold: 50
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - Address: !Ref OperationsTopic
+              SubscriptionType: SNS
+        - Notification:
+            ComparisonOperator: GREATER_THAN
+            NotificationType: ACTUAL
+            Threshold: 80
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - Address: !Ref OperationsTopic
+              SubscriptionType: SNS
+        - Notification:
+            ComparisonOperator: GREATER_THAN
+            NotificationType: ACTUAL
+            Threshold: 100
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - Address: !Ref OperationsTopic
+              SubscriptionType: SNS
+        - Notification:
+            ComparisonOperator: GREATER_THAN
+            NotificationType: FORECASTED
+            Threshold: 80
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - Address: !Ref OperationsTopic
+              SubscriptionType: SNS
+      ResourceTags:
+        - Key: Application
+          Value: Job Seeker Copilot
+        - Key: Environment
+          Value: public-beta
+        - Key: ManagedBy
+          Value: CloudFormation-bootstrap
+        - Key: CostCentre
+          Value: public-beta
+
+  CustomerDataBackupVault:
+    Type: AWS::Backup::BackupVault
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    DependsOn: OperationsTopicPolicy
+    Properties:
+      BackupVaultName: jsc-public-beta-customer-data
+      EncryptionKeyArn: !GetAtt ApplicationDataKey.Arn
+      LockConfiguration:
+        MinRetentionDays: 7
+        MaxRetentionDays: 35
+      Notifications:
+        BackupVaultEvents:
+          - BACKUP_JOB_FAILED
+          - COPY_JOB_FAILED
+          - RESTORE_JOB_FAILED
+        SNSTopicArn: !Ref OperationsTopic
+      BackupVaultTags:
+        Application: Job Seeker Copilot
+        Environment: public-beta
+        ManagedBy: CloudFormation-bootstrap
+        CostCentre: public-beta
+        DataClass: customer-confidential
+
+  CustomerDataBackupPlan:
+    Type: AWS::Backup::BackupPlan
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BackupPlan:
+        BackupPlanName: jsc-public-beta-customer-data
+        BackupPlanRule:
+          - RuleName: daily-35-day-retention
+            TargetBackupVault: !Ref CustomerDataBackupVault
+            ScheduleExpression: cron(0 5 * * ? *)
+            StartWindowMinutes: 60
+            CompletionWindowMinutes: 360
+            Lifecycle:
+              DeleteAfterDays: 35
+            RecoveryPointTags:
+              Application: Job Seeker Copilot
+              Environment: public-beta
+              ManagedBy: AWS-Backup
+              RestoreTest: quarterly
+      BackupPlanTags:
+        Application: Job Seeker Copilot
+        Environment: public-beta
+        ManagedBy: CloudFormation-bootstrap
+        CostCentre: public-beta
+
+  ServiceCostAnomalyMonitor:
+    Type: AWS::CE::AnomalyMonitor
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      MonitorName: jsc-public-beta-aws-services
+      MonitorType: DIMENSIONAL
+      MonitorDimension: SERVICE
+      ResourceTags:
+        - Key: Application
+          Value: Job Seeker Copilot
+        - Key: Environment
+          Value: public-beta
+        - Key: ManagedBy
+          Value: CloudFormation-bootstrap
+        - Key: CostCentre
+          Value: public-beta
+
+  DailyCostAnomalySubscription:
+    Type: AWS::CE::AnomalySubscription
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    DependsOn: OperationsTopicPolicy
+    Properties:
+      SubscriptionName: jsc-public-beta-cost-anomalies
+      Frequency: IMMEDIATE
+      MonitorArnList:
+        - !GetAtt ServiceCostAnomalyMonitor.MonitorArn
+      Subscribers:
+        - Type: SNS
+          Address: !Ref OperationsTopic
+      ThresholdExpression: '{"Dimensions":{"Key":"ANOMALY_TOTAL_IMPACT_ABSOLUTE","MatchOptions":["GREATER_THAN_OR_EQUAL"],"Values":["20"]}}'
+      ResourceTags:
+        - Key: Application
+          Value: Job Seeker Copilot
+        - Key: Environment
+          Value: public-beta
+        - Key: ManagedBy
+          Value: CloudFormation-bootstrap
+        - Key: CostCentre
+          Value: public-beta
 
   GitHubOidcProvider:
     Type: AWS::IAM::OIDCProvider
@@ -210,14 +714,10 @@ Resources:
                 Action:
                   - acm:DescribeCertificate
                   - acm:ListTagsForCertificate
-                  - application-autoscaling:Describe*
-                  - application-autoscaling:ListTagsForResource
                   - autoscaling:Describe*
                   - backup:Describe*
                   - backup:Get*
                   - backup:List*
-                  - budgets:Describe*
-                  - budgets:ListTagsForResource
                   - ce:Get*
                   - ce:ListTagsForResource
                   - cloudwatch:Describe*
@@ -303,6 +803,1584 @@ Resources:
                   - ecr:UploadLayerPart
                 Resource: !Sub arn:${AWS::Partition}:ecr:${AWS::Region}:${AWS::AccountId}:repository/jsc-public-beta/*
 
+  WorkloadPermissionsBoundary:
+    Type: AWS::IAM::ManagedPolicy
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      ManagedPolicyName: jsc-public-beta-workload-boundary
+      Description: >-
+        Maximum permissions for Terraform-created public-beta workload roles.
+        The GitHub plan/build/apply roles cannot use this boundary to grant
+        IAM, STS, Organizations or account-administration permissions.
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: RuntimeControlPlaneCallsWithoutResourceArns
+            Effect: Allow
+            Action:
+              - cloudwatch:PutMetricData
+              - ec2:DescribeInstanceStatus
+              - ec2:DescribeTags
+              - ecr:GetAuthorizationToken
+              - ecs:DiscoverPollEndpoint
+              - ecs:Poll
+              - ecs:RegisterContainerInstance
+              - ecs:StartTelemetrySession
+              - ecs:SubmitAttachmentStateChanges
+              - ecs:SubmitContainerStateChange
+              - ecs:SubmitTaskStateChange
+              - logs:DescribeLogGroups
+              - ssm:UpdateInstanceInformation
+              - ssmmessages:CreateControlChannel
+              - ssmmessages:CreateDataChannel
+              - ssmmessages:OpenControlChannel
+              - ssmmessages:OpenDataChannel
+            Resource: '*'
+          - Sid: ReadOnlyRuntimeParameters
+            Effect: Allow
+            Action:
+              - ec2messages:AcknowledgeMessage
+              - ec2messages:DeleteMessage
+              - ec2messages:FailMessage
+              - ec2messages:GetEndpoint
+              - ec2messages:GetMessages
+              - ec2messages:SendReply
+              - ssm:DescribeAssociation
+              - ssm:DescribeDocument
+              - ssm:GetDeployablePatchSnapshotForInstance
+              - ssm:GetDocument
+              - ssm:GetManifest
+              - ssm:GetParameter
+              - ssm:GetParameters
+              - ssm:ListAssociations
+              - ssm:ListInstanceAssociations
+              - ssm:PutComplianceItems
+              - ssm:PutConfigurePackageResult
+              - ssm:UpdateAssociationStatus
+              - ssm:UpdateInstanceAssociationStatus
+              - ssm:UpdateInstanceInformation
+            Resource: '*'
+          - Sid: PullOnlyPublicBetaImages
+            Effect: Allow
+            Action:
+              - ecr:BatchCheckLayerAvailability
+              - ecr:BatchGetImage
+              - ecr:GetDownloadUrlForLayer
+            Resource: !Sub arn:${AWS::Partition}:ecr:${AWS::Region}:${AWS::AccountId}:repository/jsc-public-beta/*
+          - Sid: WriteOnlyPublicBetaLogs
+            Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:DescribeLogStreams
+              - logs:PutLogEvents
+            Resource: !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/jsc/public-beta/*
+          - Sid: ReadOnlyDeclaredPublicBetaSecrets
+            Effect: Allow
+            Action:
+              - secretsmanager:DescribeSecret
+              - secretsmanager:GetSecretValue
+            Resource: !Sub arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:jsc-public-beta/*
+          - Sid: ReadOnlyPublicBetaRdsManagedMasterSecret
+            Effect: Allow
+            Action:
+              - secretsmanager:DescribeSecret
+              - secretsmanager:GetSecretValue
+            Resource: !Sub arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:rds!db-*
+            Condition:
+              StringEquals:
+                'secretsmanager:ResourceTag/aws:secretsmanager:owningService': rds
+              StringLike:
+                'secretsmanager:ResourceTag/aws:rds:primaryDBInstanceArn': !Sub arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:db:jsc-public-beta-postgres
+          - Sid: UseOnlyFoundationPublicBetaDataKey
+            Effect: Allow
+            Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:GenerateDataKey
+              - kms:GenerateDataKeyWithoutPlaintext
+              - kms:ReEncryptFrom
+              - kms:ReEncryptTo
+            Resource: !GetAtt ApplicationDataKey.Arn
+          - Sid: GrantFoundationDataKeyOnlyToAwsResources
+            Effect: Allow
+            Action: kms:CreateGrant
+            Resource: !GetAtt ApplicationDataKey.Arn
+            Condition:
+              Bool:
+                kms:GrantIsForAWSResource: 'true'
+          - Sid: PublicBetaBucketsOnly
+            Effect: Allow
+            Action:
+              - s3:AbortMultipartUpload
+              - s3:DeleteObject
+              - s3:DeleteObjectVersion
+              - s3:GetBucketLocation
+              - s3:GetBucketNotification
+              - s3:GetBucketTagging
+              - s3:GetEncryptionConfiguration
+              - s3:GetLifecycleConfiguration
+              - s3:GetObject
+              - s3:GetObjectAttributes
+              - s3:GetObjectTagging
+              - s3:GetObjectVersion
+              - s3:GetObjectVersionAttributes
+              - s3:GetObjectVersionTagging
+              - s3:ListBucket
+              - s3:ListBucketMultipartUploads
+              - s3:ListBucketVersions
+              - s3:ListMultipartUploadParts
+              - s3:PutObject
+              - s3:PutObjectTagging
+              - s3:RestoreObject
+            Resource:
+              - !Sub arn:${AWS::Partition}:s3:::jsc-public-beta-access-logs-${AWS::AccountId}
+              - !Sub arn:${AWS::Partition}:s3:::jsc-public-beta-access-logs-${AWS::AccountId}/*
+              - !Sub arn:${AWS::Partition}:s3:::jsc-public-beta-documents-${AWS::AccountId}
+              - !Sub arn:${AWS::Partition}:s3:::jsc-public-beta-documents-${AWS::AccountId}/*
+          - Sid: WriteOnlyImmutableErasureJournalRecords
+            Effect: Allow
+            Action: s3:PutObject
+            Resource: !Sub '${ErasureJournalBucket.Arn}/permanent-erasures/v1/*'
+            Condition:
+              StringEquals:
+                s3:x-amz-server-side-encryption: aws:kms
+                s3:x-amz-server-side-encryption-aws-kms-key-id: !GetAtt ErasureJournalKey.Arn
+              Bool:
+                s3:x-amz-server-side-encryption-bucket-key-enabled: 'true'
+          - Sid: ReadOnlyBoundErasureJournalRecords
+            Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:GetObjectVersion
+            Resource: !Sub '${ErasureJournalBucket.Arn}/permanent-erasures/v1/*'
+          - Sid: UseOnlyErasureJournalKeyThroughS3
+            Effect: Allow
+            Action:
+              - kms:Decrypt
+              - kms:GenerateDataKey
+            Resource: !GetAtt ErasureJournalKey.Arn
+            Condition:
+              StringEquals:
+                kms:ViaService: !Sub s3.${AWS::Region}.amazonaws.com
+                kms:EncryptionContext:aws:s3:arn: !GetAtt ErasureJournalBucket.Arn
+  BackupWorkloadBoundary:
+    Type: AWS::IAM::ManagedPolicy
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      ManagedPolicyName: jsc-public-beta-backup-boundary
+      Description: Maximum permissions for the exact RDS and document-bucket scheduled backup role.
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: RequiredBackupReadDiscovery
+            Effect: Allow
+            Action:
+              - cloudwatch:GetMetricData
+              - events:ListRules
+              - rds:DescribeDBInstances
+              - rds:DescribeDBSnapshots
+              - rds:ListTagsForResource
+              - s3:ListAllMyBuckets
+              - tag:GetResources
+            Resource: '*'
+          - Sid: ExactBackupManagedEventRules
+            Effect: Allow
+            Action:
+              - events:DeleteRule
+              - events:DescribeRule
+              - events:DisableRule
+              - events:EnableRule
+              - events:ListTargetsByRule
+              - events:PutRule
+              - events:PutTargets
+              - events:RemoveTargets
+            Resource: !Sub arn:${AWS::Partition}:events:${AWS::Region}:${AWS::AccountId}:rule/AwsBackupManagedRule*
+          - Sid: ExactPublicBetaRdsBackup
+            Effect: Allow
+            Action:
+              - rds:AddTagsToResource
+              - rds:CopyDBSnapshot
+              - rds:CreateDBSnapshot
+              - rds:DeleteDBSnapshot
+              - rds:ModifyDBSnapshotAttribute
+            Resource:
+              - !Sub arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:db:jsc-public-beta-postgres
+              - !Sub arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:snapshot:awsbackup:*
+          - Sid: ExactCustomerDataVaultBackup
+            Effect: Allow
+            Action:
+              - backup:CopyIntoBackupVault
+              - backup:DescribeBackupVault
+            Resource: !GetAtt CustomerDataBackupVault.BackupVaultArn
+          - Sid: ExactRecoveryPointTagging
+            Effect: Allow
+            Action: backup:TagResource
+            Resource: !Sub arn:${AWS::Partition}:backup:${AWS::Region}:${AWS::AccountId}:recovery-point:*
+            Condition:
+              StringEquals:
+                aws:PrincipalAccount: !Ref AWS::AccountId
+          - Sid: ExactDocumentsBucketBackup
+            Effect: Allow
+            Action:
+              - s3:GetBucketAcl
+              - s3:GetBucketLocation
+              - s3:GetBucketNotification
+              - s3:GetBucketTagging
+              - s3:GetBucketVersioning
+              - s3:GetInventoryConfiguration
+              - s3:ListBucket
+              - s3:ListBucketVersions
+              - s3:PutBucketNotification
+              - s3:PutInventoryConfiguration
+            Resource: !Sub arn:${AWS::Partition}:s3:::jsc-public-beta-documents-${AWS::AccountId}
+          - Sid: ExactDocumentsObjectBackup
+            Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:GetObjectAcl
+              - s3:GetObjectTagging
+              - s3:GetObjectVersion
+              - s3:GetObjectVersionAcl
+              - s3:GetObjectVersionTagging
+            Resource: !Sub arn:${AWS::Partition}:s3:::jsc-public-beta-documents-${AWS::AccountId}/*
+          - Sid: DescribeOnlyFoundationDataKeyForBackup
+            Effect: Allow
+            Action: kms:DescribeKey
+            Resource: !GetAtt ApplicationDataKey.Arn
+          - Sid: UseOnlyFoundationDataKeyForBackup
+            Effect: Allow
+            Action: kms:Decrypt
+            Resource: !GetAtt ApplicationDataKey.Arn
+            Condition:
+              StringLike:
+                kms:ViaService:
+                  - !Sub rds.${AWS::Region}.amazonaws.com
+                  - !Sub s3.${AWS::Region}.amazonaws.com
+          - Sid: GrantFoundationDataKeyOnlyToBackupResources
+            Effect: Allow
+            Action: kms:CreateGrant
+            Resource: !GetAtt ApplicationDataKey.Arn
+            Condition:
+              Bool:
+                kms:GrantIsForAWSResource: 'true'
+
+  BackupRestoreWorkloadBoundary:
+    Type: AWS::IAM::ManagedPolicy
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      ManagedPolicyName: jsc-public-beta-backup-restore-boundary
+      Description: Maximum permissions for isolated RDS and S3 restore drills; production resources are excluded.
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: RequiredRestoreReadDiscovery
+            Effect: Allow
+            Action:
+              - rds:DescribeDBInstances
+              - rds:DescribeDBSnapshots
+              - rds:ListTagsForResource
+            Resource: '*'
+          - Sid: ExactIsolatedRdsRestoreTargetLifecycle
+            Effect: Allow
+            Action:
+              - rds:AddTagsToResource
+              - rds:DeleteDBInstance
+            Resource: !Sub arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:db:jsc-public-beta-restore-*
+          - Sid: ExactPrivateIsolatedRdsSnapshotRestoreTarget
+            Effect: Allow
+            Action: rds:RestoreDBInstanceFromDBSnapshot
+            Resource: !Sub arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:db:jsc-public-beta-restore-*
+            Condition:
+              Bool:
+                rds:PubliclyAccessible: 'false'
+          - Sid: ExactIsolatedRdsSnapshotRestoreInputs
+            Effect: Allow
+            Action: rds:RestoreDBInstanceFromDBSnapshot
+            Resource:
+              - !Sub arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:snapshot:awsbackup:*
+              - !Sub arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:pg:jsc-public-beta-postgres15-*
+              - !Sub arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:subgrp:jsc-public-beta-postgres
+              - !Sub arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:og:default:postgres-15
+          - Sid: ExactIsolatedRestoreBucket
+            Effect: Allow
+            Action:
+              - s3:GetBucketLocation
+              - s3:GetBucketOwnershipControls
+              - s3:GetBucketVersioning
+              - s3:ListBucket
+              - s3:ListBucketVersions
+              - s3:PutBucketOwnershipControls
+              - s3:PutBucketVersioning
+            Resource: !Sub arn:${AWS::Partition}:s3:::jsc-public-beta-restore-${AWS::AccountId}-*
+          - Sid: ExactIsolatedRestoreObjects
+            Effect: Allow
+            Action:
+              - s3:DeleteObject
+              - s3:GetObject
+              - s3:GetObjectAcl
+              - s3:GetObjectTagging
+              - s3:GetObjectVersion
+              - s3:GetObjectVersionAcl
+              - s3:ListMultipartUploadParts
+              - s3:PutObject
+              - s3:PutObjectAcl
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionAcl
+            Resource: !Sub arn:${AWS::Partition}:s3:::jsc-public-beta-restore-${AWS::AccountId}-*/*
+          - Sid: DescribeOnlyFoundationDataKeyForRestore
+            Effect: Allow
+            Action: kms:DescribeKey
+            Resource: !GetAtt ApplicationDataKey.Arn
+          - Sid: UseOnlyFoundationDataKeyForRestore
+            Effect: Allow
+            Action:
+              - kms:Decrypt
+              - kms:Encrypt
+              - kms:GenerateDataKey
+              - kms:GenerateDataKeyWithoutPlaintext
+              - kms:ReEncryptFrom
+              - kms:ReEncryptTo
+            Resource: !GetAtt ApplicationDataKey.Arn
+            Condition:
+              StringLike:
+                kms:ViaService:
+                  - !Sub rds.${AWS::Region}.amazonaws.com
+                  - !Sub s3.${AWS::Region}.amazonaws.com
+          - Sid: GrantFoundationDataKeyOnlyToRestoreResources
+            Effect: Allow
+            Action: kms:CreateGrant
+            Resource: !GetAtt ApplicationDataKey.Arn
+            Condition:
+              Bool:
+                kms:GrantIsForAWSResource: 'true'
+
+  ApplyDiscoveryPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: jsc-public-beta-apply-discovery
+      Description: Read-only discovery required by the reviewed public-beta Terraform stack.
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: ReadOnlyDiscovery
+            Effect: Allow
+            Action:
+              - acm:DescribeCertificate
+              - acm:ListCertificates
+              - acm:ListTagsForCertificate
+              - autoscaling:Describe*
+              - backup:Describe*
+              - backup:Get*
+              - backup:List*
+              - ce:Describe*
+              - ce:Get*
+              - ce:List*
+              - cloudwatch:Describe*
+              - cloudwatch:Get*
+              - cloudwatch:List*
+              - ec2:Describe*
+              - ecr:Describe*
+              - ecr:GetLifecyclePolicy
+              - ecr:GetRepositoryPolicy
+              - ecr:List*
+              - ecs:Describe*
+              - ecs:List*
+              - elasticloadbalancing:Describe*
+              - iam:GetInstanceProfile
+              - iam:GetPolicy
+              - iam:GetPolicyVersion
+              - iam:GetRole
+              - iam:GetRolePolicy
+              - iam:ListAttachedRolePolicies
+              - iam:ListInstanceProfileTags
+              - iam:ListInstanceProfilesForRole
+              - iam:ListPolicyVersions
+              - iam:ListRolePolicies
+              - iam:ListRoles
+              - iam:ListRoleTags
+              - kms:Describe*
+              - kms:GetKeyPolicy
+              - kms:List*
+              - logs:Describe*
+              - logs:List*
+              - rds:Describe*
+              - rds:ListTagsForResource
+              - s3:GetAccountPublicAccessBlock
+              - s3:GetBucket*
+              - s3:GetEncryptionConfiguration
+              - s3:GetLifecycleConfiguration
+              - s3:GetPublicAccessBlock
+              - s3:ListAllMyBuckets
+              - s3:ListBucket
+              - secretsmanager:DescribeSecret
+              - secretsmanager:GetResourcePolicy
+              - secretsmanager:ListSecrets
+              - servicediscovery:Get*
+              - servicediscovery:List*
+              - sns:Get*
+              - sns:List*
+              - wafv2:Get*
+              - wafv2:List*
+            Resource: '*'
+          - Sid: ReadOnlyExactHostedZone
+            Effect: Allow
+            Action:
+              - route53:GetHostedZone
+              - route53:ListResourceRecordSets
+              - route53:ListTagsForResource
+            Resource: !Ref Route53HostedZoneArn
+          - Sid: ReadOnlyDnsChangeStatus
+            Effect: Allow
+            Action: route53:GetChange
+            Resource: !Sub arn:${AWS::Partition}:route53:::change/*
+
+  ApplyEc2NetworkPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: jsc-public-beta-apply-ec2-network
+      Description: >-
+        EC2 network creation split between request-tagged child resources and
+        already-tagged parent resources, as required by EC2 multi-resource
+        authorization.
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: CreateOnlyTaggedNetworkResources
+            Effect: Allow
+            Action:
+              - ec2:AllocateAddress
+              - ec2:CreateFlowLogs
+              - ec2:CreateInternetGateway
+              - ec2:CreateLaunchTemplate
+              - ec2:CreateNatGateway
+              - ec2:CreateRouteTable
+              - ec2:CreateSecurityGroup
+              - ec2:CreateSubnet
+              - ec2:CreateVpc
+              - ec2:CreateVpcEndpoint
+            Resource:
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:elastic-ip/*
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:internet-gateway/*
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:launch-template/*
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:natgateway/*
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:route-table/*
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:security-group/*
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:subnet/*
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:vpc/*
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:vpc-endpoint/*
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:vpc-flow-log/*
+            Condition:
+              StringEquals:
+                aws:RequestTag/Application: Job Seeker Copilot
+                aws:RequestTag/Environment: public-beta
+                aws:RequestTag/ManagedBy: Terraform
+          - Sid: UseOnlyTaggedVpcParentsDuringCreate
+            Effect: Allow
+            Action:
+              - ec2:CreateFlowLogs
+              - ec2:CreateNatGateway
+              - ec2:CreateRouteTable
+              - ec2:CreateSecurityGroup
+              - ec2:CreateSubnet
+              - ec2:CreateVpcEndpoint
+            Resource:
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:elastic-ip/*
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:route-table/*
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:security-group/*
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:subnet/*
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:vpc/*
+            Condition:
+              StringEquals:
+                aws:ResourceTag/Application: Job Seeker Copilot
+                aws:ResourceTag/Environment: public-beta
+                aws:ResourceTag/ManagedBy: Terraform
+          - Sid: CreateOnlyTaggedSecurityGroupRules
+            Effect: Allow
+            Action:
+              - ec2:AuthorizeSecurityGroupEgress
+              - ec2:AuthorizeSecurityGroupIngress
+            Resource: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:security-group-rule/*
+            Condition:
+              StringEquals:
+                aws:RequestTag/Application: Job Seeker Copilot
+                aws:RequestTag/Environment: public-beta
+                aws:RequestTag/ManagedBy: Terraform
+          - Sid: UseOnlyTaggedSecurityGroupsForNewRules
+            Effect: Allow
+            Action:
+              - ec2:AuthorizeSecurityGroupEgress
+              - ec2:AuthorizeSecurityGroupIngress
+            Resource: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:security-group/*
+            Condition:
+              StringEquals:
+                aws:ResourceTag/Application: Job Seeker Copilot
+                aws:ResourceTag/Environment: public-beta
+                aws:ResourceTag/ManagedBy: Terraform
+          - Sid: TagNetworkResourcesOnlyDuringCreate
+            Effect: Allow
+            Action: ec2:CreateTags
+            Resource:
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:elastic-ip/*
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:internet-gateway/*
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:launch-template/*
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:natgateway/*
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:route-table/*
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:security-group/*
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:security-group-rule/*
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:subnet/*
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:vpc/*
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:vpc-endpoint/*
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:vpc-flow-log/*
+            Condition:
+              StringEquals:
+                aws:RequestTag/Application: Job Seeker Copilot
+                aws:RequestTag/Environment: public-beta
+                aws:RequestTag/ManagedBy: Terraform
+                ec2:CreateAction:
+                  - AllocateAddress
+                  - AuthorizeSecurityGroupEgress
+                  - AuthorizeSecurityGroupIngress
+                  - CreateFlowLogs
+                  - CreateInternetGateway
+                  - CreateLaunchTemplate
+                  - CreateNatGateway
+                  - CreateRouteTable
+                  - CreateSecurityGroup
+                  - CreateSubnet
+                  - CreateVpc
+                  - CreateVpcEndpoint
+          - Sid: ManageOnlyTaggedNetworkResources
+            Effect: Allow
+            Action:
+              - ec2:AssociateRouteTable
+              - ec2:AttachInternetGateway
+              - ec2:CreateLaunchTemplateVersion
+              - ec2:CreateRoute
+              - ec2:DeleteFlowLogs
+              - ec2:DeleteInternetGateway
+              - ec2:DeleteLaunchTemplate
+              - ec2:DeleteLaunchTemplateVersions
+              - ec2:DeleteNatGateway
+              - ec2:DeleteRoute
+              - ec2:DeleteRouteTable
+              - ec2:DeleteSecurityGroup
+              - ec2:DeleteSubnet
+              - ec2:DeleteVpc
+              - ec2:DeleteVpcEndpoints
+              - ec2:DetachInternetGateway
+              - ec2:DisassociateRouteTable
+              - ec2:ModifyLaunchTemplate
+              - ec2:ModifySubnetAttribute
+              - ec2:ModifyVpcAttribute
+              - ec2:ModifyVpcEndpoint
+              - ec2:ReleaseAddress
+              - ec2:RevokeSecurityGroupEgress
+              - ec2:RevokeSecurityGroupIngress
+            Resource:
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:elastic-ip/*
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:internet-gateway/*
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:launch-template/*
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:natgateway/*
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:route-table/*
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:security-group/*
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:security-group-rule/*
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:subnet/*
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:vpc/*
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:vpc-endpoint/*
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:vpc-flow-log/*
+            Condition:
+              StringEquals:
+                aws:ResourceTag/Application: Job Seeker Copilot
+                aws:ResourceTag/Environment: public-beta
+                aws:ResourceTag/ManagedBy: Terraform
+
+  ApplyNetworkEdgePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: jsc-public-beta-apply-network-edge
+      Description: Tagged public-beta network, load-balancer, DNS and exact application-bucket lifecycle.
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: CreateOnlyTaggedLoadBalancerResources
+            Effect: Allow
+            Action:
+              - elasticloadbalancing:CreateListener
+              - elasticloadbalancing:CreateRule
+              - elasticloadbalancing:CreateLoadBalancer
+              - elasticloadbalancing:CreateTargetGroup
+            Resource:
+              - !Sub arn:${AWS::Partition}:elasticloadbalancing:${AWS::Region}:${AWS::AccountId}:listener/app/jsc-public-beta-*/*/*
+              - !Sub arn:${AWS::Partition}:elasticloadbalancing:${AWS::Region}:${AWS::AccountId}:listener-rule/app/jsc-public-beta-*/*/*/*
+              - !Sub arn:${AWS::Partition}:elasticloadbalancing:${AWS::Region}:${AWS::AccountId}:loadbalancer/app/jsc-public-beta-*/*
+              - !Sub arn:${AWS::Partition}:elasticloadbalancing:${AWS::Region}:${AWS::AccountId}:targetgroup/jscweb*/*
+              - !Sub arn:${AWS::Partition}:elasticloadbalancing:${AWS::Region}:${AWS::AccountId}:targetgroup/jscpay*/*
+            Condition:
+              StringEquals:
+                aws:RequestTag/Application: Job Seeker Copilot
+                aws:RequestTag/Environment: public-beta
+                aws:RequestTag/ManagedBy: Terraform
+          - Sid: TagLoadBalancerResourcesOnlyDuringCreate
+            Effect: Allow
+            Action: elasticloadbalancing:AddTags
+            Resource:
+              - !Sub arn:${AWS::Partition}:elasticloadbalancing:${AWS::Region}:${AWS::AccountId}:listener/app/jsc-public-beta-*/*/*
+              - !Sub arn:${AWS::Partition}:elasticloadbalancing:${AWS::Region}:${AWS::AccountId}:listener-rule/app/jsc-public-beta-*/*/*/*
+              - !Sub arn:${AWS::Partition}:elasticloadbalancing:${AWS::Region}:${AWS::AccountId}:loadbalancer/app/jsc-public-beta-*/*
+              - !Sub arn:${AWS::Partition}:elasticloadbalancing:${AWS::Region}:${AWS::AccountId}:targetgroup/jscweb*/*
+              - !Sub arn:${AWS::Partition}:elasticloadbalancing:${AWS::Region}:${AWS::AccountId}:targetgroup/jscpay*/*
+            Condition:
+              StringEquals:
+                aws:RequestTag/Application: Job Seeker Copilot
+                aws:RequestTag/Environment: public-beta
+                aws:RequestTag/ManagedBy: Terraform
+                elasticloadbalancing:CreateAction:
+                  - CreateListener
+                  - CreateRule
+                  - CreateLoadBalancer
+                  - CreateTargetGroup
+          - Sid: ManageOnlyTaggedLoadBalancerResources
+            Effect: Allow
+            Action:
+              - elasticloadbalancing:DeleteListener
+              - elasticloadbalancing:DeleteLoadBalancer
+              - elasticloadbalancing:DeleteRule
+              - elasticloadbalancing:DeleteTargetGroup
+              - elasticloadbalancing:ModifyListener
+              - elasticloadbalancing:ModifyLoadBalancerAttributes
+              - elasticloadbalancing:ModifyRule
+              - elasticloadbalancing:ModifyTargetGroup
+              - elasticloadbalancing:ModifyTargetGroupAttributes
+            Resource:
+              - !Sub arn:${AWS::Partition}:elasticloadbalancing:${AWS::Region}:${AWS::AccountId}:listener/app/jsc-public-beta-*/*/*
+              - !Sub arn:${AWS::Partition}:elasticloadbalancing:${AWS::Region}:${AWS::AccountId}:listener-rule/app/jsc-public-beta-*/*/*/*
+              - !Sub arn:${AWS::Partition}:elasticloadbalancing:${AWS::Region}:${AWS::AccountId}:loadbalancer/app/jsc-public-beta-*/*
+              - !Sub arn:${AWS::Partition}:elasticloadbalancing:${AWS::Region}:${AWS::AccountId}:targetgroup/jscweb*/*
+              - !Sub arn:${AWS::Partition}:elasticloadbalancing:${AWS::Region}:${AWS::AccountId}:targetgroup/jscpay*/*
+            Condition:
+              StringEquals:
+                aws:ResourceTag/Application: Job Seeker Copilot
+                aws:ResourceTag/Environment: public-beta
+                aws:ResourceTag/ManagedBy: Terraform
+          - Sid: PublicBetaApplicationBucketsOnly
+            Effect: Allow
+            Action:
+              - s3:CreateBucket
+              - s3:DeleteBucket
+              - s3:DeleteBucketPolicy
+              - s3:ListBucket
+              - s3:PutBucketLogging
+              - s3:PutBucketOwnershipControls
+              - s3:PutBucketPolicy
+              - s3:PutBucketPublicAccessBlock
+              - s3:PutBucketTagging
+              - s3:PutBucketVersioning
+              - s3:PutEncryptionConfiguration
+              - s3:PutLifecycleConfiguration
+            Resource:
+              - !Sub arn:${AWS::Partition}:s3:::jsc-public-beta-access-logs-${AWS::AccountId}
+              - !Sub arn:${AWS::Partition}:s3:::jsc-public-beta-access-logs-${AWS::AccountId}/*
+              - !Sub arn:${AWS::Partition}:s3:::jsc-public-beta-documents-${AWS::AccountId}
+              - !Sub arn:${AWS::Partition}:s3:::jsc-public-beta-documents-${AWS::AccountId}/*
+          - Sid: HostedZoneRecordsOnly
+            Effect: Allow
+            Action: route53:ChangeResourceRecordSets
+            Resource: !Ref Route53HostedZoneArn
+            Condition:
+              ForAllValues:StringLike:
+                route53:ChangeResourceRecordSetsNormalizedRecordNames:
+                  - !Ref AppDomainName
+                  - !Sub '${AppDomainName}.'
+                  - !Sub '*.${AppDomainName}'
+                  - !Sub '*.${AppDomainName}.'
+              ForAllValues:StringEquals:
+                route53:ChangeResourceRecordSetsRecordTypes:
+                  - A
+                  - CNAME
+                route53:ChangeResourceRecordSetsActions:
+                  - CREATE
+                  - UPSERT
+                  - DELETE
+  ApplyComputePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: jsc-public-beta-apply-compute
+      Description: Tagged public-beta ECS, ECR, scaling, logs and private service discovery lifecycle.
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: CreateOnlyTaggedComputeResources
+            Effect: Allow
+            Action:
+              - ecr:CreateRepository
+              - ecs:CreateCapacityProvider
+              - ecs:CreateCluster
+              - ecs:CreateService
+              - ecs:RegisterTaskDefinition
+              - logs:CreateLogGroup
+            Resource:
+              - !Sub arn:${AWS::Partition}:ecr:${AWS::Region}:${AWS::AccountId}:repository/jsc-public-beta/*
+              - !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:capacity-provider/jsc-public-beta-*
+              - !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:cluster/jsc-public-beta
+              - !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:service/jsc-public-beta/*
+              - !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/jsc-public-beta-*:*
+              - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/jsc/public-beta/*
+            Condition:
+              StringEquals:
+                aws:RequestTag/Application: Job Seeker Copilot
+                aws:RequestTag/Environment: public-beta
+                aws:RequestTag/ManagedBy: Terraform
+          - Sid: TagEcsResourcesOnlyDuringCreate
+            Effect: Allow
+            Action: ecs:TagResource
+            Resource:
+              - !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:capacity-provider/jsc-public-beta-*
+              - !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:cluster/jsc-public-beta
+              - !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:service/jsc-public-beta/*
+              - !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/jsc-public-beta-*:*
+            Condition:
+              StringEquals:
+                aws:RequestTag/Application: Job Seeker Copilot
+                aws:RequestTag/Environment: public-beta
+                aws:RequestTag/ManagedBy: Terraform
+                ecs:CreateAction:
+                  - CreateCapacityProvider
+                  - CreateCluster
+                  - CreateService
+                  - RegisterTaskDefinition
+          - Sid: TagEcrRepositoriesOnlyDuringCreate
+            Effect: Allow
+            Action: ecr:TagResource
+            Resource: !Sub arn:${AWS::Partition}:ecr:${AWS::Region}:${AWS::AccountId}:repository/jsc-public-beta/*
+            Condition:
+              StringEquals:
+                aws:RequestTag/Application: Job Seeker Copilot
+                aws:RequestTag/Environment: public-beta
+                aws:RequestTag/ManagedBy: Terraform
+          - Sid: TagLogGroupsOnlyDuringCreate
+            Effect: Allow
+            Action: logs:TagResource
+            Resource: !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/jsc/public-beta/*
+            Condition:
+              StringEquals:
+                aws:RequestTag/Application: Job Seeker Copilot
+                aws:RequestTag/Environment: public-beta
+                aws:RequestTag/ManagedBy: Terraform
+          - Sid: ManageOnlyTaggedAutoScalingGroups
+            Effect: Allow
+            Action:
+              - autoscaling:DeleteAutoScalingGroup
+              - autoscaling:PutLifecycleHook
+              - autoscaling:ResumeProcesses
+              - autoscaling:SetDesiredCapacity
+              - autoscaling:StartInstanceRefresh
+              - autoscaling:SuspendProcesses
+              - autoscaling:TerminateInstanceInAutoScalingGroup
+            Resource: !Sub arn:${AWS::Partition}:autoscaling:${AWS::Region}:${AWS::AccountId}:autoScalingGroup:*:autoScalingGroupName/jsc-public-beta-ecs-*
+            Condition:
+              StringEquals:
+                aws:ResourceTag/Application: Job Seeker Copilot
+                aws:ResourceTag/Environment: public-beta
+                aws:ResourceTag/ManagedBy: Terraform
+          - Sid: UpdateOnlyBoundedTaggedAutoScalingGroup
+            Effect: Allow
+            Action: autoscaling:UpdateAutoScalingGroup
+            Resource: !Sub arn:${AWS::Partition}:autoscaling:${AWS::Region}:${AWS::AccountId}:autoScalingGroup:*:autoScalingGroupName/jsc-public-beta-ecs-*
+            Condition:
+              StringEquals:
+                aws:ResourceTag/Application: Job Seeker Copilot
+                aws:ResourceTag/Environment: public-beta
+                aws:ResourceTag/ManagedBy: Terraform
+              Bool:
+                autoscaling:LaunchTemplateVersionSpecified: 'true'
+              NumericLessThanEqualsIfExists:
+                autoscaling:MaxSize: 1
+              NumericGreaterThanEqualsIfExists:
+                autoscaling:MinSize: 1
+          - Sid: UpdateTagsOnlyOnTaggedPublicBetaAutoScalingGroups
+            Effect: Allow
+            Action: autoscaling:CreateOrUpdateTags
+            Resource: !Sub arn:${AWS::Partition}:autoscaling:${AWS::Region}:${AWS::AccountId}:autoScalingGroup:*:autoScalingGroupName/jsc-public-beta-ecs-*
+            Condition:
+              StringEquals:
+                aws:ResourceTag/Application: Job Seeker Copilot
+                aws:ResourceTag/Environment: public-beta
+                aws:ResourceTag/ManagedBy: Terraform
+                aws:RequestTag/Application: Job Seeker Copilot
+                aws:RequestTag/Environment: public-beta
+                aws:RequestTag/ManagedBy: Terraform
+          - Sid: ManageOnlyTaggedComputeResources
+            Effect: Allow
+            Action:
+              - ecr:DeleteLifecyclePolicy
+              - ecr:DeleteRepository
+              - ecr:PutLifecyclePolicy
+              - ecr:SetRepositoryPolicy
+              - ecs:DeleteCapacityProvider
+              - ecs:DeleteCluster
+              - ecs:DeleteService
+              - ecs:DeregisterTaskDefinition
+              - ecs:PutClusterCapacityProviders
+              - ecs:UpdateCapacityProvider
+              - ecs:UpdateCluster
+              - ecs:UpdateClusterSettings
+              - ecs:UpdateService
+              - logs:DeleteLogGroup
+              - logs:PutRetentionPolicy
+            Resource:
+              - !Sub arn:${AWS::Partition}:ecr:${AWS::Region}:${AWS::AccountId}:repository/jsc-public-beta/*
+              - !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:capacity-provider/jsc-public-beta-*
+              - !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:cluster/jsc-public-beta
+              - !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:service/jsc-public-beta/*
+              - !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/jsc-public-beta-*:*
+              - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/jsc/public-beta/*
+            Condition:
+              StringEquals:
+                aws:ResourceTag/Application: Job Seeker Copilot
+                aws:ResourceTag/Environment: public-beta
+                aws:ResourceTag/ManagedBy: Terraform
+          - Sid: CreateOnlyTaggedServiceDiscovery
+            Effect: Allow
+            Action:
+              - servicediscovery:CreatePrivateDnsNamespace
+              - servicediscovery:CreateService
+            Resource: '*'
+            Condition:
+              StringEquals:
+                aws:RequestTag/Application: Job Seeker Copilot
+                aws:RequestTag/Environment: public-beta
+                aws:RequestTag/ManagedBy: Terraform
+          - Sid: TagServiceDiscoveryOnlyWithReviewedCreateTags
+            Effect: Allow
+            Action: servicediscovery:TagResource
+            Resource: '*'
+            Condition:
+              StringEquals:
+                aws:RequestTag/Application: Job Seeker Copilot
+                aws:RequestTag/Environment: public-beta
+                aws:RequestTag/ManagedBy: Terraform
+              ForAllValues:StringEquals:
+                aws:TagKeys:
+                  - Application
+                  - Environment
+                  - ManagedBy
+                  - Repository
+                  - CostCentre
+                  - Service
+          - Sid: RequiredEcsAccountSetting
+            Effect: Allow
+            Action: ecs:PutAccountSettingDefault
+            Resource: '*'
+            Condition:
+              StringEquals:
+                ecs:account-setting: awsvpcTrunking
+
+  ApplyComputeLaunchPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: jsc-public-beta-apply-compute-launch
+      Description: Launch only the reviewed ECS AMI through the tagged public-beta launch template.
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: RunOnlyReviewedEcsAmiFromLaunchTemplate
+            Effect: Allow
+            Action: ec2:RunInstances
+            Resource: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}::image/${EcsAmiId}
+            Condition:
+              ArnLike:
+                ec2:LaunchTemplate: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:launch-template/*
+              Bool:
+                ec2:IsLaunchTemplateResource: 'true'
+          - Sid: RunOnlyFromTaggedPublicBetaTemplateResources
+            Effect: Allow
+            Action: ec2:RunInstances
+            Resource:
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:launch-template/*
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:security-group/*
+            Condition:
+              StringEquals:
+                ec2:ResourceTag/Application: Job Seeker Copilot
+                ec2:ResourceTag/Environment: public-beta
+                ec2:ResourceTag/ManagedBy: Terraform
+              ArnLike:
+                ec2:LaunchTemplate: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:launch-template/*
+              Bool:
+                ec2:IsLaunchTemplateResource: 'true'
+          - Sid: RunOnlyInTaggedPublicBetaSubnets
+            Effect: Allow
+            Action: ec2:RunInstances
+            Resource: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:subnet/*
+            Condition:
+              StringEquals:
+                ec2:ResourceTag/Application: Job Seeker Copilot
+                ec2:ResourceTag/Environment: public-beta
+                ec2:ResourceTag/ManagedBy: Terraform
+              ArnLike:
+                ec2:LaunchTemplate: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:launch-template/*
+              Bool:
+                ec2:IsLaunchTemplateResource: 'true'
+          - Sid: CreateOnlyTaggedPublicBetaInstances
+            Effect: Allow
+            Action: ec2:RunInstances
+            Resource: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*
+            Condition:
+              StringEquals:
+                aws:RequestTag/Application: Job Seeker Copilot
+                aws:RequestTag/Environment: public-beta
+                aws:RequestTag/ManagedBy: Terraform
+                ec2:InstanceType: m7i.2xlarge
+                ec2:MetadataHttpTokens: required
+              Bool:
+                ec2:IsLaunchTemplateResource: 'true'
+              ArnLike:
+                ec2:LaunchTemplate: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:launch-template/*
+          - Sid: CreateOnlyTaggedPrivateNetworkInterfaces
+            Effect: Allow
+            Action: ec2:RunInstances
+            Resource: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:network-interface/*
+            Condition:
+              StringEquals:
+                aws:RequestTag/Application: Job Seeker Copilot
+                aws:RequestTag/Environment: public-beta
+                aws:RequestTag/ManagedBy: Terraform
+              Bool:
+                ec2:AssociatePublicIpAddress: 'false'
+                ec2:IsLaunchTemplateResource: 'true'
+              ArnLike:
+                ec2:LaunchTemplate: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:launch-template/*
+          - Sid: CreateOnlyTaggedEncryptedGp3Volumes
+            Effect: Allow
+            Action: ec2:RunInstances
+            Resource: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:volume/*
+            Condition:
+              StringEquals:
+                aws:RequestTag/Application: Job Seeker Copilot
+                aws:RequestTag/Environment: public-beta
+                aws:RequestTag/ManagedBy: Terraform
+                ec2:VolumeType: gp3
+              Bool:
+                ec2:Encrypted: 'true'
+                ec2:IsLaunchTemplateResource: 'true'
+              ArnLike:
+                ec2:LaunchTemplate: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:launch-template/*
+          - Sid: TagOnlyInstanceResourcesDuringRunInstances
+            Effect: Allow
+            Action: ec2:CreateTags
+            Resource:
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:network-interface/*
+              - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:volume/*
+            Condition:
+              StringEquals:
+                aws:RequestTag/Application: Job Seeker Copilot
+                aws:RequestTag/Environment: public-beta
+                aws:RequestTag/ManagedBy: Terraform
+                ec2:CreateAction: RunInstances
+          - Sid: CreateAndTagExactEcsInstanceProfile
+            Effect: Allow
+            Action:
+              - iam:CreateInstanceProfile
+              - iam:TagInstanceProfile
+            Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/jsc-public-beta-ecs
+            Condition:
+              StringEquals:
+                aws:RequestTag/Application: Job Seeker Copilot
+                aws:RequestTag/Environment: public-beta
+                aws:RequestTag/ManagedBy: Terraform
+          - Sid: ManageOnlyTaggedExactEcsInstanceProfile
+            Effect: Allow
+            Action:
+              - iam:AddRoleToInstanceProfile
+              - iam:DeleteInstanceProfile
+              - iam:RemoveRoleFromInstanceProfile
+            Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/jsc-public-beta-ecs
+            Condition:
+              StringEquals:
+                aws:ResourceTag/Application: Job Seeker Copilot
+                aws:ResourceTag/Environment: public-beta
+                aws:ResourceTag/ManagedBy: Terraform
+
+  ApplyDataPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: jsc-public-beta-apply-data
+      Description: Tagged public-beta KMS, RDS, secrets, backup and notification lifecycle.
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: CreateOnlyTaggedDataResources
+            Effect: Allow
+            Action:
+              - rds:CreateDBParameterGroup
+              - rds:CreateDBSubnetGroup
+            Resource:
+              - !Sub arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:pg:jsc-public-beta-postgres15-*
+              - !Sub arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:subgrp:jsc-public-beta-postgres
+            Condition:
+              StringEquals:
+                aws:RequestTag/Application: Job Seeker Copilot
+                aws:RequestTag/Environment: public-beta
+                aws:RequestTag/ManagedBy: Terraform
+          - Sid: CreateOnlyReviewedPublicBetaDatabase
+            Effect: Allow
+            Action: rds:CreateDBInstance
+            Resource: !Sub arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:db:jsc-public-beta-postgres
+            Condition:
+              StringEquals:
+                aws:RequestTag/Application: Job Seeker Copilot
+                aws:RequestTag/Environment: public-beta
+                aws:RequestTag/ManagedBy: Terraform
+                rds:DatabaseClass: db.t4g.medium
+                rds:DatabaseEngine: postgres
+              Bool:
+                rds:ManageMasterUserPassword: 'true'
+                rds:MultiAz: 'false'
+                rds:PubliclyAccessible: 'false'
+                rds:StorageEncrypted: 'true'
+              NumericLessThanEquals:
+                rds:StorageSize: 50
+          - Sid: UseOnlyTaggedPublicBetaDatabaseParentsDuringCreate
+            Effect: Allow
+            Action: rds:CreateDBInstance
+            Resource:
+              - !Sub arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:pg:jsc-public-beta-postgres15-*
+              - !Sub arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:subgrp:jsc-public-beta-postgres
+            Condition:
+              StringEquals:
+                aws:ResourceTag/Application: Job Seeker Copilot
+                aws:ResourceTag/Environment: public-beta
+                aws:ResourceTag/ManagedBy: Terraform
+          - Sid: CreateOnlyNamedTerraformSecrets
+            Effect: Allow
+            Action: secretsmanager:CreateSecret
+            Resource: !Sub arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:jsc-public-beta/*
+            Condition:
+              StringEquals:
+                aws:RequestTag/Application: Job Seeker Copilot
+                aws:RequestTag/Environment: public-beta
+                aws:RequestTag/ManagedBy: Terraform
+                secretsmanager:KmsKeyArn: !GetAtt ApplicationDataKey.Arn
+          - Sid: TagRdsResourcesOnlyDuringCreate
+            Effect: Allow
+            Action: rds:AddTagsToResource
+            Resource:
+              - !Sub arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:db:jsc-public-beta-*
+              - !Sub arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:pg:jsc-public-beta-*
+              - !Sub arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:subgrp:jsc-public-beta-*
+            Condition:
+              StringEquals:
+                aws:RequestTag/Application: Job Seeker Copilot
+                aws:RequestTag/Environment: public-beta
+                aws:RequestTag/ManagedBy: Terraform
+          - Sid: TagTerraformSecretsOnlyDuringCreate
+            Effect: Allow
+            Action: secretsmanager:TagResource
+            Resource: !Sub arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:jsc-public-beta/*
+            Condition:
+              StringEquals:
+                aws:RequestTag/Application: Job Seeker Copilot
+                aws:RequestTag/Environment: public-beta
+                aws:RequestTag/ManagedBy: Terraform
+          - Sid: PermitRdsManagedMasterSecretCreation
+            Effect: Allow
+            Action: secretsmanager:CreateSecret
+            Resource: !Sub arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:rds!db-*
+            Condition:
+              StringEquals:
+                secretsmanager:KmsKeyArn: !GetAtt ApplicationDataKey.Arn
+          - Sid: TagOnlyRdsOwnedMasterSecret
+            Effect: Allow
+            Action: secretsmanager:TagResource
+            Resource: !Sub arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:rds!db-*
+          - Sid: RotateOnlyPublicBetaRdsManagedMasterSecret
+            Effect: Allow
+            Action: secretsmanager:RotateSecret
+            Resource: !Sub arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:rds!db-*
+            Condition:
+              StringEquals:
+                'secretsmanager:ResourceTag/aws:secretsmanager:owningService': rds
+              StringLike:
+                'secretsmanager:ResourceTag/aws:rds:primaryDBInstanceArn': !Sub arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:db:jsc-public-beta-postgres
+          - Sid: UseExactFoundationDataKey
+            Effect: Allow
+            Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:GenerateDataKey
+              - kms:ReEncryptFrom
+              - kms:ReEncryptTo
+            Resource: !GetAtt ApplicationDataKey.Arn
+          - Sid: GrantExactFoundationDataKeyToAwsResources
+            Effect: Allow
+            Action: kms:CreateGrant
+            Resource: !GetAtt ApplicationDataKey.Arn
+            Condition:
+              Bool:
+                kms:GrantIsForAWSResource: 'true'
+          - Sid: ManageOnlyTaggedDataResources
+            Effect: Allow
+            Action:
+              - rds:DeleteDBParameterGroup
+              - rds:DeleteDBSubnetGroup
+              - rds:ModifyDBParameterGroup
+              - rds:ModifyDBSubnetGroup
+              - rds:ResetDBParameterGroup
+              - secretsmanager:DeleteResourcePolicy
+              - secretsmanager:DeleteSecret
+              - secretsmanager:PutResourcePolicy
+              - secretsmanager:UpdateSecret
+            Resource:
+              - !Sub arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:db:jsc-public-beta-*
+              - !Sub arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:pg:jsc-public-beta-*
+              - !Sub arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:subgrp:jsc-public-beta-*
+              - !Sub arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:jsc-public-beta/*
+            Condition:
+              StringEquals:
+                aws:ResourceTag/Application: Job Seeker Copilot
+                aws:ResourceTag/Environment: public-beta
+                aws:ResourceTag/ManagedBy: Terraform
+          - Sid: ModifyOnlyReviewedPublicBetaDatabase
+            Effect: Allow
+            Action: rds:ModifyDBInstance
+            Resource: !Sub arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:db:jsc-public-beta-postgres
+            Condition:
+              StringEquals:
+                aws:ResourceTag/Application: Job Seeker Copilot
+                aws:ResourceTag/Environment: public-beta
+                aws:ResourceTag/ManagedBy: Terraform
+              StringEqualsIfExists:
+                rds:DatabaseClass: db.t4g.medium
+                rds:DatabaseEngine: postgres
+              BoolIfExists:
+                rds:ManageMasterUserPassword: 'true'
+                rds:MultiAz: 'false'
+                rds:PubliclyAccessible: 'false'
+                rds:StorageEncrypted: 'true'
+              NumericLessThanEqualsIfExists:
+                rds:StorageSize: 50
+          - Sid: ManageSelectionOnExactFoundationBackupPlan
+            Effect: Allow
+            Action:
+              - backup:CreateBackupSelection
+              - backup:DeleteBackupSelection
+            Resource: !GetAtt CustomerDataBackupPlan.BackupPlanArn
+            Condition:
+              StringEquals:
+                aws:ResourceTag/Application: Job Seeker Copilot
+                aws:ResourceTag/Environment: public-beta
+                aws:ResourceTag/ManagedBy: CloudFormation-bootstrap
+
+  ApplyObservabilityPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: jsc-public-beta-apply-observability
+      Description: Named and tagged public-beta alarms, dashboards and WAF lifecycle; billing controls stay in the manual foundation.
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: CreateOnlyTaggedObservabilityResources
+            Effect: Allow
+            Action:
+              - cloudwatch:PutMetricAlarm
+              - wafv2:CreateRegexPatternSet
+              - wafv2:CreateWebACL
+            Resource: '*'
+            Condition:
+              StringEquals:
+                aws:RequestTag/Application: Job Seeker Copilot
+                aws:RequestTag/Environment: public-beta
+                aws:RequestTag/ManagedBy: Terraform
+          - Sid: TagOnlyNamedPublicBetaAlarms
+            Effect: Allow
+            Action: cloudwatch:TagResource
+            Resource: !Sub arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:jsc-public-beta-*
+            Condition:
+              StringEquals:
+                aws:RequestTag/Application: Job Seeker Copilot
+                aws:RequestTag/Environment: public-beta
+                aws:RequestTag/ManagedBy: Terraform
+          - Sid: TagOnlyNamedPublicBetaWafResources
+            Effect: Allow
+            Action: wafv2:TagResource
+            Resource:
+              - !Sub arn:${AWS::Partition}:wafv2:${AWS::Region}:${AWS::AccountId}:regional/regexpatternset/jsc-public-beta-*/*
+              - !Sub arn:${AWS::Partition}:wafv2:${AWS::Region}:${AWS::AccountId}:regional/webacl/jsc-public-beta-*/*
+            Condition:
+              StringEquals:
+                aws:RequestTag/Application: Job Seeker Copilot
+                aws:RequestTag/Environment: public-beta
+                aws:RequestTag/ManagedBy: Terraform
+          - Sid: ManageOnlyTaggedBudgetsAndAlarms
+            Effect: Allow
+            Action:
+              - cloudwatch:DeleteAlarms
+              - cloudwatch:PutMetricAlarm
+            Resource:
+              - !Sub arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:jsc-public-beta-*
+            Condition:
+              StringEquals:
+                aws:ResourceTag/Application: Job Seeker Copilot
+                aws:ResourceTag/Environment: public-beta
+                aws:ResourceTag/ManagedBy: Terraform
+          - Sid: ExactPublicBetaDashboards
+            Effect: Allow
+            Action:
+              - cloudwatch:DeleteDashboards
+              - cloudwatch:PutDashboard
+            Resource: !Sub arn:${AWS::Partition}:cloudwatch::${AWS::AccountId}:dashboard/jsc-public-beta-*
+          - Sid: ManageOnlyTaggedWafResources
+            Effect: Allow
+            Action:
+              - wafv2:AssociateWebACL
+              - wafv2:DeleteRegexPatternSet
+              - wafv2:DeleteWebACL
+              - wafv2:DisassociateWebACL
+              - wafv2:UpdateRegexPatternSet
+              - wafv2:UpdateWebACL
+            Resource:
+              - !Sub arn:${AWS::Partition}:wafv2:${AWS::Region}:${AWS::AccountId}:regional/regexpatternset/jsc-public-beta-*/*
+              - !Sub arn:${AWS::Partition}:wafv2:${AWS::Region}:${AWS::AccountId}:regional/webacl/jsc-public-beta-*/*
+            Condition:
+              StringEquals:
+                aws:ResourceTag/Application: Job Seeker Copilot
+                aws:ResourceTag/Environment: public-beta
+                aws:ResourceTag/ManagedBy: Terraform
+          - Sid: AssociateWafOnlyWithTaggedPublicBetaAlb
+            Effect: Allow
+            Action:
+              - elasticloadbalancing:CreateWebACLAssociation
+              - elasticloadbalancing:DeleteWebACLAssociation
+              - elasticloadbalancing:GetLoadBalancerWebACL
+            Resource: !Sub arn:${AWS::Partition}:elasticloadbalancing:${AWS::Region}:${AWS::AccountId}:loadbalancer/app/jsc-public-beta-*/*
+            Condition:
+              StringEquals:
+                aws:ResourceTag/Application: Job Seeker Copilot
+                aws:ResourceTag/Environment: public-beta
+                aws:ResourceTag/ManagedBy: Terraform
+
+  ApplyReleaseOperationsPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: jsc-public-beta-apply-release-operations
+      Description: Exact protected release-marker, secret-seeding and one-shot operator calls.
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: ReconcileOnlyDeclaredPublicBetaSecrets
+            Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+              - secretsmanager:ListSecretVersionIds
+              - secretsmanager:PutSecretValue
+            Resource: !Sub arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:jsc-public-beta/*
+            Condition:
+              StringEquals:
+                aws:ResourceTag/Application: Job Seeker Copilot
+                aws:ResourceTag/Environment: public-beta
+                aws:ResourceTag/ManagedBy: Terraform
+          - Sid: WriteOnlyExactReleaseMarkers
+            Effect: Allow
+            Action:
+              - ssm:AddTagsToResource
+              - ssm:GetParameter
+              - ssm:PutParameter
+            Resource:
+              - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/jsc/public-beta/release/database-bootstrap
+              - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/jsc/public-beta/release/preflight
+          - Sid: RunOnlyReviewedReleaseOperatorTasks
+            Effect: Allow
+            Action: ecs:RunTask
+            Resource:
+              - !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/jsc-public-beta-database-bootstrap:*
+              - !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/jsc-public-beta-migration-verification:*
+              - !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/jsc-public-beta-release-preflight:*
+            Condition:
+              ArnEquals:
+                ecs:cluster: !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:cluster/jsc-public-beta
+          - Sid: PassOnlyEcsInstanceRoleToEc2
+            Effect: Allow
+            Action: iam:PassRole
+            Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-ecs-instance
+            Condition:
+              StringEquals:
+                iam:PassedToService: ec2.amazonaws.com
+          - Sid: PassOnlyMonitoringRoleToRdsMonitoring
+            Effect: Allow
+            Action: iam:PassRole
+            Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-rds-monitoring
+            Condition:
+              StringEquals:
+                iam:PassedToService: monitoring.rds.amazonaws.com
+          - Sid: PassOnlyFlowRoleToVpcFlowLogs
+            Effect: Allow
+            Action: iam:PassRole
+            Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-vpc-flow
+            Condition:
+              StringEquals:
+                iam:PassedToService: vpc-flow-logs.amazonaws.com
+          - Sid: PassOnlyBackupRolesToBackup
+            Effect: Allow
+            Action: iam:PassRole
+            Resource:
+              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-backup
+              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-backup-restore
+            Condition:
+              StringEquals:
+                iam:PassedToService: backup.amazonaws.com
+          - Sid: PassOnlyTaskRolesToEcsTasks
+            Effect: Allow
+            Action: iam:PassRole
+            Resource:
+              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-release-operator-role
+              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-*-execution
+              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-*-task
+            Condition:
+              StringEquals:
+                iam:PassedToService: ecs-tasks.amazonaws.com
+          - Sid: AttachOnlyEcsInstancePolicies
+            Effect: Allow
+            Action: [iam:AttachRolePolicy, iam:DetachRolePolicy]
+            Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-ecs-instance
+            Condition:
+              ArnEquals:
+                iam:PermissionsBoundary: !Ref WorkloadPermissionsBoundary
+                iam:PolicyARN:
+                  - !Sub arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore
+                  - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
+          - Sid: AttachOnlyRdsMonitoringPolicy
+            Effect: Allow
+            Action: [iam:AttachRolePolicy, iam:DetachRolePolicy]
+            Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-rds-monitoring
+            Condition:
+              ArnEquals:
+                iam:PermissionsBoundary: !Ref WorkloadPermissionsBoundary
+                iam:PolicyARN: !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole
+          - Sid: AttachOnlyBackupPolicies
+            Effect: Allow
+            Action: [iam:AttachRolePolicy, iam:DetachRolePolicy]
+            Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-backup
+            Condition:
+              ArnEquals:
+                iam:PermissionsBoundary: !Ref BackupWorkloadBoundary
+                iam:PolicyARN:
+                  - !Sub arn:${AWS::Partition}:iam::aws:policy/AWSBackupServiceRolePolicyForS3Backup
+                  - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForBackup
+          - Sid: AttachOnlyBackupRestorePolicies
+            Effect: Allow
+            Action: [iam:AttachRolePolicy, iam:DetachRolePolicy]
+            Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-backup-restore
+            Condition:
+              ArnEquals:
+                iam:PermissionsBoundary: !Ref BackupRestoreWorkloadBoundary
+                iam:PolicyARN:
+                  - !Sub arn:${AWS::Partition}:iam::aws:policy/AWSBackupServiceRolePolicyForS3Restore
+                  - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForRestores
+          - Sid: AttachOnlyExecutionRolePolicy
+            Effect: Allow
+            Action: [iam:AttachRolePolicy, iam:DetachRolePolicy]
+            Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-*-execution
+            Condition:
+              ArnEquals:
+                iam:PermissionsBoundary: !Ref WorkloadPermissionsBoundary
+                iam:PolicyARN: !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+          - Sid: RequiredServiceLinkedRoles
+            Effect: Allow
+            Action: iam:CreateServiceLinkedRole
+            Resource: '*'
+            Condition:
+              StringEquals:
+                iam:AWSServiceName:
+                  - autoscaling.amazonaws.com
+                  - ecs.amazonaws.com
+                  - elasticloadbalancing.amazonaws.com
+                  - rds.amazonaws.com
+
+  ApplyIamPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: jsc-public-beta-apply-iam
+      Description: Exact workload-role lifecycle, bounded by the immutable public-beta permissions boundary.
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: CreateCommonBoundaryConstrainedRoles
+            Effect: Allow
+            Action: iam:CreateRole
+            Resource:
+              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-ecs-instance
+              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-rds-monitoring
+              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-vpc-flow
+              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-release-operator-role
+              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-*-execution
+              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-*-task
+            Condition:
+              StringEquals:
+                iam:PermissionsBoundary: !Ref WorkloadPermissionsBoundary
+                aws:RequestTag/Application: Job Seeker Copilot
+                aws:RequestTag/Environment: public-beta
+                aws:RequestTag/ManagedBy: Terraform
+          - Sid: CreateBackupBoundaryConstrainedRole
+            Effect: Allow
+            Action: iam:CreateRole
+            Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-backup
+            Condition:
+              StringEquals:
+                iam:PermissionsBoundary: !Ref BackupWorkloadBoundary
+                aws:RequestTag/Application: Job Seeker Copilot
+                aws:RequestTag/Environment: public-beta
+                aws:RequestTag/ManagedBy: Terraform
+          - Sid: CreateBackupRestoreBoundaryConstrainedRole
+            Effect: Allow
+            Action: iam:CreateRole
+            Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-backup-restore
+            Condition:
+              StringEquals:
+                iam:PermissionsBoundary: !Ref BackupRestoreWorkloadBoundary
+                aws:RequestTag/Application: Job Seeker Copilot
+                aws:RequestTag/Environment: public-beta
+                aws:RequestTag/ManagedBy: Terraform
+          - Sid: ManageOnlyCommonBoundaryConstrainedRoles
+            Effect: Allow
+            Action:
+              - iam:DeleteRole
+              - iam:DeleteRolePolicy
+              - iam:PutRolePolicy
+              - iam:UpdateAssumeRolePolicy
+              - iam:UpdateRoleDescription
+            Resource:
+              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-ecs-instance
+              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-rds-monitoring
+              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-vpc-flow
+              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-release-operator-role
+              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-*-execution
+              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-*-task
+            Condition:
+              StringEquals:
+                iam:PermissionsBoundary: !Ref WorkloadPermissionsBoundary
+                aws:ResourceTag/Application: Job Seeker Copilot
+                aws:ResourceTag/Environment: public-beta
+                aws:ResourceTag/ManagedBy: Terraform
+          - Sid: ManageOnlyBackupBoundaryConstrainedRole
+            Effect: Allow
+            Action:
+              - iam:DeleteRole
+              - iam:DeleteRolePolicy
+              - iam:PutRolePolicy
+              - iam:UpdateAssumeRolePolicy
+              - iam:UpdateRoleDescription
+            Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-backup
+            Condition:
+              StringEquals:
+                iam:PermissionsBoundary: !Ref BackupWorkloadBoundary
+                aws:ResourceTag/Application: Job Seeker Copilot
+                aws:ResourceTag/Environment: public-beta
+                aws:ResourceTag/ManagedBy: Terraform
+          - Sid: ManageOnlyRestoreBoundaryConstrainedRole
+            Effect: Allow
+            Action:
+              - iam:DeleteRole
+              - iam:DeleteRolePolicy
+              - iam:PutRolePolicy
+              - iam:UpdateAssumeRolePolicy
+              - iam:UpdateRoleDescription
+            Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-backup-restore
+            Condition:
+              StringEquals:
+                iam:PermissionsBoundary: !Ref BackupRestoreWorkloadBoundary
+                aws:ResourceTag/Application: Job Seeker Copilot
+                aws:ResourceTag/Environment: public-beta
+                aws:ResourceTag/ManagedBy: Terraform
+  ApplyTagAndStateGuardPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: jsc-public-beta-apply-guard
+      Description: Exact ASG creation plus protected workload-role tagging and boundary repair.
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: CreateOnlyExactTaggedAutoScalingGroup
+            Effect: Allow
+            Action: autoscaling:CreateAutoScalingGroup
+            Resource: !Sub arn:${AWS::Partition}:autoscaling:${AWS::Region}:${AWS::AccountId}:autoScalingGroup:*:autoScalingGroupName/jsc-public-beta-ecs-*
+            Condition:
+              StringEquals:
+                aws:RequestTag/Application: Job Seeker Copilot
+                aws:RequestTag/Environment: public-beta
+                aws:RequestTag/ManagedBy: Terraform
+              Bool:
+                autoscaling:LaunchTemplateVersionSpecified: 'true'
+              NumericEquals:
+                autoscaling:MaxSize: 1
+                autoscaling:MinSize: 1
+          - Sid: TagOnlyExactReservedWorkloadRoles
+            Effect: Allow
+            Action: iam:TagRole
+            Resource:
+              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-ecs-instance
+              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-rds-monitoring
+              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-vpc-flow
+              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-backup
+              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-backup-restore
+              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-release-operator-role
+              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-*-execution
+              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-*-task
+            Condition:
+              StringEquals:
+                aws:RequestTag/Application: Job Seeker Copilot
+                aws:RequestTag/Environment: public-beta
+                aws:RequestTag/ManagedBy: Terraform
+              ForAllValues:StringEquals:
+                aws:TagKeys:
+                  - Application
+                  - Environment
+                  - ManagedBy
+                  - Repository
+                  - CostCentre
+                  - Name
+          - Sid: RepairOnlyCommonWorkloadBoundaries
+            Effect: Allow
+            Action: iam:PutRolePermissionsBoundary
+            Resource:
+              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-ecs-instance
+              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-rds-monitoring
+              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-vpc-flow
+              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-release-operator-role
+              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-*-execution
+              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-*-task
+            Condition:
+              StringEquals:
+                iam:PermissionsBoundary: !Ref WorkloadPermissionsBoundary
+                aws:ResourceTag/Application: Job Seeker Copilot
+                aws:ResourceTag/Environment: public-beta
+                aws:ResourceTag/ManagedBy: Terraform
+          - Sid: RepairOnlyBackupWorkloadBoundary
+            Effect: Allow
+            Action: iam:PutRolePermissionsBoundary
+            Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-backup
+            Condition:
+              StringEquals:
+                iam:PermissionsBoundary: !Ref BackupWorkloadBoundary
+                aws:ResourceTag/Application: Job Seeker Copilot
+                aws:ResourceTag/Environment: public-beta
+                aws:ResourceTag/ManagedBy: Terraform
+          - Sid: RepairOnlyRestoreWorkloadBoundary
+            Effect: Allow
+            Action: iam:PutRolePermissionsBoundary
+            Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-backup-restore
+            Condition:
+              StringEquals:
+                iam:PermissionsBoundary: !Ref BackupRestoreWorkloadBoundary
+                aws:ResourceTag/Application: Job Seeker Copilot
+                aws:ResourceTag/Environment: public-beta
+                aws:ResourceTag/ManagedBy: Terraform
+
   ApplyRole:
     Type: AWS::IAM::Role
     Properties:
@@ -322,148 +2400,243 @@ Resources:
               StringEquals:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
                 token.actions.githubusercontent.com:sub: !Sub repo:${GitHubOrganisation}/${GitHubRepository}:environment:${ApplyEnvironmentName}
+      ManagedPolicyArns:
+        - !Ref ApplyDiscoveryPolicy
+        - !Ref ApplyEc2NetworkPolicy
+        - !Ref ApplyNetworkEdgePolicy
+        - !Ref ApplyComputePolicy
+        - !Ref ApplyComputeLaunchPolicy
+        - !Ref ApplyDataPolicy
+        - !Ref ApplyObservabilityPolicy
+        - !Ref ApplyReleaseOperationsPolicy
+        - !Ref ApplyIamPolicy
+        - !Ref ApplyTagAndStateGuardPolicy
       Policies:
         - PolicyName: TerraformState
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
-              - Effect: Allow
+              - Sid: StateBucketList
+                Effect: Allow
+                Action: s3:ListBucket
+                Resource: !GetAtt StateBucket.Arn
+              - Sid: ExactStateObjectReadWrite
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: !Sub '${StateBucket.Arn}/public-beta/terraform.tfstate'
+              - Sid: ExactStateLockLifecycle
+                Effect: Allow
                 Action:
                   - s3:DeleteObject
                   - s3:GetObject
-                  - s3:ListBucket
                   - s3:PutObject
-                Resource:
-                  - !GetAtt StateBucket.Arn
-                  - !Sub '${StateBucket.Arn}/*'
-              - Effect: Allow
+                Resource: !Sub '${StateBucket.Arn}/public-beta/terraform.tfstate.tflock'
+              - Sid: ExactStateKeyUse
+                Effect: Allow
                 Action:
                   - kms:Decrypt
                   - kms:DescribeKey
                   - kms:Encrypt
                   - kms:GenerateDataKey
                 Resource: !GetAtt StateKey.Arn
-        - PolicyName: PublicBetaTerraform
+        - PolicyName: NonRemovableApplyGuardrails
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
-              - Sid: ScopedServiceControlPlanes
-                Effect: Allow
+              - Sid: DenyBootstrapStateControlPlaneMutation
+                Effect: Deny
                 Action:
-                  - acm:*
-                  - application-autoscaling:*
-                  - autoscaling:*
-                  - backup:*
-                  - budgets:*
-                  - ce:*
-                  - cloudwatch:*
-                  - ec2:*
-                  - ecr:*
-                  - ecs:*
-                  - elasticloadbalancing:*
-                  - kms:*
-                  - logs:*
-                  - rds:*
-                  - s3:*
-                  - secretsmanager:*
-                  - servicediscovery:*
-                  - sns:*
-                  - ssm:*
-                  - wafv2:*
-                Resource: '*'
-              - Sid: HostedZoneRecordsOnly
-                Effect: Allow
-                Action: route53:ChangeResourceRecordSets
-                Resource: !Ref Route53HostedZoneArn
-                Condition:
-                  ForAllValues:StringLike:
-                    route53:ChangeResourceRecordSetsNormalizedRecordNames:
-                      - !Ref AppDomainName
-                      - !Sub '${AppDomainName}.'
-                      - !Sub '*.${AppDomainName}'
-                      - !Sub '*.${AppDomainName}.'
-                  ForAllValues:StringEquals:
-                    route53:ChangeResourceRecordSetsRecordTypes:
-                      - A
-                      - CNAME
-                    route53:ChangeResourceRecordSetsActions:
-                      - CREATE
-                      - UPSERT
-                      - DELETE
-              - Sid: HostedZoneReads
-                Effect: Allow
-                Action:
-                  - route53:GetHostedZone
-                  - route53:ListResourceRecordSets
-                  - route53:ListTagsForResource
-                Resource: !Ref Route53HostedZoneArn
-              - Sid: ChangeStatusRead
-                Effect: Allow
-                Action: route53:GetChange
-                Resource: !Sub arn:${AWS::Partition}:route53:::change/*
-              - Sid: NamedPublicBetaIamResources
-                Effect: Allow
-                Action:
-                  - iam:AttachRolePolicy
-                  - iam:CreateInstanceProfile
-                  - iam:CreatePolicy
-                  - iam:CreatePolicyVersion
-                  - iam:CreateRole
-                  - iam:DeleteInstanceProfile
-                  - iam:DeletePolicy
-                  - iam:DeletePolicyVersion
-                  - iam:DeleteRole
-                  - iam:DeleteRolePolicy
-                  - iam:DetachRolePolicy
-                  - iam:Get*
-                  - iam:List*
-                  - iam:PutRolePolicy
-                  - iam:RemoveRoleFromInstanceProfile
-                  - iam:AddRoleToInstanceProfile
-                  - iam:Tag*
-                  - iam:Untag*
-                  - iam:UpdateAssumeRolePolicy
-                  - iam:UpdateRoleDescription
+                  - kms:DisableKey
+                  - kms:PutKeyPolicy
+                  - kms:ScheduleKeyDeletion
+                  - kms:TagResource
+                  - kms:UntagResource
+                  - s3:DeleteBucket
+                  - s3:DeleteBucketPolicy
+                  - s3:PutBucketLogging
+                  - s3:PutBucketOwnershipControls
+                  - s3:PutBucketPolicy
+                  - s3:PutBucketPublicAccessBlock
+                  - s3:PutBucketTagging
+                  - s3:PutBucketVersioning
+                  - s3:PutEncryptionConfiguration
+                  - s3:PutLifecycleConfiguration
                 Resource:
-                  - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-*
-                  - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/jsc-public-beta-*
-                  - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/jsc-public-beta-*
-              - Sid: PassOnlyPublicBetaRoles
-                Effect: Allow
-                Action: iam:PassRole
-                Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-*
-                Condition:
-                  StringEquals:
-                    iam:PassedToService:
-                      - application-autoscaling.amazonaws.com
-                      - backup.amazonaws.com
-                      - ec2.amazonaws.com
-                      - ecs-tasks.amazonaws.com
-                      - monitoring.rds.amazonaws.com
-                      - vpc-flow-logs.amazonaws.com
-              - Sid: RequiredServiceLinkedRoles
-                Effect: Allow
-                Action: iam:CreateServiceLinkedRole
+                  - !GetAtt StateKey.Arn
+                  - !GetAtt StateBucket.Arn
+              - Sid: DenyWorkloadBoundaryRemoval
+                Effect: Deny
+                Action: iam:DeleteRolePermissionsBoundary
+                Resource:
+                  - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-ecs-instance
+                  - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-rds-monitoring
+                  - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-vpc-flow
+                  - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-backup
+                  - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-backup-restore
+                  - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-release-operator-role
+                  - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-*-execution
+                  - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-*-task
+              - Sid: DenyProtectedTagRemoval
+                Effect: Deny
+                Action:
+                  - autoscaling:DeleteTags
+                  - backup:UntagResource
+                  - budgets:UntagResource
+                  - ce:UntagResource
+                  - cloudwatch:UntagResource
+                  - ec2:DeleteTags
+                  - ecr:UntagResource
+                  - ecs:UntagResource
+                  - elasticloadbalancing:RemoveTags
+                  - iam:UntagInstanceProfile
+                  - iam:UntagRole
+                  - kms:UntagResource
+                  - logs:UntagResource
+                  - rds:RemoveTagsFromResource
+                  - secretsmanager:UntagResource
+                  - servicediscovery:UntagResource
+                  - sns:UntagResource
+                  - wafv2:UntagResource
                 Resource: '*'
                 Condition:
-                  StringEquals:
-                    iam:AWSServiceName:
-                      - autoscaling.amazonaws.com
-                      - ecs.amazonaws.com
-                      - elasticloadbalancing.amazonaws.com
-                      - rds.amazonaws.com
+                  ForAnyValue:StringEquals:
+                    aws:TagKeys:
+                      - Application
+                      - Environment
+                      - ManagedBy
+              - Sid: DenyWrongApplicationTag
+                Effect: Deny
+                Action:
+                  - autoscaling:CreateOrUpdateTags
+                  - backup:TagResource
+                  - budgets:TagResource
+                  - ce:TagResource
+                  - cloudwatch:TagResource
+                  - ec2:CreateTags
+                  - ecr:TagResource
+                  - ecs:TagResource
+                  - elasticloadbalancing:AddTags
+                  - iam:TagInstanceProfile
+                  - iam:TagRole
+                  - kms:TagResource
+                  - logs:TagResource
+                  - rds:AddTagsToResource
+                  - secretsmanager:TagResource
+                  - servicediscovery:TagResource
+                  - sns:TagResource
+                  - wafv2:TagResource
+                Resource: '*'
+                Condition:
+                  Null:
+                    aws:RequestTag/Application: 'false'
+                  StringNotEquals:
+                    aws:RequestTag/Application: Job Seeker Copilot
+              - Sid: DenyWrongEnvironmentTag
+                Effect: Deny
+                Action:
+                  - autoscaling:CreateOrUpdateTags
+                  - backup:TagResource
+                  - budgets:TagResource
+                  - ce:TagResource
+                  - cloudwatch:TagResource
+                  - ec2:CreateTags
+                  - ecr:TagResource
+                  - ecs:TagResource
+                  - elasticloadbalancing:AddTags
+                  - iam:TagInstanceProfile
+                  - iam:TagRole
+                  - kms:TagResource
+                  - logs:TagResource
+                  - rds:AddTagsToResource
+                  - secretsmanager:TagResource
+                  - servicediscovery:TagResource
+                  - sns:TagResource
+                  - wafv2:TagResource
+                Resource: '*'
+                Condition:
+                  Null:
+                    aws:RequestTag/Environment: 'false'
+                  StringNotEquals:
+                    aws:RequestTag/Environment: public-beta
+              - Sid: DenyWrongManagedByTag
+                Effect: Deny
+                Action:
+                  - autoscaling:CreateOrUpdateTags
+                  - backup:TagResource
+                  - budgets:TagResource
+                  - ce:TagResource
+                  - cloudwatch:TagResource
+                  - ec2:CreateTags
+                  - ecr:TagResource
+                  - ecs:TagResource
+                  - elasticloadbalancing:AddTags
+                  - iam:TagInstanceProfile
+                  - iam:TagRole
+                  - kms:TagResource
+                  - logs:TagResource
+                  - rds:AddTagsToResource
+                  - secretsmanager:TagResource
+                  - servicediscovery:TagResource
+                  - sns:TagResource
+                  - wafv2:TagResource
+                Resource: '*'
+                Condition:
+                  Null:
+                    aws:RequestTag/ManagedBy: 'false'
+                  StringNotEquals:
+                    aws:RequestTag/ManagedBy: Terraform
 
 Outputs:
   StateBucketName:
     Value: !Ref StateBucket
   StateKeyArn:
     Value: !GetAtt StateKey.Arn
+  ApplicationDataKeyArn:
+    Value: !GetAtt ApplicationDataKey.Arn
+  ErasureJournalKeyArn:
+    Value: !GetAtt ErasureJournalKey.Arn
+  ErasureJournalBucketName:
+    Value: !Ref ErasureJournalBucket
+  ErasureJournalBucketArn:
+    Value: !GetAtt ErasureJournalBucket.Arn
+  ErasureJournalRetentionDays:
+    Value: !Ref ErasureJournalRetentionDays
+  ApprovedEcsAmiId:
+    Value: !Ref EcsAmiId
+  MonthlyAlertBudgetUsd:
+    Value: !Ref MonthlyBudgetUsd
+  MonthlyCostAlertBudgetName:
+    Value: !Ref MonthlyCostAlertBudget
+  NotificationKeyArn:
+    Value: !GetAtt NotificationKey.Arn
+  OperationsTopicArn:
+    Value: !Ref OperationsTopic
+  CustomerDataBackupVaultName:
+    Value: !Ref CustomerDataBackupVault
+  CustomerDataBackupVaultArn:
+    Value: !GetAtt CustomerDataBackupVault.BackupVaultArn
+  CustomerDataBackupPlanId:
+    Value: !Ref CustomerDataBackupPlan
+  CustomerDataBackupPlanArn:
+    Value: !GetAtt CustomerDataBackupPlan.BackupPlanArn
+  CostAnomalyMonitorArn:
+    Value: !Ref ServiceCostAnomalyMonitor
+  CostAnomalySubscriptionArn:
+    Value: !Ref DailyCostAnomalySubscription
   PlanRoleArn:
     Value: !GetAtt PlanRole.Arn
   BuildRoleArn:
     Value: !GetAtt BuildRole.Arn
   ApplyRoleArn:
     Value: !GetAtt ApplyRole.Arn
+  WorkloadPermissionsBoundaryArn:
+    Value: !Ref WorkloadPermissionsBoundary
+  BackupPermissionsBoundaryArn:
+    Value: !Ref BackupWorkloadBoundary
+  BackupRestorePermissionsBoundaryArn:
+    Value: !Ref BackupRestoreWorkloadBoundary
   GitHubOidcProviderArn:
     Value: !If
       - CreateGitHubOidcProvider

@@ -30,10 +30,109 @@ variable "aws_account_id" {
   }
 }
 
+variable "foundation_data_kms_key_arn" {
+  description = "ApplicationDataKeyArn from the reviewed manual bootstrap stack; routine Terraform cannot create, retag or delete this key."
+  type        = string
+  default     = "arn:aws:kms:eu-west-2:000000000000:key/00000000-0000-0000-0000-000000000000"
+
+  validation {
+    condition     = can(regex("^arn:aws:kms:eu-west-2:[0-9]{12}:key/[0-9a-f-]{36}$", var.foundation_data_kms_key_arn))
+    error_message = "foundation_data_kms_key_arn must be the exact eu-west-2 bootstrap KMS key ARN."
+  }
+}
+
+variable "foundation_operations_topic_arn" {
+  description = "OperationsTopicArn from the reviewed manual bootstrap stack; alarms publish to this exact retained topic."
+  type        = string
+  default     = "arn:aws:sns:eu-west-2:000000000000:jsc-public-beta-operations"
+
+  validation {
+    condition     = can(regex("^arn:aws:sns:eu-west-2:[0-9]{12}:jsc-public-beta-operations$", var.foundation_operations_topic_arn))
+    error_message = "foundation_operations_topic_arn must be the exact eu-west-2 public-beta bootstrap topic ARN."
+  }
+}
+
+variable "foundation_backup_plan_id" {
+  description = "CustomerDataBackupPlanId from the reviewed manual bootstrap stack. Terraform may create only a selection on this exact plan."
+  type        = string
+  default     = "00000000-0000-0000-0000-000000000000"
+
+  validation {
+    condition     = can(regex("^[0-9a-f-]{36}$", var.foundation_backup_plan_id))
+    error_message = "foundation_backup_plan_id must be the exact bootstrap AWS Backup plan ID."
+  }
+}
+
+variable "foundation_erasure_journal_kms_key_arn" {
+  description = "ErasureJournalKeyArn from the manual bootstrap; isolated from the customer-data key and inaccessible to routine Terraform control-plane mutation."
+  type        = string
+  default     = "arn:aws:kms:eu-west-2:000000000000:key/11111111-1111-1111-1111-111111111111"
+
+  validation {
+    condition     = can(regex("^arn:aws:kms:eu-west-2:[0-9]{12}:key/[0-9a-f-]{36}$", var.foundation_erasure_journal_kms_key_arn))
+    error_message = "foundation_erasure_journal_kms_key_arn must be the exact eu-west-2 bootstrap journal KMS key ARN."
+  }
+}
+
+variable "foundation_erasure_journal_bucket_name" {
+  description = "ErasureJournalBucketName from the manual bootstrap; this retained/versioned bucket is outside the customer-data AWS Backup selection."
+  type        = string
+  default     = "jsc-public-beta-erasure-journal-000000000000"
+
+  validation {
+    condition     = can(regex("^jsc-public-beta-erasure-journal-[0-9]{12}$", var.foundation_erasure_journal_bucket_name))
+    error_message = "foundation_erasure_journal_bucket_name must be the exact account-scoped bootstrap bucket name."
+  }
+}
+
+variable "foundation_erasure_journal_retention_days" {
+  description = "ErasureJournalRetentionDays from the manual bootstrap; must match reviewed privacy/recovery evidence and exceed the 35-day backup maximum."
+  type        = number
+  default     = 90
+
+  validation {
+    condition     = floor(var.foundation_erasure_journal_retention_days) == var.foundation_erasure_journal_retention_days && var.foundation_erasure_journal_retention_days >= 36 && var.foundation_erasure_journal_retention_days <= 400
+    error_message = "foundation_erasure_journal_retention_days must be a whole number from 36 through 400."
+  }
+}
+
+variable "foundation_approved_ecs_ami_id" {
+  description = "ApprovedEcsAmiId from the manual bootstrap. Apply can launch only resources sourced from this reviewed AMI through the tagged ECS launch template."
+  type        = string
+  default     = "ami-00000000000000000"
+
+  validation {
+    condition     = can(regex("^ami-[0-9a-f]{17}$", var.foundation_approved_ecs_ami_id))
+    error_message = "foundation_approved_ecs_ami_id must be an exact AMI ID."
+  }
+}
+
+variable "foundation_monthly_alert_budget_usd" {
+  description = "MonthlyAlertBudgetUsd from the manual bootstrap. The routine Terraform stack cannot create, update or delete this account-billing control."
+  type        = number
+  default     = 750
+
+  validation {
+    condition     = floor(var.foundation_monthly_alert_budget_usd) == var.foundation_monthly_alert_budget_usd && var.foundation_monthly_alert_budget_usd >= 100 && var.foundation_monthly_alert_budget_usd <= 750
+    error_message = "foundation_monthly_alert_budget_usd must be the reviewed whole-dollar bootstrap alert ceiling from 100 through 750."
+  }
+}
+
 variable "offline_validation" {
-  description = "CI-only switch. Release plans must set this to false."
+  description = "Account-free test-harness switch. It is accepted only from a disposable backend-free module copy under /tmp; protected release plans force false."
   type        = bool
   default     = false
+}
+
+variable "offline_activation_validation" {
+  description = "Account-free test harness only: allow one desired task per service and the synthetic public-listener topology without provider refresh."
+  type        = bool
+  default     = false
+
+  validation {
+    condition     = !var.offline_activation_validation || var.offline_validation
+    error_message = "offline_activation_validation is valid only with offline_validation=true."
+  }
 }
 
 variable "image_manifest_path" {
@@ -113,9 +212,14 @@ variable "route53_hosted_zone_id" {
 }
 
 variable "manage_certificate" {
-  description = "Create and DNS-validate an ACM certificate for app_domain_name."
+  description = "Reserved compatibility switch. Public beta requires a separately reviewed existing ACM certificate because safe certificate deletion cannot be tag-scoped in IAM."
   type        = bool
-  default     = true
+  default     = false
+
+  validation {
+    condition     = !var.manage_certificate
+    error_message = "Terraform-managed ACM is disabled: supply existing_certificate_arn from the reviewed certificate process."
+  }
 }
 
 variable "existing_certificate_arn" {
@@ -214,8 +318,8 @@ variable "expanded_capacity_approval_reference" {
   default     = ""
 
   validation {
-    condition     = var.expanded_capacity_approval_reference == "" || length(trimspace(var.expanded_capacity_approval_reference)) >= 3
-    error_message = "expanded_capacity_approval_reference must be empty or a meaningful reviewed evidence reference."
+    condition     = var.expanded_capacity_approval_reference == "" || length(trimspace(var.expanded_capacity_approval_reference)) >= 8
+    error_message = "expanded_capacity_approval_reference must be empty or a substantive reviewed evidence reference of at least eight characters."
   }
 }
 

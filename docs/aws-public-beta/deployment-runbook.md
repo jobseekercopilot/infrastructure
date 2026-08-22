@@ -28,15 +28,31 @@ step.
 1. Read [`aws/public-beta/bootstrap/README.md`](../../aws/public-beta/bootstrap/README.md).
 2. Confirm the target account and `eu-west-2`; resolve the current GitHub OIDC
    certificate thumbprint from authoritative AWS/GitHub guidance.
-3. Create and review a CloudFormation **change set** from
-   `bootstrap/state-and-oidc.yaml`. Do not execute an unreviewed template.
+3. Hash `bootstrap/state-and-oidc.yaml`, upload those exact bytes to a separate
+   versioned/SSE-KMS bootstrap-artifact bucket, and create a CloudFormation
+   **change set** using the immutable S3 `TemplateURL`, recorded object version
+   and `CAPABILITY_NAMED_IAM`. The template exceeds the 51,200-byte inline body
+   limit; an inline or unversioned submission is invalid. Follow the exact
+   manual command/evidence contract in the bootstrap README. Do not execute an
+   unreviewed template.
 4. Confirm it creates only the KMS-encrypted/versioned/public-blocked state
-   bucket, GitHub OIDC provider/roles and their scoped policies.
+   bucket, GitHub OIDC provider/roles, workload permissions boundary and the
+   retained data/notification/journal keys, Object-Locked erasure journal,
+   operations topic, Backup vault/plan, reviewed ECS AMI input and Cost Anomaly
+   controls listed in the bootstrap README. These foundation resources are
+   deliberately outside routine Apply authority.
 5. Execute the approved change set manually. Record the outputs in the three
    GitHub environments described in the bootstrap README.
 6. Protect `production-build`, `production-aws-plan` and `production-aws` for
-   `main` only, require a reviewer other than the dispatcher, and prevent
-   administrator bypass where the GitHub plan permits it.
+   `main` only, require a reviewer other than the dispatcher, and disable
+   administrator bypass. Record the settings-page evidence in the signed
+   `githubEnvironmentProtection` approval block because GitHub's environment
+   REST response does not expose that switch.
+7. Request/validate the exact `app.<domain>` ACM certificate through the
+   separately reviewed account process and record its eu-west-2 ARN as
+   `existing_certificate_arn`. Terraform certificate creation is intentionally
+   disabled because ACM deletion cannot be safely constrained by resource tag;
+   the apply role has no ACM write permission.
 
 Never put runtime secret values in CloudFormation, Terraform variables,
 Terraform state, GitHub variables, logs or release artifacts. The protected
@@ -76,9 +92,12 @@ Complete the [launch checklist](launch-checklist.md). In particular:
   evidence: System Data `ca4bafeafbfe41b25a8507f6f08d97490ef71a28`, E2E
   `1541d92f34a3068bb160e1638834a06af6a60796` and Infrastructure
   `412566a750ead55740e0b2b4b81cebe29d3e0ad9`, which proved 36 healthy services
-  and 4/4 scenarios (33/33 steps). Those are test-only provenance: System Data,
-  E2E and every fixture control remain absent from production task definitions,
-  ECR runtime images, ALB routes and public OpenAPI;
+  and 4/4 scenarios (33/33 steps). Those are test-only provenance: System Data
+  and E2E remain absent from production tasks/ECR/ALB. Stripe's single reviewed
+  JAR contains dormant fixture classes; the exact-image gate instead proves the
+  production profile rejects `FIXTURE`, `DISABLED` registers no conditional
+  fixture control/provider beans and returns 404 for the control route. No
+  fixture token/signing secret enters a production task or public OpenAPI;
 - update `config/workspace-lock.json` to the tested release revisions;
 - prove the pinned Client/Landing revisions and artifact-contract SHA-256 values
   are ancestors of protected `main`. The protected build replaces the generated
@@ -94,8 +113,9 @@ Complete the [launch checklist](launch-checklist.md). In particular:
   are complete. Credentials never count as approval.
 - keep the application at desired count zero until the protected public-legal
   record contains the real reviewed seller identity, explicit tax/ICO status,
-  published Terms/Privacy URLs and digests, and bounded deletion/retention
-  values. Its `legalVersion` must exactly match Authentication, Client and the
+  published Terms/Privacy URLs, exact immutable Client/Landing legal-artifact
+  checksums, and bounded deletion/retention values. Its `legalVersion` must
+  exactly match Authentication, Client and the
   Payment terms/entity configuration; `NOT_CONFIGURED` is intentionally dark.
   Account/document deletion promises must be at least the configured 35-day
   backup/noncurrent recovery window.
@@ -108,8 +128,9 @@ health tests. Placeholder, mutable, unscanned or `develop` manifests fail closed
 The seven DB images get the same checksum-bound CA bundle in one central derived
 image step; the operator independently verifies the identical checksum. The
 release workflow verifies GitHub attestation, build-run identity, exact `main`
-SHA, artifact checksum, workspace-lock checksum, protected approval checksum
-and Client/Landing artifact checksums before assuming AWS access.
+SHA, artifact checksum, workspace-lock checksum, protected approval checksum,
+every locked exported OpenAPI checksum and Client/Landing artifact checksums
+before assuming AWS access.
 The source-build job has no GitHub OIDC permission and rejects AWS credentials.
 It exports the verified local images as a checksum-bound, one-day prepared
 archive. A separate publisher job verifies and loads (but does not execute)
