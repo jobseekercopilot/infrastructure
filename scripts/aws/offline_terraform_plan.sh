@@ -150,8 +150,10 @@ jq \
        reviewedBy:"Account-free release validator",
        reviewedOn:$reviewDate,
        evidenceReference:"offline-activation/github-environment-settings-evidence",
+       reviewerUsername:"jobseekercopilot",
        requiredReviewersVerified:true,
-       preventSelfReviewVerified:true,
+       preventSelfReview:false,
+       soloOperatorSelfReviewAuthorised:true,
        exactMainBranchVerified:true,
        administratorBypassDisabled:true
      }

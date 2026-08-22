@@ -177,7 +177,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         self.assertIn('if [ "$RELEASE_ACTION" = rollback ]; then', release)
         self.assertNotIn('"$RELEASE_ACTION" = rollback ] || [ "$RELEASE_ACTION" = activate', release)
 
-    def test_github_environment_guard_fails_closed_for_reviewers_and_branch_policy(self) -> None:
+    def test_github_environment_guard_fails_closed_for_solo_reviewer_and_branch_policy(self) -> None:
         guard = ROOT / "scripts" / "aws" / "verify_github_environment_protection.sh"
         with tempfile.TemporaryDirectory() as directory:
             fake_bin = Path(directory)
@@ -198,8 +198,8 @@ class PublicBetaAwsContractTest(unittest.TestCase):
                 },
                 "protection_rules": [{
                     "type": "required_reviewers",
-                    "prevent_self_review": True,
-                    "reviewers": [{"type": "User", "reviewer": {"login": "release-reviewer"}}],
+                    "prevent_self_review": False,
+                    "reviewers": [{"type": "User", "reviewer": {"login": "jobseekercopilot"}}],
                 }],
             }
             branch_policy = {
@@ -212,7 +212,9 @@ class PublicBetaAwsContractTest(unittest.TestCase):
                 "ENVIRONMENT_JSON": json.dumps(environment),
                 "BRANCH_POLICY_JSON": json.dumps(branch_policy),
             }
-            command = ["bash", str(guard), "jobseekercopilot/infrastructure", "production-build"]
+            command = [
+                "bash", str(guard), "jobseekercopilot/infrastructure", "production-build", "jobseekercopilot"
+            ]
             valid = subprocess.run(command, env=command_environment, check=False, capture_output=True, text=True)
             self.assertEqual(valid.returncode, 0, valid.stderr)
 
@@ -222,11 +224,20 @@ class PublicBetaAwsContractTest(unittest.TestCase):
                 command, env=command_environment, check=False, capture_output=True, text=True
             )
             self.assertNotEqual(missing_reviewer.returncode, 0)
-            self.assertIn("must require a non-self reviewer", missing_reviewer.stderr)
+            self.assertIn("must require the authorised solo reviewer jobseekercopilot", missing_reviewer.stderr)
 
             environment["protection_rules"][0]["reviewers"] = [
-                {"type": "User", "reviewer": {"login": "release-reviewer"}}
+                {"type": "User", "reviewer": {"login": "jobseekercopilot"}}
             ]
+            environment["protection_rules"][0]["prevent_self_review"] = True
+            command_environment["ENVIRONMENT_JSON"] = json.dumps(environment)
+            self_review_disabled = subprocess.run(
+                command, env=command_environment, check=False, capture_output=True, text=True
+            )
+            self.assertNotEqual(self_review_disabled.returncode, 0)
+            self.assertIn("allow self-review", self_review_disabled.stderr)
+
+            environment["protection_rules"][0]["prevent_self_review"] = False
             branch_policy["branch_policies"][0]["name"] = "develop"
             command_environment["ENVIRONMENT_JSON"] = json.dumps(environment)
             command_environment["BRANCH_POLICY_JSON"] = json.dumps(branch_policy)
@@ -250,7 +261,11 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             ("aws-public-beta-release.yml", "production-aws"),
         ):
             workflow = (ROOT / ".github" / "workflows" / workflow_name).read_text(encoding="utf-8")
-            self.assertIn(f'verify_github_environment_protection.sh "$GITHUB_REPOSITORY" {environment_name}', workflow)
+            self.assertIn(
+                f'verify_github_environment_protection.sh "$GITHUB_REPOSITORY" {environment_name} '
+                '"$GITHUB_REPOSITORY_OWNER"',
+                workflow,
+            )
         build = (ROOT / ".github" / "workflows" / "aws-public-beta-build.yml").read_text(encoding="utf-8")
         self.assertGreaterEqual(build.count("actions: read"), 2)
 
@@ -1284,11 +1299,12 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         approvals["reviewedAt"] = reviewed_at.strftime("%Y-%m-%dT%H:%M:%SZ")
         approvals["githubEnvironmentProtection"].update({
             "reviewed": True,
-            "reviewedBy": "Independent release-control reviewer",
+            "reviewedBy": "Bernard McGeever, sole operator",
             "reviewedOn": today.isoformat(),
             "evidenceReference": "github-environment-protection-review-2026-08-15",
             "requiredReviewersVerified": True,
-            "preventSelfReviewVerified": True,
+            "preventSelfReview": False,
+            "soloOperatorSelfReviewAuthorised": True,
             "exactMainBranchVerified": True,
             "administratorBypassDisabled": True,
         })

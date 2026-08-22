@@ -58,9 +58,10 @@ Terraform plan or AWS credit award alone is not launch approval.
 - [ ] State bucket public-access block, versioning, KMS encryption and native
       lock file are verified; a state recovery exercise is recorded.
 - [ ] `production-build`, `production-aws-plan` and `production-aws` allow only
-      `main`, require a reviewer other than the dispatcher and cannot be
+      `main`, require `jobseekercopilot` as the sole reviewer with self-review
+      explicitly authorised for the one-person business, and cannot be
       bypassed by normal contributors. The pre-OIDC GitHub API check passed for
-      required reviewers, `prevent_self_review` and the sole `main` branch
+      the named reviewer, `prevent_self_review=false` and the sole `main` branch
       policy; administrator-bypass state is separately evidenced where GitHub
       does not expose it in that response.
 - [ ] Plan, build and apply OIDC role policies match the reviewed bootstrap

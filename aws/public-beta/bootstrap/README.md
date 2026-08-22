@@ -53,9 +53,9 @@ resource before a separate approved execution. For an update use change-set
 type `UPDATE`; never fall back to an unversioned URL or inline template body.
 
 Record the outputs as protected GitHub environment variables. Create three
-GitHub environments with at least one required reviewer, prevention of
-self-review and a custom deployment-branch policy that permits only the
-`main` branch:
+GitHub environments with `jobseekercopilot` as the sole required reviewer,
+self-review allowed under the approved sole-operator policy, and a custom
+deployment-branch policy that permits only the `main` branch:
 
 | Environment | Branch policy | Role output | Purpose |
 |---|---|---|---|
@@ -65,10 +65,12 @@ self-review and a custom deployment-branch policy that permits only the
 
 Develop and pull-request CI is account-free and receives no OIDC token. A merge
 to `develop` therefore cannot plan against or mutate AWS. The protected main
-workflow also requires an explicit dispatch and confirmation phrase; the
-environment reviewer is a separate human control.
+workflow also requires an explicit dispatch and confirmation phrase. For the
+current one-person business, the required reviewer is the sole operator and
+self-review is an explicitly signed launch decision rather than a claim of
+independent review.
 Before any OIDC exchange, each protected workflow calls the GitHub API and
-fails closed unless those reviewer/self-review/branch settings are present.
+fails closed unless those named-reviewer/self-review/branch settings are present.
 GitHub's documented environment REST response does not expose the
 administrator-bypass switch. Therefore `githubEnvironmentProtection` in the
 signed launch approval remains false until a human records a substantive

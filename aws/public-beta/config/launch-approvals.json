@@ -8,8 +8,10 @@
     "reviewedOn": "",
     "evidenceReference": "",
     "environments": ["production-build", "production-aws-plan", "production-aws"],
+    "reviewerUsername": "jobseekercopilot",
     "requiredReviewersVerified": false,
-    "preventSelfReviewVerified": false,
+    "preventSelfReview": false,
+    "soloOperatorSelfReviewAuthorised": false,
     "exactMainBranchVerified": false,
     "administratorBypassDisabled": false
   },

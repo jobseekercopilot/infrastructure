@@ -3,10 +3,12 @@ set -euo pipefail
 
 repository=${1:-}
 environment_name=${2:-}
+reviewer_login=${3:-}
 
 if [[ ! "$repository" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] ||
-   [[ ! "$environment_name" =~ ^production-(aws-plan|aws|build)$ ]]; then
-  echo "Usage: $0 owner/repository production-aws-plan|production-build|production-aws" >&2
+   [[ ! "$environment_name" =~ ^production-(aws-plan|aws|build)$ ]] ||
+   [[ ! "$reviewer_login" =~ ^[A-Za-z0-9-]{1,39}$ ]]; then
+  echo "Usage: $0 owner/repository production-aws-plan|production-build|production-aws reviewer-login" >&2
   exit 2
 fi
 
@@ -22,16 +24,18 @@ environment_json=$(gh api --method GET \
   --header 'X-GitHub-Api-Version: 2022-11-28' \
   "repos/$repository/environments/$environment_name")
 
-jq -e --arg environment "$environment_name" '
+jq -e --arg environment "$environment_name" --arg reviewer "$reviewer_login" '
   .name == $environment and
   .deployment_branch_policy.protected_branches == false and
   .deployment_branch_policy.custom_branch_policies == true and
   ([.protection_rules[]? | select(.type == "required_reviewers")] | length) == 1 and
   ([.protection_rules[]? | select(.type == "required_reviewers")][0] |
-    .prevent_self_review == true and
-    (.reviewers | type == "array" and length > 0))
+    .prevent_self_review == false and
+    (.reviewers | type == "array" and length == 1) and
+    .reviewers[0].type == "User" and
+    .reviewers[0].reviewer.login == $reviewer)
 ' <<<"$environment_json" >/dev/null || {
-  echo "Refusing: $environment_name must require a non-self reviewer and custom deployment branches." >&2
+  echo "Refusing: $environment_name must require the authorised solo reviewer $reviewer_login, allow self-review and use custom deployment branches." >&2
   exit 3
 }
 
@@ -50,5 +54,5 @@ jq -e '
   exit 3
 }
 
-echo "Verified API-visible GitHub environment protection: $environment_name (reviewer, no self-review, exact main branch)."
+echo "Verified API-visible GitHub environment protection: $environment_name (authorised solo reviewer, self-review allowed, exact main branch)."
 echo "Administrator bypass is not exposed by this REST response and remains a separately signed launch-approval gate." >&2
