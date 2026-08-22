@@ -14,6 +14,14 @@ whether a GitHub OIDC provider already exists, and the current GitHub
 OIDC certificate thumbprint from authoritative AWS/GitHub guidance. Review the
 complete change set; then execute it manually only after approval.
 
+The administrator must also supply the owner mailbox that will receive the
+encrypted operations-topic email subscription and either the existing
+account-wide AWS-services Cost Anomaly monitor ARN or confirm that none exists.
+AWS sends a subscription confirmation email; public activation is blocked
+until that confirmation is accepted. The bootstrap reuses an existing
+DIMENSIONAL SERVICE monitor because Cost Anomaly Detection permits only one
+account-wide AWS-services monitor.
+
 The template is intentionally larger than CloudFormation's 51,200-byte inline
 `TemplateBody` limit and smaller than the 1 MiB `TemplateURL` limit. An account
 administrator must upload the exact reviewed bytes to a separate, versioned,

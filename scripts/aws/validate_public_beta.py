@@ -1162,9 +1162,17 @@ def validate_source_guards() -> None:
     bootstrap_source = (MODULE / "bootstrap" / "state-and-oidc.yaml").read_text(encoding="utf-8")
     for fragment, description in {
         "MonthlyCostAlertBudget": "retained foundation budget",
-        "Threshold: 50": "50% actual budget alert",
-        "Threshold: 80": "80% budget alerts",
-        "Threshold: 100": "100% actual budget alert",
+        "MonthlyCostCeilingBudget": "retained ceiling and forecast budget",
+        "MonthlyCostCriticalForecastBudget": "retained critical forecast budget",
+        "OperationsEmailSubscription": "owner email subscription",
+        "ExistingCostAnomalyMonitorArn": "existing anomaly-monitor reuse input",
+        "Threshold: 350": "USD 350 early budget alert",
+        "Threshold: 500": "USD 500 approaching-baseline alert",
+        "Threshold: 560": "USD 560 baseline alert",
+        "Threshold: 650": "USD 650 high-spend alert",
+        "Threshold: 700": "USD 700 critical alert",
+        "Threshold: 750": "USD 750 ceiling alert",
+        "ThresholdType: ABSOLUTE_VALUE": "absolute-dollar budget thresholds",
         "NotificationType: FORECASTED": "forecast budget alert",
     }.items():
         require(fragment in bootstrap_source, f"bootstrap is missing {description}")

@@ -60,6 +60,20 @@ Parameters:
       Monthly AWS alert budget in USD. This is an alert threshold, never a
       hard spending cap; raising it requires a separately reviewed foundation
       change.
+  OperationsNotificationEmail:
+    Type: String
+    NoEcho: true
+    AllowedPattern: '^[^@\s]+@[^@\s]+\.[^@\s]+$'
+    Description: >-
+      Confirmed owner mailbox for budget, anomaly, backup and operational
+      alerts. The SNS confirmation email must be accepted before activation.
+  ExistingCostAnomalyMonitorArn:
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|^arn:aws:ce::[0-9]{12}:anomalymonitor/[A-Za-z0-9-]+$'
+    Description: >-
+      Existing account-wide AWS-services anomaly monitor. Leave empty only
+      when the account has no DIMENSIONAL SERVICE monitor.
   EcsAmiId:
     Type: AWS::EC2::Image::Id
     Description: >-
@@ -68,6 +82,7 @@ Parameters:
 
 Conditions:
   CreateGitHubOidcProvider: !Equals [!Ref ExistingGitHubOidcProviderArn, '']
+  CreateCostAnomalyMonitor: !Equals [!Ref ExistingCostAnomalyMonitorArn, '']
 
 Resources:
   StateKey:
@@ -497,6 +512,13 @@ Resources:
               StringEquals:
                 aws:SourceAccount: !Ref AWS::AccountId
 
+  OperationsEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref OperationsTopic
+      Protocol: email
+      Endpoint: !Ref OperationsNotificationEmail
+
   MonthlyCostAlertBudget:
     Type: AWS::Budgets::Budget
     DeletionPolicy: Retain
@@ -504,7 +526,7 @@ Resources:
     DependsOn: OperationsTopicPolicy
     Properties:
       Budget:
-        BudgetName: jsc-public-beta-monthly-alert-budget
+        BudgetName: jsc-public-beta-monthly-actual-spend
         BudgetType: COST
         BudgetLimit:
           Amount: !Ref MonthlyBudgetUsd
@@ -517,32 +539,150 @@ Resources:
         - Notification:
             ComparisonOperator: GREATER_THAN
             NotificationType: ACTUAL
-            Threshold: 50
-            ThresholdType: PERCENTAGE
+            Threshold: 350
+            ThresholdType: ABSOLUTE_VALUE
           Subscribers:
             - Address: !Ref OperationsTopic
               SubscriptionType: SNS
         - Notification:
             ComparisonOperator: GREATER_THAN
             NotificationType: ACTUAL
-            Threshold: 80
-            ThresholdType: PERCENTAGE
+            Threshold: 500
+            ThresholdType: ABSOLUTE_VALUE
           Subscribers:
             - Address: !Ref OperationsTopic
               SubscriptionType: SNS
         - Notification:
             ComparisonOperator: GREATER_THAN
             NotificationType: ACTUAL
-            Threshold: 100
-            ThresholdType: PERCENTAGE
+            Threshold: 560
+            ThresholdType: ABSOLUTE_VALUE
+          Subscribers:
+            - Address: !Ref OperationsTopic
+              SubscriptionType: SNS
+        - Notification:
+            ComparisonOperator: GREATER_THAN
+            NotificationType: ACTUAL
+            Threshold: 650
+            ThresholdType: ABSOLUTE_VALUE
+          Subscribers:
+            - Address: !Ref OperationsTopic
+              SubscriptionType: SNS
+        - Notification:
+            ComparisonOperator: GREATER_THAN
+            NotificationType: ACTUAL
+            Threshold: 700
+            ThresholdType: ABSOLUTE_VALUE
+          Subscribers:
+            - Address: !Ref OperationsTopic
+              SubscriptionType: SNS
+      ResourceTags:
+        - Key: Application
+          Value: Job Seeker Copilot
+        - Key: Environment
+          Value: public-beta
+        - Key: ManagedBy
+          Value: CloudFormation-bootstrap
+        - Key: CostCentre
+          Value: public-beta
+
+  MonthlyCostCeilingBudget:
+    Type: AWS::Budgets::Budget
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    DependsOn: OperationsTopicPolicy
+    Properties:
+      Budget:
+        BudgetName: jsc-public-beta-monthly-ceiling-and-forecast
+        BudgetType: COST
+        BudgetLimit:
+          Amount: !Ref MonthlyBudgetUsd
+          Unit: USD
+        TimeUnit: MONTHLY
+        CostFilters:
+          TagKeyValue:
+            - user:CostCentre$public-beta
+      NotificationsWithSubscribers:
+        - Notification:
+            ComparisonOperator: GREATER_THAN
+            NotificationType: ACTUAL
+            Threshold: 750
+            ThresholdType: ABSOLUTE_VALUE
           Subscribers:
             - Address: !Ref OperationsTopic
               SubscriptionType: SNS
         - Notification:
             ComparisonOperator: GREATER_THAN
             NotificationType: FORECASTED
-            Threshold: 80
-            ThresholdType: PERCENTAGE
+            Threshold: 350
+            ThresholdType: ABSOLUTE_VALUE
+          Subscribers:
+            - Address: !Ref OperationsTopic
+              SubscriptionType: SNS
+        - Notification:
+            ComparisonOperator: GREATER_THAN
+            NotificationType: FORECASTED
+            Threshold: 500
+            ThresholdType: ABSOLUTE_VALUE
+          Subscribers:
+            - Address: !Ref OperationsTopic
+              SubscriptionType: SNS
+        - Notification:
+            ComparisonOperator: GREATER_THAN
+            NotificationType: FORECASTED
+            Threshold: 560
+            ThresholdType: ABSOLUTE_VALUE
+          Subscribers:
+            - Address: !Ref OperationsTopic
+              SubscriptionType: SNS
+        - Notification:
+            ComparisonOperator: GREATER_THAN
+            NotificationType: FORECASTED
+            Threshold: 650
+            ThresholdType: ABSOLUTE_VALUE
+          Subscribers:
+            - Address: !Ref OperationsTopic
+              SubscriptionType: SNS
+      ResourceTags:
+        - Key: Application
+          Value: Job Seeker Copilot
+        - Key: Environment
+          Value: public-beta
+        - Key: ManagedBy
+          Value: CloudFormation-bootstrap
+        - Key: CostCentre
+          Value: public-beta
+
+  MonthlyCostCriticalForecastBudget:
+    Type: AWS::Budgets::Budget
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    DependsOn: OperationsTopicPolicy
+    Properties:
+      Budget:
+        BudgetName: jsc-public-beta-monthly-critical-forecast
+        BudgetType: COST
+        BudgetLimit:
+          Amount: !Ref MonthlyBudgetUsd
+          Unit: USD
+        TimeUnit: MONTHLY
+        CostFilters:
+          TagKeyValue:
+            - user:CostCentre$public-beta
+      NotificationsWithSubscribers:
+        - Notification:
+            ComparisonOperator: GREATER_THAN
+            NotificationType: FORECASTED
+            Threshold: 700
+            ThresholdType: ABSOLUTE_VALUE
+          Subscribers:
+            - Address: !Ref OperationsTopic
+              SubscriptionType: SNS
+        - Notification:
+            ComparisonOperator: GREATER_THAN
+            NotificationType: FORECASTED
+            Threshold: 750
+            ThresholdType: ABSOLUTE_VALUE
           Subscribers:
             - Address: !Ref OperationsTopic
               SubscriptionType: SNS
@@ -608,6 +748,7 @@ Resources:
 
   ServiceCostAnomalyMonitor:
     Type: AWS::CE::AnomalyMonitor
+    Condition: CreateCostAnomalyMonitor
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
@@ -633,7 +774,10 @@ Resources:
       SubscriptionName: jsc-public-beta-cost-anomalies
       Frequency: IMMEDIATE
       MonitorArnList:
-        - !GetAtt ServiceCostAnomalyMonitor.MonitorArn
+        - !If
+          - CreateCostAnomalyMonitor
+          - !GetAtt ServiceCostAnomalyMonitor.MonitorArn
+          - !Ref ExistingCostAnomalyMonitorArn
       Subscribers:
         - Type: SNS
           Address: !Ref OperationsTopic
@@ -2609,6 +2753,10 @@ Outputs:
     Value: !Ref MonthlyBudgetUsd
   MonthlyCostAlertBudgetName:
     Value: !Ref MonthlyCostAlertBudget
+  MonthlyCostCeilingBudgetName:
+    Value: !Ref MonthlyCostCeilingBudget
+  MonthlyCostCriticalForecastBudgetName:
+    Value: !Ref MonthlyCostCriticalForecastBudget
   NotificationKeyArn:
     Value: !GetAtt NotificationKey.Arn
   OperationsTopicArn:
@@ -2622,7 +2770,10 @@ Outputs:
   CustomerDataBackupPlanArn:
     Value: !GetAtt CustomerDataBackupPlan.BackupPlanArn
   CostAnomalyMonitorArn:
-    Value: !Ref ServiceCostAnomalyMonitor
+    Value: !If
+      - CreateCostAnomalyMonitor
+      - !Ref ServiceCostAnomalyMonitor
+      - !Ref ExistingCostAnomalyMonitorArn
   CostAnomalySubscriptionArn:
     Value: !Ref DailyCostAnomalySubscription
   PlanRoleArn:

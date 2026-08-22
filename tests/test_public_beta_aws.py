@@ -671,6 +671,8 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             "CustomerDataBackupVault",
             "CustomerDataBackupPlan",
             "MonthlyCostAlertBudget",
+            "MonthlyCostCeilingBudget",
+            "MonthlyCostCriticalForecastBudget",
             "ServiceCostAnomalyMonitor",
             "DailyCostAnomalySubscription",
             "StateBucketPolicy",
@@ -1649,9 +1651,44 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         for statement in journal_policy:
             if statement["Sid"] != "DenyInsecureTransport":
                 self.assertIn("/permanent-erasures/v1/*", statement["Resource"])
-        budget = resources["MonthlyCostAlertBudget"]
-        self.assertEqual(budget["DependsOn"], "OperationsTopicPolicy")
-        self.assertEqual(budget["DeletionPolicy"], "Retain")
+        for budget_name in (
+            "MonthlyCostAlertBudget",
+            "MonthlyCostCeilingBudget",
+            "MonthlyCostCriticalForecastBudget",
+        ):
+            budget = resources[budget_name]
+            self.assertEqual(budget["DependsOn"], "OperationsTopicPolicy")
+            self.assertEqual(budget["DeletionPolicy"], "Retain")
+            self.assertEqual(budget["UpdateReplacePolicy"], "Retain")
+
+        def notifications(name: str) -> set[tuple[str, int]]:
+            entries = resources[name]["Properties"]["NotificationsWithSubscribers"]
+            self.assertTrue(
+                all(entry["Notification"]["ThresholdType"] == "ABSOLUTE_VALUE" for entry in entries)
+            )
+            return {
+                (entry["Notification"]["NotificationType"], entry["Notification"]["Threshold"])
+                for entry in entries
+            }
+
+        self.assertEqual(
+            notifications("MonthlyCostAlertBudget"),
+            {("ACTUAL", value) for value in (350, 500, 560, 650, 700)},
+        )
+        self.assertEqual(
+            notifications("MonthlyCostCeilingBudget"),
+            {("ACTUAL", 750)} | {("FORECASTED", value) for value in (350, 500, 560, 650)},
+        )
+        self.assertEqual(
+            notifications("MonthlyCostCriticalForecastBudget"),
+            {("FORECASTED", 700), ("FORECASTED", 750)},
+        )
+        subscription = resources["OperationsEmailSubscription"]["Properties"]
+        self.assertEqual(subscription["TopicArn"], "OperationsTopic")
+        self.assertEqual(subscription["Protocol"], "email")
+        self.assertEqual(subscription["Endpoint"], "OperationsNotificationEmail")
+        self.assertEqual(resources["ServiceCostAnomalyMonitor"]["Condition"], "CreateCostAnomalyMonitor")
+        self.assertIn("ExistingCostAnomalyMonitorArn", template["Parameters"])
         self.assertEqual(template["Parameters"]["MonthlyBudgetUsd"]["Default"], 750)
 
         data_source = (ROOT / "aws" / "public-beta" / "data.tf").read_text(encoding="utf-8")
