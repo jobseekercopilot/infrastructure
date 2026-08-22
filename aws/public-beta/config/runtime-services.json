@@ -1,0 +1,509 @@
+{
+  "schemaVersion": 1,
+  "services": {
+    "postcode-io-gateway": {
+      "port": 8082, "cpu": 128, "memory": 512, "healthPath": "/actuator/health",
+      "environment": {
+        "DEPLOYMENT_ENVIRONMENT_CLASS": "PRODUCTION",
+        "EXTERNAL_PROVIDER_MODE": "LIVE",
+        "EXTERNAL_PROVIDER_BASE_URL": "https://api.postcodes.io",
+        "POSTCODES_IO_NORTHERN_IRELAND_ENABLED": "false",
+        "PROVIDER_MODE_ENDPOINT_ENABLED": "false"
+      },
+      "secrets": {}
+    },
+    "google-maps-gateway": {
+      "port": 8105, "cpu": 128, "memory": 512, "healthPath": "/actuator/health",
+      "environment": {
+        "GOOGLE_MAPS_ENABLED": "{{google_enabled}}",
+        "GOOGLE_MAPS_MAXIMUM_SESSIONS": "{{google_maximum_sessions}}"
+      },
+      "secrets": {
+        "GOOGLE_MAPS_GATEWAY_TOKEN": "core:GOOGLE_MAPS_GATEWAY_TOKEN",
+        "GOOGLE_MAPS_API_KEY": "integration/google_maps:api_key"
+      }
+    },
+    "location-service": {
+      "port": 8104, "cpu": 128, "memory": 512, "healthPath": "/actuator/health",
+      "environment": {
+        "POSTCODE_IO_GATEWAY_URL": "http://postcode-io-gateway.{{namespace}}:8082",
+        "GOOGLE_MAPS_GATEWAY_URL": "http://google-maps-gateway.{{namespace}}:8105",
+        "GOOGLE_MAPS_ENABLED": "{{google_enabled}}",
+        "LOCATION_COMMUTE_MAXIMUM_DESTINATIONS": "{{google_maximum_destinations}}"
+      },
+      "secrets": {
+        "LOCATION_SERVICE_TOKEN": "core:LOCATION_SERVICE_TOKEN",
+        "GOOGLE_MAPS_GATEWAY_TOKEN": "core:GOOGLE_MAPS_GATEWAY_TOKEN"
+      }
+    },
+    "location-gateway": {
+      "port": 8081, "cpu": 128, "memory": 512, "healthPath": "/actuator/health",
+      "environment": {"LOCATION_SERVICE_URL": "http://location-service.{{namespace}}:8104"},
+      "secrets": {"LOCATION_SERVICE_TOKEN": "core:LOCATION_SERVICE_TOKEN"}
+    },
+    "authentication-service": {
+      "port": 8084, "cpu": 256, "memory": 768, "healthPath": "/actuator/health",
+      "environment": {
+        "ENVIRONMENT_DATA_ENABLED": "false",
+        "AUTH_DB_URL": "jdbc:postgresql://{{db_endpoint}}:5432/authentication?sslmode=verify-full&sslrootcert=/etc/jsc/rds/global-bundle.pem",
+        "AUTH_DB_USERNAME": "authentication",
+        "JWT_ISSUER": "job-seeker-copilot-authentication",
+        "JWT_AUDIENCE": "job-seeker-copilot-services",
+        "JWT_KEY_ID": "public-beta-primary",
+        "AUTH_LEGAL_DOCUMENTS_REVIEWED": "false",
+        "AUTH_LEGAL_CURRENT_VERSION": "NOT_CONFIGURED",
+        "AUTH_LEGAL_TERMS_URL": "{{application_base_url}}/terms",
+        "AUTH_LEGAL_PRIVACY_NOTICE_URL": "{{application_base_url}}/privacy",
+        "USER_PROFILE_SERVICE_URL": "http://user-profile-service.{{namespace}}:8085",
+        "APPLICATION_TRACKER_SERVICE_URL": "http://application-tracker-service.{{namespace}}:8088",
+        "DOCUMENT_STORE_SERVICE_URL": "http://document-store-service.{{namespace}}:8089",
+        "PAYMENT_SERVICE_URL": "http://payment-service.{{namespace}}:8099",
+        "AUTH_ACCOUNT_EMAIL_DELIVERY_MODE": "{{account_email_mode}}",
+        "AUTH_ACCOUNT_EMAIL_APPLICATION_BASE_URL": "{{application_base_url}}",
+        "AUTH_ACCOUNT_EMAIL_SENDER": "{{account_email_sender}}",
+        "AUTH_ACCOUNT_EMAIL_SUPPORT_URL": "https://jobseekercopilot.com/contact",
+        "AUTH_ACCOUNT_EMAIL_SES_REGION": "{{region}}",
+        "AUTH_ACCOUNT_EMAIL_SES_CONFIGURATION_SET": "{{ses_configuration_set}}"
+      },
+      "secrets": {
+        "AUTH_DB_PASSWORD": "database/authentication:password",
+        "JWT_PRIVATE_KEY_BASE64": "core:JWT_PRIVATE_KEY_BASE64",
+        "JWT_PUBLIC_KEY_BASE64": "core:JWT_PUBLIC_KEY_BASE64",
+        "AUTH_SERVICE_TOKEN": "core:AUTH_SERVICE_TOKEN",
+        "AUTH_ENVIRONMENT_DATA_TOKEN": "core:ENVIRONMENT_DATA_TOKEN",
+        "ACCOUNT_LIFECYCLE_TO_PAYMENT_SERVICE_TOKEN": "core:ACCOUNT_LIFECYCLE_TO_PAYMENT_SERVICE_TOKEN"
+      }
+    },
+    "user-profile-service": {
+      "port": 8085, "cpu": 256, "memory": 768, "healthPath": "/actuator/health",
+      "environment": {
+        "ENVIRONMENT_DATA_ENABLED": "false",
+        "PROFILE_DB_URL": "jdbc:postgresql://{{db_endpoint}}:5432/user_profile?sslmode=verify-full&sslrootcert=/etc/jsc/rds/global-bundle.pem",
+        "PROFILE_DB_USERNAME": "user_profile",
+        "AUTH_JWKS_URI": "http://authentication-service.{{namespace}}:8084/.well-known/jwks.json",
+        "PROFILE_JWT_ISSUER": "job-seeker-copilot-authentication",
+        "PROFILE_JWT_AUDIENCE": "job-seeker-copilot-services"
+      },
+      "secrets": {
+        "PROFILE_DB_PASSWORD": "database/user_profile:password",
+        "ENVIRONMENT_DATA_TOKEN": "core:ENVIRONMENT_DATA_TOKEN"
+      }
+    },
+    "user-management-gateway": {
+      "port": 8083, "cpu": 128, "memory": 512, "healthPath": "/actuator/health",
+      "environment": {
+        "AUTHENTICATION_SERVICE_URL": "http://authentication-service.{{namespace}}:8084",
+        "USER_PROFILE_SERVICE_URL": "http://user-profile-service.{{namespace}}:8085"
+      },
+      "secrets": {"AUTHENTICATION_SERVICE_TOKEN": "core:AUTH_SERVICE_TOKEN"}
+    },
+    "reed-gateway": {
+      "port": 8087, "cpu": 128, "memory": 512, "healthPath": "/actuator/health",
+      "environment": {"EXTERNAL_PROVIDER_MODE": "LIVE", "REED_API_ENABLED": "{{reed_enabled}}"},
+      "secrets": {"REED_API_KEY": "integration/reed:api_key"}
+    },
+    "adzuna-gateway": {
+      "port": 8101, "cpu": 128, "memory": 512, "healthPath": "/actuator/health",
+      "environment": {
+        "EXTERNAL_PROVIDER_MODE": "LIVE",
+        "ADZUNA_ENABLED": "{{adzuna_enabled}}",
+        "ADZUNA_COUNTRY": "gb",
+        "ADZUNA_RESULTS_PER_PAGE": "50",
+        "ADZUNA_PAGES_PER_SEARCH": "1"
+      },
+      "secrets": {
+        "ADZUNA_APP_ID": "integration/adzuna:app_id",
+        "ADZUNA_APP_KEY": "integration/adzuna:app_key"
+      }
+    },
+    "jsearch-gateway": {
+      "port": 8102, "cpu": 128, "memory": 512, "healthPath": "/actuator/health",
+      "environment": {
+        "EXTERNAL_PROVIDER_MODE": "LIVE",
+        "JSEARCH_ENABLED": "{{jsearch_enabled}}",
+        "JSEARCH_COUNTRY": "gb",
+        "JSEARCH_LANGUAGE": "en",
+        "JSEARCH_PAGES_PER_SEARCH": "1"
+      },
+      "secrets": {"JSEARCH_API_KEY": "integration/jsearch:api_key"}
+    },
+    "nhs-jobs-gateway": {
+      "port": 8104, "cpu": 128, "memory": 512, "healthPath": "/actuator/health",
+      "environment": {
+        "EXTERNAL_PROVIDER_MODE": "LIVE",
+        "NHS_JOBS_ENABLED": "{{nhs_jobs_enabled}}",
+        "NHS_JOBS_DEFAULT_COUNTRY_CODE": "GB-ENG",
+        "NHS_JOBS_RESULTS_PER_PAGE": "50"
+      },
+      "secrets": {}
+    },
+    "apprenticeships-gateway": {
+      "port": 8105, "cpu": 128, "memory": 512, "healthPath": "/actuator/health",
+      "environment": {
+        "EXTERNAL_PROVIDER_MODE": "LIVE",
+        "APPRENTICESHIPS_ENABLED": "{{apprenticeships_enabled}}",
+        "APPRENTICESHIPS_API_VERSION": "2",
+        "APPRENTICESHIPS_SYNC_PAGE_SIZE": "100",
+        "APPRENTICESHIPS_SYNC_MAX_PAGES": "10",
+        "APPRENTICESHIPS_SYNC_DELAY_MS": "900000"
+      },
+      "secrets": {"APPRENTICESHIPS_API_KEY": "integration/apprenticeships:api_key"}
+    },
+    "job-service": {
+      "port": 8086, "cpu": 256, "memory": 768, "healthPath": "/actuator/health",
+      "environment": {
+        "JOB_SERVICE_DATABASE_URL": "jdbc:postgresql://{{db_endpoint}}:5432/job_service?sslmode=verify-full&sslrootcert=/etc/jsc/rds/global-bundle.pem",
+        "JOB_SERVICE_DATABASE_USERNAME": "job_service",
+        "JOB_SERVICE_DATABASE_SSL_MODE": "verify-full",
+        "JOB_SERVICE_DATABASE_PRODUCTION_SAFETY_CHECK": "true",
+        "JOB_SERVICE_DATABASE_ENCRYPTION_AT_REST_ENABLED": "true",
+        "JOB_SERVICE_DATABASE_ENCRYPTION_KEY_REFERENCE": "{{kms_key_arn}}",
+        "JOB_SERVICE_DATABASE_BACKUP_ENCRYPTION_ENABLED": "true",
+        "JOB_SERVICE_DATABASE_BACKUP_KEY_REFERENCE": "{{kms_key_arn}}",
+        "REED_GATEWAY_URL": "http://reed-gateway.{{namespace}}:8087",
+        "ADZUNA_GATEWAY_URL": "http://adzuna-gateway.{{namespace}}:8101",
+        "JSEARCH_GATEWAY_URL": "http://jsearch-gateway.{{namespace}}:8102",
+        "NHS_JOBS_GATEWAY_URL": "http://nhs-jobs-gateway.{{namespace}}:8104",
+        "APPRENTICESHIPS_GATEWAY_URL": "http://apprenticeships-gateway.{{namespace}}:8105",
+        "JOB_MATCHING_SERVICE_URL": "http://job-matching-service.{{namespace}}:8097",
+        "REED_ENABLED": "{{reed_enabled}}",
+        "ADZUNA_ENABLED": "{{adzuna_enabled}}",
+        "JSEARCH_ENABLED": "{{jsearch_enabled}}",
+        "NHS_JOBS_ENABLED": "{{nhs_jobs_enabled}}",
+        "APPRENTICESHIPS_ENABLED": "{{apprenticeships_enabled}}",
+        "JSEARCH_MAX_CURSOR_PAGES": "2",
+        "JOB_SEARCH_PROVIDER_PAGE_SIZE": "50"
+      },
+      "secrets": {"JOB_SERVICE_DATABASE_PASSWORD": "database/job_service:password"}
+    },
+    "job-matching-service": {
+      "port": 8097, "cpu": 128, "memory": 512, "healthPath": "/actuator/health",
+      "environment": {
+        "APPLICATION_TRACKER_SERVICE_BASE_URL": "http://application-tracker-service.{{namespace}}:8088",
+        "LOCATION_SERVICE_URL": "http://location-service.{{namespace}}:8104"
+      },
+      "secrets": {
+        "APPLICATION_TRACKER_READER_TOKEN": "core:APPLICATION_TRACKER_READER_TOKEN",
+        "LOCATION_SERVICE_TOKEN": "core:LOCATION_SERVICE_TOKEN"
+      }
+    },
+    "job-finder-gateway": {
+      "port": 8080, "cpu": 128, "memory": 512, "healthPath": "/actuator/health",
+      "environment": {
+        "AUTH_JWKS_URI": "http://authentication-service.{{namespace}}:8084/.well-known/jwks.json",
+        "JOB_FINDER_JWT_ISSUER": "job-seeker-copilot-authentication",
+        "JOB_FINDER_JWT_AUDIENCE": "job-seeker-copilot-services",
+        "JOB_SERVICE_URL": "http://job-service.{{namespace}}:8086",
+        "USER_MANAGEMENT_GATEWAY_URL": "http://user-management-gateway.{{namespace}}:8083",
+        "USER_PROFILE_SERVICE_URL": "http://user-profile-service.{{namespace}}:8085",
+        "APPLICATION_TRACKER_SERVICE_URL": "http://application-tracker-service.{{namespace}}:8088",
+        "DOCUMENT_STORE_SERVICE_URL": "http://document-store-service.{{namespace}}:8089"
+      },
+      "secrets": {}
+    },
+    "llm-gateway": {
+      "port": 8090, "cpu": 256, "memory": 768, "healthPath": "/actuator/health",
+      "environment": {
+        "EXTERNAL_PROVIDER_MODE": "{{openai_mode}}",
+        "OPENAI_MODEL": "gpt-4.1-mini-2025-04-14",
+        "OPENAI_ENDPOINT": "https://api.openai.com/v1/chat/completions",
+        "OPENAI_DATA_REGION": "EU",
+        "OPENAI_DATA_CONTROL_MODE": "ZERO_DATA_RETENTION",
+        "OPENAI_DATA_SHARING_MODE": "DISABLED",
+        "OPENAI_PRIVACY_POLICY_VERSION": "{{openai_privacy_policy_version}}",
+        "OPENAI_PRIVACY_DECISION_ID": "{{openai_privacy_decision_id}}",
+        "OPENAI_PRIVACY_OWNER": "{{openai_privacy_owner}}",
+        "OPENAI_PRIVACY_REVIEW_ON": "{{openai_privacy_reviewed_on}}",
+        "OPENAI_MAX_CONCURRENT_CALLS": "8",
+        "GENERATION_MODEL_ID": "gpt-4.1-mini",
+        "GENERATION_MODEL_DEPLOYMENT_VERSION": "gpt-4.1-mini-2025-04-14",
+        "GENERATION_PRICING_VERSION": "openai-2026-08-15",
+        "GENERATION_INPUT_RATE_MICRO_USD_PER_MILLION_TOKENS": "400000",
+        "GENERATION_OUTPUT_RATE_MICRO_USD_PER_MILLION_TOKENS": "1600000"
+      },
+      "secrets": {"OPENAI_API_KEY": "integration/openai:api_key"}
+    },
+    "document-store-service": {
+      "port": 8089, "cpu": 256, "memory": 1024, "healthPath": "/actuator/health",
+      "environment": {
+        "ENVIRONMENT_DATA_ENABLED": "false",
+        "DOCUMENT_STORE_DATABASE_URL": "jdbc:postgresql://{{db_endpoint}}:5432/document_store?sslmode=verify-full&sslrootcert=/etc/jsc/rds/global-bundle.pem",
+        "DOCUMENT_STORE_DATABASE_USERNAME": "document_store",
+        "DOCUMENT_STORE_DATABASE_SSL_MODE": "verify-full",
+        "DOCUMENT_STORE_DATABASE_PRODUCTION_SAFETY_CHECK": "true",
+        "DOCUMENT_STORE_ENCRYPTION_AT_REST_ENABLED": "true",
+        "DOCUMENT_STORE_ENCRYPTION_KEY_REFERENCE": "{{kms_key_arn}}",
+        "DOCUMENT_STORE_BACKUP_ENCRYPTION_ENABLED": "true",
+        "DOCUMENT_STORE_BACKUP_KEY_REFERENCE": "{{kms_key_arn}}",
+        "DOCUMENT_STORE_OBJECT_PROVIDER": "s3",
+        "DOCUMENT_STORE_OBJECT_REGION": "{{region}}",
+        "DOCUMENT_STORE_OBJECT_BUCKET": "{{document_bucket}}",
+        "DOCUMENT_STORE_OBJECT_KMS_KEY_ID": "{{kms_key_arn}}",
+        "DOCUMENT_STORE_OBJECT_CREDENTIALS_PROVIDER": "task-role",
+        "DOCUMENT_STORE_OBJECT_PATH_STYLE": "false",
+        "DOCUMENT_STORE_RECONCILIATION_ENABLED": "true",
+        "DOCUMENT_STORE_RECONCILIATION_RUN_ON_STARTUP": "false",
+        "DOCUMENT_STORE_RETENTION_MAINTENANCE_ENABLED": "true",
+        "DOCUMENT_STORE_PURGE_ENABLED": "false",
+        "DOCUMENT_STORE_PERMANENT_ERASURE_ENABLED": "false",
+        "DOCUMENT_STORE_PERMANENT_ERASURE_WRITE_FENCE_ENABLED": "true",
+        "DOCUMENT_STORE_VERSIONED_OBJECT_ERASURE_ENABLED": "false",
+        "DOCUMENT_STORE_RETENTION_POLICY_VERSION": "UNAPPROVED",
+        "DOCUMENT_STORE_BACKUP_RETENTION_POLICY_VERSION": "UNAPPROVED",
+        "DOCUMENT_STORE_MAXIMUM_BACKUP_RETENTION_DAYS": "35",
+        "DOCUMENT_STORE_ERASURE_JOURNAL_PROVIDER": "s3",
+        "DOCUMENT_STORE_ERASURE_JOURNAL_REGION": "{{region}}",
+        "DOCUMENT_STORE_ERASURE_JOURNAL_BUCKET": "{{erasure_journal_bucket}}",
+        "DOCUMENT_STORE_ERASURE_JOURNAL_KMS_KEY_ID": "{{erasure_journal_kms_key_arn}}",
+        "DOCUMENT_STORE_ERASURE_JOURNAL_CREDENTIALS_PROVIDER": "task-role",
+        "DOCUMENT_STORE_ERASURE_JOURNAL_OBJECT_LOCK_ENABLED": "true",
+        "DOCUMENT_STORE_ERASURE_JOURNAL_RETENTION_POLICY_VERSION": "UNAPPROVED",
+        "DOCUMENT_STORE_PERMANENT_ERASURE_BATCH_SIZE": "10",
+        "DOCUMENT_STORE_PERMANENT_ERASURE_FIXED_DELAY_MS": "300000",
+        "TZ": "UTC",
+        "AUTH_JWKS_URI": "http://authentication-service.{{namespace}}:8084/.well-known/jwks.json",
+        "DOCUMENT_STORE_JWT_ISSUER": "job-seeker-copilot-authentication",
+        "DOCUMENT_STORE_JWT_AUDIENCE": "job-seeker-copilot-services",
+        "APPLICATION_TRACKER_SERVICE_URL": "http://application-tracker-service.{{namespace}}:8088",
+        "DOCUMENT_STORE_CLAMAV_HOST": "clamav.{{namespace}}",
+        "DOCUMENT_STORE_CLAMAV_PORT": "3310",
+        "DOCUMENT_STORE_CLAMAV_MAXIMUM_SIGNATURE_AGE_HOURS": "48"
+      },
+      "secrets": {
+        "DOCUMENT_STORE_DATABASE_PASSWORD": "database/document_store:password",
+        "DOCUMENT_STORE_PRODUCER_TOKEN": "core:DOCUMENT_STORE_PRODUCER_TOKEN",
+        "DOCUMENT_STORE_READER_TOKEN": "core:DOCUMENT_STORE_READER_TOKEN",
+        "DOCUMENT_STORE_RETENTION_ADMIN_TOKEN": "core:DOCUMENT_STORE_RETENTION_ADMIN_TOKEN",
+        "DOCUMENT_STORE_ERASURE_FINGERPRINT_KEY": "core:DOCUMENT_STORE_ERASURE_FINGERPRINT_KEY",
+        "DOCUMENT_STORE_ERASURE_FINGERPRINT_PREVIOUS_KEYS": "core:DOCUMENT_STORE_ERASURE_FINGERPRINT_PREVIOUS_KEYS",
+        "APPLICATION_TRACKER_PRODUCER_TOKEN": "core:APPLICATION_TRACKER_PRODUCER_TOKEN",
+        "APPLICATION_TRACKER_READER_TOKEN": "core:APPLICATION_TRACKER_READER_TOKEN",
+        "ENVIRONMENT_DATA_TOKEN": "core:ENVIRONMENT_DATA_TOKEN"
+      }
+    },
+    "document-export-service": {
+      "port": 8094, "cpu": 128, "memory": 512, "healthPath": "/actuator/health",
+      "environment": {"DOCUMENT_STORE_SERVICE_BASE_URL": "http://document-store-service.{{namespace}}:8089"},
+      "secrets": {
+        "DOCUMENT_EXPORT_GATEWAY_TOKEN": "core:DOCUMENT_EXPORT_GATEWAY_TOKEN",
+        "DOCUMENT_STORE_PRODUCER_TOKEN": "core:DOCUMENT_STORE_PRODUCER_TOKEN",
+        "DOCUMENT_STORE_READER_TOKEN": "core:DOCUMENT_STORE_READER_TOKEN"
+      }
+    },
+    "application-tracker-service": {
+      "port": 8088, "cpu": 256, "memory": 768, "healthPath": "/actuator/health",
+      "environment": {
+        "ENVIRONMENT_DATA_ENABLED": "false",
+        "APPLICATION_TRACKER_DATABASE_URL": "jdbc:postgresql://{{db_endpoint}}:5432/application_tracker?sslmode=verify-full&sslrootcert=/etc/jsc/rds/global-bundle.pem",
+        "APPLICATION_TRACKER_DATABASE_USERNAME": "application_tracker",
+        "APPLICATION_TRACKER_DATABASE_SSL_MODE": "verify-full",
+        "APPLICATION_TRACKER_DATABASE_PRODUCTION_SAFETY_CHECK": "true",
+        "APPLICATION_TRACKER_DATABASE_ENCRYPTION_AT_REST_ENABLED": "true",
+        "APPLICATION_TRACKER_DATABASE_ENCRYPTION_KEY_REFERENCE": "{{kms_key_arn}}",
+        "APPLICATION_TRACKER_DATABASE_BACKUP_ENCRYPTION_ENABLED": "true",
+        "APPLICATION_TRACKER_DATABASE_BACKUP_KEY_REFERENCE": "{{kms_key_arn}}",
+        "AUTH_JWKS_URI": "http://authentication-service.{{namespace}}:8084/.well-known/jwks.json",
+        "APPLICATION_TRACKER_JWT_ISSUER": "job-seeker-copilot-authentication",
+        "APPLICATION_TRACKER_JWT_AUDIENCE": "job-seeker-copilot-services",
+        "NHS_JOBS_SOURCE_MODE": "LIVE",
+        "DOCUMENT_STORE_SERVICE_URL": "http://document-store-service.{{namespace}}:8089"
+      },
+      "secrets": {
+        "APPLICATION_TRACKER_DATABASE_PASSWORD": "database/application_tracker:password",
+        "APPLICATION_TRACKER_PRODUCER_TOKEN": "core:APPLICATION_TRACKER_PRODUCER_TOKEN",
+        "APPLICATION_TRACKER_READER_TOKEN": "core:APPLICATION_TRACKER_READER_TOKEN",
+        "DOCUMENT_STORE_READER_TOKEN": "core:DOCUMENT_STORE_READER_TOKEN",
+        "ENVIRONMENT_DATA_TOKEN": "core:ENVIRONMENT_DATA_TOKEN"
+      }
+    },
+    "cv-cover-letter-service": {
+      "port": 8091, "cpu": 256, "memory": 768, "healthPath": "/actuator/health",
+      "environment": {
+        "LLM_GATEWAY_BASE_URL": "http://llm-gateway.{{namespace}}:8090",
+        "DOCUMENT_STORE_SERVICE_BASE_URL": "http://document-store-service.{{namespace}}:8089",
+        "APPLICATION_TRACKER_SERVICE_BASE_URL": "http://application-tracker-service.{{namespace}}:8088",
+        "PAYMENT_SERVICE_BASE_URL": "http://payment-service.{{namespace}}:8099",
+        "REJECTED_GENERATION_QUARANTINE_ENABLED": "false"
+      },
+      "secrets": {
+        "CV_COVER_LETTER_GATEWAY_TOKEN": "core:CV_COVER_LETTER_GATEWAY_TOKEN",
+        "CV_COVER_LETTER_TO_PAYMENT_SERVICE_TOKEN": "core:CV_COVER_LETTER_TO_PAYMENT_SERVICE_TOKEN",
+        "DOCUMENT_STORE_PRODUCER_TOKEN": "core:DOCUMENT_STORE_PRODUCER_TOKEN",
+        "APPLICATION_TRACKER_PRODUCER_TOKEN": "core:APPLICATION_TRACKER_PRODUCER_TOKEN",
+        "REJECTED_GENERATION_OPERATOR_TOKEN": "core:REJECTED_GENERATION_OPERATOR_TOKEN",
+        "REJECTED_GENERATION_QUARANTINE_KEY_BASE64": "core:REJECTED_GENERATION_QUARANTINE_KEY_BASE64"
+      }
+    },
+    "document-generation-gateway": {
+      "port": 8092, "cpu": 256, "memory": 1024, "healthPath": "/actuator/health",
+      "environment": {
+        "DOCUMENT_GENERATION_DATABASE_URL": "jdbc:postgresql://{{db_endpoint}}:5432/document_generation?sslmode=verify-full&sslrootcert=/etc/jsc/rds/global-bundle.pem",
+        "DOCUMENT_GENERATION_DATABASE_USERNAME": "document_generation",
+        "AUTH_JWKS_URI": "http://authentication-service.{{namespace}}:8084/.well-known/jwks.json",
+        "DOCUMENT_GENERATION_JWT_ISSUER": "job-seeker-copilot-authentication",
+        "DOCUMENT_GENERATION_JWT_AUDIENCE": "job-seeker-copilot-services",
+        "AUTHENTICATION_SERVICE_URL": "http://authentication-service.{{namespace}}:8084",
+        "USER_PROFILE_SERVICE_URL": "http://user-profile-service.{{namespace}}:8085",
+        "JOB_SERVICE_URL": "http://job-service.{{namespace}}:8086",
+        "CV_COVER_LETTER_SERVICE_URL": "http://cv-cover-letter-service.{{namespace}}:8091",
+        "DOCUMENT_EXPORT_SERVICE_URL": "http://document-export-service.{{namespace}}:8094",
+        "DOCUMENT_STORE_SERVICE_URL": "http://document-store-service.{{namespace}}:8089",
+        "APPLICATION_TRACKER_SERVICE_URL": "http://application-tracker-service.{{namespace}}:8088",
+        "PAYMENT_SERVICE_URL": "http://payment-service.{{namespace}}:8099",
+        "RETAINED_RESPONSE_RECOVERY_ENABLED": "true"
+      },
+      "secrets": {
+        "DOCUMENT_GENERATION_DATABASE_PASSWORD": "database/document_generation:password",
+        "AUTH_SERVICE_TOKEN": "core:AUTH_SERVICE_TOKEN",
+        "APPLICATION_TRACKER_PRODUCER_TOKEN": "core:APPLICATION_TRACKER_PRODUCER_TOKEN",
+        "CV_COVER_LETTER_GATEWAY_TOKEN": "core:CV_COVER_LETTER_GATEWAY_TOKEN",
+        "DOCUMENT_EXPORT_GATEWAY_TOKEN": "core:DOCUMENT_EXPORT_GATEWAY_TOKEN",
+        "DOCUMENT_STORE_PRODUCER_TOKEN": "core:DOCUMENT_STORE_PRODUCER_TOKEN",
+        "DOCUMENT_STORE_READER_TOKEN": "core:DOCUMENT_STORE_READER_TOKEN",
+        "DOCUMENT_GENERATION_GATEWAY_TO_PAYMENT_SERVICE_TOKEN": "core:DOCUMENT_GENERATION_GATEWAY_TO_PAYMENT_SERVICE_TOKEN",
+        "REJECTED_GENERATION_OPERATOR_TOKEN": "core:REJECTED_GENERATION_OPERATOR_TOKEN"
+      }
+    },
+    "reporting-service": {
+      "port": 8096, "cpu": 128, "memory": 512, "healthPath": "/actuator/health",
+      "environment": {
+        "APPLICATION_TRACKER_SERVICE_BASE_URL": "http://application-tracker-service.{{namespace}}:8088",
+        "DOCUMENT_STORE_SERVICE_URL": "http://document-store-service.{{namespace}}:8089",
+        "USER_PROFILE_SERVICE_URL": "http://user-profile-service.{{namespace}}:8085"
+      },
+      "secrets": {
+        "REPORTING_GATEWAY_SERVICE_TOKEN": "core:REPORTING_GATEWAY_SERVICE_TOKEN",
+        "APPLICATION_TRACKER_READER_TOKEN": "core:APPLICATION_TRACKER_READER_TOKEN",
+        "DOCUMENT_STORE_READER_TOKEN": "core:DOCUMENT_STORE_READER_TOKEN"
+      }
+    },
+    "reporting-gateway": {
+      "port": 8095, "cpu": 128, "memory": 512, "healthPath": "/actuator/health",
+      "environment": {
+        "REPORTING_SERVICE_URL": "http://reporting-service.{{namespace}}:8096",
+        "AUTH_JWKS_URI": "http://authentication-service.{{namespace}}:8084/.well-known/jwks.json",
+        "REPORTING_GATEWAY_JWT_ISSUER": "job-seeker-copilot-authentication",
+        "REPORTING_GATEWAY_JWT_AUDIENCE": "job-seeker-copilot-services"
+      },
+      "secrets": {"REPORTING_GATEWAY_SERVICE_TOKEN": "core:REPORTING_GATEWAY_SERVICE_TOKEN"}
+    },
+    "payment-service": {
+      "port": 8099, "cpu": 256, "memory": 768, "healthPath": "/actuator/health",
+      "environment": {
+        "ENVIRONMENT_DATA_ENABLED": "false",
+        "PAYMENT_DATABASE_URL": "jdbc:postgresql://{{db_endpoint}}:5432/payment?sslmode=verify-full&sslrootcert=/etc/jsc/rds/global-bundle.pem",
+        "PAYMENT_DATABASE_USERNAME": "payment",
+        "PAYMENT_DATABASE_PRODUCTION_SAFETY_CHECK": "true",
+        "PAYMENT_LEDGER_VERIFY_ON_STARTUP": "true",
+        "PAYMENT_RESERVATION_RECOVERY_ENABLED": "true",
+        "PAYMENT_RESERVATION_TTL": "PT15M",
+        "PAYMENT_RESERVATION_RECOVERY_INTERVAL": "PT30S",
+        "PAYMENT_RESERVATION_RECOVERY_BATCH_SIZE": "100",
+        "PAYMENT_STRIPE_LIFECYCLE_GATEWAY_URL": "http://stripe-gateway.{{namespace}}:8100",
+        "PAYMENT_PROVIDER_SESSION_RECOVERY_ENABLED": "true",
+        "PAYMENT_PROVIDER_SESSION_RECOVERY_INTERVAL": "PT30S",
+        "PAYMENT_PROVIDER_SESSION_RECOVERY_BATCH_SIZE": "50",
+        "FREE_DOCUMENT_CREDITS": "2",
+        "PAYMENT_CHECKOUT_ORDER_TTL": "PT1H",
+        "PAYMENT_DEMO_PURCHASE_ENABLED": "false",
+        "PAYMENT_LEGACY_STRIPE_CONFIRMATION_ENABLED": "false",
+        "PAYMENT_CHECKOUT_ENABLED": "false",
+        "PAYMENT_CHECKOUT_RELEASE_AUTHORISED": "false",
+        "PAYMENT_PROVIDER_LIVE_MODE_EXPECTED": "false",
+        "PAYMENT_TAX_TREATMENT": "VAT_NOT_CHARGED",
+        "PAYMENT_TAX_STATUS": "NOT_CONFIGURED",
+        "PAYMENT_LEGAL_ENTITY_TYPE": "NOT_CONFIGURED",
+        "PAYMENT_LEGAL_ENTITY_CONFIGURATION_VERSION": "NOT_CONFIGURED",
+        "PAYMENT_LEGAL_ENTITY_REVIEWED": "false",
+        "PAYMENT_FOUNDING_PROMOTION_ENABLED": "false",
+        "PAYMENT_FOUNDING_PROMOTION_RELEASE_AUTHORISED": "false",
+        "PAYMENT_CATALOG_VERSION": "UNAPPROVED",
+        "PAYMENT_CONSUMER_TERMS_VERSION": "UNAPPROVED",
+        "PAYMENT_FINANCIAL_RECORD_RETENTION_YEARS": "0"
+      },
+      "secrets": {
+        "PAYMENT_DATABASE_PASSWORD": "database/payment:password",
+        "ENVIRONMENT_DATA_TOKEN": "core:ENVIRONMENT_DATA_TOKEN",
+        "PAYMENT_GATEWAY_TO_PAYMENT_SERVICE_TOKEN": "core:PAYMENT_GATEWAY_TO_PAYMENT_SERVICE_TOKEN",
+        "CV_COVER_LETTER_TO_PAYMENT_SERVICE_TOKEN": "core:CV_COVER_LETTER_TO_PAYMENT_SERVICE_TOKEN",
+        "DOCUMENT_GENERATION_GATEWAY_TO_PAYMENT_SERVICE_TOKEN": "core:DOCUMENT_GENERATION_GATEWAY_TO_PAYMENT_SERVICE_TOKEN",
+        "STRIPE_GATEWAY_TO_PAYMENT_SERVICE_TOKEN": "core:STRIPE_GATEWAY_TO_PAYMENT_SERVICE_TOKEN",
+        "ACCOUNT_LIFECYCLE_TO_PAYMENT_SERVICE_TOKEN": "core:ACCOUNT_LIFECYCLE_TO_PAYMENT_SERVICE_TOKEN",
+        "PAYMENT_SERVICE_TO_STRIPE_GATEWAY_LIFECYCLE_TOKEN": "core:PAYMENT_SERVICE_TO_STRIPE_GATEWAY_LIFECYCLE_TOKEN"
+      }
+    },
+    "stripe-gateway": {
+      "port": 8100, "cpu": 128, "memory": 512, "healthPath": "/actuator/health",
+      "environment": {
+        "EXTERNAL_PROVIDER_MODE": "DISABLED",
+        "PAYMENT_SERVICE_URL": "http://payment-service.{{namespace}}:8099",
+        "STRIPE_LIVE_RELEASE_AUTHORISED": "false",
+        "STRIPE_LEGACY_CHECKOUT_ENABLED": "false",
+        "STRIPE_API_BASE_URL": "https://api.stripe.com",
+        "STRIPE_API_VERSION": "UNAPPROVED",
+        "STRIPE_SUCCESS_URL": "{{application_base_url}}/payment/success",
+        "STRIPE_CANCEL_URL": "{{application_base_url}}/payment/cancel"
+      },
+      "secrets": {
+        "PAYMENT_GATEWAY_TO_STRIPE_GATEWAY_TOKEN": "core:PAYMENT_GATEWAY_TO_STRIPE_GATEWAY_TOKEN",
+        "STRIPE_GATEWAY_TO_PAYMENT_SERVICE_TOKEN": "core:STRIPE_GATEWAY_TO_PAYMENT_SERVICE_TOKEN",
+        "PAYMENT_SERVICE_TO_STRIPE_GATEWAY_LIFECYCLE_TOKEN": "core:PAYMENT_SERVICE_TO_STRIPE_GATEWAY_LIFECYCLE_TOKEN",
+        "STRIPE_SECRET_KEY": "integration/stripe:secret_key",
+        "STRIPE_WEBHOOK_SECRET": "integration/stripe:webhook_secret"
+      }
+    },
+    "payment-gateway": {
+      "port": 8098, "cpu": 128, "memory": 512, "healthPath": "/actuator/health",
+      "environment": {
+        "PAYMENT_SERVICE_URL": "http://payment-service.{{namespace}}:8099",
+        "STRIPE_GATEWAY_URL": "http://stripe-gateway.{{namespace}}:8100"
+      },
+      "secrets": {
+        "BFF_TO_PAYMENT_GATEWAY_TOKEN": "core:BFF_TO_PAYMENT_GATEWAY_TOKEN",
+        "PAYMENT_GATEWAY_TO_PAYMENT_SERVICE_TOKEN": "core:PAYMENT_GATEWAY_TO_PAYMENT_SERVICE_TOKEN",
+        "PAYMENT_GATEWAY_TO_STRIPE_GATEWAY_TOKEN": "core:PAYMENT_GATEWAY_TO_STRIPE_GATEWAY_TOKEN"
+      }
+    },
+    "job-seeker-copilot-client": {
+      "port": 3000, "cpu": 256, "memory": 768, "healthPath": "/",
+      "environment": {
+        "NODE_ENV": "production",
+        "HOST": "0.0.0.0",
+        "PORT": "3000",
+        "BFF_SESSION_COOKIE_PROFILE": "production",
+        "NG_ALLOWED_HOSTS": "NOT_CONFIGURED",
+        "BFF_TRUSTED_PROXY_HOPS": "1",
+        "BFF_PASSWORD_RESET_RATE_WINDOW_MS": "900000",
+        "BFF_PASSWORD_RESET_RATE_MAXIMUM": "5",
+        "LOCATION_GATEWAY_URL": "http://location-gateway.{{namespace}}:8081",
+        "USER_MANAGEMENT_GATEWAY_URL": "http://user-management-gateway.{{namespace}}:8083",
+        "JOB_FINDER_GATEWAY_URL": "http://job-finder-gateway.{{namespace}}:8080",
+        "JOB_SEARCH_PROVIDER_MODE": "{{job_search_mode}}",
+        "DOCUMENT_GENERATION_MODE": "{{document_generation_mode}}",
+        "COMMUTE_ROUTING_MODE": "DISTANCE_ONLY",
+        "DOCUMENT_GENERATION_GATEWAY_URL": "http://document-generation-gateway.{{namespace}}:8092",
+        "DOCUMENT_STORE_SERVICE_URL": "http://document-store-service.{{namespace}}:8089",
+        "REPORTING_GATEWAY_URL": "http://reporting-gateway.{{namespace}}:8095",
+        "PAYMENT_GATEWAY_URL": "http://payment-gateway.{{namespace}}:8098",
+        "LEGAL_DOCUMENTS_REVIEWED": "false",
+        "LEGAL_EFFECTIVE_DATE": "",
+        "LEGAL_VERSION": "NOT_CONFIGURED",
+        "LEGAL_ENTITY_TYPE": "NOT_CONFIGURED",
+        "TAX_STATUS": "NOT_CONFIGURED",
+        "LEGAL_ENTITY_NAME": "",
+        "TRADING_NAME": "",
+        "BUSINESS_ADDRESS": "",
+        "PRIVACY_EMAIL": "",
+        "SUPPORT_EMAIL": "",
+        "ICO_REGISTRATION_STATUS": "NOT_CONFIGURED",
+        "ICO_REGISTRATION_REFERENCE": "",
+        "ACCOUNT_DELETION_COMPLETION_DAYS": "0",
+        "DOCUMENT_DELETION_COMPLETION_DAYS": "0",
+        "SECURITY_LOG_RETENTION_DAYS": "0",
+        "SUPPORT_RECORD_RETENTION_DAYS": "0",
+        "FINANCIAL_RECORD_RETENTION_YEARS": "0"
+      },
+      "secrets": {"BFF_TO_PAYMENT_GATEWAY_TOKEN": "core:BFF_TO_PAYMENT_GATEWAY_TOKEN"}
+    }
+  }
+}
