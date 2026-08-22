@@ -160,12 +160,12 @@ locals {
     local.document_store_permanent_erasure_image_ready
   )
   expected_catalog_plans = [
-    { id = "starter", documentCredits = 10, priceGbpPence = 799 },
-    { id = "active", documentCredits = 25, priceGbpPence = 1699 },
-    { id = "power", documentCredits = 60, priceGbpPence = 3499 },
+    { id = "starter", documentCredits = 10, priceGbpPence = 499 },
+    { id = "active", documentCredits = 25, priceGbpPence = 1199 },
+    { id = "power", documentCredits = 60, priceGbpPence = 1999 },
   ]
   payment_contract_complete = (
-    try(local.payment_contract.catalogVersion, "") == "public-beta-2026-08-15" &&
+    try(local.payment_contract.catalogVersion, "") == "public-beta-2026-08-22" &&
     try(local.payment_contract.catalogPlans, []) == local.expected_catalog_plans &&
     try(local.payment_contract.freeDocumentCredits, 0) == 2 &&
     try(local.payment_contract.billingCountry, "") == "GB" &&
@@ -543,7 +543,7 @@ locals {
         openApiSha256 = "864ba3c36b2ba4bcd1749edc597ed903a21e7dfa515bb2809d3bc9b9cf878f42"
       }
       paymentService = {
-        revision      = "63a2f3f2c6e29bb2d2744124c4b1ebe3a3b895ff"
+        revision      = "39005690b2fe5a1da6208b25c3e0e4c9c57c7eb3"
         openApiSha256 = "40aa59f62a4ad4d956c2324c9c8d9fa154e4b04b49c029cbda0d80cc2c5dcdc9"
       }
       paymentGateway = {

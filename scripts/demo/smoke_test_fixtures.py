@@ -82,7 +82,7 @@ def main():
             "userId": "alex-taylor-demo",
             "pricingPlanId": "starter",
             "tokenAmount": 100000,
-            "priceGbpPence": 799,
+            "priceGbpPence": 499,
         })
         print(f"stripe: sessionId={stripe.get('sessionId')}")
         if not str(stripe.get("sessionId", "")).startswith("cs_test_demo_"):

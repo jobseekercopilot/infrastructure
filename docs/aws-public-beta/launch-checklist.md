@@ -11,7 +11,7 @@ Terraform plan or AWS credit award alone is not launch approval.
 - [ ] The functioning website, matching-domain business email, privacy notice,
       terms, support route, pricing and cancellation/refund wording are public.
 - [ ] Public pricing and release evidence use the reviewed non-renewing
-      10/£7.99, 25/£16.99 and 60/£34.99 credit catalog plus two free credits.
+      10/£4.99, 25/£11.99 and 60/£19.99 credit catalog plus two free credits.
       The dated 11 August £5/£10/£20 scenarios are marked historical/superseded;
       checkout is described as implemented but release-gated, with no live
       charges claimed before settlement evidence exists.
@@ -115,7 +115,7 @@ Terraform plan or AWS credit award alone is not launch approval.
       Document Generation Gateway is
       `cd9b71a3d4dbfbe41d6784f3eeeb7b1b113f5218` / OpenAPI SHA-256
       `864ba3c36b2ba4bcd1749edc597ed903a21e7dfa515bb2809d3bc9b9cf878f42`,
-      Payment is `63a2f3f2c6e29bb2d2744124c4b1ebe3a3b895ff` /
+      Payment is `39005690b2fe5a1da6208b25c3e0e4c9c57c7eb3` /
       `40aa59f62a4ad4d956c2324c9c8d9fa154e4b04b49c029cbda0d80cc2c5dcdc9`,
       Payment Gateway is `c49f9dc7441d146e58b428793a9c1a833c24aec5` /
       `addd12e77307194d1635e49da9195dfe616a7e7653662492592764dd9092a4ec`,

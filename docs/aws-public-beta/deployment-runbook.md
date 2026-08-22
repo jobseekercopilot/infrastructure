@@ -83,7 +83,7 @@ Complete the [launch checklist](launch-checklist.md). In particular:
   `95811cb81b0c32ad2f9c5cc42cd8f85c0385359cdade6c0f9e67e3ed63950dc0`.
   The final payment chain is Document Generation Gateway
   `cd9b71a3d4dbfbe41d6784f3eeeb7b1b113f5218`, Payment Service
-  `63a2f3f2c6e29bb2d2744124c4b1ebe3a3b895ff`, Payment Gateway
+  `39005690b2fe5a1da6208b25c3e0e4c9c57c7eb3`, Payment Gateway
   `c49f9dc7441d146e58b428793a9c1a833c24aec5`, and Stripe Gateway
   `0e84d1bd97a00194809322307682c557069f30d4`, each bound to the exact exported
   OpenAPI hash in the manifest. The release builder proves every reviewed SHA

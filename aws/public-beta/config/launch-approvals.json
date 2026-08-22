@@ -185,9 +185,9 @@
       "taxStatus": "NOT_CONFIGURED",
       "catalogVersion": "",
       "catalogPlans": [
-        {"id": "starter", "documentCredits": 10, "priceGbpPence": 799},
-        {"id": "active", "documentCredits": 25, "priceGbpPence": 1699},
-        {"id": "power", "documentCredits": 60, "priceGbpPence": 3499}
+        {"id": "starter", "documentCredits": 10, "priceGbpPence": 499},
+        {"id": "active", "documentCredits": 25, "priceGbpPence": 1199},
+        {"id": "power", "documentCredits": 60, "priceGbpPence": 1999}
       ],
       "freeDocumentCredits": 2,
       "billingCountry": "GB",

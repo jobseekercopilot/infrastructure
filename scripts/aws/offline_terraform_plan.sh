@@ -256,7 +256,7 @@ jq \
        merchantTermsTraderDisclosureVerified:true,
        taxTreatment:"VAT_NOT_CHARGED",
        taxStatus:"NOT_VAT_REGISTERED",
-       catalogVersion:"public-beta-2026-08-15",
+       catalogVersion:"public-beta-2026-08-22",
        consumerTermsVersion:$legalVersion,
        consumerTermsEffectiveOn:$reviewDate,
        consumerTermsUrl:"https://app.jobseekercopilot.com/terms",

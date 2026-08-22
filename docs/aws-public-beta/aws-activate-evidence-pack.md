@@ -67,7 +67,9 @@ The 11 August unit-economics document is dated historical scenario evidence.
 Its hypothetical £5/£10/£20 subscriptions are superseded for public-beta release
 planning and must not be copied into the Activate application as the launch
 catalog. The reviewed non-renewing document-credit catalog is Starter
-10/£7.99, Active 25/£16.99 and Power 60/£34.99, plus two free document credits;
+10/£4.99, Active 25/£11.99 and Power 60/£19.99, plus two free document credits;
+the separate AWS Activate Stripe offer may provide $500 of eligible fee credit,
+but normal Stripe fees remain in the post-offer unit-economics model;
 the protected Payment catalog remains the runtime authority.
 
 The Payment/Stripe/Client checkout path is implemented and tested, but it is
