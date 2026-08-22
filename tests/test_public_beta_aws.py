@@ -1593,6 +1593,21 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         bootstrap_path = ROOT / "aws" / "public-beta" / "bootstrap" / "state-and-oidc.yaml"
         bootstrap_bytes = bootstrap_path.read_bytes()
         template = yaml.load(bootstrap_bytes.decode("utf-8"), Loader=CloudFormationLoader)
+
+        def assert_string_mapping_keys(value, path="template"):
+            if isinstance(value, dict):
+                for key, item in value.items():
+                    self.assertIsInstance(
+                        key,
+                        str,
+                        f"{path} contains a non-string mapping key; quote YAML keywords used as CloudFormation keys",
+                    )
+                    assert_string_mapping_keys(item, f"{path}.{key}")
+            elif isinstance(value, list):
+                for index, item in enumerate(value):
+                    assert_string_mapping_keys(item, f"{path}[{index}]")
+
+        assert_string_mapping_keys(template)
         self.assertEqual(template["AWSTemplateFormatVersion"], "2010-09-09")
         resources = template["Resources"]
         for name in ("StateKey", "StateBucket", "StateBucketPolicy", "PlanRole", "BuildRole", "ApplyRole"):
