@@ -215,6 +215,30 @@ class RenderedModeIsolationTests(unittest.TestCase):
                 "BFF_PASSWORD_RESET_RATE_MAXIMUM"
             ],
         )
+        self.assertEqual(
+            "true",
+            e2e_services["authentication-service"]["environment"][
+                "AUTH_LEGAL_DOCUMENTS_REVIEWED"
+            ],
+        )
+        self.assertEqual(
+            "2026-08-15",
+            e2e_services["authentication-service"]["environment"][
+                "AUTH_LEGAL_CURRENT_VERSION"
+            ],
+        )
+        self.assertEqual(
+            "true",
+            e2e_services["job-seeker-copilot-client"]["environment"][
+                "LEGAL_DOCUMENTS_REVIEWED"
+            ],
+        )
+        self.assertEqual(
+            "2026-08-15",
+            e2e_services["job-seeker-copilot-client"]["environment"][
+                "LEGAL_VERSION"
+            ],
+        )
 
     def test_e2e_published_ports_are_loopback_only(self) -> None:
         e2e_model = self.model("e2e")

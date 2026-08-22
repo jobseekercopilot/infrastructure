@@ -35,11 +35,12 @@ Reporting Service is stateless and read-only. It builds:
 
 The commitment calculation converts application statuses into estimated hours. The response is a user aid, not an official UC submission or measured activity log. A Document Store activity failure is tolerated and produces a reduced timeline; owner and service credentials remain mandatory.
 
-## Payment backend
+## Document-credit payments
 
 ```mermaid
 flowchart LR
-  FutureBFF[Future enabled BFF route] --> PG[Payment Gateway]
+  UI[Angular client] --> BFF[Session and CSRF protected BFF]
+  BFF --> PG[Payment Gateway]
   PG --> Pay[Payment Service]
   PG --> Stripe[Stripe Gateway]
   Stripe --> External[Stripe API]
@@ -49,11 +50,48 @@ flowchart LR
   Doc[Document generation] -->|reserve / commit / release| Pay
 ```
 
-Payment Service owns an append-only AI-credit ledger: wallets, transactions, and expiring reservations. Document generation uses internal owner-scoped endpoints to estimate, reserve, read, commit, or release usage. Payment Gateway exposes wallet/history/pricing/demo purchase/estimate and delegates checkout session creation to Stripe Gateway. Stripe Gateway validates Stripe webhooks before crediting Payment Service.
+Payment Service owns the document-credit catalogue, order pricing snapshots,
+wallets, append-only ledger, promotion reservations and expiring document
+reservations. Document generation reserves one credit for each requested
+output, commits only after successful storage/delivery, and releases a failed
+or eligible pre-delivery cancellation without charging again.
+
+The browser can read the catalogue, Checkout readiness, wallet, history and an
+owner-scoped order status through the BFF. Checkout mutations require both the
+authenticated server session and matching CSRF evidence. Browser requests do
+not supply a payment owner, price, currency, quantity, tax status or bonus;
+those values come from Payment Service's reviewed catalogue and immutable order
+snapshot.
+
+Stripe Gateway creates owned Checkout Sessions with inline server-owned GBP
+`price_data`. The return URL contains only an order UUID and cannot fulfil an
+order. The gateway verifies the Stripe signature before forwarding completion,
+expiry, refund or dispute evidence to Payment Service. Provider-event and
+ledger replay guards make fulfilment/reversal idempotent.
 
 ## User-visible status
 
-!!! danger "Payments are disabled at the browser boundary"
-    The client contains a hardened future payment proxy, but `src/server.ts` does not register it. `/api/v1/payment/**` is caught by the fail-closed boundary and returns `404 FEATURE_NOT_AVAILABLE`. The backend services are composed in `full-fixture`; that does not make payments user-accessible.
+!!! warning "Checkout is implemented but release-gated"
+    The client and BFF payment routes are active, but Checkout availability is
+    server-authoritative and currently disabled in the checked-in release
+    configuration. Catalogue, wallet and history may be shown without making a
+    charge. No redirect is offered unless Payment Service, Stripe Gateway,
+    seller/tax/legal configuration and the protected release approvals all
+    report ready.
 
-Local Stripe Gateway runs in fixture mode and uses System Data. Live Stripe secrets are forbidden by the current standard runtime profiles. The payment/Stripe repositories describe themselves as beta baselines, not production-ready live payment releases.
+The isolated acceptance stack uses a signed, test-profile-only Stripe fixture
+and proves successful completion replay, expiry with no grant, and a cancel
+return followed by late completion. Fixture controls and System Data are not
+deployed as production services, and the exact production Stripe image is
+probed to show those conditional controls are dormant.
+
+The launch catalogue is non-renewing: 2 free document credits, then 10 for
+£7.99, 25 for £16.99, or 60 for £34.99. A document credit is one generated CV
+or cover letter. The displayed GBP price is the Checkout total; automatic
+renewal is false. Promotion bonuses are displayed only while the server says
+the bounded promotion is available.
+
+The exact test rehearsal, live credentials, webhook event set, first-charge
+verification and rollback sequence is maintained in the Stripe Gateway
+`docs/STRIPE_CUTOVER.md`. Production remains deliberately dark until those
+steps and the human-reviewed legal, seller and tax inputs are complete.

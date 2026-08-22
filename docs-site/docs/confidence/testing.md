@@ -62,6 +62,6 @@ results and limitations live in the E2E real-world coverage audit.
 - ownership and cross-user denial;
 - corrupt, spoofed, path-traversal, external-relationship and oversized
   application documents;
-- insufficient AI credit and protected generation boundaries;
+- insufficient document credit and protected generation boundaries;
 - stale state, session reload and reset cleanup;
 - immutable card refresh and capacity-latency boundaries through 25 sessions.

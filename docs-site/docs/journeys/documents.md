@@ -27,13 +27,13 @@ sequenceDiagram
   Gateway->>Profile: Create/resolve purpose-bound evidence snapshot(s)
   Gateway->>Generator: Estimate selected output(s)
   Generator-->>Gateway: Conservative usage estimate
-  Gateway->>Payment: Reserve AI credits
+  Gateway->>Payment: Reserve one credit per requested document
   Gateway->>Generator: Generate selected draft(s)
   Generator->>LLM: Typed generation request
   LLM-->>Generator: Content + usage/model evidence
   Generator-->>Gateway: Validated drafts + claim ledger
   Gateway->>Store: Create immutable DRAFT version(s)
-  Gateway->>Payment: Commit actual usage
+  Gateway->>Payment: Commit delivered document credits
   Gateway-->>UI: AWAITING_APPROVAL + exact draft IDs
   User->>UI: Approve exact draft(s)
   UI->>Gateway: POST operations/{id}/approve
@@ -50,7 +50,11 @@ The user can select CV, cover letter, or both. Purpose-bound evidence snapshots 
 
 Document Generation Gateway owns a PostgreSQL operation ledger, not document/application truth. Each downstream mutation uses an operation-derived idempotency key. A persisted absolute deadline bounds the flow. Provider results are not silently regenerated after an uncertain paid call; retained-response recovery can resume a failed operation without calling the model again.
 
-Cancellation releases a reservation only when it is safe to establish that model use did not complete. Already billed drafts remain as audit evidence. Interrupted storage, export, or tracker steps resume from durable checkpoints.
+Cancellation releases a reservation only before provider work/delivery begins.
+Post-provider cancellation is rejected rather than reporting a refund that did
+not occur. Interrupted storage, export, or tracker steps resume from durable
+checkpoints; each successfully stored requested output commits exactly one
+document credit.
 
 ## Document model
 
@@ -91,5 +95,5 @@ Archive and restore are reversible lifecycle actions. Ordinary delete enters a c
 | Model transport and usage response | LLM Gateway |
 | Document family/version/file metadata and bytes | Document Store Service |
 | DOCX/PDF rendering | Document Export Service (stateless) |
-| AI-credit reservation/charge | Payment Service |
+| Document-credit reservation/spend | Payment Service |
 | Application and exact applied references | Application Tracker Service |

@@ -11,7 +11,7 @@
 | Generation coordination | Document Generation Gateway | `document_generation` PostgreSQL | durable generation operations/checkpoints/references | No; owner-scoped gateway API |
 | Documents | Document Store Service | `document_store` PostgreSQL + object provider | families/versions, files, activity, lifecycle, upload/reconciliation/workflow records | No database access; API only |
 | Applications | Application Tracker Service | `application_tracker` PostgreSQL | records, events, exact references, selections, workflow/reconciliation records | No; API only |
-| AI credit/payment | Payment Service | `payment` PostgreSQL | wallets, append-only transactions, reservations | No; service APIs only |
+| Document-credit/payment | Payment Service | `payment` PostgreSQL | wallets, append-only transactions, document reservations, Checkout orders and provider-event evidence | No; service APIs only |
 | Rejected LLM output | CV/Cover Letter Service | Optional encrypted filesystem quarantine | owner/operation-bound short-lived artifacts | Operator API only; disabled unless configured |
 | Synthetic fixtures | System Data Service | Versioned read-only dataset files | named states and provider responses | Non-production HTTP APIs only |
 | Reporting | No independent owner | None | Computed projection | Reads domain APIs; never writes |

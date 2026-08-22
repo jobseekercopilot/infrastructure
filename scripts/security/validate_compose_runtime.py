@@ -490,6 +490,27 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
                 "e2e",
             )
     if e2e:
+        for variable, expected in (
+            ("AUTH_LEGAL_CURRENT_VERSION", "2026-08-15"),
+            ("AUTH_LEGAL_TERMS_URL", "https://jobseekercopilot.com/terms"),
+            ("AUTH_LEGAL_PRIVACY_NOTICE_URL", "https://jobseekercopilot.com/privacy"),
+            ("AUTH_LEGAL_DOCUMENTS_REVIEWED", "true"),
+        ):
+            require_value(model, "authentication-service", variable, expected)
+        for variable, expected in (
+            ("LEGAL_DOCUMENTS_REVIEWED", "true"),
+            ("LEGAL_EFFECTIVE_DATE", "2026-08-15"),
+            ("LEGAL_VERSION", "2026-08-15"),
+            ("LEGAL_ENTITY_TYPE", "SOLE_TRADER"),
+            ("TAX_STATUS", "NOT_VAT_REGISTERED"),
+            ("ICO_REGISTRATION_STATUS", "NOT_REQUIRED_CONFIRMED"),
+            ("ACCOUNT_DELETION_COMPLETION_DAYS", "35"),
+            ("DOCUMENT_DELETION_COMPLETION_DAYS", "35"),
+            ("SECURITY_LOG_RETENTION_DAYS", "90"),
+            ("SUPPORT_RECORD_RETENTION_DAYS", "365"),
+            ("FINANCIAL_RECORD_RETENTION_YEARS", "7"),
+        ):
+            require_value(model, "job-seeker-copilot-client", variable, expected)
         require_value(
             model,
             "system-data-service",
@@ -640,7 +661,7 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
             "llm-gateway",
             "stripe-gateway",
         ):
-            require_value(model, service, "FIXTURE_DATASET_VERSION", "1.1.0")
+            require_value(model, service, "FIXTURE_DATASET_VERSION", "1.2.0")
 
     if not e2e and str(environment(model, "stripe-gateway").get(
         "STRIPE_FIXTURE_PAYMENT_CONTROL_ENABLED", "false"
