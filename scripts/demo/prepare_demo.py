@@ -12,7 +12,7 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from scripts.docker.stack_config import stack_for
-from scripts.lib.project_paths import PROJECT_ROOT
+from scripts.lib.project_paths import INFRASTRUCTURE_ROOT, WORKSPACE_ROOT
 
 DATASET_ID = "uk-software-developer-demo"
 DATASET_VERSION = "1.0.0"
@@ -21,24 +21,37 @@ SCENARIO = "DEMO_READY"
 
 def run(command: list[str]) -> None:
     print(" ".join(command))
-    result = subprocess.run(command, cwd=PROJECT_ROOT)
+    result = subprocess.run(command, cwd=INFRASTRUCTURE_ROOT)
     if result.returncode != 0:
         raise RuntimeError(f"Command failed: {' '.join(command)}")
 
 
 def dataset_path() -> Path:
-    return PROJECT_ROOT / "system-data-service" / "dataset-repository" / DATASET_ID / DATASET_VERSION
+    return (
+        WORKSPACE_ROOT
+        / "system-data-service"
+        / "fixtures"
+        / "datasets"
+        / DATASET_ID
+        / DATASET_VERSION
+    )
 
 
 def dataset_summary() -> dict[str, object]:
     jobs_path = dataset_path() / "jobs.json"
     locations_path = dataset_path() / "locations.json"
     if not jobs_path.exists():
-        raise RuntimeError(f"Dataset jobs file is missing: {jobs_path}")
+        return {
+            "available": False,
+            "jobCount": None,
+            "locationCount": None,
+            "providers": {},
+        }
     jobs = json.loads(jobs_path.read_text(encoding="utf-8")).get("jobs", [])
     locations = json.loads(locations_path.read_text(encoding="utf-8")).get("locations", []) if locations_path.exists() else []
     providers = Counter(job.get("sourceProvider") for job in jobs if job.get("sourceProvider"))
     return {
+        "available": True,
         "jobCount": len(jobs),
         "locationCount": len(locations),
         "providers": dict(providers),
@@ -84,11 +97,17 @@ def main() -> int:
     print("E2E/demo environment ready")
     print(f"E2E frontend URL: {stack.frontend_url}")
     print(f"System data service URL: {stack.system_data_url}")
-    print("Demo user: alex.taylor@example.test")
+    print("Demo user: alex.taylor92@example.com")
     print(f"Dataset: {DATASET_ID} {DATASET_VERSION}")
-    print(f"Provider counts: {summary['providers']}")
-    print(f"Job count: {summary['jobCount']}")
-    print(f"Location count: {summary['locationCount']}")
+    if summary["available"]:
+        print(f"Provider counts: {summary['providers']}")
+        print(f"Job count: {summary['jobCount']}")
+        print(f"Location count: {summary['locationCount']}")
+    else:
+        print(
+            "Local dataset summary unavailable; the System Data reset and "
+            "verification remain authoritative."
+        )
     print(f"Scenario: {SCENARIO}")
     return 0
 

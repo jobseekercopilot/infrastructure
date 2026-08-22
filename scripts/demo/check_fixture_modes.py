@@ -13,6 +13,8 @@ from scripts.lib.http_client import get_json
 DEFAULT_GATEWAYS = {
     "adzuna-gateway": os.environ.get("ADZUNA_GATEWAY_URL", "http://localhost:9108"),
     "jsearch-gateway": os.environ.get("JSEARCH_GATEWAY_URL", "http://localhost:9109"),
+    "nhs-jobs-gateway": os.environ.get("NHS_JOBS_GATEWAY_URL", "http://localhost:9124"),
+    "apprenticeships-gateway": os.environ.get("APPRENTICESHIPS_GATEWAY_URL", "http://localhost:9125"),
     "reed-gateway": os.environ.get("REED_GATEWAY_URL", "http://localhost:9107"),
     "postcode-io-gateway": os.environ.get("POSTCODE_IO_GATEWAY_URL", "http://localhost:9102"),
     "llm-gateway": os.environ.get("LLM_GATEWAY_URL", "http://localhost:9113"),

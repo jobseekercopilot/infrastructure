@@ -9,12 +9,13 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from scripts.data.environment_client import confirm_or_exit, fail_if_unsuccessful, print_operation, request_json
+from scripts.data.prepare_environment import SCENARIOS
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Reset non-production Job Seeker Copilot environment data.")
-    parser.add_argument("--service-url", default="http://localhost:8103")
-    parser.add_argument("--scenario", default="EMPTY", choices=["EMPTY", "DEMO_READY"])
+    parser.add_argument("--service-url", default="http://localhost:9103")
+    parser.add_argument("--scenario", default="EMPTY", choices=SCENARIOS)
     parser.add_argument("--yes", action="store_true")
     args = parser.parse_args()
 
@@ -24,10 +25,10 @@ def main() -> int:
     confirm_or_exit(f"Reset scenario {args.scenario} at {args.service_url}.", args.yes)
     response = request_json("POST", args.service_url, "/internal/environments/reset", {"scenario": args.scenario})
     print_operation(response)
-    verification = request_json("GET", args.service_url, f"/internal/environments/verify?scenario={args.scenario}")
-    print("Verification:")
-    print_operation(verification)
-    return fail_if_unsuccessful(response) or fail_if_unsuccessful(verification)
+    # `verify` proves the prepared state and therefore must fail after a
+    # successful reset of a populated scenario. The reset response itself
+    # carries the bounded per-service deletion counts and zeroed summary.
+    return fail_if_unsuccessful(response)
 
 
 if __name__ == "__main__":

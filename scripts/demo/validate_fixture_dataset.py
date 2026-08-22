@@ -69,7 +69,7 @@ def main():
             "userId": "alex-taylor-demo",
             "pricingPlanId": "starter",
             "tokenAmount": 100000,
-            "priceGbpPence": 799,
+            "priceGbpPence": 499,
         })
         print(f"stripe/respond: sessionId={stripe.get('sessionId')} fixtureMode={stripe.get('fixtureMode')}")
         if stripe.get("fixtureMode") is not True:

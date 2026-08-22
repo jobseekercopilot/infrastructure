@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="430" viewBox="0 0 1400 430">
+  <defs><style>.h{font:800 23px Arial;fill:#14213d}.p{font:17px Arial;fill:#53627c}.b{fill:#fff;stroke:#b9c9e5;stroke-width:3}.v{fill:#f5f1ff;stroke:#9880e8}.g{fill:#eefaf7;stroke:#68c2ab}.a{stroke:#657897;stroke-width:4;fill:none;marker-end:url(#m)}</style><marker id="m" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#657897"/></marker></defs>
+  <rect width="1400" height="430" rx="28" fill="#f8faff"/>
+  <g transform="translate(35 120)"><rect class="b" width="210" height="140" rx="16"/><text class="h" x="24" y="48">Producer source</text><text class="p" x="24" y="82">controller + DTO</text><text class="p" x="24" y="108">contract tests</text></g>
+  <g transform="translate(285 120)"><rect class="v" width="200" height="140" rx="16"/><text class="h" x="24" y="48">OpenAPI</text><text class="p" x="24" y="82">producer-owned</text><text class="p" x="24" y="108">versioned schema</text></g>
+  <g transform="translate(525 120)"><rect class="b" width="210" height="140" rx="16"/><text class="h" x="24" y="48">Reviewed pin</text><text class="p" x="24" y="82">Git revision</text><text class="p" x="24" y="108">SHA-256 checksum</text></g>
+  <g transform="translate(775 120)"><rect class="g" width="210" height="140" rx="16"/><text class="h" x="24" y="48">Generated client</text><text class="p" x="24" y="82">build-time output</text><text class="p" x="24" y="108">never copied JARs</text></g>
+  <g transform="translate(1025 120)"><rect class="b" width="200" height="140" rx="16"/><text class="h" x="24" y="48">Consumer</text><text class="p" x="24" y="82">typed integration</text><text class="p" x="24" y="108">focused tests</text></g>
+  <g transform="translate(1260 120)"><rect class="v" width="110" height="140" rx="16"/><text class="h" x="15" y="48">CI</text><text class="p" x="15" y="82">semantic</text><text class="p" x="15" y="108">drift gate</text></g>
+  <path class="a" d="M245 190 H280"/><path class="a" d="M485 190 H520"/><path class="a" d="M735 190 H770"/><path class="a" d="M985 190 H1020"/><path class="a" d="M1225 190 H1255"/>
+</svg>

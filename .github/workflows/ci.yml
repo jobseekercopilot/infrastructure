@@ -12,26 +12,55 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+      - name: Test fail-closed history scanning
+        run: ./scripts/security/test-secret-history.sh
+      - name: Scan complete Git history
+        run: ./scripts/security/verify-secret-history.sh
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
+      - name: Install Python test dependencies
+        run: python3 -m pip install -r requirements-ci.txt
       - name: Validate JSON
         run: |
           python3 -m json.tool config/services.json >/dev/null
-          python3 -m json.tool scripts/clients/config/service_dependencies.json >/dev/null
+          python3 -m json.tool config/contracts-lock.json >/dev/null
+          python3 -m json.tool config/runtime-environment.schema.json >/dev/null
+          python3 -m json.tool config/release-policy.json >/dev/null
+          python3 -m json.tool config/release-evidence.schema.json >/dev/null
+          python3 -m json.tool aws/public-beta/config/runtime-services.json >/dev/null
+          python3 -m json.tool aws/public-beta/config/image-manifest.json >/dev/null
+          python3 -m json.tool aws/public-beta/config/launch-approvals.json >/dev/null
+          python3 -m json.tool aws/public-beta/config/aws-backup-managed-policy-contract.json >/dev/null
+      - name: Validate account-free public-beta AWS contract
+        run: python3 scripts/aws/validate_public_beta.py
+      - name: Reject tracked credential literals
+        run: python3 -m scripts.security.check_tracked_secrets
+      - name: Validate contract and generated-client lock
+        run: python3 -m scripts.contracts.validate_lock
       - name: Test workspace tooling
         run: python3 -m unittest discover -s tests
       - name: Compile Python
         run: python3 -m compileall -q scripts
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4
+        with:
+          terraform_version: 1.15.8
+          terraform_wrapper: false
+      - name: Format and validate public-beta Terraform
+        run: |
+          terraform -chdir=aws/public-beta fmt -check -recursive
+          scripts/aws/offline_terraform_plan.sh
       - name: Exercise bootstrap dry run
         run: python3 scripts/workspace/bootstrap.py
 
   build-tools:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: temurin
           java-version: "17"
@@ -41,13 +70,51 @@ jobs:
 
   compose:
     runs-on: ubuntu-latest
+    env:
+      REED_API_KEY: ci-placeholder
+      ADZUNA_APP_ID: ci-placeholder
+      ADZUNA_APP_KEY: ci-placeholder
+      JSEARCH_API_KEY: ci-placeholder
+      APPRENTICESHIPS_API_KEY: ci-placeholder
+      DATA_ACQUISITION_RUN_ID: ci-acquisition-001
+      DATA_ACQUISITION_CONFIRMATION: I UNDERSTAND LIVE PROVIDERS WILL BE CALLED
+      DATA_ACQUISITION_TERMS_APPROVAL_REFERENCE: CI-CONFIG-ONLY
+      DATA_ACQUISITION_PROVENANCE_REVIEWER: automated-config-policy
+      DATA_ACQUISITION_APPROVED_PROVIDERS: ADZUNA,JSEARCH,REED
+      DATA_ACQUISITION_DATASET_VERSION: 1.0.0-ci
+      DATA_ACQUISITION_ADZUNA_ENABLED: "true"
+      DATA_ACQUISITION_JSEARCH_ENABLED: "true"
+      DATA_ACQUISITION_REED_ENABLED: "true"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - name: Validate Compose model
         run: |
-          cp .env.example .env
-          cp .env.e2e.example .env.e2e
-          cp .env.live.example .env.live
+          umask 077
+          printf '%s\n' \
+            "REED_API_KEY=${REED_API_KEY}" \
+            "ADZUNA_APP_ID=${ADZUNA_APP_ID}" \
+            "ADZUNA_APP_KEY=${ADZUNA_APP_KEY}" \
+            "JSEARCH_API_KEY=${JSEARCH_API_KEY}" \
+            "APPRENTICESHIPS_API_KEY=${APPRENTICESHIPS_API_KEY}" \
+            "DATA_ACQUISITION_RUN_ID=${DATA_ACQUISITION_RUN_ID}" \
+            "DATA_ACQUISITION_CONFIRMATION=${DATA_ACQUISITION_CONFIRMATION}" \
+            "DATA_ACQUISITION_TERMS_APPROVAL_REFERENCE=${DATA_ACQUISITION_TERMS_APPROVAL_REFERENCE}" \
+            "DATA_ACQUISITION_PROVENANCE_REVIEWER=${DATA_ACQUISITION_PROVENANCE_REVIEWER}" \
+            "DATA_ACQUISITION_APPROVED_PROVIDERS=${DATA_ACQUISITION_APPROVED_PROVIDERS}" \
+            "DATA_ACQUISITION_DATASET_VERSION=${DATA_ACQUISITION_DATASET_VERSION}" \
+            "DATA_ACQUISITION_ADZUNA_ENABLED=${DATA_ACQUISITION_ADZUNA_ENABLED}" \
+            "DATA_ACQUISITION_JSEARCH_ENABLED=${DATA_ACQUISITION_JSEARCH_ENABLED}" \
+            "DATA_ACQUISITION_REED_ENABLED=${DATA_ACQUISITION_REED_ENABLED}" \
+            > .env.ci-runtime
+          python3 scripts/security/generate_profile_env.py --profile local --output .env
+          python3 scripts/security/generate_profile_env.py --profile e2e --output .env.e2e
+          python3 scripts/security/generate_profile_env.py --profile live-provider --output .env.live
+          python3 scripts/security/generate_profile_env.py --profile data-acquisition --output .env.data-acquisition
           docker compose --env-file .env -f docker-compose.yml config --quiet
-          docker compose --env-file .env.e2e -f docker-compose.yml -f docker-compose.e2e.yml config --quiet
-          docker compose --env-file .env.live -f docker-compose.yml -f docker-compose.live.yml config --quiet
+          docker compose --env-file .env.e2e -f docker-compose.yml -f docker-compose.e2e.yml -f docker-compose.low-memory.yml config --quiet
+          docker compose --env-file .env.live --env-file .env.ci-runtime -f docker-compose.yml -f docker-compose.live.yml config --quiet
+          docker compose --env-file .env.data-acquisition --env-file .env.ci-runtime -f docker-compose.data-acquisition.yml --profile "*" config --quiet
+          python3 scripts/security/validate_compose_runtime.py --profile local --env-file .env
+          python3 scripts/security/validate_compose_runtime.py --profile e2e --env-file .env.e2e --overlay docker-compose.e2e.yml --overlay docker-compose.low-memory.yml
+          python3 scripts/security/validate_compose_runtime.py --profile live-provider --env-file .env.live --secret-env-file .env.ci-runtime --overlay docker-compose.live.yml
+          python3 scripts/security/validate_compose_runtime.py --profile data-acquisition --env-file .env.data-acquisition --secret-env-file .env.ci-runtime --overlay docker-compose.data-acquisition.yml

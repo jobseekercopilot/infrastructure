@@ -1,0 +1,70 @@
+:root {
+  --jsc-gradient-start: #26357d;
+  --jsc-gradient-end: #087f8c;
+}
+
+.md-typeset .jsc-hero {
+  background: linear-gradient(135deg, var(--jsc-gradient-start), var(--jsc-gradient-end));
+  border-radius: 0.9rem;
+  color: white;
+  margin: 0 0 1.5rem;
+  padding: 2rem;
+}
+
+.md-typeset .jsc-hero h1,
+.md-typeset .jsc-hero p {
+  color: white;
+  margin-bottom: 0.6rem;
+}
+
+.md-typeset .jsc-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  margin: 1.25rem 0;
+}
+
+.md-typeset .jsc-card {
+  border: 0.05rem solid var(--md-default-fg-color--lightest);
+  border-radius: 0.65rem;
+  padding: 1rem;
+}
+
+.md-typeset .jsc-card > :first-child {
+  margin-top: 0;
+}
+
+.md-typeset .jsc-card--measured { border-left: 0.25rem solid #16845b; }
+.md-typeset .jsc-card--calculated { border-left: 0.25rem solid #3973c7; }
+.md-typeset .jsc-card--partial { border-left: 0.25rem solid #c37a18; }
+.md-typeset .jsc-card--failed { border-left: 0.25rem solid #b52b35; }
+
+@media (max-width: 44.99em) {
+  .md-typeset .jsc-hero { padding: 1.25rem; }
+  .md-typeset .jsc-grid { grid-template-columns: 1fr; }
+  .md-typeset table:not([class]) { display: block; overflow-x: auto; }
+}
+
+.md-typeset table:not([class]) {
+  display: table;
+  width: 100%;
+}
+
+.md-typeset .status {
+  border-radius: 1rem;
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.15rem 0.55rem;
+  text-transform: uppercase;
+}
+
+.md-typeset .status--implemented { background: #d9f4e7; color: #135d3d; }
+.md-typeset .status--optional { background: #ddecff; color: #234c86; }
+.md-typeset .status--disabled { background: #ffe8cc; color: #854d0e; }
+.md-typeset .status--incomplete { background: #ffe0e0; color: #8b1e1e; }
+
+[data-md-color-scheme="slate"] .md-typeset .status--implemented { background: #174b35; color: #b9f6d6; }
+[data-md-color-scheme="slate"] .md-typeset .status--optional { background: #253e64; color: #d5e6ff; }
+[data-md-color-scheme="slate"] .md-typeset .status--disabled { background: #5c3b13; color: #ffe6bd; }
+[data-md-color-scheme="slate"] .md-typeset .status--incomplete { background: #5f2828; color: #ffd2d2; }

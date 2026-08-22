@@ -29,6 +29,8 @@ def main() -> int:
     args = parser.parse_args()
 
     stack = stack_for(args.stack)
+    if not stack.frontend_url or not stack.system_data_url:
+        parser.error("one-shot data acquisition has no long-running readiness URL")
     checks = [
         ("frontend", stack.frontend_url),
         ("system-data-service", f"{stack.system_data_url}/actuator/health"),

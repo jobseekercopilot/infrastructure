@@ -1,0 +1,153 @@
+{
+  "schemaVersion": 1,
+  "reviewedAt": "2026-08-15",
+  "region": "eu-west-2",
+  "contracts": {
+    "rdsBackup": {
+      "boundary": "BackupWorkloadBoundary",
+      "policyArn": "arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForBackup",
+      "reviewedDefaultVersion": "v30",
+      "officialReference": "https://docs.aws.amazon.com/aws-managed-policy/latest/reference/AWSBackupServiceRolePolicyForBackup.html",
+      "requiredSids": [
+        "DynamoDBBackupPermissions",
+        "RDSBackupPermissions",
+        "GetResourcesPermissions",
+        "BackupVaultPermissions",
+        "KMSPermissions",
+        "KMSCreateGrantPermissions",
+        "RecoveryPointTaggingPermissions"
+      ],
+      "unconditionalBoundaryActions": [
+        "kms:DescribeKey"
+      ],
+      "requiredActions": [
+        "backup:CopyIntoBackupVault",
+        "backup:DescribeBackupVault",
+        "backup:TagResource",
+        "kms:CreateGrant",
+        "kms:DescribeKey",
+        "rds:AddTagsToResource",
+        "rds:CopyDBSnapshot",
+        "rds:CreateDBSnapshot",
+        "rds:DeleteDBSnapshot",
+        "rds:DescribeDBInstances",
+        "rds:DescribeDBSnapshots",
+        "rds:ListTagsForResource",
+        "rds:ModifyDBSnapshotAttribute",
+        "tag:GetResources"
+      ]
+    },
+    "s3Backup": {
+      "boundary": "BackupWorkloadBoundary",
+      "policyArn": "arn:aws:iam::aws:policy/AWSBackupServiceRolePolicyForS3Backup",
+      "reviewedDefaultVersion": "v4",
+      "officialReference": "https://docs.aws.amazon.com/aws-managed-policy/latest/reference/AWSBackupServiceRolePolicyForS3Backup.html",
+      "requiredSids": [
+        "CloudWatchGetMetricDataPermissions",
+        "EventBridgePermissionsForAwsBackupManagedRule",
+        "EventBridgeListRulesPermissions",
+        "KmsPermissions",
+        "S3BucketPermissions",
+        "S3ObjectPermissions",
+        "S3ListBucketPermissions",
+        "RecoveryPointTaggingPermissions"
+      ],
+      "unconditionalBoundaryActions": [],
+      "requiredActions": [
+        "backup:TagResource",
+        "cloudwatch:GetMetricData",
+        "events:DeleteRule",
+        "events:DescribeRule",
+        "events:DisableRule",
+        "events:EnableRule",
+        "events:ListRules",
+        "events:ListTargetsByRule",
+        "events:PutRule",
+        "events:PutTargets",
+        "events:RemoveTargets",
+        "kms:Decrypt",
+        "kms:DescribeKey",
+        "s3:GetBucketAcl",
+        "s3:GetBucketLocation",
+        "s3:GetBucketNotification",
+        "s3:GetBucketTagging",
+        "s3:GetBucketVersioning",
+        "s3:GetInventoryConfiguration",
+        "s3:GetObject",
+        "s3:GetObjectAcl",
+        "s3:GetObjectTagging",
+        "s3:GetObjectVersion",
+        "s3:GetObjectVersionAcl",
+        "s3:GetObjectVersionTagging",
+        "s3:ListAllMyBuckets",
+        "s3:ListBucket",
+        "s3:ListBucketVersions",
+        "s3:PutBucketNotification",
+        "s3:PutInventoryConfiguration"
+      ]
+    },
+    "rdsRestore": {
+      "boundary": "BackupRestoreWorkloadBoundary",
+      "policyArn": "arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForRestores",
+      "reviewedDefaultVersion": "v35",
+      "officialReference": "https://docs.aws.amazon.com/aws-managed-policy/latest/reference/AWSBackupServiceRolePolicyForRestores.html",
+      "requiredSids": [
+        "RDSPermissions",
+        "KMSDescribePermissions",
+        "KMSPermissions",
+        "KMSCreateGrantPermissions"
+      ],
+      "unconditionalBoundaryActions": [
+        "kms:DescribeKey"
+      ],
+      "requiredActions": [
+        "kms:CreateGrant",
+        "kms:Decrypt",
+        "kms:DescribeKey",
+        "kms:Encrypt",
+        "kms:GenerateDataKey",
+        "kms:GenerateDataKeyWithoutPlaintext",
+        "kms:ReEncryptFrom",
+        "kms:ReEncryptTo",
+        "rds:AddTagsToResource",
+        "rds:DeleteDBInstance",
+        "rds:DescribeDBInstances",
+        "rds:DescribeDBSnapshots",
+        "rds:ListTagsForResource",
+        "rds:RestoreDBInstanceFromDBSnapshot"
+      ]
+    },
+    "s3Restore": {
+      "boundary": "BackupRestoreWorkloadBoundary",
+      "policyArn": "arn:aws:iam::aws:policy/AWSBackupServiceRolePolicyForS3Restore",
+      "reviewedDefaultVersion": "v2",
+      "officialReference": "https://docs.aws.amazon.com/aws-managed-policy/latest/reference/AWSBackupServiceRolePolicyForS3Restore.html",
+      "precreatedDestinationRequired": true,
+      "requiredSids": [],
+      "unconditionalBoundaryActions": [],
+      "requiredActions": [
+        "kms:Decrypt",
+        "kms:DescribeKey",
+        "kms:GenerateDataKey",
+        "s3:DeleteObject",
+        "s3:GetBucketLocation",
+        "s3:GetBucketOwnershipControls",
+        "s3:GetBucketVersioning",
+        "s3:GetObject",
+        "s3:GetObjectAcl",
+        "s3:GetObjectTagging",
+        "s3:GetObjectVersion",
+        "s3:GetObjectVersionAcl",
+        "s3:ListBucket",
+        "s3:ListBucketVersions",
+        "s3:ListMultipartUploadParts",
+        "s3:PutBucketOwnershipControls",
+        "s3:PutBucketVersioning",
+        "s3:PutObject",
+        "s3:PutObjectAcl",
+        "s3:PutObjectTagging",
+        "s3:PutObjectVersionAcl"
+      ]
+    }
+  }
+}

@@ -1,0 +1,127 @@
+site_name: Job Seeker Copilot
+site_description: Current development architecture, user journeys, service catalogue, data ownership, and development guide
+site_url: https://docs.jobseekercopilot.com/
+repo_url: https://github.com/jobseekercopilot/infrastructure
+repo_name: jobseekercopilot/infrastructure
+edit_uri: edit/develop/docs-site/docs/
+
+docs_dir: docs
+site_dir: site
+strict: true
+
+theme:
+  name: material
+  language: en
+  features:
+    - navigation.instant
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - navigation.footer
+    - content.code.copy
+    - content.tabs.link
+    - search.highlight
+    - search.share
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: cyan
+      toggle:
+        icon: material/weather-night
+        name: Use dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: cyan
+      toggle:
+        icon: material/weather-sunny
+        name: Use light mode
+  icon:
+    repo: fontawesome/brands/github
+
+nav:
+  - Home: index.md
+  - Product confidence:
+      - Evidence overview: confidence/index.md
+      - Testing & coverage: confidence/testing.md
+      - Real-world personas: confidence/personas.md
+      - Beta readiness: confidence/beta-readiness.md
+      - Methodology: confidence/methodology.md
+  - Performance & economics:
+      - Performance & capacity: evidence/capacity.md
+      - AWS decision: evidence/aws.md
+      - Pricing & unit economics: evidence/unit-economics.md
+      - Validation costs: evidence/validation-costs.md
+  - Product:
+      - Overview: product/overview.md
+      - Implementation status: reference/implementation-status.md
+  - User journeys:
+      - Account & authentication: journeys/account-authentication.md
+      - Job search & matching: journeys/job-search.md
+      - Applications: journeys/applications.md
+      - CVs, cover letters & documents: journeys/documents.md
+      - Location: journeys/location.md
+      - Reporting & payments: journeys/reporting-payments.md
+  - Architecture:
+      - System overview: architecture/system-overview.md
+      - Dependency maps: architecture/dependency-maps.md
+      - Principles & boundaries: architecture/principles.md
+  - Services:
+      - Catalogue: services/catalogue.md
+      - Frontend & gateways: services/frontend-gateways.md
+      - Domain services: services/domain-services.md
+      - Provider integrations: services/provider-integrations.md
+  - APIs:
+      - API map: apis/overview.md
+  - Data:
+      - Ownership: data/ownership.md
+      - Domain models: data/domain-models.md
+  - Infrastructure:
+      - Local development: infrastructure/local-development.md
+      - Runtime architecture: infrastructure/runtime.md
+      - External integrations: infrastructure/external-integrations.md
+  - Operations:
+      - Configuration: operations/configuration.md
+      - Troubleshooting: operations/troubleshooting.md
+  - Development:
+      - Changing the platform: development/change-guide.md
+      - Maintaining documentation: development/documentation-maintenance.md
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+plugins:
+  - search
+
+extra_css:
+  - stylesheets/extra.css
+
+extra_javascript:
+  - https://unpkg.com/mermaid@11.4.1/dist/mermaid.min.js
+  - javascripts/mermaid.js
+
+copyright: Copyright &copy; 2026 Job Seeker Copilot

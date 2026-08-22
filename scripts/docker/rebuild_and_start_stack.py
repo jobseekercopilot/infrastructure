@@ -9,6 +9,7 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from scripts.clients.api_client_config import backend_services, load_services
+from scripts.docker.stack_config import STACKS
 from scripts.lib.project_paths import PROJECT_ROOT
 
 def run(command: list[str], cwd: Path = PROJECT_ROOT) -> None:
@@ -35,18 +36,28 @@ def build_backend_service(service_name: str) -> None:
     run(["mvn", "clean", "package", "-DskipTests"], cwd=service_dir)
 
 
-def docker_compose_up() -> None:
+def docker_compose_up(stack: str) -> None:
     print()
     print("=" * 80)
     print("Rebuilding and starting Docker Compose stack")
     print("=" * 80)
 
-    run(["docker", "compose", "down"])
-    run(["docker", "compose", "up", "--build", "-d"])
+    run([sys.executable, "-m", "scripts.docker.stop_stack", stack])
+    run([sys.executable, "-m", "scripts.docker.start_stack", stack, "--build"])
 
 
 def main() -> int:
-    argparse.ArgumentParser(description="Install clients, build backend services, and rebuild/start Docker Compose.").parse_args()
+    parser = argparse.ArgumentParser(
+        description=(
+            "Install clients, build backend services, and rebuild/start one "
+            "validated runtime Compose stack."
+        )
+    )
+    parser.add_argument(
+        "stack",
+        choices=sorted(name for name, stack in STACKS.items() if stack.startable),
+    )
+    args = parser.parse_args()
     try:
         services = load_services()
         run([sys.executable, "-m", "scripts.clients.install_backend_clients"])
@@ -55,7 +66,7 @@ def main() -> int:
 
         # The frontend is built by its Dockerfile with the project's pinned
         # Node version. This avoids host Node-version drift and duplicate work.
-        docker_compose_up()
+        docker_compose_up(args.stack)
 
         print()
         print("=" * 80)

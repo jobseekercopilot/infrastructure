@@ -1,0 +1,36 @@
+# This file is illustrative and intentionally non-deployable. Copy it outside
+# the repository and provide reviewed values to a main-branch protected plan.
+offline_validation            = false
+aws_account_id                = "000000000000"
+foundation_data_kms_key_arn   = "REPLACE_WITH_ApplicationDataKeyArn_BOOTSTRAP_OUTPUT"
+foundation_operations_topic_arn = "REPLACE_WITH_OperationsTopicArn_BOOTSTRAP_OUTPUT"
+foundation_backup_plan_id     = "REPLACE_WITH_CustomerDataBackupPlanId_BOOTSTRAP_OUTPUT"
+foundation_erasure_journal_kms_key_arn = "REPLACE_WITH_ErasureJournalKeyArn_BOOTSTRAP_OUTPUT"
+foundation_erasure_journal_bucket_name = "REPLACE_WITH_ErasureJournalBucketName_BOOTSTRAP_OUTPUT"
+foundation_erasure_journal_retention_days = 90 # Must equal the reviewed ErasureJournalRetentionDays bootstrap input/output.
+foundation_approved_ecs_ami_id = "ami-REPLACE_WITH_ApprovedEcsAmiId_BOOTSTRAP_OUTPUT"
+foundation_monthly_alert_budget_usd = 750 # Must equal MonthlyAlertBudgetUsd from the retained bootstrap budget.
+ecs_ami_id                    = "ami-REPLACE_WITH_REVIEWED_AL2023_ECS_AMI"
+app_domain_name               = "app.jobseekercopilot.com"
+route53_hosted_zone_id        = "REPLACE_WITH_EXISTING_ZONE_ID"
+manage_certificate            = false
+existing_certificate_arn      = "arn:aws:acm:eu-west-2:000000000000:certificate/REPLACE_WITH_REVIEWED_UUID"
+alarm_email                   = "REPLACE_WITH_OPERATOR_EMAIL"
+application_desired_count     = 0
+public_entrypoint_enabled     = false
+monthly_budget_usd            = 750 # Alert threshold only; AWS does not enforce a hard cap.
+high_availability             = false
+
+enabled_integrations = {
+  postcodes_gb    = false
+  postcodes_ni    = false
+  reed            = false
+  adzuna          = false
+  jsearch         = false
+  nhs_jobs        = false
+  apprenticeships = false
+  google_maps     = false
+  openai          = false
+  stripe          = false
+  account_email   = false
+}

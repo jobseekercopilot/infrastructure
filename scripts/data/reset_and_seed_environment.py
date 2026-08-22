@@ -26,8 +26,8 @@ def enforce_e2e_target(service_url: str, status: dict) -> None:
     active_environment = str(status.get("activeEnvironment", "")).lower()
     if "prod" in active_environment or "production" in active_environment:
         raise RuntimeError(f"Refusing production environment: {status.get('activeEnvironment')}")
-    if "e2e" not in active_environment:
-        raise RuntimeError(f"Refusing non-e2e environment: {status.get('activeEnvironment')}")
+    if "e2e" not in active_environment and active_environment != "test":
+        raise RuntimeError(f"Refusing non-e2e/test environment: {status.get('activeEnvironment')}")
     if status.get("environmentManagementEnabled") is not True:
         raise RuntimeError("Refusing because environment management is not enabled")
 

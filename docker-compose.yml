@@ -1,7 +1,7 @@
 services:
   portainer:
-    image: portainer/portainer-ce:latest
-    container_name: portainer
+    image: portainer/portainer-ce:2.39.5
+    profiles: ["operator-tools"]
     ports:
       - "9000:9000"
     volumes:
@@ -17,8 +17,8 @@ services:
       start_period: 40s
 
   dozzle:
-    image: amir20/dozzle:latest
-    container_name: dozzle
+    image: amir20/dozzle:v10.6.12
+    profiles: ["operator-tools"]
     ports:
       - "9999:8080"
     volumes:
@@ -34,18 +34,73 @@ services:
 
   postcode-io-gateway:
     build:
-      context: ./postcode-io-gateway
+      context: ../postcode-io-gateway
       dockerfile: Dockerfile
-    container_name: postcode-io-gateway
     ports:
       - "8082:8082"
     environment:
       - SPRING_APPLICATION_NAME=postcode-io-gateway
       - SERVER_PORT=8082
+      - SPRING_PROFILES_ACTIVE=local
+      - DEPLOYMENT_ENVIRONMENT_CLASS=LOCAL
+      - EXTERNAL_PROVIDER_MODE=FIXTURE
+      - SYSTEM_DATA_SERVICE_URL=http://system-data-service:8103
+      - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.0.0}
+      - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8082/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  google-maps-gateway:
+    build:
+      context: ../google-maps-gateway
+      dockerfile: Dockerfile
+    ports:
+      - "8105:8105"
+    environment:
+      - SPRING_APPLICATION_NAME=google-maps-gateway
+      - SERVER_PORT=8105
+      - GOOGLE_MAPS_ENABLED=${GOOGLE_MAPS_ENABLED:-false}
+      - GOOGLE_MAPS_GATEWAY_TOKEN=${GOOGLE_MAPS_GATEWAY_TOKEN:?Generate the selected untracked environment file}
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8105/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  location-service:
+    build:
+      context: ../location-service
+      dockerfile: Dockerfile
+    ports:
+      - "8104:8104"
+    environment:
+      - SPRING_APPLICATION_NAME=location-service
+      - SERVER_PORT=8104
+      - POSTCODE_IO_GATEWAY_URL=http://postcode-io-gateway:8082
+      - GOOGLE_MAPS_GATEWAY_URL=http://google-maps-gateway:8105
+      - GOOGLE_MAPS_ENABLED=${GOOGLE_MAPS_ENABLED:-false}
+      - LOCATION_SERVICE_TOKEN=${LOCATION_SERVICE_TOKEN:?Generate the selected untracked environment file}
+      - GOOGLE_MAPS_GATEWAY_TOKEN=${GOOGLE_MAPS_GATEWAY_TOKEN:?Generate the selected untracked environment file}
+      - LOCATION_COMMUTE_MAXIMUM_DESTINATIONS=5
+    depends_on:
+      postcode-io-gateway:
+        condition: service_healthy
+      google-maps-gateway:
+        condition: service_healthy
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8104/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -53,66 +108,133 @@ services:
 
   location-gateway:
     build:
-      context: ./location-gateway
+      context: ../location-gateway
       dockerfile: Dockerfile
-    container_name: location-gateway
     ports:
       - "8081:8081"
     environment:
       - SPRING_APPLICATION_NAME=location-gateway
       - SERVER_PORT=8081
-      - POSTCODE_IO_GATEWAY_URL=http://postcode-io-gateway:8082
+      - LOCATION_SERVICE_URL=http://location-service:8104
+      - LOCATION_SERVICE_TOKEN=${LOCATION_SERVICE_TOKEN:?Generate the selected untracked environment file}
     depends_on:
-      postcode-io-gateway:
+      location-service:
         condition: service_healthy
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8081/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
 
+  authentication-postgres:
+    image: postgres:15.18-alpine
+    environment:
+      - POSTGRES_DB=authentication
+      - POSTGRES_USER=authentication
+      - POSTGRES_PASSWORD=${AUTH_DB_PASSWORD:?Generate the selected untracked environment file}
+    volumes:
+      - authentication-postgres-data:/var/lib/postgresql/data
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U authentication -d authentication"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
   authentication-service:
     build:
-      context: ./authentication-service
+      context: ../authentication-service
       dockerfile: Dockerfile
-    container_name: authentication-service
     ports:
       - "8084:8084"
     environment:
       - SPRING_APPLICATION_NAME=authentication-service
       - SERVER_PORT=8084
-      - ENVIRONMENT_DATA_ENABLED=true
-    volumes:
-      - authentication-data:/app/data
+      - ENVIRONMENT_DATA_ENABLED=false
+      - AUTH_DB_URL=jdbc:postgresql://authentication-postgres:5432/authentication
+      - AUTH_DB_USERNAME=authentication
+      - AUTH_DB_PASSWORD=${AUTH_DB_PASSWORD:?Generate the selected untracked environment file}
+      - JWT_PRIVATE_KEY_BASE64=${JWT_PRIVATE_KEY_BASE64:?Generate the selected untracked environment file}
+      - JWT_PUBLIC_KEY_BASE64=${JWT_PUBLIC_KEY_BASE64:?Generate the selected untracked environment file}
+      - JWT_ISSUER=${JWT_ISSUER:-job-seeker-copilot-authentication}
+      - JWT_AUDIENCE=${JWT_AUDIENCE:-job-seeker-copilot-services}
+      - JWT_KEY_ID=local-generated
+      - AUTH_SERVICE_TOKEN=${AUTH_SERVICE_TOKEN:?Generate the selected untracked environment file}
+      - AUTH_ENVIRONMENT_DATA_TOKEN=${ENVIRONMENT_DATA_TOKEN:?Generate the selected untracked environment file}
+      - ACCOUNT_LIFECYCLE_TO_PAYMENT_SERVICE_TOKEN=${ACCOUNT_LIFECYCLE_TO_PAYMENT_SERVICE_TOKEN:?Generate the selected untracked environment file}
+      - AUTH_PASSWORD_RESET_TOKEN_LIFETIME=30m
+      - AUTH_PASSWORD_RESET_REQUEST_COOLDOWN=60s
+      - USER_PROFILE_SERVICE_URL=http://user-profile-service:8085
+      - APPLICATION_TRACKER_SERVICE_URL=http://application-tracker-service:8088
+      - DOCUMENT_STORE_SERVICE_URL=http://document-store-service:8089
+      - AUTH_ACCOUNT_LIFECYCLE_RECENT_AUTHENTICATION_AGE=15m
+      - AUTH_ACCOUNT_LIFECYCLE_TOKEN_LIFETIME=5m
+      - AUTH_ACCOUNT_LIFECYCLE_COMPLETED_RETENTION=365d
+      - AUTH_ACCOUNT_LIFECYCLE_CONNECT_TIMEOUT=2s
+      - AUTH_ACCOUNT_LIFECYCLE_READ_TIMEOUT=5s
+      - AUTH_ACCOUNT_EMAIL_DELIVERY_MODE=fixture
+      - AUTH_ACCOUNT_EMAIL_APPLICATION_BASE_URL=http://localhost:3000
+      - AUTH_ACCOUNT_EMAIL_SENDER=accounts@jobseekercopilot.com
+      - AUTH_ACCOUNT_EMAIL_SUPPORT_URL=https://jobseekercopilot.com/contact
+      - AUTH_ACCOUNT_EMAIL_SES_CONFIGURATION_SET=JobSeekerCopilotAccountEmails
+    depends_on:
+      authentication-postgres:
+        condition: service_healthy
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8084/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8084/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
 
+  user-profile-postgres:
+    image: postgres:15.18-alpine
+    environment:
+      - POSTGRES_DB=user_profile
+      - POSTGRES_USER=user_profile
+      - POSTGRES_PASSWORD=${USER_PROFILE_DATABASE_PASSWORD:?Generate the selected untracked environment file}
+    volumes:
+      - user-profile-postgres-data:/var/lib/postgresql/data
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user_profile -d user_profile"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
   user-profile-service:
     build:
-      context: ./user-profile-service
+      context: ../user-profile-service
       dockerfile: Dockerfile
-    container_name: user-profile-service
     ports:
       - "8085:8085"
     environment:
       - SPRING_APPLICATION_NAME=user-profile-service
       - SERVER_PORT=8085
-      - ENVIRONMENT_DATA_ENABLED=true
-    volumes:
-      - user-profile-data:/app/data
+      - ENVIRONMENT_DATA_ENABLED=false
+      - ENVIRONMENT_DATA_TOKEN=${ENVIRONMENT_DATA_TOKEN:?Generate the selected untracked environment file}
+      - PROFILE_DB_URL=jdbc:postgresql://user-profile-postgres:5432/user_profile
+      - PROFILE_DB_USERNAME=user_profile
+      - PROFILE_DB_PASSWORD=${USER_PROFILE_DATABASE_PASSWORD:?Generate the selected untracked environment file}
+      - AUTH_JWKS_URI=http://authentication-service:8084/.well-known/jwks.json
+      - PROFILE_JWT_ISSUER=${JWT_ISSUER:-job-seeker-copilot-authentication}
+      - PROFILE_JWT_AUDIENCE=${JWT_AUDIENCE:-job-seeker-copilot-services}
+    depends_on:
+      authentication-service:
+        condition: service_healthy
+      user-profile-postgres:
+        condition: service_healthy
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8085/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8085/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -120,9 +242,8 @@ services:
 
   user-management-gateway:
     build:
-      context: ./user-management-gateway
+      context: ../user-management-gateway
       dockerfile: Dockerfile
-    container_name: user-management-gateway
     ports:
       - "8083:8083"
       - "5005:5005"
@@ -131,6 +252,7 @@ services:
       SPRING_APPLICATION_NAME: "user-management-gateway"
       SERVER_PORT: "8083"
       AUTHENTICATION_SERVICE_URL: "http://authentication-service:8084"
+      AUTHENTICATION_SERVICE_TOKEN: "${AUTH_SERVICE_TOKEN:?Generate the selected untracked environment file}"
       USER_PROFILE_SERVICE_URL: "http://user-profile-service:8085"
     depends_on:
       authentication-service:
@@ -140,7 +262,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8083/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -148,20 +270,23 @@ services:
 
   reed-gateway:
     build:
-      context: ./reed-gateway
-      dockerfile: Dockerfile
-    container_name: reed-gateway
+      context: ../.cache/runtime-images/reed-gateway
+      dockerfile: ../../../infrastructure/docker/reed-gateway.runtime.Dockerfile
     ports:
       - "8087:8087"
     environment:
       - SPRING_APPLICATION_NAME=reed-gateway
       - SERVER_PORT=8087
-      - REED_API_BASE_URL=https://www.reed.co.uk/api/1.0
-      - REED_API_KEY=${REED_API_KEY}
+      - SPRING_PROFILES_ACTIVE=local
+      - EXTERNAL_PROVIDER_MODE=FIXTURE
+      - SYSTEM_DATA_SERVICE_URL=http://system-data-service:8103
+      - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.0.0}
+      - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8087/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8087/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -169,21 +294,26 @@ services:
 
   adzuna-gateway:
     build:
-      context: ./adzuna-gateway
-      dockerfile: Dockerfile
-    container_name: adzuna-gateway
+      context: ../.cache/runtime-images/adzuna-gateway
+      dockerfile: ../../../infrastructure/docker/adzuna-gateway.runtime.Dockerfile
     ports:
       - "8101:8101"
     environment:
       - SPRING_APPLICATION_NAME=adzuna-gateway
       - SERVER_PORT=8101
+      - SPRING_PROFILES_ACTIVE=local
+      - EXTERNAL_PROVIDER_MODE=FIXTURE
+      - SYSTEM_DATA_SERVICE_URL=http://system-data-service:8103
+      - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.0.0}
+      - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
       - ADZUNA_ENABLED=${ADZUNA_ENABLED:-true}
       - ADZUNA_RESULTS_PER_PAGE=${ADZUNA_RESULTS_PER_PAGE:-50}
       - ADZUNA_PAGES_PER_SEARCH=${ADZUNA_PAGES_PER_SEARCH:-1}
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8101/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8101/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -191,14 +321,19 @@ services:
 
   jsearch-gateway:
     build:
-      context: ./jsearch-gateway
-      dockerfile: Dockerfile
-    container_name: jsearch-gateway
+      context: ../.cache/runtime-images/jsearch-gateway
+      dockerfile: ../../../infrastructure/docker/jsearch-gateway.runtime.Dockerfile
     ports:
       - "8102:8102"
     environment:
       - SPRING_APPLICATION_NAME=jsearch-gateway
       - SERVER_PORT=8102
+      - SPRING_PROFILES_ACTIVE=local
+      - EXTERNAL_PROVIDER_MODE=FIXTURE
+      - SYSTEM_DATA_SERVICE_URL=http://system-data-service:8103
+      - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.0.0}
+      - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
       - JSEARCH_ENABLED=${JSEARCH_ENABLED:-true}
       - JSEARCH_COUNTRY=${JSEARCH_COUNTRY:-gb}
       - JSEARCH_LANGUAGE=${JSEARCH_LANGUAGE:-en}
@@ -206,7 +341,50 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8102/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8102/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  nhs-jobs-gateway:
+    build:
+      context: ../nhs-jobs-gateway
+      dockerfile: Dockerfile
+    ports:
+      - "8114:8104"
+    environment:
+      - SPRING_APPLICATION_NAME=nhs-jobs-gateway
+      - SERVER_PORT=8104
+      - SPRING_PROFILES_ACTIVE=local
+      - EXTERNAL_PROVIDER_MODE=FIXTURE
+      - NHS_JOBS_ENABLED=${NHS_JOBS_ENABLED:-true}
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8104/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  apprenticeships-gateway:
+    build:
+      context: ../apprenticeships-gateway
+      dockerfile: Dockerfile
+    ports:
+      - "8115:8105"
+    environment:
+      - SPRING_APPLICATION_NAME=apprenticeships-gateway
+      - SERVER_PORT=8105
+      - SPRING_PROFILES_ACTIVE=local
+      - EXTERNAL_PROVIDER_MODE=FIXTURE
+      - APPRENTICESHIPS_ENABLED=${APPRENTICESHIPS_ENABLED:-true}
+      - APPRENTICESHIPS_API_VERSION=2
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8105/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -214,16 +392,18 @@ services:
 
   system-data-service:
     build:
-      context: ./system-data-service
+      context: ../system-data-service
       dockerfile: Dockerfile
-    container_name: system-data-service
     ports:
       - "8103:8103"
     environment:
       - SPRING_APPLICATION_NAME=system-data-service
       - SERVER_PORT=8103
+      - SPRING_PROFILES_ACTIVE=local
       - SYSTEM_DATA_REPOSITORY_DIRECTORY=/app/dataset-repository
-      - SYSTEM_DATA_ENVIRONMENT_MANAGEMENT_ENABLED=true
+      - SYSTEM_DATA_ENVIRONMENT_MANAGEMENT_ENABLED=false
+      - SYSTEM_DATA_FIXTURES_ENABLED=true
+      - SYSTEM_DATA_FIXTURE_ALLOWED_PROFILES=local
       - ADZUNA_GATEWAY_URL=http://adzuna-gateway:8101
       - JSEARCH_GATEWAY_URL=http://jsearch-gateway:8102
       - REED_GATEWAY_URL=http://reed-gateway:8087
@@ -234,63 +414,74 @@ services:
       - APPLICATION_TRACKER_SERVICE_URL=http://application-tracker-service:8088
       - DOCUMENT_STORE_SERVICE_URL=http://document-store-service:8089
       - PAYMENT_SERVICE_URL=http://payment-service:8099
+      - SYSTEM_DATA_INTERNAL_CALLER_KEY=${SYSTEM_DATA_INTERNAL_CALLER_KEY:?Generate the selected untracked environment file}
+      - SYSTEM_DATA_DOWNSTREAM_ENVIRONMENT_DATA_TOKEN=${ENVIRONMENT_DATA_TOKEN:?Generate the selected untracked environment file}
     volumes:
-      - ./system-data-service/dataset-repository:/app/dataset-repository
-    depends_on:
-      reed-gateway:
-        condition: service_healthy
-      adzuna-gateway:
-        condition: service_healthy
-      jsearch-gateway:
-        condition: service_healthy
-      postcode-io-gateway:
-        condition: service_healthy
-      authentication-service:
-        condition: service_healthy
-      user-profile-service:
-        condition: service_healthy
-      application-tracker-service:
-        condition: service_healthy
-      document-store-service:
-        condition: service_healthy
-      payment-service:
-        condition: service_healthy
+      - ../system-data-service/fixtures/datasets:/app/dataset-repository:ro
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8103/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8103/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
 
+  job-service-postgres:
+    image: postgres:15.18-alpine
+    environment:
+      - POSTGRES_DB=job_service
+      - POSTGRES_USER=job_service
+      - POSTGRES_PASSWORD=${JOB_SERVICE_DATABASE_PASSWORD:?Generate the selected untracked environment file}
+    volumes:
+      - job-service-postgres-data:/var/lib/postgresql/data
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U job_service -d job_service"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
   job-service:
     build:
-      context: ./job-service
+      context: ../job-service
       dockerfile: Dockerfile
-    container_name: job-service
     ports:
       - "8086:8086"
     environment:
       - SPRING_APPLICATION_NAME=job-service
       - SERVER_PORT=8086
+      - JOB_SERVICE_DATABASE_URL=jdbc:postgresql://job-service-postgres:5432/job_service
+      - JOB_SERVICE_DATABASE_USERNAME=job_service
+      - JOB_SERVICE_DATABASE_PASSWORD=${JOB_SERVICE_DATABASE_PASSWORD:?Generate the selected untracked environment file}
+      - JOB_SERVICE_DATABASE_SSL_MODE=disable
+      - JOB_SERVICE_DATABASE_PRODUCTION_SAFETY_CHECK=false
       - REED_GATEWAY_URL=http://reed-gateway:8087
       - ADZUNA_GATEWAY_URL=http://adzuna-gateway:8101
       - JSEARCH_GATEWAY_URL=http://jsearch-gateway:8102
+      - NHS_JOBS_GATEWAY_URL=http://nhs-jobs-gateway:8104
+      - APPRENTICESHIPS_GATEWAY_URL=http://apprenticeships-gateway:8105
       - JOB_MATCHING_SERVICE_URL=http://job-matching-service:8097
     depends_on:
+      job-service-postgres:
+        condition: service_healthy
       reed-gateway:
         condition: service_healthy
       adzuna-gateway:
         condition: service_healthy
       jsearch-gateway:
+        condition: service_healthy
+      nhs-jobs-gateway:
+        condition: service_healthy
+      apprenticeships-gateway:
         condition: service_healthy
       job-matching-service:
         condition: service_healthy
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8086/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8086/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -298,22 +489,26 @@ services:
 
   job-matching-service:
     build:
-      context: ./job-matching-service
+      context: ../job-matching-service
       dockerfile: Dockerfile
-    container_name: job-matching-service
     ports:
       - "8097:8097"
     environment:
       - SPRING_APPLICATION_NAME=job-matching-service
       - SERVER_PORT=8097
       - APPLICATION_TRACKER_SERVICE_BASE_URL=http://application-tracker-service:8088
+      - APPLICATION_TRACKER_READER_TOKEN=${APPLICATION_TRACKER_READER_TOKEN:?Generate the selected untracked environment file}
+      - LOCATION_SERVICE_URL=http://location-service:8104
+      - LOCATION_SERVICE_TOKEN=${LOCATION_SERVICE_TOKEN:?Generate the selected untracked environment file}
     depends_on:
       application-tracker-service:
+        condition: service_healthy
+      location-service:
         condition: service_healthy
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8097/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8097/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -321,18 +516,21 @@ services:
 
   job-finder-gateway:
     build:
-      context: ./job-finder-gateway
+      context: ../job-finder-gateway
       dockerfile: Dockerfile
-    container_name: job-finder-gateway
     ports:
       - "8080:8080"
     environment:
       - SPRING_APPLICATION_NAME=job-finder-gateway
       - SERVER_PORT=8080
-      - JWT_SECRET=aVeryLongAndSecureSecretKeyThatIsAtLeast256BitsToSatisfyHMACSHAAlgorithmsForJWTTokensCreation123456
+      - AUTH_JWKS_URI=http://authentication-service:8084/.well-known/jwks.json
+      - JOB_FINDER_JWT_ISSUER=${JWT_ISSUER:-job-seeker-copilot-authentication}
+      - JOB_FINDER_JWT_AUDIENCE=${JWT_AUDIENCE:-job-seeker-copilot-services}
       - JOB_SERVICE_URL=http://job-service:8086
       - USER_MANAGEMENT_GATEWAY_URL=http://user-management-gateway:8083
       - USER_PROFILE_SERVICE_URL=http://user-profile-service:8085
+      - APPLICATION_TRACKER_SERVICE_URL=http://application-tracker-service:8088
+      - DOCUMENT_STORE_SERVICE_URL=http://document-store-service:8089
     depends_on:
       job-service:
         condition: service_healthy
@@ -343,7 +541,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -351,39 +549,134 @@ services:
 
   llm-gateway:
     build:
-      context: ./llm-gateway
+      context: ../llm-gateway
       dockerfile: Dockerfile
-    container_name: llm-gateway
     ports:
       - "8090:8090"
-    env_file:
-      - path: .env.local
-        required: false
     environment:
       - SERVER_PORT=8090
+      - SPRING_PROFILES_ACTIVE=local
+      - EXTERNAL_PROVIDER_MODE=FIXTURE
+      - SYSTEM_DATA_SERVICE_URL=http://system-data-service:8103
+      - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.0.0}
+      - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
+      - GENERATION_MODEL_ID=fixture-llm-synthetic-v1
+      - GENERATION_MODEL_DEPLOYMENT_VERSION=fixture-llm-synthetic-v1
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8090/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8090/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
 
+  document-store-postgres:
+    image: postgres:15.18-alpine
+    environment:
+      - POSTGRES_DB=document_store
+      - POSTGRES_USER=document_store
+      - POSTGRES_PASSWORD=${DOCUMENT_STORE_DATABASE_PASSWORD:?Generate the selected untracked environment file}
+    volumes:
+      - document-store-postgres-data:/var/lib/postgresql/data
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U document_store -d document_store"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  clamav:
+    image: clamav/clamav:1.4.5_base@sha256:38850b4560ce21c36cacfb8d8ce2c172dcf0029db6c47342d882e04b818a2fef
+    mem_limit: 4g
+    environment:
+      - FRESHCLAM_CHECKS=12
+      - FRESHCLAM_CONF_ConnectTimeout=10
+      - FRESHCLAM_CONF_ReceiveTimeout=30
+      - CLAMD_CONF_StreamMaxLength=11M
+      - CLAMD_CONF_MaxFileSize=11M
+      - CLAMD_CONF_MaxScanSize=32M
+      - CLAMD_CONF_MaxScanTime=30000
+      - CLAMD_CONF_MaxFiles=512
+      - CLAMD_CONF_MaxRecursion=16
+      - CLAMD_CONF_SelfCheck=60
+    volumes:
+      - clamav-signatures:/var/lib/clamav
+    networks:
+      - document-scanner-network
+      - malware-signature-egress-network
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          clamdcheck.sh && daemon="$$(clamdscan --version)" &&
+          disk="$$(freshclam --version)" &&
+          test "$$(echo "$$daemon" | cut -d/ -f2)" =
+          "$$(echo "$$disk" | cut -d/ -f2)" &&
+          signature="$${daemon#*/*/}" &&
+          signature_epoch="$$(date -u -D '%a %b %e %H:%M:%S %Y'
+          -d "$$signature" +%s)" && now="$$(date -u +%s)" &&
+          test "$$((now - signature_epoch))" -le 172800
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10m
+
   document-store-service:
     build:
-      context: ./document-store-service
+      context: ../document-store-service
       dockerfile: Dockerfile
-    container_name: document-store-service
     ports:
       - "8089:8089"
     environment:
       - SERVER_PORT=8089
-      - ENVIRONMENT_DATA_ENABLED=true
+      - ENVIRONMENT_DATA_ENABLED=false
+      - DOCUMENT_STORE_DATABASE_URL=jdbc:postgresql://document-store-postgres:5432/document_store
+      - DOCUMENT_STORE_DATABASE_USERNAME=document_store
+      - DOCUMENT_STORE_DATABASE_PASSWORD=${DOCUMENT_STORE_DATABASE_PASSWORD:?Generate the selected untracked environment file}
+      - DOCUMENT_STORE_DATABASE_SSL_MODE=disable
+      - DOCUMENT_STORE_OBJECT_PROVIDER=filesystem
+      - DOCUMENT_STORE_FILESYSTEM_ROOT=/app/data/objects
+      - DOCUMENT_STORE_ENCRYPTION_AT_REST_ENABLED=false
+      - DOCUMENT_STORE_BACKUP_ENCRYPTION_ENABLED=false
+      - AUTH_JWKS_URI=http://authentication-service:8084/.well-known/jwks.json
+      - DOCUMENT_STORE_JWT_ISSUER=${JWT_ISSUER:-job-seeker-copilot-authentication}
+      - DOCUMENT_STORE_JWT_AUDIENCE=${JWT_AUDIENCE:-job-seeker-copilot-services}
+      - DOCUMENT_STORE_PRODUCER_TOKEN=${DOCUMENT_STORE_PRODUCER_TOKEN:?Generate the selected untracked environment file}
+      - DOCUMENT_STORE_READER_TOKEN=${DOCUMENT_STORE_READER_TOKEN:?Generate the selected untracked environment file}
+      - DOCUMENT_STORE_RETENTION_ADMIN_TOKEN=${DOCUMENT_STORE_RETENTION_ADMIN_TOKEN:?Generate the selected untracked environment file}
+      - APPLICATION_TRACKER_SERVICE_URL=http://application-tracker-service:8088
+      - APPLICATION_TRACKER_READER_TOKEN=${APPLICATION_TRACKER_READER_TOKEN:?Generate the selected untracked environment file}
+      - APPLICATION_TRACKER_PRODUCER_TOKEN=${APPLICATION_TRACKER_PRODUCER_TOKEN:?Generate the selected untracked environment file}
+      - DOCUMENT_STORE_RECOVERY_DAYS=30
+      - DOCUMENT_STORE_COMPLETED_OPERATION_RETENTION_DAYS=90
+      - DOCUMENT_STORE_LIFECYCLE_AUDIT_DAYS=365
+      - DOCUMENT_STORE_RETENTION_POLICY_VERSION=DOC-09-2026-08-07
+      - DOCUMENT_STORE_RETENTION_MAINTENANCE_ENABLED=false
+      - DOCUMENT_STORE_PURGE_ENABLED=false
+      - ENVIRONMENT_DATA_TOKEN=${ENVIRONMENT_DATA_TOKEN:?Generate the selected untracked environment file}
+      - DOCUMENT_STORE_DATABASE_PRODUCTION_SAFETY_CHECK=false
+      - DOCUMENT_STORE_CLAMAV_HOST=clamav
+      - DOCUMENT_STORE_CLAMAV_PORT=3310
+      - DOCUMENT_STORE_CLAMAV_CONNECT_TIMEOUT_MS=2000
+      - DOCUMENT_STORE_CLAMAV_READ_TIMEOUT_MS=30000
+      - DOCUMENT_STORE_CLAMAV_MAXIMUM_SIGNATURE_AGE_HOURS=48
+    volumes:
+      - document-store-objects:/app/data/objects
+    depends_on:
+      authentication-service:
+        condition: service_healthy
+      document-store-postgres:
+        condition: service_healthy
+      clamav:
+        condition: service_healthy
     networks:
       - job-seeker-network
+      - document-scanner-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8089/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8089/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -391,40 +684,79 @@ services:
 
   document-export-service:
     build:
-      context: ./document-export-service
+      context: ../document-export-service
       dockerfile: Dockerfile
-    container_name: document-export-service
     ports:
       - "8094:8094"
     environment:
       - SERVER_PORT=8094
       - DOCUMENT_STORE_SERVICE_BASE_URL=http://document-store-service:8089
+      - DOCUMENT_EXPORT_GATEWAY_TOKEN=${DOCUMENT_EXPORT_GATEWAY_TOKEN:?Generate the selected untracked environment file}
+      - DOCUMENT_STORE_PRODUCER_TOKEN=${DOCUMENT_STORE_PRODUCER_TOKEN:?Generate the selected untracked environment file}
+      - DOCUMENT_STORE_READER_TOKEN=${DOCUMENT_STORE_READER_TOKEN:?Generate the selected untracked environment file}
     depends_on:
       document-store-service:
         condition: service_healthy
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8094/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8094/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
 
+  application-tracker-postgres:
+    image: postgres:15.18-alpine
+    environment:
+      - POSTGRES_DB=application_tracker
+      - POSTGRES_USER=application_tracker
+      - POSTGRES_PASSWORD=${APPLICATION_TRACKER_DATABASE_PASSWORD:?Generate the selected untracked environment file}
+    volumes:
+      - application-tracker-postgres-data:/var/lib/postgresql/data
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U application_tracker -d application_tracker"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
   application-tracker-service:
     build:
-      context: ./application-tracker-service
+      context: ../application-tracker-service
       dockerfile: Dockerfile
-    container_name: application-tracker-service
     ports:
       - "8088:8088"
     environment:
       - SERVER_PORT=8088
-      - ENVIRONMENT_DATA_ENABLED=true
+      - ENVIRONMENT_DATA_ENABLED=false
+      - APPLICATION_TRACKER_DATABASE_URL=jdbc:postgresql://application-tracker-postgres:5432/application_tracker
+      - APPLICATION_TRACKER_DATABASE_USERNAME=application_tracker
+      - APPLICATION_TRACKER_DATABASE_PASSWORD=${APPLICATION_TRACKER_DATABASE_PASSWORD:?Generate the selected untracked environment file}
+      - APPLICATION_TRACKER_DATABASE_SSL_MODE=disable
+      - APPLICATION_TRACKER_DATABASE_PRODUCTION_SAFETY_CHECK=false
+      - APPLICATION_TRACKER_DATABASE_ENCRYPTION_AT_REST_ENABLED=false
+      - APPLICATION_TRACKER_DATABASE_BACKUP_ENCRYPTION_ENABLED=false
+      - AUTH_JWKS_URI=http://authentication-service:8084/.well-known/jwks.json
+      - APPLICATION_TRACKER_JWT_ISSUER=${JWT_ISSUER:-job-seeker-copilot-authentication}
+      - APPLICATION_TRACKER_JWT_AUDIENCE=${JWT_AUDIENCE:-job-seeker-copilot-services}
+      - APPLICATION_TRACKER_PRODUCER_TOKEN=${APPLICATION_TRACKER_PRODUCER_TOKEN:?Generate the selected untracked environment file}
+      - APPLICATION_TRACKER_READER_TOKEN=${APPLICATION_TRACKER_READER_TOKEN:?Generate the selected untracked environment file}
+      - DOCUMENT_STORE_SERVICE_URL=http://document-store-service:8089
+      - DOCUMENT_STORE_READER_TOKEN=${DOCUMENT_STORE_READER_TOKEN:?Generate the selected untracked environment file}
+      - ENVIRONMENT_DATA_TOKEN=${ENVIRONMENT_DATA_TOKEN:?Generate the selected untracked environment file}
+    depends_on:
+      authentication-service:
+        condition: service_healthy
+      application-tracker-postgres:
+        condition: service_healthy
+      document-store-service:
+        condition: service_healthy
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8088/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8088/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -432,9 +764,8 @@ services:
 
   cv-cover-letter-service:
     build:
-      context: ./cv-cover-letter-service
+      context: ../cv-cover-letter-service
       dockerfile: Dockerfile
-    container_name: cv-cover-letter-service
     ports:
       - "8091:8091"
     environment:
@@ -443,6 +774,21 @@ services:
       - DOCUMENT_STORE_SERVICE_BASE_URL=http://document-store-service:8089
       - APPLICATION_TRACKER_SERVICE_BASE_URL=http://application-tracker-service:8088
       - PAYMENT_SERVICE_BASE_URL=http://payment-service:8099
+      - CV_COVER_LETTER_GATEWAY_TOKEN=${CV_COVER_LETTER_GATEWAY_TOKEN:?Generate the selected untracked environment file}
+      - REJECTED_GENERATION_QUARANTINE_ENABLED=true
+      - REJECTED_GENERATION_QUARANTINE_DIRECTORY=/var/lib/cv-cover-letter/rejected-generations
+      - REJECTED_GENERATION_QUARANTINE_KEY_BASE64=${REJECTED_GENERATION_QUARANTINE_KEY_BASE64:?Generate the selected untracked environment file}
+      - REJECTED_GENERATION_OPERATOR_TOKEN=${REJECTED_GENERATION_OPERATOR_TOKEN:?Generate the selected untracked environment file}
+      - REJECTED_GENERATION_QUARANTINE_RETENTION=PT24H
+      - REJECTED_GENERATION_QUARANTINE_CLEANUP_INTERVAL=PT15M
+      - REJECTED_GENERATION_QUARANTINE_MAX_ARTIFACT_BYTES=262144
+      - REJECTED_GENERATION_QUARANTINE_MAX_ARTIFACTS=1000
+      - REJECTED_GENERATION_QUARANTINE_MAX_REPLAY_EVENTS=100
+      - DOCUMENT_STORE_PRODUCER_TOKEN=${DOCUMENT_STORE_PRODUCER_TOKEN:?Generate the selected untracked environment file}
+      - APPLICATION_TRACKER_PRODUCER_TOKEN=${APPLICATION_TRACKER_PRODUCER_TOKEN:?Generate the selected untracked environment file}
+      - CV_COVER_LETTER_TO_PAYMENT_SERVICE_TOKEN=${CV_COVER_LETTER_TO_PAYMENT_SERVICE_TOKEN:?Generate the selected untracked environment file}
+    volumes:
+      - cv-rejected-generation-quarantine:/var/lib/cv-cover-letter/rejected-generations
     depends_on:
       llm-gateway:
         condition: service_healthy
@@ -455,29 +801,61 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8091/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8091/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
 
+  document-generation-postgres:
+    image: postgres:15.18-alpine
+    environment:
+      - POSTGRES_DB=document_generation
+      - POSTGRES_USER=document_generation
+      - POSTGRES_PASSWORD=${DOCUMENT_GENERATION_DATABASE_PASSWORD:?Generate the selected untracked environment file}
+    volumes:
+      - document-generation-postgres-data:/var/lib/postgresql/data
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U document_generation -d document_generation"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
   document-generation-gateway:
     build:
-      context: ./document-generation-gateway
-      dockerfile: Dockerfile
-    container_name: document-generation-gateway
+      context: ../.cache/runtime-images/document-generation-gateway
+      dockerfile: ../../../infrastructure/docker/document-generation-gateway.runtime.Dockerfile
     ports:
       - "8092:8092"
     environment:
       - SERVER_PORT=8092
-      - JWT_SECRET=aVeryLongAndSecureSecretKeyThatIsAtLeast256BitsToSatisfyHMACSHAAlgorithmsForJWTTokensCreation123456
+      - AUTH_JWKS_URI=http://authentication-service:8084/.well-known/jwks.json
+      - DOCUMENT_GENERATION_JWT_ISSUER=${JWT_ISSUER:-job-seeker-copilot-authentication}
+      - DOCUMENT_GENERATION_JWT_AUDIENCE=${JWT_AUDIENCE:-job-seeker-copilot-services}
+      - AUTH_SERVICE_TOKEN=${AUTH_SERVICE_TOKEN:?Generate the selected untracked environment file}
+      - APPLICATION_TRACKER_PRODUCER_TOKEN=${APPLICATION_TRACKER_PRODUCER_TOKEN:?Generate the selected untracked environment file}
+      - CV_COVER_LETTER_GATEWAY_TOKEN=${CV_COVER_LETTER_GATEWAY_TOKEN:?Generate the selected untracked environment file}
+      - DOCUMENT_EXPORT_GATEWAY_TOKEN=${DOCUMENT_EXPORT_GATEWAY_TOKEN:?Generate the selected untracked environment file}
+      - DOCUMENT_STORE_PRODUCER_TOKEN=${DOCUMENT_STORE_PRODUCER_TOKEN:?Generate the selected untracked environment file}
+      - DOCUMENT_STORE_READER_TOKEN=${DOCUMENT_STORE_READER_TOKEN:?Generate the selected untracked environment file}
+      - DOCUMENT_GENERATION_GATEWAY_TO_PAYMENT_SERVICE_TOKEN=${DOCUMENT_GENERATION_GATEWAY_TO_PAYMENT_SERVICE_TOKEN:?Generate the selected untracked environment file}
+      - RETAINED_RESPONSE_RECOVERY_ENABLED=true
+      - REJECTED_GENERATION_OPERATOR_TOKEN=${REJECTED_GENERATION_OPERATOR_TOKEN:?Generate the selected untracked environment file}
+      - DOCUMENT_GENERATION_DATABASE_URL=jdbc:postgresql://document-generation-postgres:5432/document_generation
+      - DOCUMENT_GENERATION_DATABASE_USERNAME=document_generation
+      - DOCUMENT_GENERATION_DATABASE_PASSWORD=${DOCUMENT_GENERATION_DATABASE_PASSWORD:?Generate the selected untracked environment file}
       - AUTHENTICATION_SERVICE_URL=http://authentication-service:8084
       - USER_PROFILE_SERVICE_URL=http://user-profile-service:8085
       - JOB_SERVICE_URL=http://job-service:8086
       - CV_COVER_LETTER_SERVICE_URL=http://cv-cover-letter-service:8091
       - DOCUMENT_EXPORT_SERVICE_URL=http://document-export-service:8094
       - DOCUMENT_STORE_SERVICE_URL=http://document-store-service:8089
+      - APPLICATION_TRACKER_SERVICE_URL=http://application-tracker-service:8088
     depends_on:
+      document-generation-postgres:
+        condition: service_healthy
       authentication-service:
         condition: service_healthy
       user-profile-service:
@@ -493,7 +871,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8092/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8092/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -501,24 +879,29 @@ services:
 
   reporting-service:
     build:
-      context: ./reporting-service
+      context: ../reporting-service
       dockerfile: Dockerfile
-    container_name: reporting-service
     ports:
       - "8096:8096"
     environment:
       - SERVER_PORT=8096
       - APPLICATION_TRACKER_SERVICE_BASE_URL=http://application-tracker-service:8088
+      - DOCUMENT_STORE_SERVICE_URL=http://document-store-service:8089
       - USER_PROFILE_SERVICE_URL=http://user-profile-service:8085
+      - REPORTING_GATEWAY_SERVICE_TOKEN=${REPORTING_GATEWAY_SERVICE_TOKEN:?Generate the selected untracked environment file}
+      - APPLICATION_TRACKER_READER_TOKEN=${APPLICATION_TRACKER_READER_TOKEN:?Generate the selected untracked environment file}
+      - DOCUMENT_STORE_READER_TOKEN=${DOCUMENT_STORE_READER_TOKEN:?Generate the selected untracked environment file}
     depends_on:
       application-tracker-service:
+        condition: service_healthy
+      document-store-service:
         condition: service_healthy
       user-profile-service:
         condition: service_healthy
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8096/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8096/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -526,40 +909,74 @@ services:
 
   reporting-gateway:
     build:
-      context: ./reporting-gateway
+      context: ../reporting-gateway
       dockerfile: Dockerfile
-    container_name: reporting-gateway
     ports:
       - "8095:8095"
     environment:
       - SERVER_PORT=8095
       - REPORTING_SERVICE_URL=http://reporting-service:8096
+      - AUTH_JWKS_URI=http://authentication-service:8084/.well-known/jwks.json
+      - REPORTING_GATEWAY_JWT_ISSUER=${JWT_ISSUER:-job-seeker-copilot-authentication}
+      - REPORTING_GATEWAY_JWT_AUDIENCE=${JWT_AUDIENCE:-job-seeker-copilot-services}
+      - REPORTING_GATEWAY_SERVICE_TOKEN=${REPORTING_GATEWAY_SERVICE_TOKEN:?Generate the selected untracked environment file}
     depends_on:
+      authentication-service:
+        condition: service_healthy
       reporting-service:
         condition: service_healthy
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8095/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8095/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
 
+  payment-postgres:
+    image: postgres:15.18-alpine
+    environment:
+      - POSTGRES_DB=payment
+      - POSTGRES_USER=payment
+      - POSTGRES_PASSWORD=${PAYMENT_DATABASE_PASSWORD:?Generate the selected untracked environment file}
+    volumes:
+      - payment-postgres-data:/var/lib/postgresql/data
+    networks:
+      - job-seeker-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U payment -d payment"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
   payment-service:
     build:
-      context: ./payment-service
+      context: ../payment-service
       dockerfile: Dockerfile
-    container_name: payment-service
     ports:
       - "8099:8099"
     environment:
       - SERVER_PORT=8099
-      - ENVIRONMENT_DATA_ENABLED=true
+      - ENVIRONMENT_DATA_ENABLED=false
+      - ENVIRONMENT_DATA_TOKEN=${ENVIRONMENT_DATA_TOKEN:?Generate the selected untracked environment file}
+      - PAYMENT_DATABASE_URL=jdbc:postgresql://payment-postgres:5432/payment
+      - PAYMENT_DATABASE_USERNAME=payment
+      - PAYMENT_DATABASE_PASSWORD=${PAYMENT_DATABASE_PASSWORD:?Generate the selected untracked environment file}
+      - PAYMENT_DATABASE_PRODUCTION_SAFETY_CHECK=false
+      - PAYMENT_GATEWAY_TO_PAYMENT_SERVICE_TOKEN=${PAYMENT_GATEWAY_TO_PAYMENT_SERVICE_TOKEN:?Generate the selected untracked environment file}
+      - CV_COVER_LETTER_TO_PAYMENT_SERVICE_TOKEN=${CV_COVER_LETTER_TO_PAYMENT_SERVICE_TOKEN:?Generate the selected untracked environment file}
+      - DOCUMENT_GENERATION_GATEWAY_TO_PAYMENT_SERVICE_TOKEN=${DOCUMENT_GENERATION_GATEWAY_TO_PAYMENT_SERVICE_TOKEN:?Generate the selected untracked environment file}
+      - STRIPE_GATEWAY_TO_PAYMENT_SERVICE_TOKEN=${STRIPE_GATEWAY_TO_PAYMENT_SERVICE_TOKEN:?Generate the selected untracked environment file}
+      - PAYMENT_SERVICE_TO_STRIPE_GATEWAY_LIFECYCLE_TOKEN=${PAYMENT_SERVICE_TO_STRIPE_GATEWAY_LIFECYCLE_TOKEN:?Generate the selected untracked environment file}
+      - ACCOUNT_LIFECYCLE_TO_PAYMENT_SERVICE_TOKEN=${ACCOUNT_LIFECYCLE_TO_PAYMENT_SERVICE_TOKEN:?Generate the selected untracked environment file}
+    depends_on:
+      payment-postgres:
+        condition: service_healthy
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8099/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8099/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -567,25 +984,31 @@ services:
 
   stripe-gateway:
     build:
-      context: ./stripe-gateway
+      context: ../stripe-gateway
       dockerfile: Dockerfile
-    container_name: stripe-gateway
     ports:
       - "8100:8100"
     environment:
       - SERVER_PORT=8100
-      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
-      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
+      - SPRING_PROFILES_ACTIVE=local
+      - EXTERNAL_PROVIDER_MODE=FIXTURE
+      - SYSTEM_DATA_SERVICE_URL=http://system-data-service:8103
+      - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.0.0}
+      - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
       - STRIPE_SUCCESS_URL=${STRIPE_SUCCESS_URL:-http://localhost:3000/payment/success}
       - STRIPE_CANCEL_URL=${STRIPE_CANCEL_URL:-http://localhost:3000/payment/cancel}
       - PAYMENT_SERVICE_URL=http://payment-service:8099
+      - PAYMENT_GATEWAY_TO_STRIPE_GATEWAY_TOKEN=${PAYMENT_GATEWAY_TO_STRIPE_GATEWAY_TOKEN:?Generate the selected untracked environment file}
+      - STRIPE_GATEWAY_TO_PAYMENT_SERVICE_TOKEN=${STRIPE_GATEWAY_TO_PAYMENT_SERVICE_TOKEN:?Generate the selected untracked environment file}
+      - PAYMENT_SERVICE_TO_STRIPE_GATEWAY_LIFECYCLE_TOKEN=${PAYMENT_SERVICE_TO_STRIPE_GATEWAY_LIFECYCLE_TOKEN:?Generate the selected untracked environment file}
     depends_on:
       payment-service:
         condition: service_healthy
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8100/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8100/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -593,15 +1016,17 @@ services:
 
   payment-gateway:
     build:
-      context: ./payment-gateway
+      context: ../payment-gateway
       dockerfile: Dockerfile
-    container_name: payment-gateway
     ports:
       - "8098:8098"
     environment:
       - SERVER_PORT=8098
       - PAYMENT_SERVICE_URL=http://payment-service:8099
       - STRIPE_GATEWAY_URL=http://stripe-gateway:8100
+      - BFF_TO_PAYMENT_GATEWAY_TOKEN=${BFF_TO_PAYMENT_GATEWAY_TOKEN:?Generate the selected untracked environment file}
+      - PAYMENT_GATEWAY_TO_PAYMENT_SERVICE_TOKEN=${PAYMENT_GATEWAY_TO_PAYMENT_SERVICE_TOKEN:?Generate the selected untracked environment file}
+      - PAYMENT_GATEWAY_TO_STRIPE_GATEWAY_TOKEN=${PAYMENT_GATEWAY_TO_STRIPE_GATEWAY_TOKEN:?Generate the selected untracked environment file}
     depends_on:
       payment-service:
         condition: service_healthy
@@ -610,7 +1035,7 @@ services:
     networks:
       - job-seeker-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8098/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8098/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -618,20 +1043,25 @@ services:
 
   job-seeker-copilot-client:
     build:
-      context: ./job-seeker-copilot-client
+      context: ../job-seeker-copilot-client
       dockerfile: Dockerfile
-    container_name: job-seeker-copilot-client
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
+      - BFF_TRUSTED_PROXY_HOPS=0
+      - BFF_PASSWORD_RESET_RATE_WINDOW_MS=900000
+      - BFF_PASSWORD_RESET_RATE_MAXIMUM=5
       - LOCATION_GATEWAY_URL=http://location-gateway:8081
       - USER_MANAGEMENT_GATEWAY_URL=http://user-management-gateway:8083
       - JOB_FINDER_GATEWAY_URL=http://job-finder-gateway:8080
+      - JOB_SEARCH_PROVIDER_MODE=FIXTURE
+      - DOCUMENT_GENERATION_MODE=FIXTURE_LLM
       - DOCUMENT_GENERATION_GATEWAY_URL=http://document-generation-gateway:8092
       - DOCUMENT_STORE_SERVICE_URL=http://document-store-service:8089
       - REPORTING_GATEWAY_URL=http://reporting-gateway:8095
       - PAYMENT_GATEWAY_URL=http://payment-gateway:8098
+      - BFF_TO_PAYMENT_GATEWAY_TOKEN=${BFF_TO_PAYMENT_GATEWAY_TOKEN:?Generate the selected untracked environment file}
     depends_on:
       location-gateway:
         condition: service_healthy
@@ -647,6 +1077,7 @@ services:
         condition: service_healthy
     networks:
       - job-seeker-network
+      - host-access
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/', res => process.exit(res.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))"]
       interval: 30s
@@ -657,8 +1088,27 @@ services:
 networks:
   job-seeker-network:
     driver: bridge
+    internal: true
+  host-access:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.host_binding_ipv4: "127.0.0.1"
+  document-scanner-network:
+    driver: bridge
+    internal: true
+  malware-signature-egress-network:
+    driver: bridge
+    internal: false
 
 volumes:
   portainer-data:
-  authentication-data:
-  user-profile-data:
+  authentication-postgres-data:
+  user-profile-postgres-data:
+  job-service-postgres-data:
+  document-generation-postgres-data:
+  document-store-postgres-data:
+  document-store-objects:
+  clamav-signatures:
+  application-tracker-postgres-data:
+  payment-postgres-data:
+  cv-rejected-generation-quarantine:

@@ -1,10 +1,23 @@
 # Scripts
 
-## Live and E2E stacks
+## Local, live-provider and E2E stacks
 
 Use Python entry points for stack operations.
 
-Live stack:
+Local fixture stack:
+
+```bash
+python -m scripts.docker.start_stack local --build
+python -m scripts.docker.stop_stack local
+```
+
+- Compose project: `job-seeker-copilot-local`
+- Frontend: `http://localhost:3000`
+- External egress is disabled at the Compose network.
+- Job, postcode, LLM and Stripe gateways use deterministic fixtures.
+- Environment reset/seed is disabled.
+
+Live job-provider stack:
 
 ```bash
 python -m scripts.docker.start_stack live --build
@@ -13,60 +26,83 @@ python -m scripts.docker.stop_stack live
 
 - Compose project: `job-seeker-copilot-live`
 - Frontend: `http://localhost:3000`
-- H2 file-backed state: `authentication-service` at `/app/data/live/authentication`, `user-profile-service` at `/app/data/live/user-profile`
+- PostgreSQL state: dedicated Authentication, Document Store, and Payment
+  containers; Document Store bytes use the synthetic filesystem adapter.
+- H2 file-backed state: User Profile only, at
+  `/app/data/live/user-profile`.
 - Environment reset/seed is disabled in the live override.
+- LLM is disabled and Stripe remains fixture-backed.
+- This is local real-provider integration, not a production deployment.
 
-E2E stack:
+E2E stack (preferred lock-aware lifecycle):
 
 ```bash
-python -m scripts.docker.start_stack e2e --build
-python -m scripts.docker.wait_for_stack e2e
-python -m scripts.docker.stop_stack e2e
+./scripts/build-all.sh --profile e2e
+./scripts/start-local.sh --profile e2e --build
+./scripts/health-check.sh --profile e2e
+./scripts/stop-local.sh --profile e2e
 ```
+
+The retained `python -m scripts.docker.* e2e` helpers resolve to the same
+three-file Compose model for capacity tooling compatibility.
 
 - Compose project: `job-seeker-copilot-e2e`
 - Frontend: `http://localhost:3100`
 - System data service: `http://localhost:9103`
-- H2 file-backed state: `authentication-service` at `/app/data/e2e/authentication`, `user-profile-service` at `/app/data/e2e/user-profile`
-- In-memory H2 state is isolated by the distinct E2E containers for application tracker, document store, and payment.
+- PostgreSQL state: dedicated Authentication, Document Store, and Payment
+  containers; Document Store bytes use the synthetic filesystem adapter.
+- H2 file-backed state: User Profile only, at
+  `/app/data/e2e/user-profile`.
+- Application Tracker retains its isolated H2 E2E state.
 - Normal E2E gateway mode is `FIXTURE`.
 
-## Dataset regeneration
-
-Run controlled acquisition only when live provider calls are intended:
+Normal stop preserves the selected project's state. To permanently reset only
+one disposable local/E2E project's named volumes, require both flags:
 
 ```bash
-set -a; . ./.env; set +a
-python -m scripts.docker.start_stack data-acquisition --build
-python -m scripts.data.generate_dataset \
-  --service-url http://localhost:9103 \
-  --dataset-id uk-software-developer-demo \
-  --version 1.0.0 \
-  --overwrite \
-  --queries "Software Developer" "Java Developer" "Backend Developer" "Full Stack Developer" "Junior Software Developer" "Software Engineer" "Angular Developer" "Spring Boot Developer" \
-  --locations Reading London Birmingham Manchester Leeds Bristol \
-  --providers ADZUNA JSEARCH REED \
-  --maximum-results-per-provider 5 \
-  --timeout-seconds 600
-python -m scripts.data.inspect_dataset --dataset-path system-data-service/dataset-repository/uk-software-developer-demo/1.0.0
-python -m scripts.docker.stop_stack data-acquisition
-python -m scripts.docker.start_stack e2e
-python -m scripts.demo.check_fixture_modes
+./scripts/stop-local.sh --profile e2e --delete-volumes --yes
 ```
 
-`--overwrite` is required to replace an existing version. Without it, generation still refuses to overwrite. When overwrite is used, the previous version is moved under `system-data-service/dataset-repository/<dataset-id>/backups/`.
+## Quarantined job-provider acquisition
 
-To capture deterministic demo LLM fixtures, temporarily run the data-acquisition stack with `llm-gateway` in live mode and make the explicit two-call capture:
+Data acquisition is a separate one-shot project, not an E2E overlay. It can
+make real job-provider calls and may incur provider costs. Generate its ignored
+environment, record the required approval/reviewer/run metadata, then use the
+guarded runner only when those calls are intended:
 
 ```bash
-python -m scripts.data.capture_llm_fixtures \
-  --dataset-path system-data-service/dataset-repository/uk-software-developer-demo/1.0.0 \
-  --llm-gateway-url http://localhost:9113 \
-  --job-id <selected-demo-job-id> \
+python3 scripts/security/generate_profile_env.py \
+  --profile data-acquisition \
+  --output .env.data-acquisition
+python3 -m scripts.data.run_acquisition \
+  --env-file .env.data-acquisition \
+  --secrets-env-file ../config/.secrets.env \
+  --authorize-live-provider-costs
+```
+
+The runner validates the rendered boundary, starts only approved gateway
+profiles, runs System Data as a non-web command, and always tears down its
+containers and network. The governed dataset repository is read-only. Output
+is retained under
+`system-data-service/quarantined-acquisitions/<run-id>` with a redacted audit
+record and is not runtime-eligible.
+
+Reject or remove an expired capture by exact run ID:
+
+```bash
+python3 -m scripts.data.purge_acquisition \
+  --run-id <run-id> \
+  --reason rejected \
+  --reviewer <name> \
   --yes
 ```
 
-This writes `llm-fixtures.json` into the dataset version. Return to fixture mode immediately afterwards with `python -m scripts.docker.start_stack e2e` and verify with `python -m scripts.demo.check_fixture_modes`.
+The former live LLM capture command is disabled. A future cost-bounded,
+quarantined replacement is tracked in
+[BACKLOG-LLM-02](https://github.com/jobseekercopilot/infrastructure/issues/29).
+No normal stack or acquisition command can inject an OpenAI credential or
+create paid AI content. See
+[`docs/MODE_ISOLATION.md`](../docs/MODE_ISOLATION.md).
 
 ## Demo preparation
 
@@ -77,6 +113,34 @@ python -m scripts.demo.prepare_demo
 ```
 
 The command refuses live port `3000`, requires the E2E compose project, checks fixture gateway modes, resets and seeds `DEMO_READY`, and runs fixture smoke tests. Playwright/Cucumber defaults to `E2E_BASE_URL=http://localhost:3100`.
+
+## Product-confidence capacity benchmarks
+
+Run from the infrastructure repository. The runner waits for the isolated E2E
+stack, proves every external gateway is in `FIXTURE` mode, prepares `DEMO_READY`
+once, runs the shared browser journey, and samples every Compose container.
+
+```bash
+python -m scripts.benchmark.run_capacity --profile idle
+python -m scripts.benchmark.run_capacity --profile single-user
+python -m scripts.benchmark.run_capacity --profile concurrent-5
+python -m scripts.benchmark.run_capacity --profile concurrent-10
+python -m scripts.benchmark.run_capacity --profile concurrent-25
+```
+
+Profiles 50 and 100 fail closed unless `--allow-high-concurrency` is supplied
+after checking host headroom. Raw JSON is written below
+`benchmark-results/runs/`. Generate a Markdown report from selected runs with:
+
+```bash
+python -m scripts.benchmark.generate_report \
+  benchmark-results/runs/<idle>.json \
+  benchmark-results/runs/<single>.json \
+  --output benchmark-results/capacity-report.md
+```
+
+See [`docs/capacity-benchmarking.md`](../docs/capacity-benchmarking.md) for the
+evidence model, safeguards and interpretation limits.
 
 Operational scripts live under this directory and are grouped by responsibility.
 Application code, service runtime code, and E2E test implementation stay in their
@@ -114,22 +178,33 @@ deprecation warning and delegate to the new module.
 
 ## Command Reference
 
-### Generated Clients
+### Workspace lifecycle
 
 ```bash
-python -m scripts.clients.export_openapi_contracts
-python -m scripts.clients.generate_backend_clients
-python -m scripts.clients.install_backend_clients
-python -m scripts.clients.generate_frontend_clients
-python -m scripts.clients.generate_all_api_clients
-python -m scripts.clients.check_backend_client_conformance
-python -m scripts.clients.check_no_manual_system_data_fixture_clients
+./scripts/bootstrap.sh --profile basic-fixture
+./scripts/validate-workspace.sh
+./scripts/update-repositories.sh
+./scripts/build-all.sh --profile full-fixture
+./scripts/test-all.sh --profile full-fixture
+./scripts/start-local.sh --profile full-fixture --build
+./scripts/health-check.sh --profile full-fixture
+./scripts/status.sh --profile full-fixture
+./scripts/logs.sh --profile full-fixture
+./scripts/stop-local.sh --profile full-fixture
 ```
 
-Configuration:
+Authoritative configuration:
 
-- `scripts/clients/config/service_dependencies.json`
+- `config/services.json`: repositories, topology, profiles and GitHub Project.
+- `config/workspace-lock.json`: exact repository revisions.
+- `config/contracts-lock.json`: contract checksum, generator, immutable Maven
+  coordinates and producer-owned client build revisions.
 - `scripts/clients/config/backend_client_conformance_exclusions.json`
+
+`build-all.sh` reconstructs locked Java clients from producer Git history into
+the workspace-local `.cache/m2`. The old
+`python -m scripts.clients.install_backend_clients` copied-JAR path is retired
+and fails closed.
 
 ### Data
 
@@ -159,12 +234,12 @@ responses. They do not contain Playwright/Cucumber implementation code.
 ### Docker
 
 ```bash
-python -m scripts.docker.rebuild_and_start_stack
+./scripts/start-local.sh --profile basic-fixture --build
 ```
 
-This helper installs generated backend clients, builds backend services, and
-rebuilds/starts the Docker Compose stack. It is intentionally not run by default
-during safe verification because it changes the local Docker environment.
+Use only the tracked lifecycle commands for the reproducible basic/full fixture
+profiles. Older stack helpers remain for mode-specific migration work and are
+not the onboarding path.
 
 ### Git
 

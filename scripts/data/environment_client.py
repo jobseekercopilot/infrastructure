@@ -3,15 +3,29 @@
 from __future__ import annotations
 
 import json
+import os
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 
 def request_json(method: str, service_url: str, path: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    caller_key = os.environ.get("SYSTEM_DATA_INTERNAL_CALLER_KEY", "")
+    if len(caller_key) < 32 or caller_key.strip() != caller_key or any(character.isspace() for character in caller_key):
+        raise RuntimeError(
+            "SYSTEM_DATA_INTERNAL_CALLER_KEY must contain at least 32 non-whitespace characters"
+        )
     url = service_url.rstrip("/") + path
     data = None if payload is None else json.dumps(payload).encode("utf-8")
-    request = Request(url, data=data, method=method, headers={"Content-Type": "application/json"})
+    request = Request(
+        url,
+        data=data,
+        method=method,
+        headers={
+            "Content-Type": "application/json",
+            "X-System-Data-Key": caller_key,
+        },
+    )
     try:
         with urlopen(request, timeout=120) as response:
             body = response.read().decode("utf-8")

@@ -1,0 +1,274 @@
+name: AWS Public Beta Protected Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Foundation is dark; prepare remains private; activate is the only public transition; darken is emergency containment.
+        required: true
+        type: choice
+        options: [plan, foundation, prepare, activate, darken, rollback]
+      build_run_id:
+        description: Successful immutable-build workflow run ID; required except for foundation/emergency darken.
+        required: false
+        type: string
+      release_id:
+        description: Exact immutable release ID; required except for foundation. Darken binds it to applied state.
+        required: false
+        type: string
+      confirmation:
+        description: Exact phrase documented in the runbook; unused for plan.
+        required: false
+        type: string
+      plan_desired_count:
+        description: Plan-only desired count.
+        required: false
+        default: '0'
+        type: choice
+        options: ['0', '1']
+      plan_public_entrypoint:
+        description: Plan-only public listener state.
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    if: github.ref == 'refs/heads/main' && inputs.action == 'plan'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment: production-aws-plan
+    permissions:
+      actions: read
+      attestations: read
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify protected production environment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/aws/verify_github_environment_protection.sh "$GITHUB_REPOSITORY" production-aws-plan "$GITHUB_REPOSITORY_OWNER" "$GITHUB_ACTOR"
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4
+        with:
+          terraform_version: 1.15.8
+          terraform_wrapper: false
+      - name: Download immutable build evidence
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: public-beta-release-${{ inputs.release_id }}
+          path: ${{ runner.temp }}/release-artifact
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.build_run_id }}
+      - name: Verify build origin and signed release provenance
+        env:
+          BUILD_RUN_ID: ${{ inputs.build_run_id }}
+          EXPECTED_RELEASE_ID: ${{ inputs.release_id }}
+          GH_TOKEN: ${{ github.token }}
+          MANIFEST: ${{ runner.temp }}/release-artifact/image-manifest.json
+          PROVENANCE: ${{ runner.temp }}/release-artifact/provenance.json
+          LANDING_ARCHIVE: ${{ runner.temp }}/release-artifact/landing-static.tar
+          LANDING_METADATA: ${{ runner.temp }}/release-artifact/landing-artifact.json
+          LANDING_SAM_TEMPLATE: ${{ runner.temp }}/release-artifact/landing-waitlist-backend-template.yaml
+        run: |
+          case "$BUILD_RUN_ID" in *[!0-9]*|'') echo "Invalid build run ID" >&2; exit 2;; esac
+          run_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${BUILD_RUN_ID}")"
+          test "$(jq -r .name <<<"$run_json")" = 'AWS Public Beta Immutable Build'
+          test "$(jq -r .event <<<"$run_json")" = workflow_dispatch
+          test "$(jq -r .head_branch <<<"$run_json")" = main
+          test "$(jq -r .conclusion <<<"$run_json")" = success
+          test "$(jq -r .head_sha <<<"$run_json")" = "$GITHUB_SHA"
+          test "$(jq -r .releaseId "$MANIFEST")" = "$EXPECTED_RELEASE_ID"
+          test "$(jq -r .releaseId "$PROVENANCE")" = "$EXPECTED_RELEASE_ID"
+          test "$(jq -r .infrastructureRevision "$PROVENANCE")" = "$GITHUB_SHA"
+          test "$(jq -r .workspaceLockSha256 "$PROVENANCE")" = "$(sha256sum config/workspace-lock.json | cut -d' ' -f1)"
+          test "$(jq -r .imageManifestSha256 "$PROVENANCE")" = "$(sha256sum "$MANIFEST" | cut -d' ' -f1)"
+          gh attestation verify "$MANIFEST" --repo "$GITHUB_REPOSITORY"
+          scripts/aws/verify_frontend_release_artifact.sh \
+            "$MANIFEST" "$PROVENANCE" "$LANDING_ARCHIVE" "$LANDING_METADATA" "$LANDING_SAM_TEMPLATE"
+      - name: Prepare protected non-secret release inputs
+        env:
+          PUBLIC_BETA_TFVARS_B64: ${{ secrets.PUBLIC_BETA_TFVARS_B64 }}
+          LAUNCH_APPROVALS_B64: ${{ secrets.LAUNCH_APPROVALS_B64 }}
+          EXPECTED_RELEASE_ID: ${{ inputs.release_id }}
+        run: |
+          umask 077
+          printenv PUBLIC_BETA_TFVARS_B64 | base64 --decode > "${RUNNER_TEMP}/public-beta.tfvars"
+          printenv LAUNCH_APPROVALS_B64 | base64 --decode > "${RUNNER_TEMP}/launch-approvals.json"
+          test "$(jq -r .releaseId "${RUNNER_TEMP}/release-artifact/image-manifest.json")" = "$EXPECTED_RELEASE_ID"
+      - name: Validate release contract before assuming AWS
+        run: |
+          test "$(jq -r .launchApprovalManifestSha256 '${{ runner.temp }}/release-artifact/provenance.json')" = \
+            "$(sha256sum '${{ runner.temp }}/launch-approvals.json' | cut -d' ' -f1)"
+          test "$(jq -r .launchApprovalManifestSha256 '${{ runner.temp }}/release-artifact/image-manifest.json')" = \
+            "$(sha256sum '${{ runner.temp }}/launch-approvals.json' | cut -d' ' -f1)"
+          python3 scripts/aws/validate_public_beta.py --release \
+            --image-manifest '${{ runner.temp }}/release-artifact/image-manifest.json' \
+            --approval-manifest '${{ runner.temp }}/launch-approvals.json' \
+            --landing-archive '${{ runner.temp }}/release-artifact/landing-static.tar'
+      - name: Configure read-only AWS plan role
+        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5
+        with:
+          role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
+          aws-region: eu-west-2
+          role-session-name: jsc-${{ github.run_id }}-plan
+          role-duration-seconds: 3600
+      - name: Initialise reviewed remote state
+        working-directory: aws/public-beta
+        run: >-
+          terraform init -input=false
+          -backend-config='bucket=${{ vars.TF_STATE_BUCKET }}'
+          -backend-config='key=public-beta/terraform.tfstate'
+          -backend-config='region=eu-west-2'
+          -backend-config='kms_key_id=${{ vars.TF_STATE_KMS_KEY_ARN }}'
+          -backend-config='use_lockfile=true'
+      - name: Refresh-backed plan only
+        env:
+          AWS_REGION: eu-west-2
+          GITHUB_REF: ${{ github.ref }}
+          TF_VARS_FILE: ${{ runner.temp }}/public-beta.tfvars
+          APPROVAL_MANIFEST: ${{ runner.temp }}/launch-approvals.json
+          IMAGE_MANIFEST: ${{ runner.temp }}/release-artifact/image-manifest.json
+          LANDING_ARCHIVE: ${{ runner.temp }}/release-artifact/landing-static.tar
+          APPLICATION_DESIRED_COUNT: ${{ inputs.plan_desired_count }}
+          PUBLIC_ENTRYPOINT_ENABLED: ${{ inputs.plan_public_entrypoint }}
+        run: scripts/aws/public_beta_release.sh plan
+
+  mutate:
+    if: github.ref == 'refs/heads/main' && inputs.action != 'plan'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    environment: production-aws
+    concurrency:
+      group: jsc-public-beta-aws-mutation
+      cancel-in-progress: false
+    permissions:
+      actions: read
+      attestations: read
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify protected production environment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/aws/verify_github_environment_protection.sh "$GITHUB_REPOSITORY" production-aws "$GITHUB_REPOSITORY_OWNER" "$GITHUB_ACTOR"
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4
+        with:
+          terraform_version: 1.15.8
+          terraform_wrapper: false
+      - name: Download immutable build evidence
+        if: inputs.action != 'foundation' && inputs.action != 'darken'
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: public-beta-release-${{ inputs.release_id }}
+          path: ${{ runner.temp }}/release-artifact
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.build_run_id }}
+      - name: Verify build origin and signed release provenance
+        if: inputs.action != 'foundation' && inputs.action != 'darken'
+        env:
+          RELEASE_ACTION: ${{ inputs.action }}
+          BUILD_RUN_ID: ${{ inputs.build_run_id }}
+          EXPECTED_RELEASE_ID: ${{ inputs.release_id }}
+          GH_TOKEN: ${{ github.token }}
+          MANIFEST: ${{ runner.temp }}/release-artifact/image-manifest.json
+          PROVENANCE: ${{ runner.temp }}/release-artifact/provenance.json
+          LANDING_ARCHIVE: ${{ runner.temp }}/release-artifact/landing-static.tar
+          LANDING_METADATA: ${{ runner.temp }}/release-artifact/landing-artifact.json
+          LANDING_SAM_TEMPLATE: ${{ runner.temp }}/release-artifact/landing-waitlist-backend-template.yaml
+        run: |
+          case "$BUILD_RUN_ID" in *[!0-9]*|'') echo "Invalid build run ID" >&2; exit 2;; esac
+          run_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${BUILD_RUN_ID}")"
+          test "$(jq -r .name <<<"$run_json")" = 'AWS Public Beta Immutable Build'
+          test "$(jq -r .event <<<"$run_json")" = workflow_dispatch
+          test "$(jq -r .head_branch <<<"$run_json")" = main
+          test "$(jq -r .conclusion <<<"$run_json")" = success
+          build_sha="$(jq -er .head_sha <<<"$run_json")"
+          if [ "$RELEASE_ACTION" = rollback ]; then
+            git merge-base --is-ancestor "$build_sha" "$GITHUB_SHA" || {
+              echo 'Rollback build is not from an ancestor of current protected main.' >&2
+              exit 3
+            }
+            expected_lock_sha="$(git show "$build_sha:config/workspace-lock.json" | sha256sum | cut -d' ' -f1)"
+          else
+            test "$build_sha" = "$GITHUB_SHA"
+            expected_lock_sha="$(sha256sum config/workspace-lock.json | cut -d' ' -f1)"
+          fi
+          test "$(jq -r .releaseId "$MANIFEST")" = "$EXPECTED_RELEASE_ID"
+          test "$(jq -r .releaseId "$PROVENANCE")" = "$EXPECTED_RELEASE_ID"
+          test "$(jq -r .infrastructureRevision "$PROVENANCE")" = "$build_sha"
+          test "$(jq -r .workspaceLockSha256 "$PROVENANCE")" = "$expected_lock_sha"
+          test "$(jq -r .imageManifestSha256 "$PROVENANCE")" = "$(sha256sum "$MANIFEST" | cut -d' ' -f1)"
+          gh attestation verify "$MANIFEST" --repo "$GITHUB_REPOSITORY"
+          scripts/aws/verify_frontend_release_artifact.sh \
+            "$MANIFEST" "$PROVENANCE" "$LANDING_ARCHIVE" "$LANDING_METADATA" "$LANDING_SAM_TEMPLATE"
+      - name: Prepare protected non-secret release inputs
+        if: inputs.action != 'darken'
+        env:
+          PUBLIC_BETA_TFVARS_B64: ${{ secrets.PUBLIC_BETA_TFVARS_B64 }}
+          LAUNCH_APPROVALS_B64: ${{ secrets.LAUNCH_APPROVALS_B64 }}
+          RELEASE_ACTION: ${{ inputs.action }}
+          EXPECTED_RELEASE_ID: ${{ inputs.release_id }}
+        run: |
+          umask 077
+          printenv PUBLIC_BETA_TFVARS_B64 | base64 --decode > "${RUNNER_TEMP}/public-beta.tfvars"
+          printenv LAUNCH_APPROVALS_B64 | base64 --decode > "${RUNNER_TEMP}/launch-approvals.json"
+          if [ "$RELEASE_ACTION" != foundation ]; then
+            test "$(jq -r .releaseId "${RUNNER_TEMP}/release-artifact/image-manifest.json")" = "$EXPECTED_RELEASE_ID"
+          fi
+      - name: Validate release contract before assuming AWS
+        if: inputs.action != 'foundation' && inputs.action != 'darken'
+        run: |
+          test "$(jq -r .launchApprovalManifestSha256 '${{ runner.temp }}/release-artifact/provenance.json')" = \
+            "$(sha256sum '${{ runner.temp }}/launch-approvals.json' | cut -d' ' -f1)"
+          test "$(jq -r .launchApprovalManifestSha256 '${{ runner.temp }}/release-artifact/image-manifest.json')" = \
+            "$(sha256sum '${{ runner.temp }}/launch-approvals.json' | cut -d' ' -f1)"
+          python3 scripts/aws/validate_public_beta.py --release \
+            --image-manifest '${{ runner.temp }}/release-artifact/image-manifest.json' \
+            --approval-manifest '${{ runner.temp }}/launch-approvals.json' \
+            --landing-archive '${{ runner.temp }}/release-artifact/landing-static.tar'
+      - name: Configure protected AWS apply role
+        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5
+        with:
+          role-to-assume: ${{ vars.AWS_APPLY_ROLE_ARN }}
+          aws-region: eu-west-2
+          role-session-name: jsc-${{ github.run_id }}-${{ inputs.action }}
+          role-duration-seconds: 10800
+      - name: Initialise reviewed remote state
+        working-directory: aws/public-beta
+        run: >-
+          terraform init -input=false
+          -backend-config='bucket=${{ vars.TF_STATE_BUCKET }}'
+          -backend-config='key=public-beta/terraform.tfstate'
+          -backend-config='region=eu-west-2'
+          -backend-config='kms_key_id=${{ vars.TF_STATE_KMS_KEY_ARN }}'
+          -backend-config='use_lockfile=true'
+      - name: Execute protected, fail-closed release phase
+        if: inputs.action != 'darken'
+        env:
+          AWS_REGION: eu-west-2
+          GITHUB_REF: ${{ github.ref }}
+          TF_VARS_FILE: ${{ runner.temp }}/public-beta.tfvars
+          APPROVAL_MANIFEST: ${{ runner.temp }}/launch-approvals.json
+          IMAGE_MANIFEST: ${{ inputs.action == 'foundation' && format('{0}/aws/public-beta/config/image-manifest.json', github.workspace) || format('{0}/release-artifact/image-manifest.json', runner.temp) }}
+          LANDING_ARCHIVE: ${{ inputs.action == 'foundation' && '' || format('{0}/release-artifact/landing-static.tar', runner.temp) }}
+          RELEASE_CONFIRMATION: ${{ inputs.confirmation }}
+        run: scripts/aws/public_beta_release.sh '${{ inputs.action }}'
+      - name: Execute approval-independent emergency containment
+        if: inputs.action == 'darken'
+        env:
+          AWS_REGION: eu-west-2
+          GITHUB_REF: ${{ github.ref }}
+          RELEASE_CONFIRMATION: ${{ inputs.confirmation }}
+          EXPECTED_RELEASE_ID: ${{ inputs.release_id }}
+        run: scripts/aws/emergency_darken.sh "$EXPECTED_RELEASE_ID"

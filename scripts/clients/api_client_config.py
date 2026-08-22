@@ -1,27 +1,26 @@
 #!/usr/bin/env python3
 
-import json
-from pathlib import Path
-
-from scripts.lib.project_paths import PROJECT_ROOT, SERVICE_DEPENDENCIES
-
-DEPENDENCY_MAP = SERVICE_DEPENDENCIES
+from scripts.workspace.catalog import load_catalog
 
 
 def load_services() -> dict[str, dict]:
-    with DEPENDENCY_MAP.open(encoding="utf-8") as file:
-        services = json.load(file)["services"]
+    """Compatibility view for legacy read-only tooling.
 
-    unknown_dependencies = {
-        dependency
-        for service in services.values()
-        for dependency in service.get("dependsOn", [])
-        if dependency not in services
+    New workspace operations consume the catalogue directly. Keeping this
+    adapter prevents a second dependency manifest from drifting.
+    """
+    catalog = load_catalog()
+    services = {
+        repository.name: {
+            "type": repository.kind,
+            "openApiPort": repository.port,
+            "dependsOn": list(repository.dependencies),
+            "enabled": bool(repository.compose_services),
+            "frontendFacing": repository.kind == "frontend",
+        }
+        for repository in catalog.repositories
+        if repository.kind != "test"
     }
-    if unknown_dependencies:
-        names = ", ".join(sorted(unknown_dependencies))
-        raise ValueError(f"Unknown services in dependency map: {names}")
-
     return services
 
 

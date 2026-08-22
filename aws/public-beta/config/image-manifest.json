@@ -1,0 +1,142 @@
+{
+  "schemaVersion": 1,
+  "releaseId": "UNRELEASED",
+  "createdAt": null,
+  "sourceBranch": "develop",
+  "launchApprovalManifestSha256": "PENDING",
+  "dependencyEvidence": {
+    "documentStoreTaskRoleStorage": "1183ce5a54ab60999ca37d826ceb16857d5763ff",
+    "documentStorePermanentErasure": {
+      "revision": "e35761d1b1f810dff3c727c317d2c9c4335bcb8d",
+      "openApiSha256": "66b0b21bc93928f2fc17c576692199878f250dbbdf7db632b191468137b896f1",
+      "maximumBackupRetentionDays": 35,
+      "restoreReplayRunbook": "docs/aws-public-beta/document-store-permanent-erasure.md",
+      "restoreReplayRunbookSha256": "1a6dc2b4604a833593d82c0e414745c12f59589aa7c0c7e21de023f01c8299b2"
+    },
+    "adzunaRuntimeHealth": "594ac33862c6360fe05768905bab0e2cb9ac1898",
+    "jsearchRuntimeHealth": "79677c6586207f5aa30b9c6d0720f5ed2cfe728a",
+    "frontendArtifacts": {
+      "client": {
+        "revision": "8a23b2ae88f291087748c676bb92ca91d14addaa",
+        "artifactContractSha256": "801fab5beb7ea81798677086ef00a94759294a1e85915f74da843632de2c6f75",
+        "packaging": "OCI_SSR_BFF"
+      },
+      "landing": {
+        "revision": "533a8086b3af8019cfcd585e50e44e64a0bc2e0d",
+        "artifactContractSha256": "9682372ef2d909de3b2b49c6d0fed232565b61e1b1fe0ac666ace58bfdb0804f",
+        "staticArtifactSha256": "PENDING",
+        "runtimeConfigSha256": "PENDING",
+        "selectedSamTemplate": "infrastructure/waitlist-backend/template.yaml",
+        "selectedSamTemplateSha256": "PENDING",
+        "deploymentStatus": "NOT_DEPLOYED"
+      }
+    },
+    "postcodesNorthernIrelandCoverageChain": {
+      "postcodeIoGateway": {
+        "revision": "f5588e5b0a2ca9e63319674f4b6cd40048b9e0fb",
+        "openApiSha256": "8321009c305d2d22986224e366df6f0b451c1b5587d05dd0ec4876441e09d7ff"
+      },
+      "locationService": {
+        "revision": "91857140c71bfda8b807c535272f918fe7741263",
+        "openApiSha256": "cd74fbf278c710a2782bbbe6473f9f708a19b6dd9329f42927ce302bb53f5f6b"
+      },
+      "locationGateway": {
+        "revision": "777ec7e8885fcb07368e05ad2543181e4ef7a891",
+        "openApiSha256": "30d71d6b2508c7cbd452b522c30c26bfa7a571e1f1ebcda979008422db469cfc"
+      }
+    },
+    "paymentV2ProductionContract": {
+      "authenticationService": {
+        "revision": "d447addae21714f51267c0ab073377c24e3cfe81",
+        "openApiSha256": "8ef5f12a32e836c2046fb163944b62d76cea31e389612408ca6ed1d1ccc42884"
+      },
+      "userManagementGateway": {
+        "revision": "5dc8aa1e7afb9492a96d3dedde847c530b6209b0",
+        "openApiSha256": "dde3349e015f2cd7ef7bf9bc810681bebe98fca1ed1510005aa0b1a8b0e6d08e",
+        "authSnapshotSha256": "95811cb81b0c32ad2f9c5cc42cd8f85c0385359cdade6c0f9e67e3ed63950dc0"
+      },
+      "documentGenerationGateway": {
+        "revision": "cd9b71a3d4dbfbe41d6784f3eeeb7b1b113f5218",
+        "openApiSha256": "864ba3c36b2ba4bcd1749edc597ed903a21e7dfa515bb2809d3bc9b9cf878f42"
+      },
+      "paymentService": {
+        "revision": "39005690b2fe5a1da6208b25c3e0e4c9c57c7eb3",
+        "openApiSha256": "40aa59f62a4ad4d956c2324c9c8d9fa154e4b04b49c029cbda0d80cc2c5dcdc9"
+      },
+      "paymentGateway": {
+        "revision": "99ee685a6809a254305a4cbb4dd92ba0fa7751bc",
+        "openApiSha256": "9da54edec5a264e541433bf16dbc3826d8e0aa813ceb8e91fcdafab05f324b0b"
+      },
+      "stripeGateway": {
+        "revision": "04dd9fa7c095f65120afd37cfc11380176756216",
+        "openApiSha256": "4fc3c82918d2c062c56a5326b783dfabcf2c3fd68dfdeb56626cca260fa225a7"
+      }
+    },
+    "paymentFixtureAcceptance": {
+      "systemDataServiceRevision": "ca4bafeafbfe41b25a8507f6f08d97490ef71a28",
+      "e2eRevision": "cfa1a70a0028f11f8019c889b9057ba8124ff8f5",
+      "infrastructureRevision": "412566a750ead55740e0b2b4b81cebe29d3e0ad9",
+      "profile": "test",
+      "providerMode": "FIXTURE",
+      "healthyServiceCount": 36,
+      "scenarioCount": 4,
+      "stepCount": 33
+    },
+    "stripeFixtureProductionIsolation": {
+      "revision": "04dd9fa7c095f65120afd37cfc11380176756216",
+      "profile": "production",
+      "providerMode": "DISABLED",
+      "fixtureModeStartupRejected": true,
+      "fixturePaymentControlRouteStatus": 404,
+      "conditionalBeansAbsent": [
+        "FixturePaymentControlController",
+        "FixturePaymentControlService",
+        "FixtureStripeProviderClient",
+        "FixtureStripeSessionStore"
+      ]
+    }
+  },
+  "capabilities": {
+    "documentStoreTaskRoleCredentials": false,
+    "documentStoreS3KmsEncryption": false,
+    "documentStorePermanentErasureVerified": false,
+    "runtimeHealthcheckCommandsVerified": false,
+    "rdsCaBundleVerified": false,
+    "postcodesNorthernIrelandCoverageChainVerified": false,
+    "frontendArtifactsVerified": false,
+    "paymentV2ProductionContractVerified": false,
+    "paymentFixtureAcceptanceVerified": false,
+    "stripeFixtureProductionIsolationVerified": false
+  },
+  "images": {
+    "postcode-io-gateway": {"repository": "jobseekercopilot/postcode-io-gateway", "revision": "0000000000000000000000000000000000000000", "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000", "scanStatus": "UNSCANNED"},
+    "google-maps-gateway": {"repository": "jobseekercopilot/google-maps-gateway", "revision": "0000000000000000000000000000000000000000", "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000", "scanStatus": "UNSCANNED"},
+    "location-service": {"repository": "jobseekercopilot/location-service", "revision": "0000000000000000000000000000000000000000", "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000", "scanStatus": "UNSCANNED"},
+    "location-gateway": {"repository": "jobseekercopilot/location-gateway", "revision": "0000000000000000000000000000000000000000", "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000", "scanStatus": "UNSCANNED"},
+    "authentication-service": {"repository": "jobseekercopilot/authentication-service", "revision": "0000000000000000000000000000000000000000", "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000", "scanStatus": "UNSCANNED"},
+    "user-profile-service": {"repository": "jobseekercopilot/user-profile-service", "revision": "0000000000000000000000000000000000000000", "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000", "scanStatus": "UNSCANNED"},
+    "user-management-gateway": {"repository": "jobseekercopilot/user-management-gateway", "revision": "0000000000000000000000000000000000000000", "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000", "scanStatus": "UNSCANNED"},
+    "reed-gateway": {"repository": "jobseekercopilot/reed-gateway", "revision": "0000000000000000000000000000000000000000", "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000", "scanStatus": "UNSCANNED"},
+    "adzuna-gateway": {"repository": "jobseekercopilot/adzuna-gateway", "revision": "0000000000000000000000000000000000000000", "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000", "scanStatus": "UNSCANNED"},
+    "jsearch-gateway": {"repository": "jobseekercopilot/jsearch-gateway", "revision": "0000000000000000000000000000000000000000", "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000", "scanStatus": "UNSCANNED"},
+    "nhs-jobs-gateway": {"repository": "jobseekercopilot/nhs-jobs-gateway", "revision": "0000000000000000000000000000000000000000", "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000", "scanStatus": "UNSCANNED"},
+    "apprenticeships-gateway": {"repository": "jobseekercopilot/apprenticeships-gateway", "revision": "0000000000000000000000000000000000000000", "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000", "scanStatus": "UNSCANNED"},
+    "job-service": {"repository": "jobseekercopilot/job-service", "revision": "0000000000000000000000000000000000000000", "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000", "scanStatus": "UNSCANNED"},
+    "job-matching-service": {"repository": "jobseekercopilot/job-matching-service", "revision": "0000000000000000000000000000000000000000", "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000", "scanStatus": "UNSCANNED"},
+    "job-finder-gateway": {"repository": "jobseekercopilot/job-finder-gateway", "revision": "0000000000000000000000000000000000000000", "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000", "scanStatus": "UNSCANNED"},
+    "llm-gateway": {"repository": "jobseekercopilot/llm-gateway", "revision": "0000000000000000000000000000000000000000", "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000", "scanStatus": "UNSCANNED"},
+    "document-store-service": {"repository": "jobseekercopilot/document-store-service", "revision": "0000000000000000000000000000000000000000", "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000", "scanStatus": "UNSCANNED"},
+    "document-export-service": {"repository": "jobseekercopilot/document-export-service", "revision": "0000000000000000000000000000000000000000", "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000", "scanStatus": "UNSCANNED"},
+    "application-tracker-service": {"repository": "jobseekercopilot/application-tracker-service", "revision": "0000000000000000000000000000000000000000", "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000", "scanStatus": "UNSCANNED"},
+    "cv-cover-letter-service": {"repository": "jobseekercopilot/cv-cover-letter-service", "revision": "0000000000000000000000000000000000000000", "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000", "scanStatus": "UNSCANNED"},
+    "document-generation-gateway": {"repository": "jobseekercopilot/document-generation-gateway", "revision": "0000000000000000000000000000000000000000", "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000", "scanStatus": "UNSCANNED"},
+    "reporting-service": {"repository": "jobseekercopilot/reporting-service", "revision": "0000000000000000000000000000000000000000", "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000", "scanStatus": "UNSCANNED"},
+    "reporting-gateway": {"repository": "jobseekercopilot/reporting-gateway", "revision": "0000000000000000000000000000000000000000", "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000", "scanStatus": "UNSCANNED"},
+    "payment-service": {"repository": "jobseekercopilot/payment-service", "revision": "0000000000000000000000000000000000000000", "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000", "scanStatus": "UNSCANNED"},
+    "stripe-gateway": {"repository": "jobseekercopilot/stripe-gateway", "revision": "0000000000000000000000000000000000000000", "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000", "scanStatus": "UNSCANNED"},
+    "payment-gateway": {"repository": "jobseekercopilot/payment-gateway", "revision": "0000000000000000000000000000000000000000", "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000", "scanStatus": "UNSCANNED"},
+    "job-seeker-copilot-client": {"repository": "jobseekercopilot/job-seeker-copilot-client", "revision": "0000000000000000000000000000000000000000", "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000", "scanStatus": "UNSCANNED"},
+    "clamav": {"repository": "upstream/clamav", "revision": "1.4.5", "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000", "scanStatus": "UNSCANNED"},
+    "release-operator": {"repository": "jobseekercopilot/infrastructure", "revision": "0000000000000000000000000000000000000000", "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000", "scanStatus": "UNSCANNED"}
+  }
+}

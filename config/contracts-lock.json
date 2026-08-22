@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 1,
+  "owner": "jobseekercopilot",
+  "registry": {
+    "type": "github-packages",
+    "mavenBaseUrl": "https://maven.pkg.github.com/jobseekercopilot",
+    "mavenPermissionModel": "repository-scoped",
+    "crossRepositoryCredential": "classic-pat"
+  },
+  "generators": {
+    "java-resttemplate": {
+      "name": "openapi-generator",
+      "version": "7.5.0",
+      "library": "resttemplate"
+    }
+  },
+  "contracts": [
+    {
+      "service": "application-tracker-service",
+      "repository": "jobseekercopilot/application-tracker-service",
+      "revision": "d9e6bc9fcbe4ef665334c58672c8062b1e4796aa",
+      "path": "contracts/openapi.json",
+      "contractVersion": "1.1.0",
+      "sha256": "549cebba300c2caf3403b9de01d3c34de84464a280a02183751e8a9583ad982a",
+      "consumers": [
+        "document-generation-gateway"
+      ]
+    },
+    {
+      "service": "authentication-service",
+      "repository": "jobseekercopilot/authentication-service",
+      "revision": "2964aeb07b9861cce555d28cc58c6b9fab1f6107",
+      "path": "contracts/openapi.json",
+      "contractVersion": "1.0.0",
+      "sha256": "ce7f707b921a16fb8e53b580032bac4542334ed47f8f07c474e63ba2ecc4c812",
+      "consumers": [
+        "document-generation-gateway"
+      ]
+    },
+    {
+      "service": "cv-cover-letter-service",
+      "repository": "jobseekercopilot/cv-cover-letter-service",
+      "revision": "3129864cca5c0eca8fcf9a4df59ce4bda91ef1a1",
+      "path": "contracts/openapi.json",
+      "contractVersion": "4.2.0",
+      "sha256": "72f997ab962e4cc2dc2d41f8c4c7df852de06d1c2cab66569851f2351c586a1d",
+      "consumers": [
+        "document-generation-gateway"
+      ],
+      "javaPackage": {
+        "groupId": "com.jobseekercopilot.clients",
+        "artifactId": "cv-cover-letter-service-client",
+        "version": "4.2.0-rev.3129864cca5c",
+        "generator": "java-resttemplate",
+        "releaseState": "published",
+        "buildRevision": "abe61343581cf267b8f2566322a2adb9122b7288",
+        "modulePath": "api/client/pom.xml"
+      }
+    },
+    {
+      "service": "document-export-service",
+      "repository": "jobseekercopilot/document-export-service",
+      "revision": "cda9a2af811bafe99ecd686faab14db67f21ae32",
+      "path": "contracts/openapi.json",
+      "contractVersion": "3.1.0",
+      "sha256": "2848a72e78c2bfaa48ac5879e99528be0daaee6371cd6bd8a99c59e3131d585a",
+      "consumers": [
+        "document-generation-gateway"
+      ],
+      "javaPackage": {
+        "groupId": "com.jobseekercopilot.clients",
+        "artifactId": "document-export-service-client",
+        "version": "3.1.0-rev.cda9a2af811b",
+        "generator": "java-resttemplate",
+        "releaseState": "published",
+        "buildRevision": "66614d9f71d914c37b964d168500f5bec521e855",
+        "modulePath": "api/client/pom.xml"
+      }
+    },
+    {
+      "service": "document-store-service",
+      "repository": "jobseekercopilot/document-store-service",
+      "revision": "fa202573b5a60dc47875c4c663bb91d33b89187f",
+      "path": "contracts/openapi.json",
+      "contractVersion": "4.0.0",
+      "sha256": "6470eb9e6770903922cc4cd6d841d72a51b362fe4b9146d20f8f2576f15d659c",
+      "consumers": [
+        "document-generation-gateway"
+      ]
+    },
+    {
+      "service": "user-profile-service",
+      "repository": "jobseekercopilot/user-profile-service",
+      "revision": "a880add6e5c7106a2f3abec08a147823f88edf20",
+      "path": "api/openapi.json",
+      "contractVersion": "2.3.0",
+      "sha256": "3326ffc4c3f78fbd97325fe071d3848fdb3319ea997571f98cd792619905fc04",
+      "consumers": [
+        "document-generation-gateway"
+      ],
+      "javaPackage": {
+        "groupId": "com.jobseekercopilot.clients",
+        "artifactId": "user-profile-service-client",
+        "version": "2.3.0-rev.a880add6e5c7",
+        "generator": "java-resttemplate",
+        "releaseState": "published",
+        "buildRevision": "1776cf83c38b7f0acbaa663a50b344e718888b06",
+        "modulePath": "api/client/pom.xml"
+      }
+    }
+  ]
+}

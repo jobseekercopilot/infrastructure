@@ -11,3 +11,10 @@ Secrets must be supplied through local or CI secret storage. The committed
 environment files are examples only. If a credential is committed or printed,
 treat it as compromised and rotate it; deleting it from the current tree is not
 revocation.
+
+Generate local/E2E values with
+`scripts/security/generate_profile_env.py`; generated files are ignored and
+mode `0600`. Run `python3 -m scripts.security.check_tracked_secrets` before
+committing environment or Compose changes. The trust matrix, rotation steps and
+private incident procedure are in
+[`docs/RUNTIME_ENVIRONMENTS.md`](docs/RUNTIME_ENVIRONMENTS.md).

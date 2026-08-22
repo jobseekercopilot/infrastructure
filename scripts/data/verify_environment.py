@@ -9,12 +9,13 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from scripts.data.environment_client import fail_if_unsuccessful, print_operation, request_json
+from scripts.data.prepare_environment import SCENARIOS
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Verify non-production Job Seeker Copilot environment data.")
-    parser.add_argument("--service-url", default="http://localhost:8103")
-    parser.add_argument("--scenario", default="DEMO_READY", choices=["EMPTY", "DEMO_READY"])
+    parser.add_argument("--service-url", default="http://localhost:9103")
+    parser.add_argument("--scenario", default="DEMO_READY", choices=SCENARIOS)
     args = parser.parse_args()
 
     response = request_json("GET", args.service_url, f"/internal/environments/verify?scenario={args.scenario}")
