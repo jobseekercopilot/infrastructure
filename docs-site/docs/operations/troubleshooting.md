@@ -21,7 +21,7 @@ Use the same profile that started the stack.
 | Client returns `504` | BFF/downstream timeout and service logs | Validated request deadline expired |
 | Job search is `PARTIAL` | `providerResults` and `matchingStatus` | At least one provider or matching enrichment degraded |
 | Job search returns unavailable | Provider-mode endpoints and System Data health | No enabled provider succeeded |
-| `FEATURE_NOT_AVAILABLE` under payment | Expected on `develop` | BFF payment boundary is disabled |
+| Checkout says pricing/payment is unavailable | Read `/api/v2/payments/checkout-readiness`; inspect Payment and Stripe readiness | Routes are active but the server-authoritative release, provider, seller, tax or legal gate is not ready |
 | Location has no results | Query validation, Location/Postcode health, fixture dataset | Empty can be valid; provider failures use distinct statuses |
 | Generation remains pending | Read operation state and correlation ID; inspect Doc Gen logs | Durable coordinator is waiting/recovering a step |
 | Document download fails | Exact file/artifact ID, owner session, Store/object status | Metadata and bytes are separately validated |

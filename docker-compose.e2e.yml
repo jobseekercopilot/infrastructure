@@ -16,7 +16,7 @@ services:
       - PROVIDER_MODE_ENDPOINT_ENABLED=true
       - SYSTEM_DATA_SERVICE_URL=http://system-data-service:8103
       - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
-      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.1.0}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.2.0}
       - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
 
   google-maps-gateway:
@@ -46,6 +46,10 @@ services:
       - AUTH_ACCOUNT_EMAIL_DELIVERY_MODE=fixture
       - AUTH_ACCOUNT_EMAIL_APPLICATION_BASE_URL=http://localhost:${E2E_FRONTEND_PORT:-3100}
       - AUTH_ACCOUNT_EMAIL_FIXTURE_MAXIMUM_MESSAGES=1000
+      - AUTH_LEGAL_CURRENT_VERSION=2026-08-15
+      - AUTH_LEGAL_TERMS_URL=https://jobseekercopilot.com/terms
+      - AUTH_LEGAL_PRIVACY_NOTICE_URL=https://jobseekercopilot.com/privacy
+      - AUTH_LEGAL_DOCUMENTS_REVIEWED=true
     networks:
       - job-seeker-network
       - host-access
@@ -71,7 +75,7 @@ services:
       - EXTERNAL_PROVIDER_MODE=FIXTURE
       - SYSTEM_DATA_SERVICE_URL=http://system-data-service:8103
       - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
-      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.1.0}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.2.0}
       - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
 
   adzuna-gateway:
@@ -81,7 +85,7 @@ services:
       - EXTERNAL_PROVIDER_MODE=FIXTURE
       - SYSTEM_DATA_SERVICE_URL=http://system-data-service:8103
       - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
-      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.1.0}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.2.0}
       - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
 
   jsearch-gateway:
@@ -91,7 +95,7 @@ services:
       - EXTERNAL_PROVIDER_MODE=FIXTURE
       - SYSTEM_DATA_SERVICE_URL=http://system-data-service:8103
       - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
-      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.1.0}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.2.0}
       - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
 
   nhs-jobs-gateway:
@@ -117,7 +121,7 @@ services:
       - SYSTEM_DATA_FIXTURE_ALLOWED_PROFILES=test
       - STRIPE_GATEWAY_URL=http://stripe-gateway:8100
       - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
-      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.1.0}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.2.0}
       - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
     networks:
       - job-seeker-network
@@ -146,7 +150,7 @@ services:
       - EXTERNAL_PROVIDER_MODE=FIXTURE
       - SYSTEM_DATA_SERVICE_URL=http://system-data-service:8103
       - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
-      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.1.0}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.2.0}
       - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
 
   document-store-service:
@@ -227,7 +231,7 @@ services:
       - EXTERNAL_PROVIDER_MODE=FIXTURE
       - SYSTEM_DATA_SERVICE_URL=http://system-data-service:8103
       - FIXTURE_DATASET_ID=${FIXTURE_DATASET_ID:-uk-software-developer-demo}
-      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.1.0}
+      - FIXTURE_DATASET_VERSION=${FIXTURE_DATASET_VERSION:-1.2.0}
       - FIXTURE_SCENARIO=${FIXTURE_SCENARIO:-DEMO_READY}
       - STRIPE_FIXTURE_PAYMENT_CONTROL_ENABLED=true
       - STRIPE_FIXTURE_PAYMENT_CONTROL_TOKEN=${ENVIRONMENT_DATA_TOKEN:?Generate the selected untracked environment file}
@@ -247,6 +251,22 @@ services:
     environment:
       - NODE_ENV=production
       - BFF_PASSWORD_RESET_RATE_MAXIMUM=100
+      - LEGAL_DOCUMENTS_REVIEWED=true
+      - LEGAL_EFFECTIVE_DATE=2026-08-15
+      - LEGAL_VERSION=2026-08-15
+      - LEGAL_ENTITY_TYPE=SOLE_TRADER
+      - TAX_STATUS=NOT_VAT_REGISTERED
+      - LEGAL_ENTITY_NAME=Local Acceptance Seller
+      - TRADING_NAME=Job Seeker Copilot Local Acceptance
+      - BUSINESS_ADDRESS=1 Acceptance Street, London, SW1A 1AA
+      - PRIVACY_EMAIL=privacy@local.jobseekercopilot.test
+      - SUPPORT_EMAIL=support@local.jobseekercopilot.test
+      - ICO_REGISTRATION_STATUS=NOT_REQUIRED_CONFIRMED
+      - ACCOUNT_DELETION_COMPLETION_DAYS=35
+      - DOCUMENT_DELETION_COMPLETION_DAYS=35
+      - SECURITY_LOG_RETENTION_DAYS=90
+      - SUPPORT_RECORD_RETENTION_DAYS=365
+      - FINANCIAL_RECORD_RETENTION_YEARS=7
 
 networks:
   host-access:

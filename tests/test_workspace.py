@@ -42,7 +42,7 @@ class CatalogTests(unittest.TestCase):
             self.assertEqual(ensure_environment(profile), output)
 
             text = output.read_text(encoding="utf-8")
-            self.assertIn("FIXTURE_DATASET_VERSION=1.1.0", text)
+            self.assertIn("FIXTURE_DATASET_VERSION=1.2.0", text)
             e2e_ports = {
                 name: value
                 for line in text.splitlines()

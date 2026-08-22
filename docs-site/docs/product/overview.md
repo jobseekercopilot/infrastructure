@@ -15,7 +15,7 @@ Job Seeker Copilot is a pre-release application for organising a job search. Its
 | Document management | Families, immutable versions, files, approvals/current choice, uploads, archive/restore, retention and recovery controls | <span class="status status--implemented">Implemented</span> |
 | Location lookup | UK place and postcode lookup through Postcodes.io or deterministic fixtures | <span class="status status--implemented">Implemented</span> |
 | Reporting | Application summary, activity timeline, UC-journal text, and evidence text download | <span class="status status--implemented">Implemented</span> |
-| Payments | AI-credit ledger and Stripe/fixture backend exist; browser routes are blocked | <span class="status status--disabled">Browser disabled</span> |
+| Payments | Non-renewing document-credit catalogue, wallet/history, owned Stripe Checkout and signed reconciliation; live charging remains approval-gated | <span class="status status--implemented">Implemented, release-gated</span> |
 | Commute routing | Rich route assessment through Google Maps | <span class="status status--incomplete">Not on develop</span> |
 | Specialist job sources | NHS Jobs and Find an apprenticeship, with visible provenance and apprenticeship details | <span class="status status--implemented">Implemented</span> |
 

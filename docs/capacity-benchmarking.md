@@ -81,6 +81,5 @@ The seven-profile `real-world-personas-v2` System Data state validates profile
 shape and lifecycle coverage. It is deliberately separate from this concurrent
 browser workload: persona variety is not a substitute for measured active
 sessions, and measured capacity must not be multiplied by persona count. The
-infrastructure E2E overlay is pinned to the current governed fixture dataset
-`1.1.0` so
-lifecycle preparation fails on genuine contract drift.
+infrastructure E2E overlay is pinned to the current governed multi-role fixture
+dataset `1.2.0` so lifecycle preparation fails on genuine contract drift.
