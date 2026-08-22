@@ -496,7 +496,15 @@ Resources:
             Effect: Allow
             Principal:
               AWS: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:root
-            Action: sns:*
+            Action:
+              - sns:AddPermission
+              - sns:DeleteTopic
+              - sns:GetTopicAttributes
+              - sns:ListSubscriptionsByTopic
+              - sns:Publish
+              - sns:RemovePermission
+              - sns:SetTopicAttributes
+              - sns:Subscribe
             Resource: !Ref OperationsTopic
           - Sid: AwsAlertPublishers
             Effect: Allow
