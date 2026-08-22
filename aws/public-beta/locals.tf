@@ -492,7 +492,7 @@ locals {
   zero_digest          = "sha256:${join("", [for _ in range(64) : "0"])}"
 
   frontend_release_ready = (
-    try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.revision, "") == "4a237103a0bbad9220d6d1ecb0c7de3d0d995565" &&
+    try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.revision, "") == "8a23b2ae88f291087748c676bb92ca91d14addaa" &&
     try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.artifactContractSha256, "") == "801fab5beb7ea81798677086ef00a94759294a1e85915f74da843632de2c6f75" &&
     try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.packaging, "") == "OCI_SSR_BFF" &&
     try(local.image_manifest.images["job-seeker-copilot-client"].revision, "") == try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.revision, "") &&

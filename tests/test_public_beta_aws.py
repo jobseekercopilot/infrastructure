@@ -1498,7 +1498,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
                 "payment-gateway": "99ee685a6809a254305a4cbb4dd92ba0fa7751bc",
                 "stripe-gateway": "04dd9fa7c095f65120afd37cfc11380176756216",
                 "system-data-service": "7b8f85d2ffa3e5e44b5ad63e7f0150fc4713d05f",
-                "job-seeker-copilot-client": "4a237103a0bbad9220d6d1ecb0c7de3d0d995565",
+                "job-seeker-copilot-client": "8a23b2ae88f291087748c676bb92ca91d14addaa",
                 "e2e": "e6d008572a9ddd9dfcff7170273362d88e7f7c94",
             },
         )
@@ -1549,7 +1549,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         self.assertFalse(images["capabilities"]["frontendArtifactsVerified"])
         self.assertEqual(images["dependencyEvidence"]["frontendArtifacts"], {
             "client": {
-                "revision": "4a237103a0bbad9220d6d1ecb0c7de3d0d995565",
+                "revision": "8a23b2ae88f291087748c676bb92ca91d14addaa",
                 "artifactContractSha256": "801fab5beb7ea81798677086ef00a94759294a1e85915f74da843632de2c6f75",
                 "packaging": "OCI_SSR_BFF",
             },
