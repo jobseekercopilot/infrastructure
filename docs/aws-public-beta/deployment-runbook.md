@@ -44,10 +44,11 @@ step.
 5. Execute the approved change set manually. Record the outputs in the three
    GitHub environments described in the bootstrap README.
 6. Protect `production-build`, `production-aws-plan` and `production-aws` for
-   `main` only, require a reviewer other than the dispatcher, and disable
-   administrator bypass. Record the settings-page evidence in the signed
-   `githubEnvironmentProtection` approval block because GitHub's environment
-   REST response does not expose that switch.
+   `main` only and disable administrator bypass. The current private-repository
+   plan returns HTTP 422 for required reviewers, so the approved sole-operator
+   fallback requires `jobseekercopilot` to be the workflow actor before OIDC is
+   issued. Record the API-visible settings and plan limitation in the signed
+   `githubEnvironmentProtection` approval block.
 7. Request/validate the exact `app.<domain>` ACM certificate through the
    separately reviewed account process and record its eu-west-2 ARN as
    `existing_certificate_arn`. Terraform certificate creation is intentionally

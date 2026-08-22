@@ -109,10 +109,10 @@ locals {
   github_environment_protection_complete = (
     try(local.github_environment_protection.reviewed, false) &&
     try(local.github_environment_protection.environments, []) == ["production-build", "production-aws-plan", "production-aws"] &&
-    try(local.github_environment_protection.reviewerUsername, "") == "jobseekercopilot" &&
-    try(local.github_environment_protection.requiredReviewersVerified, false) &&
-    !try(local.github_environment_protection.preventSelfReview, true) &&
-    try(local.github_environment_protection.soloOperatorSelfReviewAuthorised, false) &&
+    try(local.github_environment_protection.operatorUsername, "") == "jobseekercopilot" &&
+    !try(local.github_environment_protection.paidEnvironmentReviewerProtectionAvailable, true) &&
+    try(local.github_environment_protection.ownerOnlyWorkflowActorVerified, false) &&
+    try(local.github_environment_protection.soloOperatorSelfApprovalAuthorised, false) &&
     try(local.github_environment_protection.exactMainBranchVerified, false) &&
     try(local.github_environment_protection.administratorBypassDisabled, false) &&
     length(trimspace(try(local.github_environment_protection.reviewedBy, ""))) >= 3 &&
@@ -773,7 +773,7 @@ resource "terraform_data" "release_contract" {
 
     precondition {
       condition     = !var.public_entrypoint_enabled || local.github_environment_protection_complete
-      error_message = "Public activation requires substantive evidence that all three GitHub environments enforce the authorised solo reviewer, explicitly allow sole-operator self-review, restrict deployment to exact main and disable administrator bypass; the REST API alone cannot prove the final control."
+      error_message = "Public activation requires substantive evidence that all three GitHub environments enforce the approved owner-only workflow actor fallback, exact-main deployment and disabled administrator bypass."
     }
 
     precondition {

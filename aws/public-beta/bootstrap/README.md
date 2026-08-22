@@ -52,9 +52,10 @@ change set, local/object checksums, exact account/region and every named IAM
 resource before a separate approved execution. For an update use change-set
 type `UPDATE`; never fall back to an unversioned URL or inline template body.
 
-Record the outputs as protected GitHub environment variables. Create three
-GitHub environments with `jobseekercopilot` as the sole required reviewer,
-self-review allowed under the approved sole-operator policy, and a custom
+Record the outputs as protected GitHub environment variables. The current
+private-repository billing plan does not support required environment
+reviewers. Under the explicitly approved sole-operator fallback, create three
+GitHub environments with administrator bypass disabled and a custom
 deployment-branch policy that permits only the `main` branch:
 
 | Environment | Branch policy | Role output | Purpose |
@@ -66,17 +67,14 @@ deployment-branch policy that permits only the `main` branch:
 Develop and pull-request CI is account-free and receives no OIDC token. A merge
 to `develop` therefore cannot plan against or mutate AWS. The protected main
 workflow also requires an explicit dispatch and confirmation phrase. For the
-current one-person business, the required reviewer is the sole operator and
-self-review is an explicitly signed launch decision rather than a claim of
-independent review.
+current one-person business, the pre-OIDC guard requires the dispatcher to be
+the repository owner `jobseekercopilot`. This is an explicitly signed
+sole-operator launch decision, not a claim of independent review.
 Before any OIDC exchange, each protected workflow calls the GitHub API and
-fails closed unless those named-reviewer/self-review/branch settings are present.
-GitHub's documented environment REST response does not expose the
-administrator-bypass switch. Therefore `githubEnvironmentProtection` in the
-signed launch approval remains false until a human records a substantive
-settings-page evidence reference confirming that administrator bypass is
-disabled for all three environments. The API check proves only its documented
-reviewer, self-review and exact-main fields; it never claims the missing field.
+fails closed unless the owner actor, disabled administrator bypass and exact
+`main` branch settings are present. The signed `githubEnvironmentProtection`
+approval records the HTTP 422 reviewer-plan limitation and the approved
+owner-only fallback without claiming an independent reviewer.
 
 ECR repositories deliberately remain owned by the normal Terraform state, not
 split between CloudFormation and Terraform. They are created by the protected
