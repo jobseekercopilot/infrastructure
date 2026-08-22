@@ -482,7 +482,7 @@ locals {
     try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.artifactContractSha256, "") == "801fab5beb7ea81798677086ef00a94759294a1e85915f74da843632de2c6f75" &&
     try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.packaging, "") == "OCI_SSR_BFF" &&
     try(local.image_manifest.images["job-seeker-copilot-client"].revision, "") == try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.revision, "") &&
-    try(local.image_manifest.dependencyEvidence.frontendArtifacts.landing.revision, "") == "743e42475319330be70e4d6d8f47000f913626f9" &&
+    try(local.image_manifest.dependencyEvidence.frontendArtifacts.landing.revision, "") == "3888dd2b94d91b4f3d3fe9a7e24001f0966cf5ea" &&
     try(local.image_manifest.dependencyEvidence.frontendArtifacts.landing.artifactContractSha256, "") == "9682372ef2d909de3b2b49c6d0fed232565b61e1b1fe0ac666ace58bfdb0804f" &&
     alltrue([
       for digest in [

@@ -1544,7 +1544,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
                 "packaging": "OCI_SSR_BFF",
             },
             "landing": {
-                "revision": "743e42475319330be70e4d6d8f47000f913626f9",
+                "revision": "3888dd2b94d91b4f3d3fe9a7e24001f0966cf5ea",
                 "artifactContractSha256": "9682372ef2d909de3b2b49c6d0fed232565b61e1b1fe0ac666ace58bfdb0804f",
                 "staticArtifactSha256": "PENDING",
                 "runtimeConfigSha256": "PENDING",
