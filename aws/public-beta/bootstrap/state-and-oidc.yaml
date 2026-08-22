@@ -14,9 +14,17 @@ Parameters:
   GitHubOrganisation:
     Type: String
     Default: jobseekercopilot
+  GitHubOrganisationId:
+    Type: String
+    AllowedPattern: '^[0-9]+$'
+    Description: Immutable GitHub owner ID used in OIDC subjects for repositories created after 2026-07-15.
   GitHubRepository:
     Type: String
     Default: infrastructure
+  GitHubRepositoryId:
+    Type: String
+    AllowedPattern: '^[0-9]+$'
+    Description: Immutable GitHub repository ID used in OIDC subjects for repositories created after 2026-07-15.
   ExistingGitHubOidcProviderArn:
     Type: String
     Default: ''
@@ -817,7 +825,7 @@ Resources:
             Condition:
               StringEquals:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
-                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubOrganisation}/${GitHubRepository}:environment:${PlanEnvironmentName}
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubOrganisation}@${GitHubOrganisationId}/${GitHubRepository}@${GitHubRepositoryId}:environment:${PlanEnvironmentName}
       Policies:
         - PolicyName: StateRead
           PolicyDocument:
@@ -917,7 +925,7 @@ Resources:
             Condition:
               StringEquals:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
-                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubOrganisation}/${GitHubRepository}:environment:${BuildEnvironmentName}
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubOrganisation}@${GitHubOrganisationId}/${GitHubRepository}@${GitHubRepositoryId}:environment:${BuildEnvironmentName}
       Policies:
         - PolicyName: ImmutableReleaseImagePublisher
           PolicyDocument:
@@ -2533,7 +2541,7 @@ Resources:
             Condition:
               StringEquals:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
-                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubOrganisation}/${GitHubRepository}:environment:${ApplyEnvironmentName}
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubOrganisation}@${GitHubOrganisationId}/${GitHubRepository}@${GitHubRepositoryId}:environment:${ApplyEnvironmentName}
       ManagedPolicyArns:
         - !Ref ApplyDiscoveryPolicy
         - !Ref ApplyEc2NetworkPolicy
