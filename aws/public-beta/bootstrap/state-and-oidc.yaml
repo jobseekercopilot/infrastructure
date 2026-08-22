@@ -395,22 +395,6 @@ Resources:
             Condition:
               StringNotEquals:
                 s3:x-amz-server-side-encryption-aws-kms-key-id: !GetAtt ErasureJournalKey.Arn
-          - Sid: DenyMissingJournalBucketKey
-            Effect: Deny
-            Principal: '*'
-            Action: s3:PutObject
-            Resource: !Sub '${ErasureJournalBucket.Arn}/permanent-erasures/v1/*'
-            Condition:
-              'Null':
-                s3:x-amz-server-side-encryption-bucket-key-enabled: 'true'
-          - Sid: DenyDisabledJournalBucketKey
-            Effect: Deny
-            Principal: '*'
-            Action: s3:PutObject
-            Resource: !Sub '${ErasureJournalBucket.Arn}/permanent-erasures/v1/*'
-            Condition:
-              Bool:
-                s3:x-amz-server-side-encryption-bucket-key-enabled: 'false'
 
   NotificationKey:
     Type: AWS::KMS::Key
@@ -1100,8 +1084,6 @@ Resources:
               StringEquals:
                 s3:x-amz-server-side-encryption: aws:kms
                 s3:x-amz-server-side-encryption-aws-kms-key-id: !GetAtt ErasureJournalKey.Arn
-              Bool:
-                s3:x-amz-server-side-encryption-bucket-key-enabled: 'true'
           - Sid: ReadOnlyBoundErasureJournalRecords
             Effect: Allow
             Action:

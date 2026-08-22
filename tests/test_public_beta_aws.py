@@ -1683,11 +1683,9 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             ],
             "ErasureJournalKey.Arn",
         )
-        self.assertEqual(
-            journal_by_sid["DenyDisabledJournalBucketKey"]["Condition"]["Bool"][
-                "s3:x-amz-server-side-encryption-bucket-key-enabled"
-            ],
-            "false",
+        self.assertNotIn(
+            "s3:x-amz-server-side-encryption-bucket-key-enabled",
+            bootstrap_bytes.decode("utf-8"),
         )
         for statement in journal_policy:
             if statement["Sid"] != "DenyInsecureTransport":
