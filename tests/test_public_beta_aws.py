@@ -1483,13 +1483,13 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             {
                 "authentication-service": "5c67f6ef36478ffa6a4d2fcbb76c210478229651",
                 "user-management-gateway": "1c3ad16acbe7c4c6f18ea52493a14ffbfe614760",
-                "document-generation-gateway": "d0d0f37780d9f8fa0db1e9ea45e37c9bdccd5cb1",
-                "payment-service": "48bf0f8487d8f21049299c34987f5bde6c169c45",
-                "payment-gateway": "63527cb3ea286a48ba25c31e024304e9bfdfbc9c",
+                "document-generation-gateway": "74b55b675816f5415099fbfa82c526709d486ff2",
+                "payment-service": "b9428a00284cec3a1f9014be64cefd972b645afd",
+                "payment-gateway": "71bdb46a48910a7e30afefd63e3fcda171db9f51",
                 "stripe-gateway": "9ff7e15315797f2e4fac56783a00f9ae17036005",
                 "system-data-service": "7b8f85d2ffa3e5e44b5ad63e7f0150fc4713d05f",
-                "job-seeker-copilot-client": "146aea47bcc2d8550464ef2c95b56cc3bc82aa4e",
-                "e2e": "4806c5db5767579ab68dedd6fbe821dae241ff1a",
+                "job-seeker-copilot-client": "36e71873b25e25343de283846fe40dd498adcda2",
+                "e2e": "e6d008572a9ddd9dfcff7170273362d88e7f7c94",
             },
         )
         self.assertFalse(images["capabilities"]["paymentV2ProductionContractVerified"])
