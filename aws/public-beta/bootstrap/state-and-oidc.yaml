@@ -2224,7 +2224,7 @@ Resources:
     Type: AWS::IAM::ManagedPolicy
     Properties:
       ManagedPolicyName: jsc-public-beta-apply-observability
-      Description: Named and tagged public-beta alarms, dashboards, WAF and account-email event configuration; billing controls stay in the manual foundation.
+      Description: Named and tagged public-beta alarms, dashboards and WAF lifecycle; billing controls stay in the manual foundation.
       PolicyDocument:
         Version: '2012-10-17'
         Statement:

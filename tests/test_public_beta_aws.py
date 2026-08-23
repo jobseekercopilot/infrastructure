@@ -1876,6 +1876,13 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             "false",
         )
 
+        self.assertEqual(
+            resources["ApplyObservabilityPolicy"]["Properties"]["Description"],
+            (
+                "Named and tagged public-beta alarms, dashboards and WAF lifecycle; "
+                "billing controls stay in the manual foundation."
+            ),
+        )
         observability_statements = resources["ApplyObservabilityPolicy"]["Properties"]["PolicyDocument"]["Statement"]
         observability_by_sid = {statement["Sid"]: statement for statement in observability_statements}
         managed_waf = observability_by_sid["ReferenceOnlyAwsManagedWafRuleSets"]
