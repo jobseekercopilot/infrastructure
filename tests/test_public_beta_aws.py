@@ -1185,6 +1185,22 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         self.assertIn("uk.jobseekercopilot.rds-ca-sha256", build)
         self.assertIn("USER 10001:10001", build)
 
+    def test_release_build_reclaims_only_unused_cache_before_clamav(self) -> None:
+        build = (ROOT / "scripts" / "aws" / "build_release_images.sh").read_text(encoding="utf-8")
+        retained_inspection = 'docker image inspect "${retained_release_images[@]}" >/dev/null'
+        self.assertIn("mapfile -t retained_release_images", build)
+        self.assertIn('retained_release_images+=("$operator_image")', build)
+        self.assertEqual(build.count(retained_inspection), 2)
+        cache_reclaim = "docker builder prune --all --force >/dev/null"
+        self.assertEqual(build.count(cache_reclaim), 1)
+        self.assertNotIn("docker system prune", build)
+        self.assertNotIn("docker image prune", build)
+        self.assertNotIn("docker container prune", build)
+        self.assertLess(build.index("operator_image=jsc-release-release-operator"), build.index(retained_inspection))
+        self.assertLess(build.index(retained_inspection), build.index(cache_reclaim))
+        self.assertLess(build.index(cache_reclaim), build.rindex(retained_inspection))
+        self.assertLess(build.rindex(retained_inspection), build.index('docker pull "$clamav_image"'))
+
     def test_exact_locked_contract_hashes_reject_mutated_descendants(self) -> None:
         verifier_path = ROOT / "scripts" / "aws" / "verify_release_contract_hashes.py"
         spec = importlib.util.spec_from_file_location("verify_release_contract_hashes", verifier_path)
