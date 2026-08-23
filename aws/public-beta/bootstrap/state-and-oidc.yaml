@@ -1863,10 +1863,24 @@ Resources:
     Type: AWS::IAM::ManagedPolicy
     Properties:
       ManagedPolicyName: jsc-public-beta-apply-compute-launch
-      Description: Launch only the reviewed ECS AMI through the tagged public-beta launch template.
+      Description: Launch only the reviewed ECS AMI and delegate its required ASG managed tag.
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
+          - Sid: AllowEcsManagedTagOnReviewedAutoScalingGroup
+            Effect: Allow
+            Action: autoscaling:CreateOrUpdateTags
+            Resource: !Sub arn:${AWS::Partition}:autoscaling:${AWS::Region}:${AWS::AccountId}:autoScalingGroup:*:autoScalingGroupName/jsc-public-beta-ecs-*
+            Condition:
+              StringEquals:
+                aws:ResourceTag/Application: Job Seeker Copilot
+                aws:ResourceTag/Environment: public-beta
+                aws:ResourceTag/ManagedBy: Terraform
+              ForAllValues:StringEquals:
+                aws:TagKeys:
+                  - AmazonECSManaged
+              'Null':
+                aws:RequestTag/AmazonECSManaged: 'false'
           - Sid: RunOnlyReviewedEcsAmiFromLaunchTemplate
             Effect: Allow
             Action: ec2:RunInstances
@@ -2252,6 +2266,10 @@ Resources:
                 aws:ResourceTag/Application: Job Seeker Copilot
                 aws:ResourceTag/Environment: public-beta
                 aws:ResourceTag/ManagedBy: Terraform
+          - Sid: AllowWafDelegatedSetWebAcl
+            Effect: Allow
+            Action: elasticloadbalancing:SetWebACL
+            Resource: '*'
 
   ApplyReleaseOperationsPolicy:
     Type: AWS::IAM::ManagedPolicy
