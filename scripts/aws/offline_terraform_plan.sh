@@ -93,7 +93,7 @@ jq \
        | .value.scanStatus="PASSED"
        | .value.revision=(
            if .key == "clamav" then "1.4.5"
-           elif .key == "job-seeker-copilot-client" then "8a23b2ae88f291087748c676bb92ca91d14addaa"
+           elif .key == "job-seeker-copilot-client" then "3cdb1dec9f6a8b78dbf4c576fdc960ff00aa111a"
            else $sourceRevision
            end
          )
