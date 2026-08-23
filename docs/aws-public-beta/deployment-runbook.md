@@ -86,9 +86,11 @@ Complete the [launch checklist](launch-checklist.md). In particular:
   then into its reviewed `main` release;
 - include the tested Postcodes NI/BT licensing-gate commit
   `f5588e5b0a2ca9e63319674f4b6cd40048b9e0fb`, Location Service commit
-  `91857140c71bfda8b807c535272f918fe7741263` and Location Gateway commit
-  `777ec7e8885fcb07368e05ad2543181e4ef7a891`, with their exact exported
-  OpenAPI hashes. Authentication payment-lifecycle evidence is pinned to
+  `4d8d09a79018c3f281cfead84348d14ed84be851` and Location Gateway commit
+  `86b2805c8430ede14a53a7320b87f0eeb2797b17`, with exported OpenAPI SHA-256
+  `0cd7a877836dfbf1a42b5f71e0a807ec8dc99f88d69a695d7c5734e320cdef27`
+  and `30d71d6b2508c7cbd452b522c30c26bfa7a571e1f1ebcda979008422db469cfc`
+  respectively. Authentication payment-lifecycle evidence is pinned to
   `d447addae21714f51267c0ab073377c24e3cfe81` and OpenAPI SHA-256
   `8ef5f12a32e836c2046fb163944b62d76cea31e389612408ca6ed1d1ccc42884`,
   while UMG export/lifecycle evidence is `5dc8aa1e7afb9492a96d3dedde847c530b6209b0`
@@ -112,11 +114,15 @@ Complete the [launch checklist](launch-checklist.md). In particular:
   production profile rejects `FIXTURE`, `DISABLED` registers no conditional
   fixture control/provider beans and returns 404 for the control route. No
   fixture token/signing secret enters a production task or public OpenAPI;
-- update `config/workspace-lock.json` to the tested release revisions;
+- update `config/workspace-lock.json` to the tested release revisions,
+  including LLM Gateway `d84427061766244ec10e367fb3a7a6587809612c`
+  and Client `5e923c815e585e433573f50ba0395e71302785ca`;
 - prove the pinned Client/Landing revisions and artifact-contract SHA-256 values
   are ancestors of protected `main`. The protected build replaces the generated
   Landing static/runtime-config/SAM `PENDING` hashes. Client remains one SSR/BFF
   OCI artifact; Landing remains a non-deployed static/config/SAM evidence bundle;
+- bind the protected Client legal-artifact checksum to
+  `040e208e49e9b12d8504fc3fe2b4f9ccd864f6a0d209475b77881e8b44b77b30`;
 - pin an official RDS CA bundle URL and SHA-256, and prove every DB-owning
   image plus the release operator has that exact file at
   `/etc/jsc/rds/global-bundle.pem`;

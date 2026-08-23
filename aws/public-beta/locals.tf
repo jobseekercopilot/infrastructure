@@ -506,7 +506,7 @@ locals {
   zero_digest          = "sha256:${join("", [for _ in range(64) : "0"])}"
 
   frontend_release_ready = (
-    try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.revision, "") == "3cdb1dec9f6a8b78dbf4c576fdc960ff00aa111a" &&
+    try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.revision, "") == "5e923c815e585e433573f50ba0395e71302785ca" &&
     try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.artifactContractSha256, "") == "801fab5beb7ea81798677086ef00a94759294a1e85915f74da843632de2c6f75" &&
     try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.packaging, "") == "OCI_SSR_BFF" &&
     try(local.image_manifest.images["job-seeker-copilot-client"].revision, "") == try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.revision, "") &&
@@ -548,11 +548,11 @@ locals {
         openApiSha256 = "8321009c305d2d22986224e366df6f0b451c1b5587d05dd0ec4876441e09d7ff"
       }
       locationService = {
-        revision      = "91857140c71bfda8b807c535272f918fe7741263"
-        openApiSha256 = "cd74fbf278c710a2782bbbe6473f9f708a19b6dd9329f42927ce302bb53f5f6b"
+        revision      = "4d8d09a79018c3f281cfead84348d14ed84be851"
+        openApiSha256 = "0cd7a877836dfbf1a42b5f71e0a807ec8dc99f88d69a695d7c5734e320cdef27"
       }
       locationGateway = {
-        revision      = "777ec7e8885fcb07368e05ad2543181e4ef7a891"
+        revision      = "86b2805c8430ede14a53a7320b87f0eeb2797b17"
         openApiSha256 = "30d71d6b2508c7cbd452b522c30c26bfa7a571e1f1ebcda979008422db469cfc"
       }
     } &&
