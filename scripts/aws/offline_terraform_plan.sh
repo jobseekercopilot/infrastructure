@@ -138,12 +138,14 @@ reviewed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 legal_version="uk-public-beta-$review_date"
 client_legal_sha=$(printf '6%.0s' {1..64})
 landing_legal_sha=$(printf '7%.0s' {1..64})
+restore_evidence_sha=$(printf 'a%.0s' {1..64})
 jq \
   --arg reviewedAt "$reviewed_at" \
   --arg reviewDate "$review_date" \
   --arg legalVersion "$legal_version" \
   --arg clientLegalSha "$client_legal_sha" \
   --arg landingLegalSha "$landing_legal_sha" \
+  --arg restoreEvidenceSha "$restore_evidence_sha" \
   '.reviewedAt=$reviewedAt
    | .githubEnvironmentProtection += {
        reviewed:true,
@@ -168,7 +170,8 @@ jq \
        maximumBackupRetentionDays:35,
        journalRetentionDays:90,
        externalDeletionJournalVerified:true,
-       isolatedRestoreReplayVerified:true
+       isolatedRestoreReplayVerified:true,
+       restoreDrillEvidenceSha256:$restoreEvidenceSha
      }
    | .publicLegal += {
        reviewed:true,

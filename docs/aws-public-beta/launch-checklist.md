@@ -57,14 +57,21 @@ Terraform plan or AWS credit award alone is not launch approval.
       apply role has no ACM write/delete access.
 - [ ] State bucket public-access block, versioning, KMS encryption and native
       lock file are verified; a state recovery exercise is recorded.
-- [ ] `production-build`, `production-aws-plan` and `production-aws` allow only
+- [ ] `production-build`, `production-aws-plan`, `production-aws`,
+      `production-aws-restore` and `production-aws-restore-cleanup` allow only
       `main`, disable administrator bypass, and have no unsupported reviewer
       rule. The paid reviewer control is unavailable for the current private
       repository plan; the explicitly approved fallback requires
       `jobseekercopilot` to be the workflow actor before OIDC is issued, in
       addition to the exact manual confirmation phrase.
-- [ ] Plan, build and apply OIDC role policies match the reviewed bootstrap
-      output; there are no static AWS access keys in GitHub or tasks.
+- [ ] The manually executed bootstrap change set exposes the plan, build,
+      apply, restore-initiator and restore-cleanup role outputs. Each protected
+      environment has only its matching role ARN and required non-secret
+      inputs; there are no static AWS access keys in GitHub or tasks. The
+      restore initiator can start/observe but not delete, the cleanup role can
+      delete exact drill resources but not start, and only the boundary-
+      constrained `jsc-public-beta-backup-restore` service role is passed to
+      AWS Backup.
 - [ ] The source-build job has no OIDC permission/AWS credentials; only the
       separate publisher loads the checksum-bound prepared archive and assumes
       the build role. No repository build/test code runs in that publisher.
@@ -80,10 +87,12 @@ Terraform plan or AWS credit award alone is not launch approval.
       signatures match and are no more than 48 hours old. The preloaded image,
       initial update/reload and subsequent idempotent health pass were exercised;
       signatures remain ephemeral cache data and are never a backup dependency.
-- [ ] The downloaded release artifact's GitHub attestation, successful build
-      run, manifest digest and workspace-lock digest all match. A forward
-      release uses the exact current `main` SHA; a rollback additionally proves
-      the historical build SHA is an ancestor and hashes its historical lock.
+- [ ] The downloaded final release artifact's GitHub attestation, successful
+      build run, manifest digest and workspace-lock digest all match, and its
+      provenance says `buildPurpose=release` rather than `restore-candidate`.
+      A forward release uses the exact current `main` SHA; a rollback
+      additionally proves the historical build SHA is an ancestor and hashes
+      its historical lock.
 - [ ] The Landing static tar, embedded `config/app-config.json` and selected SAM
       copy match their signed SHA-256 values. Its exact reviewed legal/runtime
       values match the protected approval manifest, whose checksum is also
@@ -178,18 +187,50 @@ Terraform plan or AWS credit award alone is not launch approval.
       managed policies match the reviewed
       `aws-backup-managed-policy-contract.json`; any AWS-side policy revision
       was independently reviewed before the release preflight was rerun.
-- [ ] Latest RDS/S3 backup jobs succeeded, restore-role access is controlled,
-      and a quarterly isolated restore drill meeting the declared RPO/RTO is
-      recorded.
-- [ ] Permanent-erasure readiness v2 is `READY` for the exact reviewed
+- [ ] Latest RDS/S3 backup jobs succeeded. An attested
+      `purpose=restore-candidate` build from unchanged protected `main` was
+      created before the drill; the drill used its exact run/release IDs and
+      completed tagged RDS/S3 recovery points from the reviewed window. The
+      candidate was never treated as a releasable artifact.
+- [ ] The protected restore workflow created a versioned, ACL-free,
+      public-blocked, exact-key SSE-KMS destination; restored private RDS with
+      the dedicated security group; and requested S3
+      `RestoreLatestVersionsUpTo=all`. `observe` proved only the completed jobs
+      and destination controls. Separately reviewed ephemeral application,
+      seven-database, domain/payment, document-integrity and erasure-replay
+      verification supplied the remaining RPO/RTO evidence.
+- [ ] Permanent-erasure readiness v3 is `READY` for the exact reviewed
       document, backup and independently reviewed journal-retention policy
       versions. The 35-day maximum matches the foundation Backup plan; the
       machine-written Object-Locked journal is outside that restore blast
       radius; and `recoveryJournalWritePending`,
       `recoveryJournalEvidenceMissing`, `liveErasureReconciliationPending`,
       `restoreJournalReadPending`, `restoreReplayPending` and
-      `backupRetentionPending` are all zero. A completed isolated restore
-      replay and fresh backup-expiry attestation are recorded before traffic.
+      `backupRetentionOverdue` are all zero. `backupRetentionPending` is a
+      non-negative informational count and may be greater than zero only for
+      erasures still inside the allowed recovery window; it is not treated as
+      overdue.
+- [ ] After evidence retention, cleanup was separately dispatched through
+      `production-aws-restore-cleanup` with
+      `DELETE ISOLATED RESTORE DRILL <drill-id>`. The exact drill RDS target and
+      every S3 version/delete marker were removed before the bucket, and the
+      evidence/live record says `COMPLETED`; neither `observe`, evidence
+      validation nor the final build was misreported as cleanup.
+- [ ] The reviewed `jsc-public-beta-restore-drill-evidence.v1` bytes bind the
+      candidate Document Store revision, OpenAPI hash and image digest, the
+      same-window completed jobs, isolation, all-version S3 controls, semantic
+      checks, readiness v3 replay and truthful completed cleanup. Its signed
+      reference is retained, its SHA-256 exactly matches
+      `documentStorePermanentErasure.restoreDrillEvidenceSha256`, and the same
+      bytes are present in protected `RESTORE_DRILL_EVIDENCE_B64` for build,
+      plan and apply validation.
+- [ ] The exact candidate was promoted with `purpose=release` only after that
+      signed/hash-bound evidence and approval update, using the same candidate
+      release ID/build run. Promotion made no AWS call and did not rebuild or
+      republish images. Its `promotedFrom` hash, release ID, Infrastructure
+      revision, Document Store revision, OpenAPI hash and image digest still
+      match the drill; otherwise the drill was repeated. Only this newly
+      attested release artifact is selected for private prepare and activation.
 - [ ] The complete stateful-path inventory was reviewed: no required durable
       data depends on a container or EC2-host filesystem.
 - [ ] Key/secret rotation owners, account-removal retention, S3 quarantine

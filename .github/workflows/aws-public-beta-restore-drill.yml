@@ -1,0 +1,170 @@
+name: AWS Public Beta Isolated Restore Drill
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Start/observe use the restore initiator; cleanup uses a separate deletion-only role.
+        required: true
+        type: choice
+        options: [start, observe, cleanup]
+      drill_id:
+        description: 8-32 lowercase letters, digits or interior hyphens; binds every isolated destination.
+        required: true
+        type: string
+      candidate_build_run_id:
+        description: Successful restore-candidate build run; required only for start.
+        required: false
+        type: string
+      release_id:
+        description: Exact restore-candidate release ID; required only for start.
+        required: false
+        type: string
+      rds_recovery_point_arn:
+        description: Completed RDS recovery point from the customer-data vault; required only for start.
+        required: false
+        type: string
+      s3_recovery_point_arn:
+        description: Completed S3 recovery point from the same reviewed window; required only for start.
+        required: false
+        type: string
+      restore_security_group_id:
+        description: Reviewed isolated no-ingress verification security group; required for start/observe.
+        required: false
+        type: string
+      rds_restore_job_id:
+        description: Exact job ID emitted by start; required only for observe.
+        required: false
+        type: string
+      s3_restore_job_id:
+        description: Exact job ID emitted by start; required only for observe.
+        required: false
+        type: string
+      confirmation:
+        description: Exact START/OBSERVE/DELETE phrase from the runbook followed by the drill ID.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jsc-public-beta-restore-drill
+  cancel-in-progress: false
+
+jobs:
+  restore:
+    if: github.ref == 'refs/heads/main' && (inputs.action == 'start' || inputs.action == 'observe')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    environment: production-aws-restore
+    permissions:
+      actions: read
+      attestations: read
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify protected restore environment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/aws/verify_github_environment_protection.sh "$GITHUB_REPOSITORY" production-aws-restore "$GITHUB_REPOSITORY_OWNER" "$GITHUB_ACTOR"
+      - name: Download immutable restore candidate
+        if: inputs.action == 'start'
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: public-beta-restore-candidate-${{ inputs.release_id }}
+          path: ${{ runner.temp }}/restore-candidate
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.candidate_build_run_id }}
+      - name: Verify candidate origin and signed provenance
+        if: inputs.action == 'start'
+        env:
+          BUILD_RUN_ID: ${{ inputs.candidate_build_run_id }}
+          EXPECTED_RELEASE_ID: ${{ inputs.release_id }}
+          GH_TOKEN: ${{ github.token }}
+          MANIFEST: ${{ runner.temp }}/restore-candidate/image-manifest.json
+          PROVENANCE: ${{ runner.temp }}/restore-candidate/provenance.json
+        run: |
+          case "$BUILD_RUN_ID" in *[!0-9]*|'') echo "Invalid candidate build run ID" >&2; exit 2;; esac
+          run_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${BUILD_RUN_ID}")"
+          test "$(jq -r .name <<<"$run_json")" = 'AWS Public Beta Immutable Build'
+          test "$(jq -r .event <<<"$run_json")" = workflow_dispatch
+          test "$(jq -r .head_branch <<<"$run_json")" = main
+          test "$(jq -r .head_sha <<<"$run_json")" = "$GITHUB_SHA"
+          test "$(jq -r .conclusion <<<"$run_json")" = success
+          test "$(jq -r .releaseId "$MANIFEST")" = "$EXPECTED_RELEASE_ID"
+          test "$(jq -r .releaseId "$PROVENANCE")" = "$EXPECTED_RELEASE_ID"
+          test "$(jq -r .buildPurpose "$PROVENANCE")" = restore-candidate
+          test "$(jq -r .infrastructureRevision "$PROVENANCE")" = "$GITHUB_SHA"
+          test "$(jq -r .imageManifestSha256 "$PROVENANCE")" = "$(sha256sum "$MANIFEST" | cut -d' ' -f1)"
+          gh attestation verify "$MANIFEST" --repo "$GITHUB_REPOSITORY"
+      - name: Configure restore-initiator AWS role
+        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5
+        with:
+          role-to-assume: ${{ vars.AWS_RESTORE_DRILL_ROLE_ARN }}
+          aws-region: eu-west-2
+          role-session-name: jsc-${{ github.run_id }}-restore-${{ inputs.action }}
+          role-duration-seconds: 10800
+      - name: Start or observe isolated restore
+        env:
+          AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+          AWS_BACKUP_RESTORE_ROLE_ARN: ${{ vars.AWS_BACKUP_RESTORE_ROLE_ARN }}
+          AWS_DATA_KMS_KEY_ARN: ${{ vars.AWS_DATA_KMS_KEY_ARN }}
+          AWS_REGION: eu-west-2
+          IMAGE_MANIFEST: ${{ runner.temp }}/restore-candidate/image-manifest.json
+          PROVENANCE: ${{ runner.temp }}/restore-candidate/provenance.json
+          RDS_RECOVERY_POINT_ARN: ${{ inputs.rds_recovery_point_arn }}
+          RDS_RESTORE_JOB_ID: ${{ inputs.rds_restore_job_id }}
+          RESTORE_DRILL_CONFIRMATION: ${{ inputs.confirmation }}
+          RESTORE_DRILL_ID: ${{ inputs.drill_id }}
+          RESTORE_DRILL_OUTPUT_DIRECTORY: ${{ runner.temp }}/restore-evidence
+          RESTORE_SECURITY_GROUP_ID: ${{ inputs.restore_security_group_id }}
+          S3_RECOVERY_POINT_ARN: ${{ inputs.s3_recovery_point_arn }}
+          S3_RESTORE_JOB_ID: ${{ inputs.s3_restore_job_id }}
+        run: scripts/aws/run_backup_restore_drill.sh '${{ inputs.action }}'
+      - name: Upload non-secret restore-start evidence
+        if: inputs.action == 'start'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: public-beta-restore-start-${{ inputs.drill_id }}
+          path: ${{ runner.temp }}/restore-evidence/
+          if-no-files-found: error
+          retention-days: 90
+
+  cleanup:
+    if: github.ref == 'refs/heads/main' && inputs.action == 'cleanup'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    environment: production-aws-restore-cleanup
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify protected cleanup environment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/aws/verify_github_environment_protection.sh "$GITHUB_REPOSITORY" production-aws-restore-cleanup "$GITHUB_REPOSITORY_OWNER" "$GITHUB_ACTOR"
+      - name: Configure deletion-only cleanup AWS role
+        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5
+        with:
+          role-to-assume: ${{ vars.AWS_RESTORE_CLEANUP_ROLE_ARN }}
+          aws-region: eu-west-2
+          role-session-name: jsc-${{ github.run_id }}-restore-cleanup
+          role-duration-seconds: 10800
+      - name: Delete only the exact isolated drill resources
+        env:
+          AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+          AWS_BACKUP_RESTORE_ROLE_ARN: ${{ vars.AWS_BACKUP_RESTORE_ROLE_ARN }}
+          AWS_REGION: eu-west-2
+          RESTORE_DRILL_CONFIRMATION: ${{ inputs.confirmation }}
+          RESTORE_DRILL_ID: ${{ inputs.drill_id }}
+        run: scripts/aws/run_backup_restore_drill.sh cleanup

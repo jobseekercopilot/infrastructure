@@ -4,16 +4,26 @@ on:
   workflow_dispatch:
     inputs:
       release_id:
-        description: Optional YYYYMMDDTHHMMSSZ-GITSHA release ID; blank derives one from main.
+        description: Candidate release ID (optional/derived for restore-candidate; exact existing candidate ID for release promotion).
         required: false
         type: string
+      candidate_build_run_id:
+        description: Successful restore-candidate build run ID; required only when purpose=release.
+        required: false
+        type: string
+      purpose:
+        description: Restore candidate permits only the isolated drill evidence to remain pending; release requires it.
+        required: true
+        default: restore-candidate
+        type: choice
+        options: [release, restore-candidate]
 
 permissions:
   contents: read
 
 jobs:
   prepare:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && inputs.purpose == 'restore-candidate'
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     environment: production-build
@@ -141,7 +151,7 @@ jobs:
 
   publish:
     needs: prepare
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && inputs.purpose == 'restore-candidate'
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     environment: production-build
@@ -215,7 +225,127 @@ jobs:
       - name: Upload immutable release evidence
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: public-beta-release-${{ needs.prepare.outputs.release_id }}
+          name: public-beta-restore-candidate-${{ needs.prepare.outputs.release_id }}
+          path: |
+            ${{ runner.temp }}/public-beta-release/image-manifest.json
+            ${{ runner.temp }}/public-beta-release/provenance.json
+            ${{ runner.temp }}/public-beta-release/landing-artifact.json
+            ${{ runner.temp }}/public-beta-release/landing-static.tar
+            ${{ runner.temp }}/public-beta-release/landing-waitlist-backend-template.yaml
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
+
+  promote:
+    if: github.ref == 'refs/heads/main' && inputs.purpose == 'release'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment: production-build
+    permissions:
+      actions: read
+      attestations: read
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Check out exact main source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify protected production environment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/aws/verify_github_environment_protection.sh "$GITHUB_REPOSITORY" production-build "$GITHUB_REPOSITORY_OWNER" "$GITHUB_ACTOR"
+      - name: Download exact attested restore candidate
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: public-beta-restore-candidate-${{ inputs.release_id }}
+          path: ${{ runner.temp }}/public-beta-release
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.candidate_build_run_id }}
+      - name: Verify candidate origin, purpose and immutable digests
+        env:
+          BUILD_RUN_ID: ${{ inputs.candidate_build_run_id }}
+          EXPECTED_RELEASE_ID: ${{ inputs.release_id }}
+          GH_TOKEN: ${{ github.token }}
+          MANIFEST: ${{ runner.temp }}/public-beta-release/image-manifest.json
+          PROVENANCE: ${{ runner.temp }}/public-beta-release/provenance.json
+          LANDING_ARCHIVE: ${{ runner.temp }}/public-beta-release/landing-static.tar
+          LANDING_METADATA: ${{ runner.temp }}/public-beta-release/landing-artifact.json
+          LANDING_SAM_TEMPLATE: ${{ runner.temp }}/public-beta-release/landing-waitlist-backend-template.yaml
+        run: |
+          case "$BUILD_RUN_ID" in *[!0-9]*|'') echo "Invalid candidate build run ID" >&2; exit 2;; esac
+          run_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${BUILD_RUN_ID}")"
+          test "$(jq -r .name <<<"$run_json")" = 'AWS Public Beta Immutable Build'
+          test "$(jq -r .event <<<"$run_json")" = workflow_dispatch
+          test "$(jq -r .head_branch <<<"$run_json")" = main
+          test "$(jq -r .head_sha <<<"$run_json")" = "$GITHUB_SHA"
+          test "$(jq -r .conclusion <<<"$run_json")" = success
+          test "$(jq -r .releaseId "$MANIFEST")" = "$EXPECTED_RELEASE_ID"
+          test "$(jq -r .releaseId "$PROVENANCE")" = "$EXPECTED_RELEASE_ID"
+          test "$(jq -r .buildPurpose "$PROVENANCE")" = restore-candidate
+          test "$(jq -r .infrastructureRevision "$PROVENANCE")" = "$GITHUB_SHA"
+          test "$(jq -r .workspaceLockSha256 "$PROVENANCE")" = "$(sha256sum config/workspace-lock.json | cut -d' ' -f1)"
+          test "$(jq -r .imageManifestSha256 "$PROVENANCE")" = "$(sha256sum "$MANIFEST" | cut -d' ' -f1)"
+          gh attestation verify "$MANIFEST" --repo "$GITHUB_REPOSITORY"
+          scripts/aws/verify_frontend_release_artifact.sh \
+            "$MANIFEST" "$PROVENANCE" "$LANDING_ARCHIVE" "$LANDING_METADATA" "$LANDING_SAM_TEMPLATE"
+      - name: Prepare protected final approval and completed restore evidence
+        env:
+          LAUNCH_APPROVALS_B64: ${{ secrets.LAUNCH_APPROVALS_B64 }}
+          RESTORE_DRILL_EVIDENCE_B64: ${{ secrets.RESTORE_DRILL_EVIDENCE_B64 }}
+        run: |
+          umask 077
+          printenv LAUNCH_APPROVALS_B64 | base64 --decode > "${RUNNER_TEMP}/launch-approvals.json"
+          printenv RESTORE_DRILL_EVIDENCE_B64 | base64 --decode > "${RUNNER_TEMP}/restore-drill-evidence.json"
+          jq -e 'type == "object"' "${RUNNER_TEMP}/launch-approvals.json" >/dev/null
+          jq -e 'type == "object"' "${RUNNER_TEMP}/restore-drill-evidence.json" >/dev/null
+      - name: Promote exact candidate digests without rebuilding or AWS access
+        env:
+          BUILD_RUN_ID: ${{ inputs.candidate_build_run_id }}
+          MANIFEST: ${{ runner.temp }}/public-beta-release/image-manifest.json
+          PROVENANCE: ${{ runner.temp }}/public-beta-release/provenance.json
+          APPROVALS: ${{ runner.temp }}/launch-approvals.json
+          EVIDENCE: ${{ runner.temp }}/restore-drill-evidence.json
+          LANDING_ARCHIVE: ${{ runner.temp }}/public-beta-release/landing-static.tar
+          LANDING_METADATA: ${{ runner.temp }}/public-beta-release/landing-artifact.json
+          LANDING_SAM_TEMPLATE: ${{ runner.temp }}/public-beta-release/landing-waitlist-backend-template.yaml
+        run: |
+          umask 077
+          promotion_directory="${RUNNER_TEMP}/restore-candidate-promotion"
+          python3 scripts/aws/promote_restore_candidate.py \
+            --candidate-image-manifest "$MANIFEST" \
+            --candidate-provenance "$PROVENANCE" \
+            --approval-manifest "$APPROVALS" \
+            --candidate-build-run-id "$BUILD_RUN_ID" \
+            --promoted-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --output-directory "$promotion_directory"
+          mv "$promotion_directory/image-manifest.json" "$MANIFEST"
+          mv "$promotion_directory/provenance.json" "$PROVENANCE"
+          rmdir "$promotion_directory"
+          python3 scripts/aws/validate_restore_drill_evidence.py \
+            --evidence "$EVIDENCE" \
+            --image-manifest "$MANIFEST" \
+            --expected-infrastructure-revision "$GITHUB_SHA" \
+            --require-cleanup
+          python3 scripts/aws/validate_public_beta.py --release \
+            --image-manifest "$MANIFEST" \
+            --approval-manifest "$APPROVALS" \
+            --landing-archive "$LANDING_ARCHIVE" \
+            --restore-drill-evidence "$EVIDENCE" \
+            --infrastructure-revision "$GITHUB_SHA"
+          scripts/aws/verify_frontend_release_artifact.sh \
+            "$MANIFEST" "$PROVENANCE" "$LANDING_ARCHIVE" "$LANDING_METADATA" "$LANDING_SAM_TEMPLATE"
+          chmod 0444 "$MANIFEST" "$PROVENANCE"
+      - name: Attest the evidence-bound release manifest
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
+        with:
+          subject-path: ${{ runner.temp }}/public-beta-release/image-manifest.json
+      - name: Upload immutable release evidence
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: public-beta-release-${{ inputs.release_id }}
           path: |
             ${{ runner.temp }}/public-beta-release/image-manifest.json
             ${{ runner.temp }}/public-beta-release/provenance.json

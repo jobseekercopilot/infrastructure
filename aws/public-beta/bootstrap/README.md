@@ -69,15 +69,21 @@ policies cannot accept its events.
 
 Record the outputs as protected GitHub environment variables. The current
 private-repository billing plan does not support required environment
-reviewers. Under the explicitly approved sole-operator fallback, create three
+reviewers. Under the explicitly approved sole-operator fallback, create five
 GitHub environments with administrator bypass disabled and a custom
-deployment-branch policy that permits only the `main` branch:
+deployment-branch policy that permits only the `main` branch. Retain the exact
+`RestoreEnvironmentName=production-aws-restore` and
+`RestoreCleanupEnvironmentName=production-aws-restore-cleanup` inputs: those
+names are part of the OIDC subjects, workflow checks and signed approval, not
+aliases an operator may choose locally.
 
 | Environment | Branch policy | Role output | Purpose |
 |---|---|---|---|
 | `production-aws-plan` | `main` only | `PlanRoleArn` | refresh-backed release plan; never apply |
 | `production-build` | `main` only | `BuildRoleArn` | credential-free source preparation followed by isolated immutable ECR publication |
 | `production-aws` | `main` only | `ApplyRoleArn` | reviewed infrastructure apply and one-shot release operations |
+| `production-aws-restore` | `main` only | `RestoreDrillRoleArn` | create/protect exact drill buckets and start/observe isolated AWS Backup restores; no destination deletion |
+| `production-aws-restore-cleanup` | `main` only | `RestoreCleanupRoleArn` | delete only exact drill-prefixed RDS/S3 destinations and all S3 versions; no restore start/pass-role |
 
 Develop and pull-request CI is account-free and receives no OIDC token. A merge
 to `develop` therefore cannot plan against or mutate AWS. The protected main
@@ -100,6 +106,26 @@ exist. This ordered boundary avoids both an uninitialised-backend cycle and an
 unreviewed import/split-ownership cycle. GitHub production environments are
 also human-created prerequisites: this AWS template cannot create or claim
 their branch/reviewer protection.
+
+The restore identities have three deliberately different duties. The GitHub
+restore-initiator role is trusted only by `production-aws-restore` and may pass
+only `jsc-public-beta-backup-restore` to AWS Backup. That service role remains
+constrained by `BackupRestorePermissionsBoundaryArn` to private drill-named
+destinations and cannot create the destination bucket. Its boundary retains
+the AWS-managed policies' service-required `rds:DeleteDBInstance` and
+`s3:DeleteObject` actions only within those prefixes, but not version or bucket
+deletion; those service lifecycle actions are not the human cleanup route. The
+initiator therefore creates and verifies the exact versioned, public-blocked,
+BucketOwnerEnforced, exact-key SSE-KMS bucket before it starts a job, but has no
+direct destination-delete actions. The GitHub cleanup role is trusted only by
+`production-aws-restore-cleanup`; it has no `backup:StartRestoreJob` or
+`iam:PassRole`, and can delete only drill-prefixed RDS instances plus objects,
+versions, delete markers, policies and buckets. A separate cleanup dispatch and
+typed `DELETE ISOLATED RESTORE DRILL <drill-id>` phrase are required after
+evidence retention. Defining these roles here does not update an existing
+stack: an administrator must execute a reviewed CloudFormation `UPDATE` change
+set and separately configure both GitHub environments before the drill workflow
+can use them.
 
 The service-bound apply role deliberately is not an account administrator.
 Workload roles must use a bootstrap-created permissions boundary; role
@@ -212,7 +238,7 @@ or workflow invents their values.
 
 | Environment | Name | Kind | Purpose |
 |---|---|---|---|
-| all three | `AWS_ACCOUNT_ID` where used | variable | exact 12-digit target account |
+| all five | `AWS_ACCOUNT_ID` where used | variable | exact 12-digit target account |
 | `production-build` | `AWS_BUILD_ROLE_ARN` | variable | `BuildRoleArn` output |
 | `production-build` | `RELEASE_READER_APP_ID` | variable | contents-read-only cross-repository GitHub App |
 | `production-build` | `RELEASE_READER_APP_PRIVATE_KEY` | secret | GitHub App private key; never an AWS key |
@@ -220,6 +246,7 @@ or workflow invents their values.
 | `production-build` | `RDS_CA_BUNDLE_URL` / `RDS_CA_BUNDLE_SHA256` | variables | official trust bundle and reviewed checksum |
 | `production-build` | `LANDING_RUNTIME_ENV_B64` | protected secret | exact reviewed non-secret Landing generation JSON |
 | build, plan and apply | `LAUNCH_APPROVALS_B64` | protected secret | byte-identical reviewed approval JSON; signed hash must match |
+| build, plan and apply | `RESTORE_DRILL_EVIDENCE_B64` | protected secret | exact reviewed non-secret restore/replay evidence; required for final `purpose=release`, plan and mutations, and SHA-256-bound by the launch approval |
 | `production-aws-plan` | `AWS_PLAN_ROLE_ARN` | variable | `PlanRoleArn` output |
 | `production-aws` | `AWS_APPLY_ROLE_ARN` | variable | `ApplyRoleArn` output |
 | `production-aws` | `WORKLOAD_PERMISSIONS_BOUNDARY_ARN` | variable/evidence | `WorkloadPermissionsBoundaryArn`; must match standard Terraform workload roles |
@@ -235,6 +262,10 @@ or workflow invents their values.
 | plan and apply | `foundation_approved_ecs_ami_id` | protected tfvars | `ApprovedEcsAmiId`; must equal the reviewed `ecs_ami_id` |
 | plan and apply | `foundation_monthly_alert_budget_usd` | protected tfvars | exact retained `MonthlyAlertBudgetUsd` output; default and current public-beta ceiling are USD 750 |
 | plan and apply | `PUBLIC_BETA_TFVARS_B64` | protected secret | reviewed non-secret Terraform input file |
+| `production-aws-restore` | `AWS_RESTORE_DRILL_ROLE_ARN` | variable | exact `RestoreDrillRoleArn` output; restore initiation/observation only |
+| restore and cleanup | `AWS_BACKUP_RESTORE_ROLE_ARN` | variable | exact `arn:aws:iam::<account>:role/jsc-public-beta-backup-restore`; passed only by initiation and checked as an invariant by cleanup |
+| `production-aws-restore` | `AWS_DATA_KMS_KEY_ARN` | variable/evidence | exact `ApplicationDataKeyArn` output used to protect the workflow-created pre-restore bucket |
+| `production-aws-restore-cleanup` | `AWS_RESTORE_CLEANUP_ROLE_ARN` | variable | exact `RestoreCleanupRoleArn` output; deletion-only drill cleanup |
 
 GitHub secrets are used for access control/redaction even where the payload is
 not a credential. Runtime service credentials do not belong in any item in this

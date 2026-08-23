@@ -1,15 +1,20 @@
 # AWS public-beta deployment runbook
 
-This runbook is a release contract, not permission to deploy. At the time it
-was written, no Job Seeker Copilot public-beta resource had been created by
-this work. AWS account bootstrap, every Terraform mutation and public
-activation require separate human approval.
+This runbook is a release contract, not permission to deploy. Checked-in
+CloudFormation, workflows, tests and documentation do not prove that any AWS
+resource, GitHub environment, restore drill or evidence record exists in the
+live account. AWS bootstrap/update, GitHub environment configuration, every
+Terraform mutation, each restore/cleanup dispatch and public activation remain
+separate reviewed live actions.
 
 ## Release states
 
 ```text
 not bootstrapped
     -> dark foundation (no application tasks, ALB returns 503)
+    -> attested restore candidate
+    -> isolated restore/replay evidence and separate cleanup
+    -> evidence-bound exact-candidate release promotion
     -> private prepared fleet (all tasks healthy, ALB still returns 503)
     -> public exact release
     -> dark maintenance / private rollback / public previous release
@@ -17,8 +22,11 @@ not bootstrapped
 
 Merging `develop` cannot reach AWS: its CI has no OIDC token and uses a local
 Terraform backend with dummy credentials. Merging `main` also does not deploy.
-Only a manual dispatch on `main`, through a protected GitHub environment with a
-required reviewer and no self-approval, can assume a bootstrap-created role.
+Only a manual dispatch on `main`, through one of the exact protected GitHub
+environments and its API-verified owner-only fallback, can assume the matching
+bootstrap-created role. That fallback is explicitly approved because the
+current private-repository plan does not provide the desired required-reviewer
+control; it is not described as independent review or no-self-approval.
 
 ## 1. Bootstrap the account boundary
 
@@ -41,14 +49,17 @@ step.
    operations topic, Backup vault/plan, reviewed ECS AMI input and Cost Anomaly
    controls listed in the bootstrap README. These foundation resources are
    deliberately outside routine Apply authority.
-5. Execute the approved change set manually. Record the outputs in the three
-   GitHub environments described in the bootstrap README.
-6. Protect `production-build`, `production-aws-plan` and `production-aws` for
-   `main` only and disable administrator bypass. The current private-repository
-   plan returns HTTP 422 for required reviewers, so the approved sole-operator
+5. Execute the approved change set manually. Record the outputs in the five
+   GitHub environments described in the bootstrap README. For an existing
+   bootstrap stack, the restore roles/outputs require a reviewed `UPDATE`
+   change set; a repository merge does not create them.
+6. Protect `production-build`, `production-aws-plan`, `production-aws`,
+   `production-aws-restore` and `production-aws-restore-cleanup` for `main`
+   only and disable administrator bypass. The current private-repository plan
+   returns HTTP 422 for required reviewers, so the approved sole-operator
    fallback requires `jobseekercopilot` to be the workflow actor before OIDC is
-   issued. Record the API-visible settings and plan limitation in the signed
-   `githubEnvironmentProtection` approval block.
+   issued. Record all five API-visible settings and the plan limitation in the
+   signed `githubEnvironmentProtection` approval block.
 7. Request/validate the exact `app.<domain>` ACM certificate through the
    separately reviewed account process and record its eu-west-2 ARN as
    `existing_certificate_arn`. Terraform certificate creation is intentionally
@@ -57,10 +68,12 @@ step.
 
 Never put runtime secret values in CloudFormation, Terraform variables,
 Terraform state, GitHub variables, logs or release artifacts. The protected
-`PUBLIC_BETA_TFVARS_B64`, `LAUNCH_APPROVALS_B64` and
-`LANDING_RUNTIME_ENV_B64` inputs contain reviewed configuration/attestations,
-not credentials. Build and release must use byte-identical launch approvals;
-their SHA-256 is signed into the release manifest.
+`PUBLIC_BETA_TFVARS_B64`, `LAUNCH_APPROVALS_B64`,
+`RESTORE_DRILL_EVIDENCE_B64` and `LANDING_RUNTIME_ENV_B64` inputs contain
+reviewed configuration/attestations, not credentials. Build and release must
+use byte-identical launch approvals; their SHA-256 is signed into the release
+manifest. Restore evidence is separately SHA-256-bound by that approval and is
+required only after the candidate drill has produced reviewed evidence.
 
 ## 2. Prove release prerequisites
 
@@ -192,32 +205,100 @@ can retry. A successful Terraform apply is not sufficient evidence: the
 workflow must then pass the exact post-migration IAM check and its live RDS
 stability/event verifier at `MonitoringInterval=60`.
 
-## 4. Build one immutable release
+## 4. Build a restore candidate, drill, then promote the exact release
 
-Manually dispatch `AWS Public Beta Immutable Build` on `main`. Record the build
-run ID and release ID. The release artifact must contain the image manifest,
-release metadata and digests for every application, ClamAV and release
-operator, plus the deterministic Landing static tar, Landing metadata and exact
-selected SAM template. Verify build provenance, every Landing checksum,
-`deploymentStatus=NOT_DEPLOYED` and `scanStatus=PASSED` for every image entry.
+The restore gate deliberately requires two immutable workflow purposes. A
+`restore-candidate` is built/published before live recovery is exercised; it
+can never be prepared or activated. After reviewed restore/replay evidence is
+signed and checksum-bound, `release` promotes that exact candidate manifest and
+digests without rebuilding or calling AWS.
 
-The protected build input must generate complete reviewed Landing legal/runtime
-configuration matching the same launch approval used by the app release.
-Artifact generation performs no Amplify, SAM, DNS or other Landing deployment;
+1. On exact protected `main`, prepare a reviewed launch approval in which every
+   production prerequisite is complete except the not-yet-run drill:
+   `isolatedRestoreReplayVerified=false` and
+   `restoreDrillEvidenceSha256=""`. Manually dispatch `AWS Public Beta Immutable
+   Build` with `purpose=restore-candidate`. Record its run and release IDs and
+   verify the manifest attestation plus accompanying provenance; the latter
+   must say `buildPurpose=restore-candidate`.
+2. Separately provision/review the dedicated no-ingress restore security group
+   and verify that both restore GitHub environments and their exact bootstrap
+   role variables exist. Select the completed tagged RDS/S3 recovery points
+   from the reviewed consistency window. None of these live prerequisites is
+   created by the build.
+3. From the same unchanged `main`, dispatch `AWS Public Beta Isolated Restore
+   Drill` with `action=start`, the exact candidate run/release IDs and
+   `START ISOLATED RESTORE DRILL <drill-id>`. After both jobs complete, dispatch
+   `action=observe` with their IDs and
+   `OBSERVE ISOLATED RESTORE DRILL <drill-id>`. The start path creates/hardens
+   the exact drill bucket and requests every S3 object version with
+   `RestoreLatestVersionsUpTo=all`; observe verifies only control-plane status,
+   private RDS placement and bucket controls.
+4. Complete the residual live work that the workflow intentionally cannot
+   claim: provide an audited ephemeral verification path, run the exact
+   candidate image, verify all seven databases and domain/document/payment
+   invariants, read the external erasure journal and replay exact erasures.
+   Require readiness schema v3 with all journal/live/replay blockers and
+   `backupRetentionOverdue` at zero. `backupRetentionPending` may be a
+   non-negative informational count for erasures still within the 35-day
+   recovery window.
+5. Assemble a draft exact `jsc-public-beta-restore-drill-evidence.v1` record. It
+   binds the candidate Document Store revision, OpenAPI SHA-256 and image
+   digest, same-window completed jobs, isolation and all-version S3 controls,
+   semantic verification, replay/readiness results, RPO/RTO timing, reviewer,
+   evidence reference and truthful cleanup status. The workflow does not
+   assemble or sign this record; retain the supporting material outside
+   customer payloads and use `PENDING_SEPARATE_APPROVAL` until cleanup succeeds.
+6. Preserve the evidence, then dispatch cleanup separately through
+   `production-aws-restore-cleanup` with `action=cleanup` and
+   `DELETE ISOLATED RESTORE DRILL <drill-id>`. This deletion-only path removes
+   the exact drill RDS target plus every S3 object version/delete marker and the
+   exact bucket. `observe`, evidence validation and a later release build do not
+   perform cleanup. If evidence was signed while
+   `cleanupStatus=PENDING_SEPARATE_APPROVAL`, keep that residual live action
+   tracked until a new reviewed completion record exists. After successful
+   deletion, finalise and review/sign the evidence with
+   `cleanupStatus=COMPLETED`; do not silently edit already signed bytes.
+7. Hash the exact final reviewed evidence bytes. Update the protected approval
+   to `isolatedRestoreReplayVerified=true` and set
+   `restoreDrillEvidenceSha256` to that non-zero SHA-256; supply the same bytes
+   as `RESTORE_DRILL_EVIDENCE_B64` in build, plan and apply environments. Now
+   manually dispatch `AWS Public Beta Immutable Build` with `purpose=release`,
+   the same candidate release ID and the candidate build run ID. This path
+   downloads and re-verifies the candidate attestation, changes only the
+   approval/evidence binding and provenance, and emits a newly attested final
+   artifact without AWS credentials, image rebuilding or ECR publication. Its
+   validator requires the evidence bytes to match the approval hash and the
+   exact candidate release ID, Infrastructure revision, Document Store
+   revision, OpenAPI SHA-256 and image digest to match the promoted manifest.
+   Any mismatch requires a new candidate/drill rather than an edited
+   attestation or bypass.
+
+Only the promoted artifact, whose provenance says `buildPurpose=release` and
+whose `promotedFrom` block hashes the attested restore-candidate manifest, may
+continue below. It must contain the image manifest, release metadata and
+digests for every application, ClamAV and release operator, plus the
+deterministic Landing static tar, Landing metadata and exact selected SAM
+template. Verify every Landing checksum, `deploymentStatus=NOT_DEPLOYED` and
+`scanStatus=PASSED` for every image entry. The protected Landing legal/runtime
+configuration must match the same launch approval. Artifact generation performs
+no Amplify, SAM, DNS or other Landing deployment;
 `AMPLIFY_RELEASE_AUTHORISED` remains absent/false. Preserve the artifact for the
 later coordinated Landing promotion described in
 [landing integration](landing-integration.md).
 
 The build role can publish ECR images; it cannot change ECS, databases,
-networking or the public listener. Reject the release if the workspace lock,
-source revisions, RDS bundle evidence or required dependency evidence differs
-from the reviewed inputs.
+networking, restore resources or the public listener. Reject either build if
+the workspace lock, source revisions, RDS bundle evidence or required
+dependency evidence differs from the reviewed inputs.
 
 All images are pushed first so their per-repository scans can run concurrently;
-the publisher then verifies every result before it can emit/attest a final
-manifest. If publication or scanning fails after any immutable tag was pushed,
-the release ID is failed and must never be reused. Diagnose it and create a new
-release ID; unreferenced images remain subject to the reviewed ECR lifecycle.
+the publisher then verifies every result before it can emit/attest the candidate
+manifest. If candidate publication or scanning fails after an immutable tag was
+pushed, that release ID is failed and must never be reused. Diagnose it and
+create a new candidate release ID; unreferenced candidate/failed images remain
+subject to the reviewed ECR lifecycle. A promotion failure makes no AWS call or
+new image; correct the final evidence/approval input and promote the same exact
+candidate only if its protected-main/source bindings remain valid.
 
 ## 5. Seed and prepare privately
 
@@ -284,6 +365,11 @@ Review an `action=plan` dispatch for desired count `1` and public entrypoint
 `true`. Verify the exact release ID is both the database-bootstrap and
 preflight SSM marker, targets are healthy, alarms are `OK`, backups succeeded,
 provider/payment/email approvals remain current and the WAF upload tests pass.
+Confirm provenance says `buildPurpose=release`, the supplied restore evidence
+matches the SHA-256 in the protected launch approval, and its candidate-bound
+Document Store revision, OpenAPI hash and image digest still match this final
+manifest. A plan or mutation refuses a missing, unsafe or mismatched evidence
+file; do not substitute the earlier restore-candidate artifact.
 Confirm the Client source/digest and Landing source/static/config/SAM evidence
 still match the signed artifact. This activates only the application stack; the
 Landing artifact remains undeployed until its separate reviewed promotion.
