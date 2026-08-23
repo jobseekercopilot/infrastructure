@@ -190,8 +190,10 @@ Do not approve a refresh that falls back to `Wait`, references `$Latest`, or
 increases the ASG maximum. If the automatic host refresh/rollback fails, keep
 the listener dark and investigate before any application activation.
 
-Confirm the operations SNS subscription, billing cost-allocation tag and DNS/
-certificate state. Foundation creates the purpose-specific
+Confirm the operations SNS subscription, that all three USD 750 budgets have
+no cost filter, the available billing cost-allocation tags, and DNS/certificate
+state. Account-wide budgets are intentional: tag discovery or an accidentally
+untagged resource must not hide spend. Foundation creates the purpose-specific
 `JobSeekerCopilotAccountEmails` configuration/event destination, then performs
 the read-only SES/SNS/KMS verification described in
 [account-email delivery](../account-email-ses.md). It sends no email. Keep the

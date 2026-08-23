@@ -304,7 +304,10 @@ Terraform plan or AWS credit award alone is not launch approval.
 
 - [ ] The operations SNS email subscription is confirmed and CloudWatch/WAF/
       RDS/ECS/backup alarms have a recorded test delivery.
-- [ ] `CostCentre=public-beta` is activated as a billing cost-allocation tag.
+- [ ] All three USD 750 AWS Budgets are account-wide with no cost filter, so
+      tag propagation or an untagged resource cannot hide spend. Available
+      user-defined cost-allocation tags and material resource tags are recorded
+      separately for attribution.
 - [ ] The latest eu-west-2 estimate supports the approximately USD 560 baseline;
       the USD 750 alert threshold is approved and understood not to be a cap.
 - [ ] AWS Budgets thresholds and Cost Anomaly Detection are active; Google,

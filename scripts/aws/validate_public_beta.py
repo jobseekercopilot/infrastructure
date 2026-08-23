@@ -1261,6 +1261,10 @@ def validate_source_guards() -> None:
         "StartOnlyCustomerDataCanaryBackups": "exact-vault on-demand source-backup permission",
     }.items():
         require(fragment in bootstrap_source, f"bootstrap is missing {description}")
+    require(
+        "user:CostCentre$public-beta" not in bootstrap_source,
+        "retained safety budgets must be account-wide and independent of cost-tag propagation",
+    )
     require('self        = true' not in source, "shared self-referencing task security group is forbidden")
     require("AWS_ACCESS_KEY_ID" not in source, "Terraform must not inject static AWS access keys")
     locals_source = (MODULE / "locals.tf").read_text(encoding="utf-8")
