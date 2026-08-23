@@ -2122,6 +2122,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             self.assertEqual(budget["DependsOn"], "OperationsTopicPolicy")
             self.assertEqual(budget["DeletionPolicy"], "Retain")
             self.assertEqual(budget["UpdateReplacePolicy"], "Retain")
+            self.assertNotIn("CostFilters", budget["Properties"]["Budget"])
 
         def notifications(name: str) -> set[tuple[str, int]]:
             entries = resources[name]["Properties"]["NotificationsWithSubscribers"]

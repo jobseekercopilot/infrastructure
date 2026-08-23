@@ -34,9 +34,16 @@ monitor when one already exists.
 
 All budget, anomaly, backup and operational messages publish through the
 encrypted operations topic. Its owner email subscription must be confirmed
-before activation. Cost-allocation tags may take time to activate, so the
-billing console must confirm that `CostCentre=public-beta` is an active
-cost-allocation tag before relying on the filtered budgets.
+before activation. The three USD 750 budgets are deliberately account-wide:
+they have no cost filter, so missing, newly created or still-propagating tags
+cannot hide spend from the alerts. This is conservative if the account later
+hosts another workload, because unrelated spend makes the alerts fire earlier
+rather than allowing a surprise bill.
+
+`Application`, `Environment`, `Service`, `Owner` and `CostCentre` tags remain
+required for attribution. Activate useful user-defined cost-allocation tags as
+AWS discovers them and verify material production resources are tagged, but do
+not make the safety budget depend on tag-discovery timing.
 
 Harder engineering bounds are separate:
 

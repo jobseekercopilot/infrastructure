@@ -582,9 +582,6 @@ Resources:
           Amount: !Ref MonthlyBudgetUsd
           Unit: USD
         TimeUnit: MONTHLY
-        CostFilters:
-          TagKeyValue:
-            - user:CostCentre$public-beta
       NotificationsWithSubscribers:
         - Notification:
             ComparisonOperator: GREATER_THAN
@@ -649,9 +646,6 @@ Resources:
           Amount: !Ref MonthlyBudgetUsd
           Unit: USD
         TimeUnit: MONTHLY
-        CostFilters:
-          TagKeyValue:
-            - user:CostCentre$public-beta
       NotificationsWithSubscribers:
         - Notification:
             ComparisonOperator: GREATER_THAN
@@ -716,9 +710,6 @@ Resources:
           Amount: !Ref MonthlyBudgetUsd
           Unit: USD
         TimeUnit: MONTHLY
-        CostFilters:
-          TagKeyValue:
-            - user:CostCentre$public-beta
       NotificationsWithSubscribers:
         - Notification:
             ComparisonOperator: GREATER_THAN

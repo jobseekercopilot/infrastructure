@@ -4,8 +4,11 @@
 otherwise circular prerequisites of Terraform state and GitHub OIDC. It also
 owns retained resources whose AWS-generated IDs make request-tag-based routine
 apply unsafe: retained KMS keys, the Object-Locked erasure journal, operations
-SNS topic, Backup vault/plan and Cost Anomaly monitor/subscription. It is not
-called by CI or release automation and it does not deploy the application.
+SNS topic, three account-wide USD 750 Budgets, Backup vault/plan and Cost
+Anomaly monitor/subscription. The Budgets intentionally have no cost filter so
+tag propagation or an accidentally untagged resource cannot evade alerts. It
+is not called by CI or release automation and it does not deploy the
+application.
 The operations-topic and notification-key policies also permit only the exact
 `JobSeekerCopilotAccountEmails` configuration-set ARN to publish SES delivery
 events. The normal Terraform root owns that configuration set; bootstrap owns
