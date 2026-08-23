@@ -408,6 +408,19 @@ docker build \
 docker run --rm --entrypoint /bin/sh "$operator_image" -eu -c \
   "psql --version >/dev/null && curl --version >/dev/null && jq --version >/dev/null && echo '$rds_ca_sha  /etc/jsc/rds/global-bundle.pem' | sha256sum -c -"
 
+# The hosted runner has finite Docker storage, and the pinned ClamAV image must
+# still have room to refresh its signature database. All application images are
+# final and tagged at this point, so discard only unused BuildKit cache. Prove
+# the retained release images exist both before and after the cache reclaim;
+# never use a broader system/image/container prune here.
+mapfile -t retained_release_images < <(jq -r '.services | keys[] | "jsc-release-" + .' "$runtime_manifest")
+retained_release_images+=("$operator_image")
+docker image inspect "${retained_release_images[@]}" >/dev/null
+docker system df
+docker builder prune --all --force >/dev/null
+docker image inspect "${retained_release_images[@]}" >/dev/null
+docker system df
+
 clamav_image='clamav/clamav:1.4.5@sha256:4de20bd9ab45a4b763c5412b769217ef5082572ebc8a63aff1a77943419e5dd8'
 docker pull "$clamav_image" >/dev/null
 docker run --rm --entrypoint /bin/sh "$clamav_image" -eu -c '
