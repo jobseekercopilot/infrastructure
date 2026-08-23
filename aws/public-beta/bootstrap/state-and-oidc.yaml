@@ -2409,7 +2409,6 @@ Resources:
               - ecs:DeleteCapacityProvider
               - ecs:DeleteCluster
               - ecs:DeleteService
-              - ecs:DeregisterTaskDefinition
               - ecs:PutClusterCapacityProviders
               - ecs:UpdateCapacityProvider
               - ecs:UpdateCluster
@@ -2422,13 +2421,22 @@ Resources:
               - !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:capacity-provider/jsc-public-beta-*
               - !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:cluster/jsc-public-beta
               - !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:service/jsc-public-beta/*
-              - !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/jsc-public-beta-*:*
               - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/jsc/public-beta/*
             Condition:
               StringEquals:
                 aws:ResourceTag/Application: Job Seeker Copilot
                 aws:ResourceTag/Environment: public-beta
                 aws:ResourceTag/ManagedBy: Terraform
+          # ECS authorizes this legacy lifecycle action against the account-wide
+          # resource rather than a task-definition ARN. The protected apply
+          # role and deployment-region condition are the available boundaries.
+          - Sid: DeregisterTaskDefinitionsInRegion
+            Effect: Allow
+            Action: ecs:DeregisterTaskDefinition
+            Resource: '*'
+            Condition:
+              StringEquals:
+                aws:RequestedRegion: !Ref 'AWS::Region'
           - Sid: CreateOnlyTaggedServiceDiscovery
             Effect: Allow
             Action:
@@ -2800,18 +2808,30 @@ Resources:
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
-          - Sid: CreateOnlyExactAccountEmailConfigurationSet
+          # SES v2 authorizes configuration-set creation against the global
+          # resource. Required ownership tags and the v2 API boundary keep the
+          # create permission fail closed; the dependent tag permission below
+          # restricts the request to the reviewed configuration-set name.
+          - Sid: CreateOnlyTaggedAccountEmailConfigurationSet
             Effect: Allow
-            Action:
-              - ses:CreateConfigurationSet
-              - ses:TagResource
+            Action: ses:CreateConfigurationSet
+            Resource: '*'
+            Condition:
+              StringEquals:
+                aws:RequestTag/Application: Job Seeker Copilot
+                aws:RequestTag/Environment: public-beta
+                aws:RequestTag/ManagedBy: Terraform
+                ses:ApiVersion: '2'
+          - Sid: TagOnlyExactAccountEmailConfigurationSet
+            Effect: Allow
+            Action: ses:TagResource
             Resource: !Sub arn:${AWS::Partition}:ses:${AWS::Region}:${AWS::AccountId}:configuration-set/JobSeekerCopilotAccountEmails
             Condition:
               StringEquals:
                 aws:RequestTag/Application: Job Seeker Copilot
                 aws:RequestTag/Environment: public-beta
                 aws:RequestTag/ManagedBy: Terraform
-                ses:ApiVersion: '2019-09-27'
+                ses:ApiVersion: '2'
           - Sid: ManageOnlyTaggedAccountEmailConfiguration
             Effect: Allow
             Action:
@@ -2828,7 +2848,7 @@ Resources:
                 aws:ResourceTag/Application: Job Seeker Copilot
                 aws:ResourceTag/Environment: public-beta
                 aws:ResourceTag/ManagedBy: Terraform
-                ses:ApiVersion: '2019-09-27'
+                ses:ApiVersion: '2'
           - Sid: CreateOnlyTaggedObservabilityResources
             Effect: Allow
             Action:
