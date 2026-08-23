@@ -856,7 +856,10 @@ resource "aws_ecs_service" "clamav" {
 
   deployment_maximum_percent         = 100
   deployment_minimum_healthy_percent = 0
-  availability_zone_rebalancing      = "ENABLED"
+  # ECS requires deployment_maximum_percent > 100 when AZ rebalancing is
+  # enabled. The reviewed cost envelope deliberately uses stop-first 100%, so
+  # rebalancing must remain disabled rather than requesting extra task copies.
+  availability_zone_rebalancing = "DISABLED"
 
   deployment_circuit_breaker {
     enable   = true
@@ -911,7 +914,7 @@ resource "aws_ecs_service" "service" {
   deployment_maximum_percent         = 100
   deployment_minimum_healthy_percent = 0
   health_check_grace_period_seconds  = contains(["job-seeker-copilot-client", "stripe-gateway"], each.key) ? 120 : null
-  availability_zone_rebalancing      = "ENABLED"
+  availability_zone_rebalancing      = "DISABLED"
 
   deployment_circuit_breaker {
     enable   = true
@@ -956,6 +959,8 @@ resource "aws_ecs_service" "service" {
 
   depends_on = [
     aws_ecs_cluster_capacity_providers.main,
+    aws_lb_listener_rule.dark_frontend_association,
+    aws_lb_listener_rule.dark_stripe_association,
     aws_lb_listener.http,
     aws_lb_listener.https,
     terraform_data.release_contract,
