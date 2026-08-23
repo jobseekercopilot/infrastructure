@@ -1218,6 +1218,14 @@ class PublicBetaAwsContractTest(unittest.TestCase):
 
         build = (ROOT / "scripts" / "aws" / "build_release_images.sh").read_text(encoding="utf-8")
         self.assertLess(
+            build.index('scripts/test-all.sh" --profile full-fixture'),
+            build.index("verify_release_contract_hashes.py"),
+        )
+        self.assertLess(
+            build.index("verify_release_contract_hashes.py"),
+            build.index('scripts/build-all.sh" --profile full-fixture'),
+        )
+        self.assertLess(
             build.index("verify_release_contract_hashes.py"),
             build.index(".capabilities.paymentV2ProductionContractVerified=true"),
         )
