@@ -13,6 +13,11 @@ output "release_contract" {
     migration_verification_task_definition = aws_ecs_task_definition.migration_verification.arn
     release_preflight_task_definition      = aws_ecs_task_definition.release_preflight.arn
     restore_source_canary_task_definition  = aws_ecs_task_definition.restore_source_canary.arn
+    restore_semantic_clone_task_definition = aws_ecs_task_definition.restore_semantic_clone.arn
+    restore_semantic_document_store_task_definition = aws_ecs_task_definition.restore_semantic_document_store.arn
+    restore_semantic_verifier_task_definition = aws_ecs_task_definition.restore_semantic_verifier.arn
+    restore_database_security_group        = aws_security_group.restore_database.id
+    restore_semantic_security_group        = aws_security_group.restore_semantic_verifier.id
     database_identifier                    = aws_db_instance.postgres.identifier
     rds_monitoring_role_arn                = aws_iam_role.rds_monitoring.arn
     database_bootstrap_marker              = "/jsc/${var.environment}/release/database-bootstrap"

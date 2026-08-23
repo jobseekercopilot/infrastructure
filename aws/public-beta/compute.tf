@@ -489,7 +489,65 @@ resource "aws_iam_role" "task" {
   permissions_boundary = "arn:aws:iam::${var.aws_account_id}:policy/jsc-public-beta-workload-boundary"
 }
 
+data "aws_iam_policy_document" "document_store_journal" {
+  statement {
+    sid     = "WriteOnlyImmutableErasureJournalRecords"
+    actions = ["s3:PutObject"]
+    resources = [
+      "arn:aws:s3:::${var.foundation_erasure_journal_bucket_name}/permanent-erasures/v1/*",
+    ]
+
+    condition {
+      test     = "StringEquals"
+      variable = "s3:x-amz-server-side-encryption"
+      values   = ["aws:kms"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "s3:x-amz-server-side-encryption-aws-kms-key-id"
+      values   = [var.foundation_erasure_journal_kms_key_arn]
+    }
+  }
+
+  statement {
+    sid = "ReadOnlyBoundErasureJournalRecords"
+    actions = [
+      "s3:GetObject",
+      "s3:GetObjectVersion",
+    ]
+    resources = [
+      "arn:aws:s3:::${var.foundation_erasure_journal_bucket_name}/permanent-erasures/v1/*",
+    ]
+  }
+
+  statement {
+    sid = "UseOnlyErasureJournalKeyThroughS3"
+    actions = [
+      "kms:Decrypt",
+      "kms:GenerateDataKey",
+    ]
+    resources = [var.foundation_erasure_journal_kms_key_arn]
+
+    condition {
+      test     = "StringEquals"
+      variable = "kms:ViaService"
+      values   = ["s3.${var.aws_region}.amazonaws.com"]
+    }
+
+    # S3 Bucket Keys use the bucket ARN, rather than each object ARN, as the
+    # KMS encryption context. The object permission above remains prefix-exact.
+    condition {
+      test     = "StringEquals"
+      variable = "kms:EncryptionContext:aws:s3:arn"
+      values   = ["arn:aws:s3:::${var.foundation_erasure_journal_bucket_name}"]
+    }
+  }
+}
+
 data "aws_iam_policy_document" "document_store" {
+  source_policy_documents = [data.aws_iam_policy_document.document_store_journal.json]
+
   statement {
     sid = "DocumentBucketMetadata"
     actions = [
@@ -548,60 +606,6 @@ data "aws_iam_policy_document" "document_store" {
       "kms:ReEncryptTo",
     ]
     resources = [var.foundation_data_kms_key_arn]
-  }
-
-  statement {
-    sid     = "WriteOnlyImmutableErasureJournalRecords"
-    actions = ["s3:PutObject"]
-    resources = [
-      "arn:aws:s3:::${var.foundation_erasure_journal_bucket_name}/permanent-erasures/v1/*",
-    ]
-
-    condition {
-      test     = "StringEquals"
-      variable = "s3:x-amz-server-side-encryption"
-      values   = ["aws:kms"]
-    }
-
-    condition {
-      test     = "StringEquals"
-      variable = "s3:x-amz-server-side-encryption-aws-kms-key-id"
-      values   = [var.foundation_erasure_journal_kms_key_arn]
-    }
-  }
-
-  statement {
-    sid = "ReadOnlyBoundErasureJournalRecords"
-    actions = [
-      "s3:GetObject",
-      "s3:GetObjectVersion",
-    ]
-    resources = [
-      "arn:aws:s3:::${var.foundation_erasure_journal_bucket_name}/permanent-erasures/v1/*",
-    ]
-  }
-
-  statement {
-    sid = "UseOnlyErasureJournalKeyThroughS3"
-    actions = [
-      "kms:Decrypt",
-      "kms:GenerateDataKey",
-    ]
-    resources = [var.foundation_erasure_journal_kms_key_arn]
-
-    condition {
-      test     = "StringEquals"
-      variable = "kms:ViaService"
-      values   = ["s3.${var.aws_region}.amazonaws.com"]
-    }
-
-    # S3 Bucket Keys use the bucket ARN, rather than each object ARN, as the
-    # KMS encryption context. The object permission above remains prefix-exact.
-    condition {
-      test     = "StringEquals"
-      variable = "kms:EncryptionContext:aws:s3:arn"
-      values   = ["arn:aws:s3:::${var.foundation_erasure_journal_bucket_name}"]
-    }
   }
 
 }

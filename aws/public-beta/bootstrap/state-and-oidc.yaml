@@ -54,6 +54,12 @@ Parameters:
   RestoreEnvironmentName:
     Type: String
     Default: production-aws-restore
+  RestoreSemanticStartEnvironmentName:
+    Type: String
+    Default: production-aws-restore-semantic-start
+  RestoreSemanticObserveEnvironmentName:
+    Type: String
+    Default: production-aws-restore-semantic-observe
   RestoreCleanupEnvironmentName:
     Type: String
     Default: production-aws-restore-cleanup
@@ -1136,6 +1142,251 @@ Resources:
                 Action: kms:DescribeKey
                 Resource: !GetAtt ApplicationDataKey.Arn
 
+  RestoreSemanticStartRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: jsc-public-beta-github-restore-semantic-start
+      MaxSessionDuration: 10800
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !If
+                - CreateGitHubOidcProvider
+                - !Ref GitHubOidcProvider
+                - !Ref ExistingGitHubOidcProviderArn
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubOrganisation}@${GitHubOrganisationId}/${GitHubRepository}@${GitHubRepositoryId}:environment:${RestoreSemanticStartEnvironmentName}
+      Policies:
+        - PolicyName: StartOnlyIsolatedRestoreSemanticVerification
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: ReadOnlySemanticControlPlane
+                Effect: Allow
+                Action:
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DescribePrefixLists
+                  - ec2:DescribeSecurityGroupRules
+                  - ec2:DescribeSecurityGroups
+                  - ec2:DescribeSubnets
+                  - ec2:DescribeVpcs
+                  - ecs:DescribeClusters
+                  - ecs:DescribeServices
+                  - ecs:DescribeTaskDefinition
+                  - ecs:DescribeTasks
+                  - ecs:ListTasks
+                  - ecs:ListTagsForResource
+                  - elasticloadbalancing:DescribeListeners
+                  - elasticloadbalancing:DescribeLoadBalancers
+                  - elasticloadbalancing:DescribeRules
+                  - rds:DescribeDBInstances
+                  - rds:ListTagsForResource
+                Resource: '*'
+              - Sid: ReadOnlyExactRestoreBucketControls
+                Effect: Allow
+                Action:
+                  - s3:GetBucketLocation
+                  - s3:GetBucketOwnershipControls
+                  - s3:GetBucketPolicy
+                  - s3:GetBucketPolicyStatus
+                  - s3:GetBucketTagging
+                  - s3:GetBucketVersioning
+                  - s3:GetEncryptionConfiguration
+                  - s3:GetPublicAccessBlock
+                Resource: !Sub arn:${AWS::Partition}:s3:::jsc-public-beta-restore-${AWS::AccountId}-*
+              - Sid: RecordOnlyExactSemanticStartMarker
+                Effect: Allow
+                Action:
+                  - ssm:AddTagsToResource
+                  - ssm:GetParameter
+                  - ssm:ListTagsForResource
+                  - ssm:PutParameter
+                Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/jsc/public-beta/restore-semantic/*/start
+              - Sid: AuthorizeOnlyDedicatedRestoreSemanticGroups
+                Effect: Allow
+                Action:
+                  - ec2:AuthorizeSecurityGroupEgress
+                  - ec2:AuthorizeSecurityGroupIngress
+                Resource: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:security-group/*
+                Condition:
+                  StringEquals:
+                    ec2:ResourceTag/Application: Job Seeker Copilot
+                    ec2:ResourceTag/Environment: public-beta
+                    ec2:ResourceTag/ManagedBy: Terraform
+                    ec2:ResourceTag/Purpose:
+                      - RestoreDatabase
+                      - RestoreSemanticVerifier
+              - Sid: CreateOnlyTaggedRestoreSemanticRules
+                Effect: Allow
+                Action:
+                  - ec2:AuthorizeSecurityGroupEgress
+                  - ec2:AuthorizeSecurityGroupIngress
+                Resource: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:security-group-rule/*
+                Condition:
+                  StringEquals:
+                    aws:RequestTag/Application: Job Seeker Copilot
+                    aws:RequestTag/Environment: public-beta
+                    aws:RequestTag/ManagedBy: RestoreSemanticVerification
+                  'Null':
+                    aws:RequestTag/RestoreDrillId: 'false'
+                    aws:RequestTag/Purpose: 'false'
+                  ForAllValues:StringEquals:
+                    aws:TagKeys:
+                      - Application
+                      - Environment
+                      - ManagedBy
+                      - RestoreDrillId
+                      - Purpose
+              - Sid: TagOnlyNewRestoreSemanticRules
+                Effect: Allow
+                Action: ec2:CreateTags
+                Resource: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:security-group-rule/*
+                Condition:
+                  StringEquals:
+                    ec2:CreateAction:
+                      - AuthorizeSecurityGroupEgress
+                      - AuthorizeSecurityGroupIngress
+                    aws:RequestTag/Application: Job Seeker Copilot
+                    aws:RequestTag/Environment: public-beta
+                    aws:RequestTag/ManagedBy: RestoreSemanticVerification
+                  'Null':
+                    aws:RequestTag/RestoreDrillId: 'false'
+                    aws:RequestTag/Purpose: 'false'
+                  ForAllValues:StringEquals:
+                    aws:TagKeys:
+                      - Application
+                      - Environment
+                      - ManagedBy
+                      - RestoreDrillId
+                      - Purpose
+              - Sid: RunOnlyRestoreSemanticTaskDefinitions
+                Effect: Allow
+                Action: ecs:RunTask
+                Resource:
+                  - !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/jsc-public-beta-restore-semantic-clone:*
+                  - !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/jsc-public-beta-restore-semantic-document-store:*
+                  - !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/jsc-public-beta-restore-semantic-verifier:*
+                Condition:
+                  ArnEquals:
+                    ecs:cluster: !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:cluster/jsc-public-beta
+                  StringEquals:
+                    aws:RequestTag/Application: Job Seeker Copilot
+                    aws:RequestTag/Environment: public-beta
+                    aws:RequestTag/ManagedBy: RestoreSemanticVerification
+                  'Null':
+                    aws:RequestTag/RestoreDrillId: 'false'
+                  ForAllValues:StringEquals:
+                    aws:TagKeys:
+                      - Application
+                      - Environment
+                      - ManagedBy
+                      - RestoreDrillId
+              - Sid: TagOnlyNewRestoreSemanticTasks
+                Effect: Allow
+                Action: ecs:TagResource
+                Resource: !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task/jsc-public-beta/*
+                Condition:
+                  StringEquals:
+                    ecs:CreateAction: RunTask
+                    aws:RequestTag/Application: Job Seeker Copilot
+                    aws:RequestTag/Environment: public-beta
+                    aws:RequestTag/ManagedBy: RestoreSemanticVerification
+                  'Null':
+                    aws:RequestTag/RestoreDrillId: 'false'
+                  ForAllValues:StringEquals:
+                    aws:TagKeys:
+                      - Application
+                      - Environment
+                      - ManagedBy
+                      - RestoreDrillId
+              - Sid: PassOnlyRestoreSemanticTaskRoles
+                Effect: Allow
+                Action: iam:PassRole
+                Resource:
+                  - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-restore-semantic-clone-execution
+                  - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-restore-semantic-document-store-execution
+                  - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-restore-semantic-document-store-task
+                  - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-restore-semantic-verifier-execution
+                  - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-restore-semantic-verifier-task
+                Condition:
+                  StringEquals:
+                    iam:PassedToService: ecs-tasks.amazonaws.com
+              - Sid: ContainOnlyFailedRestoreSemanticTasks
+                Effect: Allow
+                Action: ecs:StopTask
+                Resource: !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task/jsc-public-beta/*
+                Condition:
+                  ArnEquals:
+                    ecs:cluster: !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:cluster/jsc-public-beta
+                  StringEquals:
+                    aws:ResourceTag/Application: Job Seeker Copilot
+                    aws:ResourceTag/Environment: public-beta
+                    aws:ResourceTag/ManagedBy: RestoreSemanticVerification
+                  'Null':
+                    aws:ResourceTag/RestoreDrillId: 'false'
+
+  RestoreSemanticObserveRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: jsc-public-beta-github-restore-semantic-observe
+      MaxSessionDuration: 10800
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !If
+                - CreateGitHubOidcProvider
+                - !Ref GitHubOidcProvider
+                - !Ref ExistingGitHubOidcProviderArn
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubOrganisation}@${GitHubOrganisationId}/${GitHubRepository}@${GitHubRepositoryId}:environment:${RestoreSemanticObserveEnvironmentName}
+      Policies:
+        - PolicyName: ObserveOnlyRestoreSemanticVerification
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: ReadOnlySemanticObservation
+                Effect: Allow
+                Action:
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DescribePrefixLists
+                  - ec2:DescribeSecurityGroupRules
+                  - ec2:DescribeSecurityGroups
+                  - ec2:DescribeSubnets
+                  - ec2:DescribeVpcs
+                  - ecs:DescribeClusters
+                  - ecs:DescribeServices
+                  - ecs:DescribeTaskDefinition
+                  - ecs:DescribeTasks
+                  - ecs:ListTasks
+                  - ecs:ListTagsForResource
+                  - elasticloadbalancing:DescribeListeners
+                  - elasticloadbalancing:DescribeLoadBalancers
+                  - elasticloadbalancing:DescribeRules
+                  - rds:DescribeDBInstances
+                  - rds:ListTagsForResource
+                Resource: '*'
+              - Sid: ReadOnlyExactSemanticStartMarker
+                Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                  - ssm:ListTagsForResource
+                Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/jsc/public-beta/restore-semantic/*/start
+              - Sid: ReadOnlyVerifierEvidenceLog
+                Effect: Allow
+                Action:
+                  - logs:GetLogEvents
+                Resource: !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/jsc/public-beta/release-operator:log-stream:restore-semantic-verifier/*
+
   RestoreCleanupRole:
     Type: AWS::IAM::Role
     Properties:
@@ -1163,9 +1414,62 @@ Resources:
               - Sid: ObserveDatabaseDeletion
                 Effect: Allow
                 Action:
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DescribePrefixLists
+                  - ec2:DescribeSecurityGroupRules
+                  - ec2:DescribeSecurityGroups
+                  - ecs:DescribeTasks
+                  - ecs:ListTasks
+                  - ecs:ListTagsForResource
                   - rds:DescribeDBInstances
                   - rds:ListTagsForResource
+                  - ssm:GetParameter
+                  - ssm:ListTagsForResource
                 Resource: '*'
+              - Sid: StopOnlyTaggedRestoreSemanticTasks
+                Effect: Allow
+                Action: ecs:StopTask
+                Resource: !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task/jsc-public-beta/*
+                Condition:
+                  StringEquals:
+                    ecs:ResourceTag/App: Job Seeker Copilot
+                    ecs:ResourceTag/Environment: public-beta
+                    ecs:ResourceTag/ManagedBy: RestoreSemanticVerification
+                  'Null':
+                    ecs:ResourceTag/RestoreDrillId: 'false'
+              - Sid: RevokeOnlyDedicatedRestoreDatabaseIngress
+                Effect: Allow
+                Action: ec2:RevokeSecurityGroupIngress
+                Resource: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:security-group/*
+                Condition:
+                  StringEquals:
+                    ec2:ResourceTag/App: Job Seeker Copilot
+                    ec2:ResourceTag/Environment: public-beta
+                    ec2:ResourceTag/ManagedBy: Terraform
+                    ec2:ResourceTag/Purpose: RestoreDatabase
+              - Sid: RevokeOnlyDedicatedRestoreSemanticRules
+                Effect: Allow
+                Action:
+                  - ec2:RevokeSecurityGroupEgress
+                  - ec2:RevokeSecurityGroupIngress
+                Resource: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:security-group/*
+                Condition:
+                  StringEquals:
+                    ec2:ResourceTag/App: Job Seeker Copilot
+                    ec2:ResourceTag/Environment: public-beta
+                    ec2:ResourceTag/ManagedBy: Terraform
+                    ec2:ResourceTag/Purpose: RestoreSemanticVerifier
+              - Sid: DeleteOnlyTaggedRestoreSemanticStartMarker
+                Effect: Allow
+                Action: ssm:DeleteParameter
+                Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/jsc/public-beta/restore-semantic/*/start
+                Condition:
+                  StringEquals:
+                    aws:ResourceTag/App: Job Seeker Copilot
+                    aws:ResourceTag/Environment: public-beta
+                    aws:ResourceTag/ManagedBy: RestoreSemanticVerification
+                  'Null':
+                    aws:ResourceTag/RestoreDrillId: 'false'
               - Sid: DeleteOnlyNamedRestoreDatabases
                 Effect: Allow
                 Action: rds:DeleteDBInstance
@@ -1354,6 +1658,26 @@ Resources:
               - !Sub arn:${AWS::Partition}:s3:::jsc-public-beta-access-logs-${AWS::AccountId}/*
               - !Sub arn:${AWS::Partition}:s3:::jsc-public-beta-documents-${AWS::AccountId}
               - !Sub arn:${AWS::Partition}:s3:::jsc-public-beta-documents-${AWS::AccountId}/*
+          - Sid: ListOnlyRestoreCanaryVersions
+            Effect: Allow
+            Action: s3:ListBucketVersions
+            Resource: !Sub arn:${AWS::Partition}:s3:::jsc-public-beta-restore-${AWS::AccountId}-*
+            Condition:
+              StringLike:
+                s3:prefix: restore-canary/v1/*
+          - Sid: ReadOnlyRestoreCanaryObjects
+            Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:GetObjectVersion
+            Resource: !Sub arn:${AWS::Partition}:s3:::jsc-public-beta-restore-${AWS::AccountId}-*/restore-canary/v1/*
+          - Sid: ListOnlyBoundErasureJournalRecords
+            Effect: Allow
+            Action: s3:ListBucketVersions
+            Resource: !GetAtt ErasureJournalBucket.Arn
+            Condition:
+              StringLike:
+                s3:prefix: permanent-erasures/v1/*
           - Sid: WriteOnlyImmutableErasureJournalRecords
             Effect: Allow
             Action: s3:PutObject
@@ -1366,6 +1690,7 @@ Resources:
             Effect: Allow
             Action:
               - s3:GetObject
+              - s3:GetObjectRetention
               - s3:GetObjectVersion
             Resource: !Sub '${ErasureJournalBucket.Arn}/permanent-erasures/v1/*'
           - Sid: UseOnlyErasureJournalKeyThroughS3
@@ -3252,6 +3577,10 @@ Outputs:
     Value: !GetAtt ApplyRole.Arn
   RestoreDrillRoleArn:
     Value: !GetAtt RestoreDrillRole.Arn
+  RestoreSemanticStartRoleArn:
+    Value: !GetAtt RestoreSemanticStartRole.Arn
+  RestoreSemanticObserveRoleArn:
+    Value: !GetAtt RestoreSemanticObserveRole.Arn
   RestoreCleanupRoleArn:
     Value: !GetAtt RestoreCleanupRole.Arn
   WorkloadPermissionsBoundaryArn:

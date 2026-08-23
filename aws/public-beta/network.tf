@@ -255,6 +255,37 @@ resource "aws_security_group" "operator" {
   lifecycle { create_before_destroy = true }
 }
 
+# These two groups are deliberately inert during normal operation. The
+# protected restore-verification start role may add only the exact temporary
+# PostgreSQL, VPC-DNS, S3-prefix-list and caller-to-candidate paths documented
+# by the drill contract. The separate cleanup role removes their recorded rule
+# IDs; neither group is shared with the production database or service fleet.
+resource "aws_security_group" "restore_database" {
+  name_prefix = "${local.name_prefix}-restore-db-"
+  description = "No-ingress RDS destination boundary for isolated restore drills"
+  vpc_id      = aws_vpc.main.id
+
+  tags = {
+    Name    = "${local.name_prefix}-restore-database"
+    Purpose = "RestoreDatabase"
+  }
+
+  lifecycle { create_before_destroy = true }
+}
+
+resource "aws_security_group" "restore_semantic_verifier" {
+  name_prefix = "${local.name_prefix}-restore-verifier-"
+  description = "Inert ENI boundary for the separately approved restore semantic verifier"
+  vpc_id      = aws_vpc.main.id
+
+  tags = {
+    Name    = "${local.name_prefix}-restore-semantic-verifier"
+    Purpose = "RestoreSemanticVerifier"
+  }
+
+  lifecycle { create_before_destroy = true }
+}
+
 resource "aws_security_group" "clamav" {
   name_prefix = "${local.name_prefix}-clamav-"
   description = "Isolated malware scanner with no application task role"

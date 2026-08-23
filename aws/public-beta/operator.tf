@@ -149,6 +149,223 @@ resource "aws_iam_role_policy" "operator_restore_canary" {
   policy = data.aws_iam_policy_document.operator_restore_canary.json
 }
 
+resource "aws_iam_role" "restore_semantic_clone_execution" {
+  name                 = "${local.name_prefix}-restore-semantic-clone-execution"
+  assume_role_policy   = data.aws_iam_policy_document.task_trust.json
+  permissions_boundary = "arn:aws:iam::${var.aws_account_id}:policy/jsc-public-beta-workload-boundary"
+}
+
+resource "aws_iam_role_policy_attachment" "restore_semantic_clone_execution" {
+  role       = aws_iam_role.restore_semantic_clone_execution.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+data "aws_iam_policy_document" "restore_semantic_clone_secrets" {
+  statement {
+    sid     = "ReadOnlyRestoreCloneDatabaseSecrets"
+    actions = ["secretsmanager:GetSecretValue"]
+    resources = [
+      aws_db_instance.postgres.master_user_secret[0].secret_arn,
+      aws_secretsmanager_secret.database["document_store"].arn,
+    ]
+  }
+
+  statement {
+    sid       = "DecryptOnlyRestoreCloneDatabaseSecrets"
+    actions   = ["kms:Decrypt"]
+    resources = [var.foundation_data_kms_key_arn]
+  }
+}
+
+resource "aws_iam_role_policy" "restore_semantic_clone_secrets" {
+  name   = "restore-semantic-clone-secrets"
+  role   = aws_iam_role.restore_semantic_clone_execution.id
+  policy = data.aws_iam_policy_document.restore_semantic_clone_secrets.json
+}
+
+resource "aws_iam_role" "restore_semantic_document_store_execution" {
+  name                 = "${local.name_prefix}-restore-semantic-document-store-execution"
+  assume_role_policy   = data.aws_iam_policy_document.task_trust.json
+  permissions_boundary = "arn:aws:iam::${var.aws_account_id}:policy/jsc-public-beta-workload-boundary"
+}
+
+resource "aws_iam_role_policy_attachment" "restore_semantic_document_store_execution" {
+  role       = aws_iam_role.restore_semantic_document_store_execution.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+data "aws_iam_policy_document" "restore_semantic_document_store_secrets" {
+  statement {
+    sid     = "ReadOnlyRestoreDocumentStoreSecrets"
+    actions = ["secretsmanager:GetSecretValue"]
+    resources = [
+      aws_secretsmanager_secret.database["document_store"].arn,
+      aws_secretsmanager_secret.core.arn,
+    ]
+  }
+
+  statement {
+    sid       = "DecryptOnlyRestoreDocumentStoreSecrets"
+    actions   = ["kms:Decrypt"]
+    resources = [var.foundation_data_kms_key_arn]
+  }
+}
+
+resource "aws_iam_role_policy" "restore_semantic_document_store_secrets" {
+  name   = "restore-semantic-document-store-secrets"
+  role   = aws_iam_role.restore_semantic_document_store_execution.id
+  policy = data.aws_iam_policy_document.restore_semantic_document_store_secrets.json
+}
+
+resource "aws_iam_role" "restore_semantic_document_store_task" {
+  name                 = "${local.name_prefix}-restore-semantic-document-store-task"
+  assume_role_policy   = data.aws_iam_policy_document.task_trust.json
+  permissions_boundary = "arn:aws:iam::${var.aws_account_id}:policy/jsc-public-beta-workload-boundary"
+}
+
+# The isolated canary and production Document Store consume the same rendered
+# journal policy document. The canary role deliberately receives no production
+# document-bucket permission; its empty synthetic scope needs only the real
+# immutable journal path.
+resource "aws_iam_role_policy" "restore_semantic_document_store_journal" {
+  name   = "restore-semantic-document-store-journal"
+  role   = aws_iam_role.restore_semantic_document_store_task.id
+  policy = data.aws_iam_policy_document.document_store_journal.json
+}
+
+resource "aws_iam_role" "restore_semantic_verifier_execution" {
+  name                 = "${local.name_prefix}-restore-semantic-verifier-execution"
+  assume_role_policy   = data.aws_iam_policy_document.task_trust.json
+  permissions_boundary = "arn:aws:iam::${var.aws_account_id}:policy/jsc-public-beta-workload-boundary"
+}
+
+resource "aws_iam_role_policy_attachment" "restore_semantic_verifier_execution" {
+  role       = aws_iam_role.restore_semantic_verifier_execution.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+data "aws_iam_policy_document" "restore_semantic_verifier_secrets" {
+  statement {
+    sid     = "ReadOnlyRestoreVerifierSecrets"
+    actions = ["secretsmanager:GetSecretValue"]
+    resources = concat(
+      [for secret in aws_secretsmanager_secret.database : secret.arn],
+      [aws_secretsmanager_secret.core.arn],
+    )
+  }
+
+  statement {
+    sid       = "DecryptOnlyRestoreVerifierSecrets"
+    actions   = ["kms:Decrypt"]
+    resources = [var.foundation_data_kms_key_arn]
+  }
+}
+
+resource "aws_iam_role_policy" "restore_semantic_verifier_secrets" {
+  name   = "restore-semantic-verifier-secrets"
+  role   = aws_iam_role.restore_semantic_verifier_execution.id
+  policy = data.aws_iam_policy_document.restore_semantic_verifier_secrets.json
+}
+
+resource "aws_iam_role" "restore_semantic_verifier_task" {
+  name                 = "${local.name_prefix}-restore-semantic-verifier-task"
+  assume_role_policy   = data.aws_iam_policy_document.task_trust.json
+  permissions_boundary = "arn:aws:iam::${var.aws_account_id}:policy/jsc-public-beta-workload-boundary"
+}
+
+data "aws_iam_policy_document" "restore_semantic_verifier" {
+  statement {
+    sid       = "ReadOnlyExactRestoreSourceMarker"
+    actions   = ["ssm:GetParameter"]
+    resources = ["arn:aws:ssm:${var.aws_region}:${var.aws_account_id}:parameter/jsc/${var.environment}/release/restore-source-canary"]
+  }
+
+  statement {
+    sid = "ListOnlyRestoreCanaryVersions"
+    actions   = ["s3:ListBucketVersions"]
+    resources = ["arn:aws:s3:::jsc-public-beta-restore-${var.aws_account_id}-*"]
+
+    condition {
+      test     = "StringLike"
+      variable = "s3:prefix"
+      values   = ["restore-canary/v1/*"]
+    }
+  }
+
+  statement {
+    sid = "ReadOnlyRestoreCanaryObjects"
+    actions = [
+      "s3:GetObject",
+      "s3:GetObjectVersion",
+    ]
+    resources = ["arn:aws:s3:::jsc-public-beta-restore-${var.aws_account_id}-*/restore-canary/v1/*"]
+  }
+
+  statement {
+    sid       = "DecryptOnlyRestoredCanaryThroughS3"
+    actions   = ["kms:Decrypt"]
+    resources = [var.foundation_data_kms_key_arn]
+
+    condition {
+      test     = "StringEquals"
+      variable = "kms:ViaService"
+      values   = ["s3.${var.aws_region}.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringLike"
+      variable = "kms:EncryptionContext:aws:s3:arn"
+      values   = ["arn:aws:s3:::jsc-public-beta-restore-${var.aws_account_id}-*"]
+    }
+  }
+
+  statement {
+    sid = "ListOnlyExactErasureJournalRecord"
+    actions   = ["s3:ListBucketVersions"]
+    resources = ["arn:aws:s3:::${var.foundation_erasure_journal_bucket_name}"]
+
+    condition {
+      test     = "StringLike"
+      variable = "s3:prefix"
+      values   = ["permanent-erasures/v1/7e57c0de-*"]
+    }
+  }
+
+  statement {
+    sid = "ReadOnlyExactErasureJournalRecord"
+    actions = [
+      "s3:GetObject",
+      "s3:GetObjectRetention",
+      "s3:GetObjectVersion",
+    ]
+    resources = ["arn:aws:s3:::${var.foundation_erasure_journal_bucket_name}/permanent-erasures/v1/7e57c0de-*"]
+  }
+
+  statement {
+    sid       = "DecryptOnlyErasureJournalThroughS3"
+    actions   = ["kms:Decrypt"]
+    resources = [var.foundation_erasure_journal_kms_key_arn]
+
+    condition {
+      test     = "StringEquals"
+      variable = "kms:ViaService"
+      values   = ["s3.${var.aws_region}.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "kms:EncryptionContext:aws:s3:arn"
+      values   = ["arn:aws:s3:::${var.foundation_erasure_journal_bucket_name}"]
+    }
+  }
+}
+
+resource "aws_iam_role_policy" "restore_semantic_verifier" {
+  name   = "restore-semantic-verifier-read-only"
+  role   = aws_iam_role.restore_semantic_verifier_task.id
+  policy = data.aws_iam_policy_document.restore_semantic_verifier.json
+}
+
 locals {
   database_operator_environment = flatten([
     for key, database in local.databases : [
@@ -172,6 +389,27 @@ locals {
     for name, service in local.raw_services :
     "http://${name}.${local.namespace_name}:${service.port}${service.healthPath}"
   ])
+
+  restore_semantic_document_store_environment = merge(
+    local.service_environment["document-store-service"],
+    {
+      SERVER_PORT                                         = "8089"
+      DOCUMENT_STORE_DATABASE_URL                         = "jdbc:postgresql://invalid.restore.local:5432/document_store?sslmode=verify-full&sslrootcert=/etc/jsc/rds/global-bundle.pem"
+      DOCUMENT_STORE_OBJECT_BUCKET                        = "jsc-public-beta-invalid-restore"
+      DOCUMENT_STORE_PURGE_ENABLED                        = "true"
+      DOCUMENT_STORE_PERMANENT_ERASURE_ENABLED            = "true"
+      DOCUMENT_STORE_PERMANENT_ERASURE_WRITE_FENCE_ENABLED = "true"
+      DOCUMENT_STORE_VERSIONED_OBJECT_ERASURE_ENABLED     = "true"
+      DOCUMENT_STORE_RETENTION_POLICY_VERSION             = try(local.document_store_erasure_approval.retentionPolicyVersion, "NOT_CONFIGURED")
+      DOCUMENT_STORE_BACKUP_RETENTION_POLICY_VERSION      = try(local.document_store_erasure_approval.backupRetentionPolicyVersion, "NOT_CONFIGURED")
+      DOCUMENT_STORE_MAXIMUM_BACKUP_RETENTION_DAYS        = "35"
+      DOCUMENT_STORE_ERASURE_JOURNAL_RETENTION_POLICY_VERSION = try(local.document_store_erasure_approval.journalRetentionPolicyVersion, "NOT_CONFIGURED")
+      AUTH_JWKS_URI                                       = "http://127.0.0.1:1/unavailable"
+      APPLICATION_TRACKER_SERVICE_URL                     = "http://127.0.0.1:1"
+      DOCUMENT_STORE_CLAMAV_HOST                          = "127.0.0.1"
+      DOCUMENT_STORE_CLAMAV_PORT                          = "1"
+    },
+  )
 }
 
 resource "aws_ecs_task_definition" "database_bootstrap" {
@@ -383,6 +621,215 @@ resource "aws_ecs_task_definition" "restore_source_canary" {
   depends_on = [
     aws_iam_role_policy.operator_database_secrets,
     aws_iam_role_policy.operator_restore_canary,
+  ]
+}
+
+resource "aws_ecs_task_definition" "restore_semantic_clone" {
+  family                   = "${local.name_prefix}-restore-semantic-clone"
+  requires_compatibilities = ["EC2"]
+  network_mode             = "awsvpc"
+  execution_role_arn       = aws_iam_role.restore_semantic_clone_execution.arn
+  # Deliberately no task role. The exact release-operator command can clone
+  # only through injected restored-RDS credentials and has no AWS API identity.
+
+  container_definitions = jsonencode([{
+    name      = "restore-semantic-clone"
+    image     = "${aws_ecr_repository.image["release-operator"].repository_url}@${local.image_manifest.images["release-operator"].digest}"
+    essential = true
+    cpu       = 256
+    memory    = 512
+    command   = ["/opt/jsc/clone-restored-document-store.sh"]
+    environment = [
+      { name = "PGHOST", value = "invalid.restore.local" },
+      { name = "PGPORT", value = "5432" },
+      { name = "PGSSLMODE", value = "verify-full" },
+      { name = "PGSSLROOTCERT", value = "/etc/jsc/rds/global-bundle.pem" },
+      { name = "DOCUMENT_STORE_DATABASE", value = "document_store" },
+      { name = "DOCUMENT_STORE_USERNAME", value = "document_store" },
+      { name = "RESTORE_REPLAY_DATABASE", value = "invalid_restore_replay" },
+      { name = "RESTORE_DRILL_ID", value = "invalid-drill" },
+      { name = "RESTORE_SOURCE_CANARY_ID", value = "invalid-canary" },
+      { name = "RESTORE_SOURCE_MARKER_SHA256", value = "invalid" },
+      { name = "RELEASE_ID", value = "invalid" },
+    ]
+    secrets = [
+      { name = "MASTER_USERNAME", valueFrom = "${aws_db_instance.postgres.master_user_secret[0].secret_arn}:username::" },
+      { name = "MASTER_PASSWORD", valueFrom = "${aws_db_instance.postgres.master_user_secret[0].secret_arn}:password::" },
+      { name = "DOCUMENT_STORE_PASSWORD", valueFrom = "${aws_secretsmanager_secret.database["document_store"].arn}:password::" },
+    ]
+    readonlyRootFilesystem = true
+    linuxParameters = {
+      initProcessEnabled = true
+      tmpfs = [{
+        containerPath = "/tmp"
+        size          = 32
+        mountOptions  = ["rw", "noexec", "nosuid", "nodev"]
+      }]
+    }
+    logConfiguration = {
+      logDriver = "awslogs"
+      options = {
+        awslogs-group         = aws_cloudwatch_log_group.operator.name
+        awslogs-region        = var.aws_region
+        awslogs-stream-prefix = "restore-semantic-clone"
+      }
+    }
+  }])
+
+  tags = {
+    Purpose      = "restore-semantic-clone"
+    ImageDigest  = local.image_manifest.images["release-operator"].digest
+    SourceCommit = local.image_manifest.images["release-operator"].revision
+  }
+
+  depends_on = [aws_iam_role_policy.restore_semantic_clone_secrets]
+}
+
+resource "aws_ecs_task_definition" "restore_semantic_document_store" {
+  family                   = "${local.name_prefix}-restore-semantic-document-store"
+  requires_compatibilities = ["EC2"]
+  network_mode             = "awsvpc"
+  execution_role_arn       = aws_iam_role.restore_semantic_document_store_execution.arn
+  task_role_arn            = aws_iam_role.restore_semantic_document_store_task.arn
+
+  container_definitions = jsonencode([{
+    name      = "restore-semantic-document-store"
+    image     = "${aws_ecr_repository.image["document-store-service"].repository_url}@${local.image_manifest.images["document-store-service"].digest}"
+    essential = true
+    cpu       = 256
+    memory    = 1024
+    portMappings = [{
+      name          = "http"
+      containerPort = 8089
+      hostPort      = 8089
+      protocol      = "tcp"
+      appProtocol   = "http"
+    }]
+    environment = [for key, value in local.restore_semantic_document_store_environment : {
+      name  = key
+      value = value
+    }]
+    secrets = [
+      { name = "DOCUMENT_STORE_DATABASE_PASSWORD", valueFrom = "${aws_secretsmanager_secret.database["document_store"].arn}:password::" },
+      { name = "DOCUMENT_STORE_RETENTION_ADMIN_TOKEN", valueFrom = "${aws_secretsmanager_secret.core.arn}:DOCUMENT_STORE_RETENTION_ADMIN_TOKEN::" },
+      { name = "DOCUMENT_STORE_ERASURE_FINGERPRINT_KEY", valueFrom = "${aws_secretsmanager_secret.core.arn}:DOCUMENT_STORE_ERASURE_FINGERPRINT_KEY::" },
+      { name = "DOCUMENT_STORE_ERASURE_FINGERPRINT_PREVIOUS_KEYS", valueFrom = "${aws_secretsmanager_secret.core.arn}:DOCUMENT_STORE_ERASURE_FINGERPRINT_PREVIOUS_KEYS::" },
+    ]
+    user                   = "10001:10001"
+    readonlyRootFilesystem = true
+    linuxParameters = {
+      initProcessEnabled = true
+      tmpfs = [{
+        containerPath = "/tmp"
+        size          = 128
+        mountOptions  = ["rw", "noexec", "nosuid", "nodev"]
+      }]
+    }
+    healthCheck = {
+      command     = ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8089/actuator/health || exit 1"]
+      interval    = 15
+      timeout     = 10
+      retries     = 4
+      startPeriod = 120
+    }
+    logConfiguration = {
+      logDriver = "awslogs"
+      options = {
+        awslogs-group         = aws_cloudwatch_log_group.operator.name
+        awslogs-region        = var.aws_region
+        awslogs-stream-prefix = "restore-semantic-document-store"
+        mode                  = "non-blocking"
+        max-buffer-size       = "25m"
+      }
+    }
+    stopTimeout = 90
+  }])
+
+  tags = {
+    Purpose      = "restore-semantic-document-store"
+    ImageDigest  = local.image_manifest.images["document-store-service"].digest
+    SourceCommit = local.image_manifest.images["document-store-service"].revision
+  }
+
+  depends_on = [
+    aws_iam_role_policy.restore_semantic_document_store_journal,
+    aws_iam_role_policy.restore_semantic_document_store_secrets,
+  ]
+}
+
+resource "aws_ecs_task_definition" "restore_semantic_verifier" {
+  family                   = "${local.name_prefix}-restore-semantic-verifier"
+  requires_compatibilities = ["EC2"]
+  network_mode             = "awsvpc"
+  execution_role_arn       = aws_iam_role.restore_semantic_verifier_execution.arn
+  task_role_arn            = aws_iam_role.restore_semantic_verifier_task.arn
+
+  container_definitions = jsonencode([{
+    name      = "restore-semantic-verifier"
+    image     = "${aws_ecr_repository.image["release-operator"].repository_url}@${local.image_manifest.images["release-operator"].digest}"
+    essential = true
+    cpu       = 256
+    memory    = 512
+    command   = ["/opt/jsc/verify-restored-semantics.sh"]
+    environment = concat([
+      { name = "AWS_ACCOUNT_ID", value = var.aws_account_id },
+      { name = "AWS_REGION", value = var.aws_region },
+      { name = "PGHOST", value = "invalid.restore.local" },
+      { name = "PGPORT", value = "5432" },
+      { name = "PGSSLMODE", value = "verify-full" },
+      { name = "PGSSLROOTCERT", value = "/etc/jsc/rds/global-bundle.pem" },
+      { name = "DOCUMENT_KMS_KEY_ARN", value = var.foundation_data_kms_key_arn },
+      { name = "ERASURE_JOURNAL_BUCKET", value = var.foundation_erasure_journal_bucket_name },
+      { name = "ERASURE_JOURNAL_KMS_KEY_ARN", value = var.foundation_erasure_journal_kms_key_arn },
+      { name = "ERASURE_JOURNAL_RETENTION_DAYS", value = tostring(var.foundation_erasure_journal_retention_days) },
+      { name = "RESTORE_SOURCE_CANARY_MARKER", value = "/jsc/${var.environment}/release/restore-source-canary" },
+      { name = "RESTORE_DOCUMENT_BUCKET", value = "jsc-public-beta-invalid-restore" },
+      { name = "RESTORE_DRILL_ID", value = "invalid-drill" },
+      { name = "RESTORE_SOURCE_CANARY_ID", value = "invalid-canary" },
+      { name = "RESTORE_SOURCE_EVIDENCE_SHA256", value = "invalid" },
+      { name = "RESTORE_SOURCE_MARKER_SHA256", value = "invalid" },
+      { name = "RELEASE_ID", value = "invalid" },
+      { name = "RESTORE_REPLAY_DATABASE", value = "invalid_restore_replay" },
+      { name = "RESTORE_ERASURE_OPERATION_ID", value = "invalid" },
+      { name = "RESTORE_ERASURE_REPLAY_ID", value = "invalid" },
+      { name = "SOURCE_DOCUMENT_STORE_URL", value = "http://127.0.0.1:1" },
+      { name = "REPLAY_DOCUMENT_STORE_URL", value = "http://127.0.0.1:1" },
+    ], local.database_operator_environment)
+    secrets = concat(
+      [for key, secret in aws_secretsmanager_secret.database : {
+        name      = "${upper(key)}_PASSWORD"
+        valueFrom = "${secret.arn}:password::"
+      }],
+      [{ name = "DOCUMENT_STORE_RETENTION_ADMIN_TOKEN", valueFrom = "${aws_secretsmanager_secret.core.arn}:DOCUMENT_STORE_RETENTION_ADMIN_TOKEN::" }],
+    )
+    readonlyRootFilesystem = true
+    linuxParameters = {
+      initProcessEnabled = true
+      tmpfs = [{
+        containerPath = "/tmp"
+        size          = 64
+        mountOptions  = ["rw", "noexec", "nosuid", "nodev"]
+      }]
+    }
+    logConfiguration = {
+      logDriver = "awslogs"
+      options = {
+        awslogs-group         = aws_cloudwatch_log_group.operator.name
+        awslogs-region        = var.aws_region
+        awslogs-stream-prefix = "restore-semantic-verifier"
+      }
+    }
+  }])
+
+  tags = {
+    Purpose      = "restore-semantic-verifier"
+    ImageDigest  = local.image_manifest.images["release-operator"].digest
+    SourceCommit = local.image_manifest.images["release-operator"].revision
+  }
+
+  depends_on = [
+    aws_iam_role_policy.restore_semantic_verifier,
+    aws_iam_role_policy.restore_semantic_verifier_secrets,
   ]
 }
 

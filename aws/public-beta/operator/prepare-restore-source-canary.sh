@@ -18,7 +18,7 @@ case "$region" in eu-west-2) ;;
   *) echo "restore-source canary refused: region must be eu-west-2" >&2; exit 2 ;;
 esac
 case "$release_id" in
-  [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T[0-9][0-9][0-9][0-9][0-9][0-9]Z-[0-9a-f]*) ;;
+  [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T[0-9][0-9][0-9][0-9][0-9][0-9]Z-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]) ;;
   *) echo "restore-source canary refused: malformed release ID" >&2; exit 2 ;;
 esac
 case "$attestation_id" in
