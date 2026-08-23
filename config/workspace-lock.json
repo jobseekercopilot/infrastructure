@@ -22,7 +22,7 @@
     {"name": "llm-gateway", "branch": "main", "revision": "d84427061766244ec10e367fb3a7a6587809612c"},
     {"name": "document-store-service", "branch": "main", "revision": "159f75701654d5e0a951f0546cf1583e993a9b47"},
     {"name": "document-export-service", "branch": "main", "revision": "adf9bbd913f946c1e5cb77dd2d291c72171862d7"},
-    {"name": "application-tracker-service", "branch": "main", "revision": "b4e3fef52f8ca41b9b3735eaf81b5eb3c1982858"},
+    {"name": "application-tracker-service", "branch": "main", "revision": "91af8052b35bcc071256c268af2c9fbb4ad44fc3"},
     {"name": "cv-cover-letter-service", "branch": "main", "revision": "882ace2ff7360b19336cab8f79ac5b618493341b"},
     {"name": "document-generation-gateway", "branch": "main", "revision": "e15784c7098d327835e2a7d14dd257c1b95b08bd"},
     {"name": "reporting-service", "branch": "main", "revision": "6786cd1a5c9dfc6635408295f41bbbf07a36da54"},
