@@ -18,7 +18,7 @@
     {"name": "system-data-service", "branch": "main", "revision": "2b2bd1fdb87036baf3186c88b854b39cef2abc96"},
     {"name": "job-service", "branch": "main", "revision": "331f0fc9ee02cc414ce067ead1c4b720154d1742"},
     {"name": "job-matching-service", "branch": "main", "revision": "d31f0526ffab360726423ee83079e8c663b6c5fa"},
-    {"name": "job-finder-gateway", "branch": "main", "revision": "be13e4373b90c2abff087dd1da1e648274ac34ec"},
+    {"name": "job-finder-gateway", "branch": "main", "revision": "fe746dea30c8d8b36f209fae918241a21b934451"},
     {"name": "llm-gateway", "branch": "main", "revision": "d84427061766244ec10e367fb3a7a6587809612c"},
     {"name": "document-store-service", "branch": "main", "revision": "159f75701654d5e0a951f0546cf1583e993a9b47"},
     {"name": "document-export-service", "branch": "main", "revision": "adf9bbd913f946c1e5cb77dd2d291c72171862d7"},
