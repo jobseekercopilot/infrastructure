@@ -1772,6 +1772,10 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             route53_actions,
             {"route53:CreateHostedZone", "route53:GetHostedZone", "route53:ListHostedZonesByName"},
         )
+        self.assertEqual(
+            resources["ApplyComputeLaunchPolicy"]["Properties"]["Description"],
+            "Launch only the reviewed ECS AMI through the tagged public-beta launch template.",
+        )
         compute_launch_statements = resources["ApplyComputeLaunchPolicy"]["Properties"]["PolicyDocument"][
             "Statement"
         ]

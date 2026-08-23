@@ -1863,7 +1863,7 @@ Resources:
     Type: AWS::IAM::ManagedPolicy
     Properties:
       ManagedPolicyName: jsc-public-beta-apply-compute-launch
-      Description: Launch only the reviewed ECS AMI and delegate its required ASG managed tag.
+      Description: Launch only the reviewed ECS AMI through the tagged public-beta launch template.
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
