@@ -132,10 +132,13 @@ echo "Exact generated Landing hashes satisfy release readiness."
 # module, never checked in, signed, uploaded or used against AWS state.
 positive_approval_manifest="$validation_root/positive-approval-manifest.json"
 positive_image_manifest="$validation_root/positive-image-manifest.json"
+exception_approval_manifest="$validation_root/exception-approval-manifest.json"
+exception_image_manifest="$validation_root/exception-image-manifest.json"
 positive_tfvars="$validation_root/positive.tfvars.json"
 review_date=$(date -u +%Y-%m-%d)
 review_due_date=$(date -u -d "$review_date + 90 days" +%Y-%m-%d)
 reviewed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+exception_expires_at=$(date -u -d "$reviewed_at + 7 days" +%Y-%m-%dT%H:%M:%SZ)
 legal_version="uk-public-beta-$review_date"
 client_legal_sha=$(printf '6%.0s' {1..64})
 landing_legal_sha=$(printf '7%.0s' {1..64})
@@ -281,6 +284,27 @@ positive_approval_sha=$(sha256sum "$positive_approval_manifest" | cut -d' ' -f1)
 jq --arg approvalSha "$positive_approval_sha" \
   '.launchApprovalManifestSha256=$approvalSha' \
   "$release_ready_manifest" > "$positive_image_manifest"
+jq \
+  --arg approvedAt "$reviewed_at" \
+  --arg expiresAt "$exception_expires_at" \
+  '.documentStorePermanentErasure.isolatedRestoreReplayVerified=false
+   | .documentStorePermanentErasure.restoreDrillEvidenceSha256=""
+   | .documentStorePermanentErasure.initialPublicBetaRecoveryException={
+       approved:true,
+       id:"offline-initial-beta-recovery-exception",
+       approvedBy:"Account-free release validator",
+       approvedAt:$approvedAt,
+       expiresAt:$expiresAt,
+       trackingReference:"https://github.com/jobseekercopilot/infrastructure/issues/153",
+       justification:"Exercise the exact bounded initial public-beta recovery exception topology.",
+       compensatingControl:"Encrypted versioned storage, backups, one-task scaling and emergency darkening remain enabled.",
+       maximumApplicationDesiredCount:1
+     }' \
+  "$positive_approval_manifest" > "$exception_approval_manifest"
+exception_approval_sha=$(sha256sum "$exception_approval_manifest" | cut -d' ' -f1)
+jq --arg approvalSha "$exception_approval_sha" \
+  '.launchApprovalManifestSha256=$approvalSha' \
+  "$release_ready_manifest" > "$exception_image_manifest"
 jq -n '{enabled_integrations:{
   postcodes_gb:true,
   postcodes_ni:false,
@@ -396,3 +420,40 @@ python3 "$repository_root/scripts/aws/verify_offline_activation_plan.py" \
   "$validation_root/config/runtime-services.json"
 echo "$positive_plan_summary"
 echo "Account-free fully approved activation topology passed with desired_count=1 and public_entrypoint=true; no backend, AWS state, AWS calls or live credentials were used."
+
+exception_plan_log="$validation_root/exception-plan.log"
+AWS_ACCESS_KEY_ID=offline-validation \
+AWS_SECRET_ACCESS_KEY=offline-validation \
+AWS_REGION=eu-west-2 \
+AWS_EC2_METADATA_DISABLED=true \
+AWS_ENDPOINT_URL=http://127.0.0.1:9 \
+  terraform -chdir="$validation_root" plan \
+    -no-color \
+    -compact-warnings \
+    -refresh=false \
+    -input=false \
+    -lock=false \
+    -var=offline_validation=true \
+    -var=offline_activation_validation=true \
+    -var=application_desired_count=1 \
+    -var=public_entrypoint_enabled=true \
+    -var="image_manifest_path=$exception_image_manifest" \
+    -var="approval_manifest_path=$exception_approval_manifest" \
+    -var-file="$positive_tfvars" \
+    -out="$validation_root/public-beta-exception.tfplan" >"$exception_plan_log" 2>&1 || {
+      cat "$exception_plan_log" >&2
+      exit 1
+    }
+exception_plan_summary=$(sed -n '/^Plan: /p' "$exception_plan_log" | tail -n 1)
+[[ -n "$exception_plan_summary" ]] || {
+  cat "$exception_plan_log" >&2
+  echo "Offline initial-beta recovery-exception plan did not produce a resource summary." >&2
+  exit 1
+}
+terraform -chdir="$validation_root" show -json "$validation_root/public-beta-exception.tfplan" \
+  > "$validation_root/public-beta-exception.tfplan.json"
+python3 "$repository_root/scripts/aws/verify_offline_activation_plan.py" \
+  "$validation_root/public-beta-exception.tfplan.json" \
+  "$validation_root/config/runtime-services.json"
+echo "$exception_plan_summary"
+echo "Account-free seven-day initial-beta recovery-exception topology passed with desired_count=1 and public_entrypoint=true; no backend, AWS state, AWS calls or live credentials were used."

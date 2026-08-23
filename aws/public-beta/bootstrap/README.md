@@ -266,7 +266,7 @@ retain three-hour sessions and job bounds.
 | `production-build` | `RDS_CA_BUNDLE_URL` / `RDS_CA_BUNDLE_SHA256` | variables | official trust bundle and reviewed checksum |
 | `production-build` | `LANDING_RUNTIME_ENV_B64` | protected secret | exact reviewed non-secret Landing generation JSON |
 | build, plan and apply | `LAUNCH_APPROVALS_B64` | protected secret | byte-identical reviewed approval JSON; signed hash must match |
-| build, plan and apply | `RESTORE_DRILL_EVIDENCE_B64` | protected secret | exact reviewed non-secret restore/replay evidence; required for final `purpose=release`, plan and mutations, and SHA-256-bound by the launch approval |
+| build, plan and apply | `RESTORE_DRILL_EVIDENCE_B64` | protected secret | exact reviewed non-secret restore/replay evidence, SHA-256-bound by the launch approval; omitted only while the approved maximum-seven-day initial-beta recovery exception is active |
 | `production-aws-plan` | `AWS_PLAN_ROLE_ARN` | variable | `PlanRoleArn` output |
 | `production-aws` | `AWS_APPLY_ROLE_ARN` | variable | `ApplyRoleArn` output |
 | `production-aws` | restore-source evidence artifact | workflow output | non-secret exact candidate/canary marker, actual paired recovery-point tags/job metadata and hashes; never customer payloads |

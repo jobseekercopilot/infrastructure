@@ -82,6 +82,15 @@ drills; the data-service owners validate semantic consistency.
 
 Never test by overwriting a production database or production S3 key.
 
+The initial low-traffic public beta may launch before this first drill only
+under the protected, owner-approved `initialPublicBetaRecoveryException`. The
+exception lasts no more than seven days, caps the application at one task,
+names its P0 tracking item and compensating controls, and cannot weaken backup,
+journal, encryption, cost, ingress or emergency-darkening controls. It must
+leave the replay flag false and evidence checksum empty rather than claiming a
+test that did not occur. Expiry blocks later release plans/mutations until this
+drill is complete and the approval is replaced by checksum-bound evidence.
+
 1. Put the public listener into fixed-`503` mode and record the maintenance
    window, drill ID, owner, start time and intended recovery window. Source
    preparation deliberately starts the private fleet and then quiesces it; it
