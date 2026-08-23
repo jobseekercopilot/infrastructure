@@ -997,6 +997,27 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         self.assertNotIn("id-token: write", prepare_job)
         self.assertLess(build.index("Build and verify release artifacts without AWS credentials"), build.index("Configure build-only AWS role"))
 
+    def test_release_runtime_dockerfiles_exclude_known_vulnerable_alpine_base(self) -> None:
+        vulnerable_base = (
+            "eclipse-temurin:17-jre-alpine@"
+            "sha256:02320dd4ce20e243dfb915c686089cf9315c763084fafbb12d5c9993aee18b57"
+        )
+        reviewed_base = (
+            "eclipse-temurin:17-jre@"
+            "sha256:1824944ef1bd572d1ff0952afeb2fec7931d77c972c4fbc4dfcdf89f758fb490"
+        )
+        for service in (
+            "adzuna-gateway",
+            "document-generation-gateway",
+            "jsearch-gateway",
+            "reed-gateway",
+        ):
+            dockerfile = (ROOT / "docker" / f"{service}.runtime.Dockerfile").read_text(encoding="utf-8")
+            self.assertNotIn(vulnerable_base, dockerfile, service)
+            self.assertIn(reviewed_base, dockerfile, service)
+            self.assertIn("ARG WGET_VERSION=1.25.0-2ubuntu4.4", dockerfile, service)
+            self.assertIn("wget=${WGET_VERSION}", dockerfile, service)
+
     def test_landing_static_tar_is_deterministic_and_rejects_links(self) -> None:
         spec = importlib.util.spec_from_file_location("build_landing_artifact", LANDING_BUILDER)
         self.assertIsNotNone(spec)
