@@ -150,6 +150,9 @@ class PublicBetaAwsContractTest(unittest.TestCase):
     def test_waf_has_narrow_upload_override_and_full_crs_elsewhere(self) -> None:
         edge = (ROOT / "aws" / "public-beta" / "edge.tf").read_text(encoding="utf-8")
         self.assertEqual(edge.count("AWSManagedRulesCommonRuleSet"), 2)
+        self.assertEqual(edge.count('vendor_name = "AWS"'), 3)
+        self.assertNotIn("ip_set_reference_statement", edge)
+        self.assertNotIn("rule_group_reference_statement", edge)
         self.assertIn('name = "SizeRestrictions_BODY"', edge)
         self.assertIn("action_to_use {", edge)
         self.assertIn("document-uploads$", edge)
@@ -477,10 +480,20 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         )
         for sid in (
             "RunOnlyReviewedEcsAmiFromLaunchTemplate", "RunOnlyFromTaggedPublicBetaTemplateResources",
-            "RunOnlyInTaggedPublicBetaSubnets", "CreateOnlyTaggedPublicBetaInstances",
+            "CreateOnlyTaggedPublicBetaInstances",
             "CreateOnlyTaggedPrivateNetworkInterfaces", "CreateOnlyTaggedEncryptedGp3Volumes",
         ):
             self.assertEqual(by_sid[sid]["Condition"]["Bool"]["ec2:IsLaunchTemplateResource"], "true")
+        # The ASG supplies vpc_zone_identifier outside the launch template.
+        # AWS therefore evaluates the selected subnet with
+        # ec2:IsLaunchTemplateResource=false during its RunInstances dry run.
+        asg_subnet = by_sid["RunOnlyInTaggedPublicBetaSubnets"]
+        self.assertNotIn("Bool", asg_subnet["Condition"])
+        self.assertEqual(
+            asg_subnet["Condition"]["StringEquals"]["ec2:ResourceTag/ManagedBy"],
+            "Terraform",
+        )
+        self.assertIn("ec2:LaunchTemplate", asg_subnet["Condition"]["ArnLike"])
 
         create_database = by_sid["CreateOnlyReviewedPublicBetaDatabase"]
         self.assertIn(":db:jsc-public-beta-postgres", create_database["Resource"])
@@ -1724,21 +1737,42 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         }
         self.assertIn("s3:GetAccelerateConfiguration", discovery_actions)
         self.assertIn("s3:GetReplicationConfiguration", discovery_actions)
+        self.assertIn("ec2:GetSecurityGroupsForVpc", discovery_actions)
+        self.assertNotIn("ec2:Get*", discovery_actions)
 
         compute_statements = resources["ApplyComputePolicy"]["Properties"]["PolicyDocument"]["Statement"]
         compute_by_sid = {statement["Sid"]: statement for statement in compute_statements}
-        private_zone = compute_by_sid["CreateOnlyPrivateHostedZoneForRegionalVpc"]
+        private_zone = compute_by_sid["CreateHostedZoneRequiredByPrivateDnsNamespace"]
         self.assertEqual(private_zone["Action"], "route53:CreateHostedZone")
+        self.assertNotIn("Condition", private_zone)
+        private_zone_read = compute_by_sid["ReadHostedZoneRequiredByPrivateDnsNamespace"]
         self.assertEqual(
-            private_zone["Condition"]["StringLike"]["route53:VPCs"],
-            "VPCId=vpc-*,VPCRegion=${AWS::Region}",
+            set(private_zone_read["Action"]),
+            {"route53:GetHostedZone", "route53:ListHostedZonesByName"},
+        )
+        route53_actions = {
+            action
+            for statement in compute_statements
+            for action in (
+                statement["Action"] if isinstance(statement["Action"], list) else [statement["Action"]]
+            )
+            if action.startswith("route53:")
+        }
+        self.assertEqual(
+            route53_actions,
+            {"route53:CreateHostedZone", "route53:GetHostedZone", "route53:ListHostedZonesByName"},
         )
 
         observability_statements = resources["ApplyObservabilityPolicy"]["Properties"]["PolicyDocument"]["Statement"]
         observability_by_sid = {statement["Sid"]: statement for statement in observability_statements}
         managed_waf = observability_by_sid["ReferenceOnlyAwsManagedWafRuleSets"]
         self.assertEqual(set(managed_waf["Action"]), {"wafv2:CreateWebACL", "wafv2:UpdateWebACL"})
-        self.assertTrue(managed_waf["Resource"].endswith(":regional/managedruleset/AWS/*"))
+        self.assertTrue(managed_waf["Resource"].endswith(":regional/managedruleset/*/*"))
+        tagged_waf = observability_by_sid["ManageOnlyTaggedWafResources"]
+        self.assertIn("wafv2:CreateWebACL", tagged_waf["Action"])
+        self.assertTrue(
+            any(":regional/regexpatternset/jsc-public-beta-*/*" in arn for arn in tagged_waf["Resource"])
+        )
 
         iam_statements = resources["ApplyReleaseOperationsPolicy"]["Properties"]["PolicyDocument"]["Statement"]
         iam_by_sid = {statement["Sid"]: statement for statement in iam_statements}
