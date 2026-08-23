@@ -592,8 +592,8 @@ locals {
         openApiSha256 = "8ef5f12a32e836c2046fb163944b62d76cea31e389612408ca6ed1d1ccc42884"
       }
       userManagementGateway = {
-        revision           = "5dc8aa1e7afb9492a96d3dedde847c530b6209b0"
-        openApiSha256      = "dde3349e015f2cd7ef7bf9bc810681bebe98fca1ed1510005aa0b1a8b0e6d08e"
+        revision           = "a5b2e064a8b9e082378a94603467773dd97349e8"
+        openApiSha256      = "ebb1332f8927cdb69dd659db444627e59c4f5d8f4330e04d95ed17164fb8bcf7"
         authSnapshotSha256 = "95811cb81b0c32ad2f9c5cc42cd8f85c0385359cdade6c0f9e67e3ed63950dc0"
       }
       documentGenerationGateway = {
