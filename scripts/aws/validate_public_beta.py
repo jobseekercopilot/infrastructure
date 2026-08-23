@@ -1275,6 +1275,10 @@ def validate_source_guards() -> None:
     )
     require('variable = "s3:x-amz-acl"' not in source, "ALB log delivery must not require an unsupported canned-ACL header")
     compute = (MODULE / "compute.tf").read_text(encoding="utf-8")
+    require(
+        "s3:x-amz-server-side-encryption-bucket-key-enabled" not in compute,
+        "Document Store journal IAM uses a nonexistent S3 bucket-key condition",
+    )
     clamav_task = compute.split('resource "aws_ecs_task_definition" "clamav" {', maxsplit=1)[1].split(
         'resource "aws_ecs_service" "clamav" {', maxsplit=1
     )[0]

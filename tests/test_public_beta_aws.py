@@ -1476,6 +1476,9 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, journal_policy)
         self.assertNotRegex(journal_policy, r'actions\s*=\s*\[[^]]*"kms:(Encrypt|DescribeKey)"')
+        self.assertNotIn("s3:x-amz-server-side-encryption-bucket-key-enabled", journal_policy)
+        self.assertIn('variable = "s3:x-amz-server-side-encryption"', journal_policy)
+        self.assertIn('variable = "s3:x-amz-server-side-encryption-aws-kms-key-id"', journal_policy)
         self.assertIn('variable = "kms:ViaService"', journal_policy)
         self.assertIn('variable = "kms:EncryptionContext:aws:s3:arn"', journal_policy)
 

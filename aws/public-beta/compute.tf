@@ -568,12 +568,6 @@ data "aws_iam_policy_document" "document_store" {
       variable = "s3:x-amz-server-side-encryption-aws-kms-key-id"
       values   = [var.foundation_erasure_journal_kms_key_arn]
     }
-
-    condition {
-      test     = "Bool"
-      variable = "s3:x-amz-server-side-encryption-bucket-key-enabled"
-      values   = ["true"]
-    }
   }
 
   statement {

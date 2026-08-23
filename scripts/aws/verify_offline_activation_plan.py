@@ -556,7 +556,16 @@ def verify_activation_plan(plan: dict[str, Any], runtime: dict[str, Any]) -> Non
         write_journal = document_iam_by_sid.get("WriteOnlyImmutableErasureJournalRecords", {})
         require(
             write_journal.get("Action") == "s3:PutObject"
-            and write_journal.get("Resource") == journal_object_arn,
+            and write_journal.get("Resource") == journal_object_arn
+            and write_journal.get("Condition") == {
+                "StringEquals": {
+                    "s3:x-amz-server-side-encryption": "aws:kms",
+                    "s3:x-amz-server-side-encryption-aws-kms-key-id": (
+                        "arn:aws:kms:eu-west-2:000000000000:key/"
+                        "11111111-1111-1111-1111-111111111111"
+                    ),
+                },
+            },
             "Document Store immutable-journal write permission is not exact",
         )
         read_journal = document_iam_by_sid.get("ReadOnlyBoundErasureJournalRecords", {})
