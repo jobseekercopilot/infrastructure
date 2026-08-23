@@ -1917,20 +1917,24 @@ Resources:
                 ec2:IsLaunchTemplateResource: 'true'
               ArnLike:
                 ec2:LaunchTemplate: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:launch-template/*
-          - Sid: CreateOnlyTaggedPrivateNetworkInterfaces
+          - Sid: CreateOnlyPrivateNetworkInterfacesFromReviewedTemplate
             Effect: Allow
             Action: ec2:RunInstances
             Resource: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:network-interface/*
             Condition:
-              StringEquals:
+              # Auto Scaling's RunInstances authorization creates the ENI
+              # outside the launch template and omits create-tag/public-IP
+              # context keys unless the caller explicitly supplies them.
+              StringEqualsIfExists:
                 aws:RequestTag/Application: Job Seeker Copilot
                 aws:RequestTag/Environment: public-beta
                 aws:RequestTag/ManagedBy: Terraform
-              Bool:
+              BoolIfExists:
                 ec2:AssociatePublicIpAddress: 'false'
-                ec2:IsLaunchTemplateResource: 'true'
               ArnLike:
                 ec2:LaunchTemplate: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:launch-template/*
+                ec2:Subnet: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:subnet/*
+                ec2:Vpc: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:vpc/*
           - Sid: CreateOnlyTaggedEncryptedGp3Volumes
             Effect: Allow
             Action: ec2:RunInstances
