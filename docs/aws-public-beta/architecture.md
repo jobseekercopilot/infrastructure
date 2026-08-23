@@ -178,6 +178,7 @@ Terraform reconciliation remains a separate reviewed recovery action.
 
 The landing site and its SAM waitlist/contact backend remain a separate release
 unit. This stack consumes only the existing Route 53 hosted-zone ID and SES
-domain/configuration-set contract; it does not update the landing stack. The
+domain-identity/DKIM contract; it owns the separate application account-email
+configuration set and does not update the landing stack. The
 central build emits its immutable, checksum-bound static/SAM evidence without
 publishing it. See [landing integration](landing-integration.md).

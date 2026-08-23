@@ -633,6 +633,18 @@ data "aws_iam_policy_document" "account_email" {
       variable = "ses:FromAddress"
       values   = [var.account_email_sender]
     }
+
+    condition {
+      test     = "StringEquals"
+      variable = "ses:ApiVersion"
+      values   = ["2010-12-01"]
+    }
+
+    condition {
+      test     = "Bool"
+      variable = "aws:SecureTransport"
+      values   = ["true"]
+    }
   }
 }
 

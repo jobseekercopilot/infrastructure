@@ -457,6 +457,19 @@ Resources:
             Condition:
               StringEquals:
                 aws:SourceAccount: !Ref AWS::AccountId
+          - Sid: EncryptExactAccountEmailEvents
+            Effect: Allow
+            Principal:
+              Service: ses.amazonaws.com
+            Action:
+              - kms:Decrypt
+              - kms:GenerateDataKey*
+            Resource: '*'
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+              ArnLike:
+                aws:SourceArn: !Sub arn:${AWS::Partition}:ses:${AWS::Region}:${AWS::AccountId}:configuration-set/JobSeekerCopilotAccountEmails
       Tags:
         - Key: Application
           Value: Job Seeker Copilot
@@ -531,6 +544,17 @@ Resources:
             Condition:
               StringEquals:
                 aws:SourceAccount: !Ref AWS::AccountId
+          - Sid: ExactAccountEmailEventPublisher
+            Effect: Allow
+            Principal:
+              Service: ses.amazonaws.com
+            Action: sns:Publish
+            Resource: !Ref OperationsTopic
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+              ArnLike:
+                aws:SourceArn: !Sub arn:${AWS::Partition}:ses:${AWS::Region}:${AWS::AccountId}:configuration-set/JobSeekerCopilotAccountEmails
 
   OperationsEmailSubscription:
     Type: AWS::SNS::Subscription
@@ -916,6 +940,12 @@ Resources:
                   - secretsmanager:DescribeSecret
                   - secretsmanager:GetResourcePolicy
                   - secretsmanager:ListSecrets
+                  - ses:GetAccount
+                  - ses:GetConfigurationSet
+                  - ses:GetConfigurationSetEventDestinations
+                  - ses:GetEmailIdentity
+                  - ses:ListConfigurationSets
+                  - ses:ListTagsForResource
                   - servicediscovery:Get*
                   - servicediscovery:List*
                   - sns:GetSubscriptionAttributes
@@ -1057,6 +1087,18 @@ Resources:
                 'secretsmanager:ResourceTag/aws:secretsmanager:owningService': rds
               StringLike:
                 'secretsmanager:ResourceTag/aws:rds:primaryDBInstanceArn': !Sub arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:db:jsc-public-beta-postgres
+          - Sid: SendOnlyAuthenticationAccountEmail
+            Effect: Allow
+            Action: ses:SendEmail
+            Resource:
+              - !Sub arn:${AWS::Partition}:ses:${AWS::Region}:${AWS::AccountId}:identity/jobseekercopilot.com
+              - !Sub arn:${AWS::Partition}:ses:${AWS::Region}:${AWS::AccountId}:configuration-set/JobSeekerCopilotAccountEmails
+            Condition:
+              StringEquals:
+                ses:FromAddress: accounts@jobseekercopilot.com
+                ses:ApiVersion: '2010-12-01'
+              Bool:
+                aws:SecureTransport: 'true'
           - Sid: UseOnlyFoundationPublicBetaDataKey
             Effect: Allow
             Action:
@@ -1385,6 +1427,12 @@ Resources:
               - secretsmanager:DescribeSecret
               - secretsmanager:GetResourcePolicy
               - secretsmanager:ListSecrets
+              - ses:GetAccount
+              - ses:GetConfigurationSet
+              - ses:GetConfigurationSetEventDestinations
+              - ses:GetEmailIdentity
+              - ses:ListConfigurationSets
+              - ses:ListTagsForResource
               - servicediscovery:Get*
               - servicediscovery:List*
               - sns:Get*
@@ -2176,10 +2224,39 @@ Resources:
     Type: AWS::IAM::ManagedPolicy
     Properties:
       ManagedPolicyName: jsc-public-beta-apply-observability
-      Description: Named and tagged public-beta alarms, dashboards and WAF lifecycle; billing controls stay in the manual foundation.
+      Description: Named and tagged public-beta alarms, dashboards, WAF and account-email event configuration; billing controls stay in the manual foundation.
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
+          - Sid: CreateOnlyExactAccountEmailConfigurationSet
+            Effect: Allow
+            Action:
+              - ses:CreateConfigurationSet
+              - ses:TagResource
+            Resource: !Sub arn:${AWS::Partition}:ses:${AWS::Region}:${AWS::AccountId}:configuration-set/JobSeekerCopilotAccountEmails
+            Condition:
+              StringEquals:
+                aws:RequestTag/Application: Job Seeker Copilot
+                aws:RequestTag/Environment: public-beta
+                aws:RequestTag/ManagedBy: Terraform
+                ses:ApiVersion: '2019-09-27'
+          - Sid: ManageOnlyTaggedAccountEmailConfiguration
+            Effect: Allow
+            Action:
+              - ses:CreateConfigurationSetEventDestination
+              - ses:PutConfigurationSetReputationOptions
+              - ses:PutConfigurationSetSendingOptions
+              - ses:PutConfigurationSetSuppressionOptions
+              - ses:TagResource
+              - ses:UntagResource
+              - ses:UpdateConfigurationSetEventDestination
+            Resource: !Sub arn:${AWS::Partition}:ses:${AWS::Region}:${AWS::AccountId}:configuration-set/JobSeekerCopilotAccountEmails
+            Condition:
+              StringEquals:
+                aws:ResourceTag/Application: Job Seeker Copilot
+                aws:ResourceTag/Environment: public-beta
+                aws:ResourceTag/ManagedBy: Terraform
+                ses:ApiVersion: '2019-09-27'
           - Sid: CreateOnlyTaggedObservabilityResources
             Effect: Allow
             Action:
@@ -2702,6 +2779,7 @@ Resources:
                   - logs:UntagResource
                   - rds:RemoveTagsFromResource
                   - secretsmanager:UntagResource
+                  - ses:UntagResource
                   - servicediscovery:UntagResource
                   - sns:UntagResource
                   - wafv2:UntagResource
@@ -2730,6 +2808,7 @@ Resources:
                   - logs:TagResource
                   - rds:AddTagsToResource
                   - secretsmanager:TagResource
+                  - ses:TagResource
                   - servicediscovery:TagResource
                   - sns:TagResource
                   - wafv2:TagResource
@@ -2757,6 +2836,7 @@ Resources:
                   - logs:TagResource
                   - rds:AddTagsToResource
                   - secretsmanager:TagResource
+                  - ses:TagResource
                   - servicediscovery:TagResource
                   - sns:TagResource
                   - wafv2:TagResource
@@ -2784,6 +2864,7 @@ Resources:
                   - logs:TagResource
                   - rds:AddTagsToResource
                   - secretsmanager:TagResource
+                  - ses:TagResource
                   - servicediscovery:TagResource
                   - sns:TagResource
                   - wafv2:TagResource

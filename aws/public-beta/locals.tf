@@ -474,8 +474,13 @@ locals {
     certificate_arn       = local.effective_certificate_arn
     account_email_sender  = var.account_email_sender
     ses_configuration_set = var.ses_configuration_set
-    waf_rate_limit        = var.waf_rate_limit_per_five_minutes
-    log_retention_days    = var.log_retention_days
+    account_email_events = {
+      destination_name = "account-email-events"
+      event_types      = sort(tolist(local.account_email_event_types))
+      topic_arn        = var.foundation_operations_topic_arn
+    }
+    waf_rate_limit     = var.waf_rate_limit_per_five_minutes
+    log_retention_days = var.log_retention_days
     foundation = {
       data_kms_key_arn               = var.foundation_data_kms_key_arn
       operations_topic_arn           = var.foundation_operations_topic_arn

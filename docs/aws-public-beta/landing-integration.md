@@ -40,16 +40,19 @@ creation is not publication permission.
 | landing source, static artifact and reviewed SAM templates | landing repository; verify/build only |
 | Amplify/static promotion and reviewed SAM change-set execution | central landing release orchestration, outside this app Terraform root |
 | waitlist/contact API, tables/functions and landing SAM outputs | centrally deployed landing SAM stack |
-| SES domain identity, DKIM and landing configuration-set resources | landing SAM/email stack |
+| SES domain identity, DKIM and landing-only configuration-set resources | landing SAM/email stack |
 | existing public Route 53 hosted zone | shared account prerequisite |
 | reviewed eu-west-2 `app.<domain>` ACM certificate | account prerequisite; this Terraform stack consumes its exact ARN but cannot mutate it |
 | `app.<domain>` A alias, ALB/WAF and application tasks | this Terraform stack |
-| application account-email use of verified SES identity/configuration set | this stack consumes the landing-owned identifiers |
+| application `JobSeekerCopilotAccountEmails` configuration set/event destination and Authentication send grant | this stack; it consumes only the landing-owned domain identity/DKIM contract |
 
 Do not import, recreate, delete or rename landing-owned SES/SAM resources from
-Terraform. Terraform receives the existing hosted-zone ID, SES identity domain
-and configuration-set name as reviewed inputs. Its Authentication task role is
-allowed to send only through that identity/configuration contract.
+Terraform. Terraform receives the existing hosted-zone ID and SES identity
+domain as reviewed inputs, then owns only its purpose-specific application
+configuration set. Its Authentication task role is allowed to send only through
+that identity/application-configuration contract. The retained bootstrap owns
+the encrypted operations topic and grants the exact application configuration
+set permission to publish delivery events.
 
 ## Coordinated release
 
@@ -81,7 +84,7 @@ stack can affect the other.
 
 Before production, record the exact landing `main` revision, its static/config/
 SAM checksums, selected hosting deployment, SAM stack outputs, app release ID,
-hosted-zone ID, SES configuration set and rollback destinations in one
+hosted-zone ID, both release units' SES configuration sets and rollback destinations in one
 non-secret release record.
 
 The landing `dist/job-seeker-copilot-landing/browser` artifact must publish

@@ -148,6 +148,12 @@ action: foundation
 confirmation: FOUNDATION public-beta
 ```
 
+Before this first foundation run, manually execute the reviewed bootstrap
+`UPDATE` from the same protected `main` revision. The account-email change adds
+only exact SES read/manage permissions and exact SES publisher statements on
+the retained operations topic/notification key. Without that update, the
+normal apply must fail closed rather than broadening its own authority.
+
 Review the refresh-backed plan in the protected environment. The plan must
 show `application_desired_count=0` and `public_entrypoint_enabled=false`.
 Confirm the expected lean shape, cost tags, single-node ASG bound and no
@@ -166,7 +172,11 @@ increases the ASG maximum. If the automatic host refresh/rollback fails, keep
 the listener dark and investigate before any application activation.
 
 Confirm the operations SNS subscription, billing cost-allocation tag and DNS/
-certificate state. Keep the ALB fixed at `503`.
+certificate state. Foundation creates the purpose-specific
+`JobSeekerCopilotAccountEmails` configuration/event destination, then performs
+the read-only SES/SNS/KMS verification described in
+[account-email delivery](../account-email-ses.md). It sends no email. Keep the
+ALB fixed at `503`.
 
 ## 4. Build one immutable release
 
@@ -219,20 +229,22 @@ confirmation: PREPARE <release-id>
 The script deliberately performs these steps in order:
 
 1. scales every application and scanner service to zero and keeps the listener dark;
-2. seeds missing core/database secret versions;
-3. verifies the expected ECS nodes, `awsvpcTrunking` registration, private
+2. re-verifies live SES identity/DKIM/suppression/event publication without
+   sending email;
+3. seeds missing core/database secret versions;
+4. verifies the expected ECS nodes, `awsvpcTrunking` registration, private
    subnet IP headroom, and registered CPU, memory and branch-ENI capacity;
-4. runs an idempotent database bootstrap task to create/repair exactly seven
+5. runs an idempotent database bootstrap task to create/repair exactly seven
    roles and logical databases with least-privilege ownership;
-5. records the exact database-bootstrap release marker;
-6. renders the whole private-fleet plan;
-7. starts and proves the isolated no-task-role ClamAV scanner fleet (one per
+6. records the exact database-bootstrap release marker;
+7. renders the whole private-fleet plan;
+8. starts and proves the isolated no-task-role ClamAV scanner fleet (one per
    reviewed node) before any document path;
-8. starts application services one at a time in reviewed dependency/build
+9. starts application services one at a time in reviewed dependency/build
    order, waiting for each to stabilise;
-9. converges the full private desired-count-one stack;
-10. verifies every service's Flyway history over hostname-verified TLS; and
-11. runs private health/preflight, then records the exact release marker.
+10. converges the full private desired-count-one stack;
+11. verifies every service's Flyway history over hostname-verified TLS; and
+12. runs private health/preflight, then records the exact release marker.
 
 The one-node beta cannot schedule old and new copies of the complete fleet.
 Stop-first `0/100` deployment and ordered service starts are intentional in
@@ -245,6 +257,14 @@ evidence and repair or roll back; do not skip markers or start services before
 database bootstrap.
 
 ## 6. Activate separately
+
+Before activation, the release owner must name and approve one tester
+account/mailbox they control for the single real password-reset delivery. Do
+not infer the recipient from support/contact configuration and do not record
+its address or reset token in evidence. If the controlled journey cannot be
+completed through the reviewed real application path, keep the listener dark;
+do not send directly with the AWS CLI as a substitute for Authentication
+Service behavior.
 
 Review an `action=plan` dispatch for desired count `1` and public entrypoint
 `true`. Verify the exact release ID is both the database-bootstrap and
