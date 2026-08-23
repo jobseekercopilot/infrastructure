@@ -255,6 +255,143 @@ resource "aws_security_group" "operator" {
   lifecycle { create_before_destroy = true }
 }
 
+# The protected restore-source task is the only release one-shot that must
+# reach both S3 and SSM. Keep that HTTPS path off the shared operator SG; the
+# task still reaches only the production DB SG on PostgreSQL and has no ingress.
+resource "aws_security_group" "restore_source_canary" {
+  name_prefix = "${local.name_prefix}-restore-source-"
+  description = "No-ingress network boundary for protected restore-source canary preparation"
+  vpc_id      = aws_vpc.main.id
+
+  tags = {
+    Name    = "${local.name_prefix}-restore-source-canary"
+    Purpose = "RestoreSourceCanary"
+  }
+
+  lifecycle { create_before_destroy = true }
+}
+
+resource "aws_vpc_security_group_egress_rule" "restore_source_canary_https" {
+  security_group_id = aws_security_group.restore_source_canary.id
+  description       = "S3 gateway and regional SSM API HTTPS"
+  from_port         = 443
+  to_port           = 443
+  ip_protocol       = "tcp"
+  cidr_ipv4         = "0.0.0.0/0"
+}
+
+resource "aws_vpc_security_group_egress_rule" "restore_source_canary_dns_udp" {
+  security_group_id = aws_security_group.restore_source_canary.id
+  description       = "VPC DNS over UDP"
+  from_port         = 53
+  to_port           = 53
+  ip_protocol       = "udp"
+  cidr_ipv4         = "${cidrhost(aws_vpc.main.cidr_block, 2)}/32"
+}
+
+resource "aws_vpc_security_group_egress_rule" "restore_source_canary_dns_tcp" {
+  security_group_id = aws_security_group.restore_source_canary.id
+  description       = "VPC DNS over TCP"
+  from_port         = 53
+  to_port           = 53
+  ip_protocol       = "tcp"
+  cidr_ipv4         = "${cidrhost(aws_vpc.main.cidr_block, 2)}/32"
+}
+
+resource "aws_vpc_security_group_egress_rule" "restore_source_canary_database" {
+  security_group_id            = aws_security_group.restore_source_canary.id
+  description                  = "TLS PostgreSQL source-canary preparation"
+  from_port                    = 5432
+  to_port                      = 5432
+  ip_protocol                  = "tcp"
+  referenced_security_group_id = aws_security_group.database.id
+}
+
+resource "aws_vpc_security_group_ingress_rule" "database_restore_source_canary" {
+  security_group_id            = aws_security_group.database.id
+  description                  = "TLS PostgreSQL from protected restore-source canary"
+  from_port                    = 5432
+  to_port                      = 5432
+  ip_protocol                  = "tcp"
+  referenced_security_group_id = aws_security_group.restore_source_canary.id
+}
+
+# These child groups contain a fixed, Terraform-owned allowlist. No task ENI uses
+# the verifier group during normal operation, while the restored database group
+# permits PostgreSQL only from that otherwise-unattached group. GitHub OIDC has
+# no child RunTask/PassRole authority; the fixed Step Functions broker selects
+# this exact group, and no drill role can mutate either group. That makes the
+# restored-only database path an AWS-enforced boundary rather than a script
+# convention.
+resource "aws_security_group" "restore_database" {
+  name_prefix = "${local.name_prefix}-restore-db-"
+  description = "Dedicated RDS destination boundary for isolated restore drills"
+  vpc_id      = aws_vpc.main.id
+
+  tags = {
+    Name    = "${local.name_prefix}-restore-database"
+    Purpose = "RestoreDatabase"
+  }
+
+  lifecycle { create_before_destroy = true }
+}
+
+resource "aws_security_group" "restore_semantic_verifier" {
+  name_prefix = "${local.name_prefix}-restore-verifier-"
+  description = "Inert ENI boundary for the separately approved restore semantic verifier"
+  vpc_id      = aws_vpc.main.id
+
+  tags = {
+    Name    = "${local.name_prefix}-restore-semantic-verifier"
+    Purpose = "RestoreSemanticVerifier"
+  }
+
+  lifecycle { create_before_destroy = true }
+}
+
+# The Step Functions broker has no database or secret authority. Its fixed
+# task definition needs only regional AWS control-plane HTTPS and VPC DNS so it
+# can launch, observe and contain the separately isolated child tasks.
+resource "aws_security_group" "restore_semantic_broker" {
+  name_prefix = "${local.name_prefix}-restore-broker-"
+  description = "No-ingress control-plane boundary for the fixed restore semantic broker"
+  vpc_id      = aws_vpc.main.id
+
+  tags = {
+    Name    = "${local.name_prefix}-restore-semantic-broker"
+    Purpose = "RestoreSemanticBroker"
+  }
+
+  lifecycle { create_before_destroy = true }
+}
+
+resource "aws_vpc_security_group_egress_rule" "restore_semantic_broker_https" {
+  security_group_id = aws_security_group.restore_semantic_broker.id
+  description       = "Regional AWS control-plane APIs through the existing bounded NAT path"
+  from_port         = 443
+  to_port           = 443
+  ip_protocol       = "tcp"
+  cidr_ipv4         = "0.0.0.0/0"
+}
+
+resource "aws_vpc_security_group_egress_rule" "restore_semantic_broker_dns_udp" {
+  security_group_id = aws_security_group.restore_semantic_broker.id
+  description       = "VPC DNS over UDP"
+  from_port         = 53
+  to_port           = 53
+  ip_protocol       = "udp"
+  cidr_ipv4         = "${cidrhost(aws_vpc.main.cidr_block, 2)}/32"
+}
+
+resource "aws_vpc_security_group_egress_rule" "restore_semantic_broker_dns_tcp" {
+  security_group_id = aws_security_group.restore_semantic_broker.id
+  description       = "VPC DNS over TCP"
+  from_port         = 53
+  to_port           = 53
+  ip_protocol       = "tcp"
+  cidr_ipv4         = "${cidrhost(aws_vpc.main.cidr_block, 2)}/32"
+}
+
 resource "aws_security_group" "clamav" {
   name_prefix = "${local.name_prefix}-clamav-"
   description = "Isolated malware scanner with no application task role"
@@ -266,6 +403,69 @@ resource "aws_security_group" "clamav" {
   }
 
   lifecycle { create_before_destroy = true }
+}
+
+resource "aws_vpc_security_group_ingress_rule" "restore_database_from_semantic_verifier" {
+  security_group_id            = aws_security_group.restore_database.id
+  description                  = "TLS PostgreSQL only from isolated restore semantic tasks"
+  from_port                    = 5432
+  to_port                      = 5432
+  ip_protocol                  = "tcp"
+  referenced_security_group_id = aws_security_group.restore_semantic_verifier.id
+}
+
+resource "aws_vpc_security_group_egress_rule" "restore_semantic_verifier_database" {
+  security_group_id            = aws_security_group.restore_semantic_verifier.id
+  description                  = "TLS PostgreSQL only to the isolated restore database"
+  from_port                    = 5432
+  to_port                      = 5432
+  ip_protocol                  = "tcp"
+  referenced_security_group_id = aws_security_group.restore_database.id
+}
+
+resource "aws_vpc_security_group_ingress_rule" "restore_semantic_verifier_self" {
+  security_group_id            = aws_security_group.restore_semantic_verifier.id
+  description                  = "Verifier caller to candidate Document Store only"
+  from_port                    = 8089
+  to_port                      = 8089
+  ip_protocol                  = "tcp"
+  referenced_security_group_id = aws_security_group.restore_semantic_verifier.id
+}
+
+resource "aws_vpc_security_group_egress_rule" "restore_semantic_verifier_self" {
+  security_group_id            = aws_security_group.restore_semantic_verifier.id
+  description                  = "Verifier caller to candidate Document Store only"
+  from_port                    = 8089
+  to_port                      = 8089
+  ip_protocol                  = "tcp"
+  referenced_security_group_id = aws_security_group.restore_semantic_verifier.id
+}
+
+resource "aws_vpc_security_group_egress_rule" "restore_semantic_verifier_s3" {
+  security_group_id = aws_security_group.restore_semantic_verifier.id
+  description       = "Restored canary and immutable journal through the S3 gateway endpoint"
+  from_port         = 443
+  to_port           = 443
+  ip_protocol       = "tcp"
+  prefix_list_id    = aws_vpc_endpoint.s3.prefix_list_id
+}
+
+resource "aws_vpc_security_group_egress_rule" "restore_semantic_verifier_dns_udp" {
+  security_group_id = aws_security_group.restore_semantic_verifier.id
+  description       = "VPC DNS over UDP"
+  from_port         = 53
+  to_port           = 53
+  ip_protocol       = "udp"
+  cidr_ipv4         = "${cidrhost(aws_vpc.main.cidr_block, 2)}/32"
+}
+
+resource "aws_vpc_security_group_egress_rule" "restore_semantic_verifier_dns_tcp" {
+  security_group_id = aws_security_group.restore_semantic_verifier.id
+  description       = "VPC DNS over TCP"
+  from_port         = 53
+  to_port           = 53
+  ip_protocol       = "tcp"
+  cidr_ipv4         = "${cidrhost(aws_vpc.main.cidr_block, 2)}/32"
 }
 
 resource "aws_security_group" "database" {

@@ -428,7 +428,7 @@ resource "aws_db_parameter_group" "postgres" {
 
 resource "aws_iam_role" "rds_monitoring" {
   name                 = "${local.name_prefix}-rds-monitoring"
-  permissions_boundary = "arn:aws:iam::${var.aws_account_id}:policy/jsc-public-beta-workload-boundary"
+  permissions_boundary = "arn:aws:iam::${var.aws_account_id}:policy/jsc-public-beta-rds-monitoring-boundary"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -438,8 +438,8 @@ resource "aws_iam_role" "rds_monitoring" {
       Action    = "sts:AssumeRole"
       Condition = {
         StringEquals = { "aws:SourceAccount" = var.aws_account_id }
-        ArnLike = {
-          "aws:SourceArn" = "arn:aws:rds:${var.aws_region}:${var.aws_account_id}:db:*"
+        ArnEquals = {
+          "aws:SourceArn" = "arn:aws:rds:${var.aws_region}:${var.aws_account_id}:db:${local.name_prefix}-postgres"
         }
       }
     }]

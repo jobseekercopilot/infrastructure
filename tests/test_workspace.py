@@ -299,6 +299,14 @@ class CatalogTests(unittest.TestCase):
             ],
             "LIVE",
         )
+        openai_environment = openai_overlay["services"]["llm-gateway"]["environment"]
+        self.assertEqual(
+            openai_environment["OPENAI_PRIVACY_POLICY_VERSION"],
+            "openai-api-data-controls-2026-08-23",
+        )
+        self.assertIn("OPENAI_PRIVACY_REVIEWED_ON", openai_environment)
+        self.assertIn("OPENAI_PRIVACY_REVIEW_DUE_ON", openai_environment)
+        self.assertNotIn("OPENAI_PRIVACY_REVIEW_ON", openai_environment)
         self.assertEqual(
             openai_overlay["services"]["job-seeker-copilot-client"][
                 "environment"

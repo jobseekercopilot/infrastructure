@@ -166,7 +166,7 @@ while IFS= read -r image_name; do
 done < <(jq -r '.images | keys[]' "$manifest")
 
 python3 "$repository_root/scripts/aws/validate_public_beta.py" \
-  --release \
+  --restore-candidate \
   --image-manifest "$manifest" \
   --approval-manifest "$launch_approvals_file" \
   --landing-archive "$landing_archive"
@@ -187,6 +187,7 @@ jq -n \
   --arg preparedImageArchiveSha256 "$prepared_archive_sha" \
   --arg rdsCaBundleUrl "$rds_ca_url" \
   --arg rdsCaBundleSha256 "$rds_ca_sha" \
+  --arg buildPurpose "restore-candidate" \
   '{
     schemaVersion:1,
     releaseId:$releaseId,
@@ -197,6 +198,7 @@ jq -n \
     launchApprovalManifestSha256:$launchApprovalManifestSha256,
     preparedArtifactDigest:$preparedArtifactDigest,
     preparedImageArchiveSha256:$preparedImageArchiveSha256,
+    buildPurpose:$buildPurpose,
     rdsCaBundle:{url:$rdsCaBundleUrl,sha256:$rdsCaBundleSha256},
     frontendArtifacts:{
       client:{

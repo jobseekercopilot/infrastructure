@@ -1,19 +1,40 @@
 output "release_contract" {
   description = "Non-secret identifiers consumed by the protected release workflow."
   value = {
-    region                                 = var.aws_region
-    environment                            = var.environment
-    release_id                             = local.image_manifest.releaseId
-    release_attestation_id                 = local.release_attestation_id
-    cluster_arn                            = aws_ecs_cluster.main.arn
-    cluster_name                           = aws_ecs_cluster.main.name
-    private_subnet_ids                     = [for subnet in aws_subnet.private : subnet.id]
-    release_operator_security_group        = aws_security_group.operator.id
-    database_bootstrap_task_definition     = aws_ecs_task_definition.database_bootstrap.arn
-    migration_verification_task_definition = aws_ecs_task_definition.migration_verification.arn
-    release_preflight_task_definition      = aws_ecs_task_definition.release_preflight.arn
-    database_bootstrap_marker              = "/jsc/${var.environment}/release/database-bootstrap"
-    release_preflight_marker               = "/jsc/${var.environment}/release/preflight"
+    region                                             = var.aws_region
+    environment                                        = var.environment
+    release_id                                         = local.image_manifest.releaseId
+    release_attestation_id                             = local.release_attestation_id
+    cluster_arn                                        = aws_ecs_cluster.main.arn
+    cluster_name                                       = aws_ecs_cluster.main.name
+    private_subnet_ids                                 = [for subnet in aws_subnet.private : subnet.id]
+    release_operator_security_group                    = aws_security_group.operator.id
+    restore_source_canary_security_group               = aws_security_group.restore_source_canary.id
+    database_bootstrap_task_definition                 = aws_ecs_task_definition.database_bootstrap.arn
+    migration_verification_task_definition             = aws_ecs_task_definition.migration_verification.arn
+    release_preflight_task_definition                  = aws_ecs_task_definition.release_preflight.arn
+    restore_source_canary_task_definition              = aws_ecs_task_definition.restore_source_canary.arn
+    restore_semantic_clone_task_definition             = aws_ecs_task_definition.restore_semantic_clone.arn
+    restore_semantic_broker_task_definition            = aws_ecs_task_definition.restore_semantic_broker.arn
+    restore_semantic_document_store_task_definition    = aws_ecs_task_definition.restore_semantic_document_store.arn
+    restore_semantic_verifier_task_definition          = aws_ecs_task_definition.restore_semantic_verifier.arn
+    restore_database_security_group                    = aws_security_group.restore_database.id
+    restore_semantic_security_group                    = aws_security_group.restore_semantic_verifier.id
+    restore_semantic_broker_security_group             = aws_security_group.restore_semantic_broker.id
+    restore_semantic_state_machine_arn                 = aws_sfn_state_machine.restore_semantic.arn
+    restore_semantic_state_machine_role_arn            = aws_iam_role.restore_semantic_state_machine.arn
+    restore_semantic_broker_execution_role_arn         = aws_iam_role.restore_semantic_broker_execution.arn
+    restore_semantic_broker_task_role_arn              = aws_iam_role.restore_semantic_broker_task.arn
+    restore_semantic_clone_execution_role_arn          = aws_iam_role.restore_semantic_clone_execution.arn
+    restore_semantic_document_store_execution_role_arn = aws_iam_role.restore_semantic_document_store_execution.arn
+    restore_semantic_document_store_task_role_arn      = aws_iam_role.restore_semantic_document_store_task.arn
+    restore_semantic_verifier_execution_role_arn       = aws_iam_role.restore_semantic_verifier_execution.arn
+    restore_semantic_verifier_task_role_arn            = aws_iam_role.restore_semantic_verifier_task.arn
+    database_identifier                                = aws_db_instance.postgres.identifier
+    rds_monitoring_role_arn                            = aws_iam_role.rds_monitoring.arn
+    database_bootstrap_marker                          = "/jsc/${var.environment}/release/database-bootstrap"
+    release_preflight_marker                           = "/jsc/${var.environment}/release/preflight"
+    restore_source_canary_marker                       = "/jsc/${var.environment}/release/restore-source-canary"
   }
 }
 
@@ -41,10 +62,12 @@ output "emergency_darken_contract" {
 
 output "data_recovery" {
   value = {
-    document_bucket_arn = aws_s3_bucket.documents.arn
-    postgres_arn        = aws_db_instance.postgres.arn
-    backup_vault_arn    = "arn:aws:backup:${var.aws_region}:${var.aws_account_id}:backup-vault:jsc-public-beta-customer-data"
-    restore_role_arn    = aws_iam_role.backup_restore.arn
+    document_bucket_arn  = aws_s3_bucket.documents.arn
+    document_bucket_name = aws_s3_bucket.documents.bucket
+    postgres_arn         = aws_db_instance.postgres.arn
+    backup_vault_arn     = "arn:aws:backup:${var.aws_region}:${var.aws_account_id}:backup-vault:jsc-public-beta-customer-data"
+    backup_role_arn      = aws_iam_role.backup.arn
+    restore_role_arn     = aws_iam_role.backup_restore.arn
   }
 }
 

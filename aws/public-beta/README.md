@@ -20,6 +20,11 @@ Important boundaries:
   AMI, GitHub OIDC roles and mandatory workload permissions boundaries. Its
   reviewed bytes must be submitted by versioned S3 `TemplateURL` with
   `CAPABILITY_NAMED_IAM`; no workflow invokes it.
+- RDS Enhanced Monitoring uses its own retained, `RDSOSMetrics`-only boundary
+  and an exact production-DB trust. Every full protected apply is followed by
+  a live stability/event check; Terraform success alone cannot satisfy this
+  gate because RDS may asynchronously reject a monitoring role and revert the
+  interval to zero.
 - TLS consumes a separately reviewed eu-west-2 ACM certificate ARN. Terraform
   certificate creation is disabled because ACM deletion cannot be tag-scoped;
   the apply role consequently has no ACM mutation permission.

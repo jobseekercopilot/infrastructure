@@ -1,0 +1,297 @@
+name: AWS Public Beta Restore Semantic Verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Start the bounded Standard execution, observe final evidence, or contain only after it is terminal.
+        required: true
+        type: choice
+        options: [start, observe, contain]
+      drill_id:
+        description: Exact isolated restore drill ID.
+        required: true
+        type: string
+      restore_start_run_id:
+        description: Successful isolated-restore start run containing the immutable restore-start evidence.
+        required: true
+        type: string
+      semantic_start_run_id:
+        description: Successful semantic start run; required for observe/contain only.
+        required: false
+        type: string
+      confirmation:
+        description: Exact START/OBSERVE/CONTAIN semantic-verification phrase followed by the drill ID.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jsc-public-beta-aws-mutation
+  cancel-in-progress: false
+
+jobs:
+  start:
+    if: github.ref == 'refs/heads/main' && inputs.action == 'start'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    environment: production-aws-restore
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify protected restore environment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/aws/verify_github_environment_protection.sh "$GITHUB_REPOSITORY" production-aws-restore "$GITHUB_REPOSITORY_OWNER" "$GITHUB_ACTOR"
+      - name: Download exact restore-start evidence
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: public-beta-restore-start-${{ inputs.drill_id }}
+          path: ${{ runner.temp }}/restore-start
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.restore_start_run_id }}
+      - name: Verify restore-start artifact origin before AWS authentication
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESTORE_START_RUN_ID: ${{ inputs.restore_start_run_id }}
+        run: |
+          case "$RESTORE_START_RUN_ID" in *[!0-9]*|'') echo 'Invalid restore-start run ID' >&2; exit 2;; esac
+          run_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RESTORE_START_RUN_ID}")"
+          test "$(jq -r .name <<<"$run_json")" = 'AWS Public Beta Isolated Restore Drill'
+          test "$(jq -r .event <<<"$run_json")" = workflow_dispatch
+          test "$(jq -r .head_branch <<<"$run_json")" = main
+          test "$(jq -r .head_sha <<<"$run_json")" = "$GITHUB_SHA"
+          test "$(jq -r .conclusion <<<"$run_json")" = success
+      - name: Configure start-only state-machine role
+        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5
+        with:
+          role-to-assume: ${{ vars.AWS_RESTORE_SEMANTIC_START_ROLE_ARN }}
+          aws-region: eu-west-2
+          role-session-name: jsc-${{ github.run_id }}-semantic-start
+          role-duration-seconds: 10800
+      - name: Start fixed semantic-verification execution
+        id: create_binding
+        continue-on-error: true
+        env:
+          AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+          AWS_REGION: eu-west-2
+          RESTORE_DRILL_ID: ${{ inputs.drill_id }}
+          RESTORE_SEMANTIC_CONFIRMATION: ${{ inputs.confirmation }}
+          RESTORE_SEMANTIC_OUTPUT_DIRECTORY: ${{ runner.temp }}/semantic-start
+          RESTORE_START_EVIDENCE: ${{ runner.temp }}/restore-start/restore-start-evidence.json
+        run: |
+          mkdir -p "$RESTORE_SEMANTIC_OUTPUT_DIRECTORY"
+          scripts/aws/run_restore_semantic_verification.sh start
+      - name: Upload exact semantic execution binding
+        id: initial_binding_upload
+        if: steps.create_binding.outcome == 'success'
+        continue-on-error: true
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: public-beta-restore-semantic-start-${{ inputs.drill_id }}
+          path: ${{ runner.temp }}/semantic-start/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Hold the global mutation lock until the Standard execution is terminal
+        id: hold_execution_lock
+        if: always()
+        env:
+          AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+          AWS_REGION: eu-west-2
+          RESTORE_DRILL_ID: ${{ inputs.drill_id }}
+          RESTORE_SEMANTIC_CONFIRMATION: ${{ inputs.confirmation }}
+          RESTORE_SEMANTIC_OUTPUT_DIRECTORY: ${{ runner.temp }}/semantic-start
+          RESTORE_START_EVIDENCE: ${{ runner.temp }}/restore-start/restore-start-evidence.json
+          START_EVIDENCE: ${{ runner.temp }}/semantic-start/restore-semantic-start-${{ inputs.drill_id }}.json
+        run: |
+          if ! test -f "$START_EVIDENCE" || test -L "$START_EVIDENCE" || ! jq -e '
+            .schemaVersion == "jsc-public-beta-restore-semantic-execution.v1" and
+            .status == "EXECUTION_STARTED" and .environment == "public-beta" and
+            (.executionArn|test("^arn:aws:states:eu-west-2:[0-9]{12}:execution:jsc-public-beta-restore-semantic:jsc-rs-[a-z0-9-]+-[0-9a-f]{12}$")) and
+            (.stateMachineInputSha256|test("^[0-9a-f]{64}$"))' "$START_EVIDENCE" >/dev/null 2>&1; then
+            rm -f -- "$START_EVIDENCE"
+            mkdir -p "$RESTORE_SEMANTIC_OUTPUT_DIRECTORY"
+            scripts/aws/run_restore_semantic_verification.sh start
+          fi
+          test -f "$START_EVIDENCE" && test ! -L "$START_EVIDENCE"
+          jq -e '.schemaVersion == "jsc-public-beta-restore-semantic-execution.v1" and
+            .status == "EXECUTION_STARTED" and .environment == "public-beta" and
+            (.executionArn|test("^arn:aws:states:eu-west-2:[0-9]{12}:execution:jsc-public-beta-restore-semantic:jsc-rs-[a-z0-9-]+-[0-9a-f]{12}$")) and
+            (.stateMachineInputSha256|test("^[0-9a-f]{64}$"))' "$START_EVIDENCE" >/dev/null
+          execution_arn="$(jq -er '.executionArn' "$START_EVIDENCE")"
+          deadline=$((SECONDS + 9000))
+          while :; do
+            if ! status="$(aws stepfunctions describe-execution --region "$AWS_REGION" --execution-arn "$execution_arn" --query status --output text 2>/dev/null)"; then
+              (( SECONDS < deadline )) || { echo "Could not prove terminal execution before the bounded mutation-lock deadline" >&2; exit 3; }
+              echo "Transient DescribeExecution failure; retaining the global mutation lock and retrying."
+              sleep 15
+              continue
+            fi
+            case "$status" in
+              RUNNING) ;;
+              SUCCEEDED|FAILED|TIMED_OUT|ABORTED|PENDING_REDRIVE)
+                echo "Semantic execution reached terminal/explicit-redrive state: $status"
+                break
+                ;;
+              *) echo "Unexpected Step Functions execution status: $status" >&2; exit 3;;
+            esac
+            (( SECONDS < deadline )) || { echo "Semantic execution exceeded the bounded mutation-lock window" >&2; exit 3; }
+            sleep 15
+          done
+      - name: Retry semantic execution binding upload after lock hold
+        if: always() && steps.hold_execution_lock.outcome == 'success' && steps.initial_binding_upload.outcome != 'success'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: public-beta-restore-semantic-start-${{ inputs.drill_id }}
+          path: ${{ runner.temp }}/semantic-start/
+          if-no-files-found: error
+          retention-days: 90
+
+  observe:
+    if: github.ref == 'refs/heads/main' && inputs.action == 'observe'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    environment: production-aws-restore-observe
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify protected observation environment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/aws/verify_github_environment_protection.sh "$GITHUB_REPOSITORY" production-aws-restore-observe "$GITHUB_REPOSITORY_OWNER" "$GITHUB_ACTOR"
+      - name: Download exact restore-start evidence
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: public-beta-restore-start-${{ inputs.drill_id }}
+          path: ${{ runner.temp }}/restore-start
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.restore_start_run_id }}
+      - name: Download exact semantic execution binding
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: public-beta-restore-semantic-start-${{ inputs.drill_id }}
+          path: ${{ runner.temp }}/semantic-start
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.semantic_start_run_id }}
+      - name: Verify both artifact origins before AWS authentication
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESTORE_START_RUN_ID: ${{ inputs.restore_start_run_id }}
+          SEMANTIC_START_RUN_ID: ${{ inputs.semantic_start_run_id }}
+        run: |
+          for binding in "restore:$RESTORE_START_RUN_ID:AWS Public Beta Isolated Restore Drill" "semantic:$SEMANTIC_START_RUN_ID:AWS Public Beta Restore Semantic Verification"; do
+            label=${binding%%:*}; remainder=${binding#*:}; run_id=${remainder%%:*}; expected_name=${remainder#*:}
+            case "$run_id" in *[!0-9]*|'') echo "Invalid $label run ID" >&2; exit 2;; esac
+            run_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}")"
+            test "$(jq -r .name <<<"$run_json")" = "$expected_name"
+            test "$(jq -r .event <<<"$run_json")" = workflow_dispatch
+            test "$(jq -r .head_branch <<<"$run_json")" = main
+            test "$(jq -r .head_sha <<<"$run_json")" = "$GITHUB_SHA"
+            test "$(jq -r .conclusion <<<"$run_json")" = success
+          done
+      - name: Configure read-only semantic observer role
+        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5
+        with:
+          role-to-assume: ${{ vars.AWS_RESTORE_SEMANTIC_OBSERVE_ROLE_ARN }}
+          aws-region: eu-west-2
+          role-session-name: jsc-${{ github.run_id }}-semantic-observe
+          role-duration-seconds: 3600
+      - name: Independently observe and validate final semantic evidence
+        env:
+          AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+          AWS_DATA_KMS_KEY_ARN: ${{ vars.AWS_DATA_KMS_KEY_ARN }}
+          AWS_REGION: eu-west-2
+          RESTORE_DRILL_ID: ${{ inputs.drill_id }}
+          RESTORE_SEMANTIC_CONFIRMATION: ${{ inputs.confirmation }}
+          RESTORE_SEMANTIC_OUTPUT_DIRECTORY: ${{ runner.temp }}/semantic-observation
+          RESTORE_SEMANTIC_START_EVIDENCE: ${{ runner.temp }}/semantic-start/restore-semantic-start-${{ inputs.drill_id }}.json
+          RESTORE_START_EVIDENCE: ${{ runner.temp }}/restore-start/restore-start-evidence.json
+        run: |
+          mkdir -p "$RESTORE_SEMANTIC_OUTPUT_DIRECTORY"
+          scripts/aws/run_restore_semantic_verification.sh observe
+      - name: Upload strict non-secret semantic observation
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: public-beta-restore-semantic-observation-${{ inputs.drill_id }}
+          path: ${{ runner.temp }}/semantic-observation/
+          if-no-files-found: error
+          retention-days: 90
+
+  contain:
+    if: github.ref == 'refs/heads/main' && inputs.action == 'contain'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: production-aws-restore-cleanup
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify protected cleanup environment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/aws/verify_github_environment_protection.sh "$GITHUB_REPOSITORY" production-aws-restore-cleanup "$GITHUB_REPOSITORY_OWNER" "$GITHUB_ACTOR"
+      - name: Download exact restore-start evidence
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: public-beta-restore-start-${{ inputs.drill_id }}
+          path: ${{ runner.temp }}/restore-start
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.restore_start_run_id }}
+      - name: Download exact semantic execution binding
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: public-beta-restore-semantic-start-${{ inputs.drill_id }}
+          path: ${{ runner.temp }}/semantic-start
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.semantic_start_run_id }}
+      - name: Verify containment artifact origins before AWS authentication
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESTORE_START_RUN_ID: ${{ inputs.restore_start_run_id }}
+          SEMANTIC_START_RUN_ID: ${{ inputs.semantic_start_run_id }}
+        run: |
+          for binding in "restore:$RESTORE_START_RUN_ID:AWS Public Beta Isolated Restore Drill" "semantic:$SEMANTIC_START_RUN_ID:AWS Public Beta Restore Semantic Verification"; do
+            label=${binding%%:*}; remainder=${binding#*:}; run_id=${remainder%%:*}; expected_name=${remainder#*:}
+            case "$run_id" in *[!0-9]*|'') echo "Invalid $label run ID" >&2; exit 2;; esac
+            run_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}")"
+            test "$(jq -r .name <<<"$run_json")" = "$expected_name"
+            test "$(jq -r .event <<<"$run_json")" = workflow_dispatch
+            test "$(jq -r .head_branch <<<"$run_json")" = main
+            test "$(jq -r .head_sha <<<"$run_json")" = "$GITHUB_SHA"
+            test "$(jq -r .conclusion <<<"$run_json")" = success
+          done
+      - name: Configure deletion-only cleanup role
+        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5
+        with:
+          role-to-assume: ${{ vars.AWS_RESTORE_CLEANUP_ROLE_ARN }}
+          aws-region: eu-west-2
+          role-session-name: jsc-${{ github.run_id }}-semantic-contain
+          role-duration-seconds: 3600
+      - name: Contain exact tasks only after terminal execution
+        env:
+          AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+          AWS_REGION: eu-west-2
+          RESTORE_DRILL_ID: ${{ inputs.drill_id }}
+          RESTORE_SEMANTIC_CONFIRMATION: ${{ inputs.confirmation }}
+          RESTORE_SEMANTIC_START_EVIDENCE: ${{ runner.temp }}/semantic-start/restore-semantic-start-${{ inputs.drill_id }}.json
+          RESTORE_START_EVIDENCE: ${{ runner.temp }}/restore-start/restore-start-evidence.json
+        run: scripts/aws/run_restore_semantic_verification.sh contain

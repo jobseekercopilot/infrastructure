@@ -7,10 +7,10 @@ operator_login=${3:-}
 actor_login=${4:-}
 
 if [[ ! "$repository" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] ||
-   [[ ! "$environment_name" =~ ^production-(aws-plan|aws|build)$ ]] ||
+   [[ ! "$environment_name" =~ ^production-(aws-plan|aws|build|aws-restore|aws-restore-cleanup|aws-restore-observe)$ ]] ||
    [[ ! "$operator_login" =~ ^[A-Za-z0-9-]{1,39}$ ]] ||
    [[ ! "$actor_login" =~ ^[A-Za-z0-9-]{1,39}$ ]]; then
-  echo "Usage: $0 owner/repository production-aws-plan|production-build|production-aws operator-login actor-login" >&2
+  echo "Usage: $0 owner/repository production-aws-plan|production-build|production-aws|production-aws-restore|production-aws-restore-cleanup|production-aws-restore-observe operator-login actor-login" >&2
   exit 2
 fi
 

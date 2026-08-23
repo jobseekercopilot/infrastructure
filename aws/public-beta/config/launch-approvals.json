@@ -7,7 +7,7 @@
     "reviewedBy": "",
     "reviewedOn": "",
     "evidenceReference": "",
-    "environments": ["production-build", "production-aws-plan", "production-aws"],
+    "environments": ["production-build", "production-aws-plan", "production-aws", "production-aws-restore", "production-aws-restore-cleanup"],
     "operatorUsername": "jobseekercopilot",
     "paidEnvironmentReviewerProtectionAvailable": false,
     "ownerOnlyWorkflowActorVerified": false,
@@ -26,7 +26,8 @@
     "maximumBackupRetentionDays": 35,
     "journalRetentionDays": 0,
     "externalDeletionJournalVerified": false,
-    "isolatedRestoreReplayVerified": false
+    "isolatedRestoreReplayVerified": false,
+    "restoreDrillEvidenceSha256": ""
   },
   "publicLegal": {
     "reviewed": false,
@@ -159,7 +160,8 @@
       "privacyPolicyVersion": "",
       "privacyDecisionId": "",
       "privacyOwner": "",
-      "privacyReviewedOn": ""
+      "privacyReviewedOn": "",
+      "privacyReviewDueOn": ""
     },
     "stripe": {
       "approved": false,

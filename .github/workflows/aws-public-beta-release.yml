@@ -4,10 +4,10 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: Foundation is dark; prepare remains private; activate is the only public transition; darken is emergency containment.
+        description: Foundation is dark; restore-source prepares canary-bound backups; prepare remains private; activate is the only public transition.
         required: true
         type: choice
-        options: [plan, foundation, prepare, activate, darken, rollback]
+        options: [plan, foundation, prepare-restore-source, prepare, activate, darken, rollback]
       build_run_id:
         description: Successful immutable-build workflow run ID; required except for foundation/emergency darken.
         required: false
@@ -18,6 +18,10 @@ on:
         type: string
       confirmation:
         description: Exact phrase documented in the runbook; unused for plan.
+        required: false
+        type: string
+      restore_source_canary_id:
+        description: 8-32 lowercase letters, digits or interior hyphens; required only for prepare-restore-source.
         required: false
         type: string
       plan_desired_count:
@@ -67,6 +71,7 @@ jobs:
           github-token: ${{ github.token }}
           run-id: ${{ inputs.build_run_id }}
       - name: Verify build origin and signed release provenance
+        id: build
         env:
           BUILD_RUN_ID: ${{ inputs.build_run_id }}
           EXPECTED_RELEASE_ID: ${{ inputs.release_id }}
@@ -86,9 +91,14 @@ jobs:
           test "$(jq -r .head_sha <<<"$run_json")" = "$GITHUB_SHA"
           test "$(jq -r .releaseId "$MANIFEST")" = "$EXPECTED_RELEASE_ID"
           test "$(jq -r .releaseId "$PROVENANCE")" = "$EXPECTED_RELEASE_ID"
+          test "$(jq -r .buildPurpose "$PROVENANCE")" = release
+          jq -e '.promotedFrom | keys == ["buildPurpose","buildRunId","imageManifestSha256"] and
+            .buildPurpose == "restore-candidate" and (.buildRunId | test("^[0-9]+$")) and
+            (.imageManifestSha256 | test("^[0-9a-f]{64}$"))' "$PROVENANCE" >/dev/null
           test "$(jq -r .infrastructureRevision "$PROVENANCE")" = "$GITHUB_SHA"
           test "$(jq -r .workspaceLockSha256 "$PROVENANCE")" = "$(sha256sum config/workspace-lock.json | cut -d' ' -f1)"
           test "$(jq -r .imageManifestSha256 "$PROVENANCE")" = "$(sha256sum "$MANIFEST" | cut -d' ' -f1)"
+          echo "build_sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
           gh attestation verify "$MANIFEST" --repo "$GITHUB_REPOSITORY"
           scripts/aws/verify_frontend_release_artifact.sh \
             "$MANIFEST" "$PROVENANCE" "$LANDING_ARCHIVE" "$LANDING_METADATA" "$LANDING_SAM_TEMPLATE"
@@ -96,11 +106,13 @@ jobs:
         env:
           PUBLIC_BETA_TFVARS_B64: ${{ secrets.PUBLIC_BETA_TFVARS_B64 }}
           LAUNCH_APPROVALS_B64: ${{ secrets.LAUNCH_APPROVALS_B64 }}
+          RESTORE_DRILL_EVIDENCE_B64: ${{ secrets.RESTORE_DRILL_EVIDENCE_B64 }}
           EXPECTED_RELEASE_ID: ${{ inputs.release_id }}
         run: |
           umask 077
           printenv PUBLIC_BETA_TFVARS_B64 | base64 --decode > "${RUNNER_TEMP}/public-beta.tfvars"
           printenv LAUNCH_APPROVALS_B64 | base64 --decode > "${RUNNER_TEMP}/launch-approvals.json"
+          printenv RESTORE_DRILL_EVIDENCE_B64 | base64 --decode > "${RUNNER_TEMP}/restore-drill-evidence.json"
           test "$(jq -r .releaseId "${RUNNER_TEMP}/release-artifact/image-manifest.json")" = "$EXPECTED_RELEASE_ID"
       - name: Validate release contract before assuming AWS
         run: |
@@ -111,7 +123,9 @@ jobs:
           python3 scripts/aws/validate_public_beta.py --release \
             --image-manifest '${{ runner.temp }}/release-artifact/image-manifest.json' \
             --approval-manifest '${{ runner.temp }}/launch-approvals.json' \
-            --landing-archive '${{ runner.temp }}/release-artifact/landing-static.tar'
+            --landing-archive '${{ runner.temp }}/release-artifact/landing-static.tar' \
+            --infrastructure-revision '${{ steps.build.outputs.build_sha }}' \
+            --restore-drill-evidence '${{ runner.temp }}/restore-drill-evidence.json'
       - name: Configure read-only AWS plan role
         uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5
         with:
@@ -138,12 +152,17 @@ jobs:
           LANDING_ARCHIVE: ${{ runner.temp }}/release-artifact/landing-static.tar
           APPLICATION_DESIRED_COUNT: ${{ inputs.plan_desired_count }}
           PUBLIC_ENTRYPOINT_ENABLED: ${{ inputs.plan_public_entrypoint }}
+          RESTORE_DRILL_EVIDENCE: ${{ runner.temp }}/restore-drill-evidence.json
+          RELEASE_PROVENANCE: ${{ runner.temp }}/release-artifact/provenance.json
         run: scripts/aws/public_beta_release.sh plan
 
   mutate:
     if: github.ref == 'refs/heads/main' && inputs.action != 'plan'
     runs-on: ubuntu-24.04
-    timeout-minutes: 180
+    # GitHub-hosted jobs have a hard six-hour ceiling. Restore-source work gets
+    # that full outer window, while its release step is capped at five hours
+    # below so checkout/init and fail-closed containment retain real headroom.
+    timeout-minutes: ${{ inputs.action == 'prepare-restore-source' && 360 || 180 }}
     environment: production-aws
     concurrency:
       group: jsc-public-beta-aws-mutation
@@ -170,11 +189,12 @@ jobs:
         if: inputs.action != 'foundation' && inputs.action != 'darken'
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
-          name: public-beta-release-${{ inputs.release_id }}
+          name: ${{ inputs.action == 'prepare-restore-source' && format('public-beta-restore-candidate-{0}', inputs.release_id) || format('public-beta-release-{0}', inputs.release_id) }}
           path: ${{ runner.temp }}/release-artifact
           github-token: ${{ github.token }}
           run-id: ${{ inputs.build_run_id }}
       - name: Verify build origin and signed release provenance
+        id: build
         if: inputs.action != 'foundation' && inputs.action != 'darken'
         env:
           RELEASE_ACTION: ${{ inputs.action }}
@@ -206,9 +226,19 @@ jobs:
           fi
           test "$(jq -r .releaseId "$MANIFEST")" = "$EXPECTED_RELEASE_ID"
           test "$(jq -r .releaseId "$PROVENANCE")" = "$EXPECTED_RELEASE_ID"
+          if [ "$RELEASE_ACTION" = prepare-restore-source ]; then
+            test "$(jq -r .buildPurpose "$PROVENANCE")" = restore-candidate
+            test "$(jq -r '.promotedFrom == null' "$PROVENANCE")" = true
+          else
+            test "$(jq -r .buildPurpose "$PROVENANCE")" = release
+            jq -e '.promotedFrom | keys == ["buildPurpose","buildRunId","imageManifestSha256"] and
+              .buildPurpose == "restore-candidate" and (.buildRunId | test("^[0-9]+$")) and
+              (.imageManifestSha256 | test("^[0-9a-f]{64}$"))' "$PROVENANCE" >/dev/null
+          fi
           test "$(jq -r .infrastructureRevision "$PROVENANCE")" = "$build_sha"
           test "$(jq -r .workspaceLockSha256 "$PROVENANCE")" = "$expected_lock_sha"
           test "$(jq -r .imageManifestSha256 "$PROVENANCE")" = "$(sha256sum "$MANIFEST" | cut -d' ' -f1)"
+          echo "build_sha=$build_sha" >> "$GITHUB_OUTPUT"
           gh attestation verify "$MANIFEST" --repo "$GITHUB_REPOSITORY"
           scripts/aws/verify_frontend_release_artifact.sh \
             "$MANIFEST" "$PROVENANCE" "$LANDING_ARCHIVE" "$LANDING_METADATA" "$LANDING_SAM_TEMPLATE"
@@ -217,6 +247,7 @@ jobs:
         env:
           PUBLIC_BETA_TFVARS_B64: ${{ secrets.PUBLIC_BETA_TFVARS_B64 }}
           LAUNCH_APPROVALS_B64: ${{ secrets.LAUNCH_APPROVALS_B64 }}
+          RESTORE_DRILL_EVIDENCE_B64: ${{ secrets.RESTORE_DRILL_EVIDENCE_B64 }}
           RELEASE_ACTION: ${{ inputs.action }}
           EXPECTED_RELEASE_ID: ${{ inputs.release_id }}
         run: |
@@ -224,26 +255,41 @@ jobs:
           printenv PUBLIC_BETA_TFVARS_B64 | base64 --decode > "${RUNNER_TEMP}/public-beta.tfvars"
           printenv LAUNCH_APPROVALS_B64 | base64 --decode > "${RUNNER_TEMP}/launch-approvals.json"
           if [ "$RELEASE_ACTION" != foundation ]; then
+            if [ "$RELEASE_ACTION" != prepare-restore-source ]; then
+              printenv RESTORE_DRILL_EVIDENCE_B64 | base64 --decode > "${RUNNER_TEMP}/restore-drill-evidence.json"
+            fi
             test "$(jq -r .releaseId "${RUNNER_TEMP}/release-artifact/image-manifest.json")" = "$EXPECTED_RELEASE_ID"
           fi
       - name: Validate release contract before assuming AWS
         if: inputs.action != 'foundation' && inputs.action != 'darken'
+        env:
+          RELEASE_ACTION: ${{ inputs.action }}
         run: |
           test "$(jq -r .launchApprovalManifestSha256 '${{ runner.temp }}/release-artifact/provenance.json')" = \
             "$(sha256sum '${{ runner.temp }}/launch-approvals.json' | cut -d' ' -f1)"
           test "$(jq -r .launchApprovalManifestSha256 '${{ runner.temp }}/release-artifact/image-manifest.json')" = \
             "$(sha256sum '${{ runner.temp }}/launch-approvals.json' | cut -d' ' -f1)"
-          python3 scripts/aws/validate_public_beta.py --release \
-            --image-manifest '${{ runner.temp }}/release-artifact/image-manifest.json' \
-            --approval-manifest '${{ runner.temp }}/launch-approvals.json' \
-            --landing-archive '${{ runner.temp }}/release-artifact/landing-static.tar'
+          if [ "$RELEASE_ACTION" = prepare-restore-source ]; then
+            python3 scripts/aws/validate_public_beta.py --restore-candidate \
+              --image-manifest '${{ runner.temp }}/release-artifact/image-manifest.json' \
+              --approval-manifest '${{ runner.temp }}/launch-approvals.json' \
+              --landing-archive '${{ runner.temp }}/release-artifact/landing-static.tar' \
+              --infrastructure-revision '${{ steps.build.outputs.build_sha }}'
+          else
+            python3 scripts/aws/validate_public_beta.py --release \
+              --image-manifest '${{ runner.temp }}/release-artifact/image-manifest.json' \
+              --approval-manifest '${{ runner.temp }}/launch-approvals.json' \
+              --landing-archive '${{ runner.temp }}/release-artifact/landing-static.tar' \
+              --infrastructure-revision '${{ steps.build.outputs.build_sha }}' \
+              --restore-drill-evidence '${{ runner.temp }}/restore-drill-evidence.json'
+          fi
       - name: Configure protected AWS apply role
         uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5
         with:
           role-to-assume: ${{ vars.AWS_APPLY_ROLE_ARN }}
           aws-region: eu-west-2
           role-session-name: jsc-${{ github.run_id }}-${{ inputs.action }}
-          role-duration-seconds: 10800
+          role-duration-seconds: ${{ inputs.action == 'prepare-restore-source' && 21600 || 10800 }}
       - name: Initialise reviewed remote state
         working-directory: aws/public-beta
         run: >-
@@ -254,7 +300,9 @@ jobs:
           -backend-config='kms_key_id=${{ vars.TF_STATE_KMS_KEY_ARN }}'
           -backend-config='use_lockfile=true'
       - name: Execute protected, fail-closed release phase
+        id: release
         if: inputs.action != 'darken'
+        timeout-minutes: ${{ inputs.action == 'prepare-restore-source' && 300 || 180 }}
         env:
           AWS_REGION: eu-west-2
           GITHUB_REF: ${{ github.ref }}
@@ -263,7 +311,32 @@ jobs:
           IMAGE_MANIFEST: ${{ inputs.action == 'foundation' && format('{0}/aws/public-beta/config/image-manifest.json', github.workspace) || format('{0}/release-artifact/image-manifest.json', runner.temp) }}
           LANDING_ARCHIVE: ${{ inputs.action == 'foundation' && '' || format('{0}/release-artifact/landing-static.tar', runner.temp) }}
           RELEASE_CONFIRMATION: ${{ inputs.confirmation }}
+          RESTORE_DRILL_EVIDENCE: ${{ runner.temp }}/restore-drill-evidence.json
+          RELEASE_PROVENANCE: ${{ runner.temp }}/release-artifact/provenance.json
+          CANDIDATE_BUILD_RUN_ID: ${{ inputs.build_run_id }}
+          RESTORE_SOURCE_CANARY_ID: ${{ inputs.restore_source_canary_id }}
+          RESTORE_SOURCE_OUTPUT_DIRECTORY: ${{ runner.temp }}/restore-source-evidence
         run: scripts/aws/public_beta_release.sh '${{ inputs.action }}'
+      - name: Contain failed restore-source preparation
+        if: >-
+          ${{ always() && inputs.action == 'prepare-restore-source' &&
+              (steps.release.outcome == 'failure' || steps.release.outcome == 'cancelled') }}
+        timeout-minutes: 30
+        env:
+          AWS_REGION: eu-west-2
+          GITHUB_REF: ${{ github.ref }}
+        run: |
+          applied_release_id="$(terraform -chdir=aws/public-beta output -json release_contract | jq -er .release_id)"
+          RELEASE_CONFIRMATION="DARKEN $applied_release_id" \
+            scripts/aws/emergency_darken.sh "$applied_release_id"
+      - name: Upload canary-bound paired-backup evidence
+        if: inputs.action == 'prepare-restore-source'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: public-beta-restore-source-${{ inputs.release_id }}-${{ inputs.restore_source_canary_id }}
+          path: ${{ runner.temp }}/restore-source-evidence/
+          if-no-files-found: error
+          retention-days: 90
       - name: Execute approval-independent emergency containment
         if: inputs.action == 'darken'
         env:

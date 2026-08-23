@@ -28,12 +28,18 @@ Terraform plan or AWS credit award alone is not launch approval.
 - [ ] `develop` has the tested landing, application, service and infrastructure
       changes; each reviewed release was subsequently promoted to `main`.
 - [ ] `config/workspace-lock.json` pins every exact `main` revision used by the
-      immutable build, including every mandatory dependency revision.
+      immutable build, including Location Service
+      `4d8d09a79018c3f281cfead84348d14ed84be851`, Location Gateway
+      `86b2805c8430ede14a53a7320b87f0eeb2797b17`, LLM Gateway
+      `d84427061766244ec10e367fb3a7a6587809612c` and Client
+      `5e923c815e585e433573f50ba0395e71302785ca`.
 - [ ] The release ID/build run/image manifest and reviewer are recorded.
 - [ ] The pinned Client/Landing source revisions and artifact-contract checksums
       are ancestors of protected `main`; the protected build replaced only the
       generated Landing static/runtime-config/SAM `PENDING` hashes. Client is
-      the complete SSR/BFF OCI image; Landing is still explicitly `NOT_DEPLOYED`.
+      the complete SSR/BFF OCI image; its legal artifact is SHA-256
+      `040e208e49e9b12d8504fc3fe2b4f9ccd864f6a0d209475b77881e8b44b77b30`.
+      Landing is still explicitly `NOT_DEPLOYED`.
 
 ## Account, identity and supply chain
 
@@ -57,14 +63,25 @@ Terraform plan or AWS credit award alone is not launch approval.
       apply role has no ACM write/delete access.
 - [ ] State bucket public-access block, versioning, KMS encryption and native
       lock file are verified; a state recovery exercise is recorded.
-- [ ] `production-build`, `production-aws-plan` and `production-aws` allow only
-      `main`, disable administrator bypass, and have no unsupported reviewer
-      rule. The paid reviewer control is unavailable for the current private
+- [ ] `production-build`, `production-aws-plan`, `production-aws`,
+      `production-aws-restore`, `production-aws-restore-observe` and
+      `production-aws-restore-cleanup` allow only `main`, disable administrator
+      bypass, and have no unsupported reviewer rule. The paid reviewer control
+      is unavailable for the current private
       repository plan; the explicitly approved fallback requires
       `jobseekercopilot` to be the workflow actor before OIDC is issued, in
       addition to the exact manual confirmation phrase.
-- [ ] Plan, build and apply OIDC role policies match the reviewed bootstrap
-      output; there are no static AWS access keys in GitHub or tasks.
+- [ ] The manually executed bootstrap change set exposes the plan, build,
+      apply, restore-initiator, semantic start, semantic read-only observer and
+      restore-cleanup role outputs. Each protected
+      environment has only its matching role ARN and required non-secret
+      inputs; there are no static AWS access keys in GitHub or tasks. The
+      restore initiator can start/observe AWS Backup but not delete, semantic
+      start can only start/describe the fixed Standard state machine, semantic
+      observe is read-only, the cleanup role can delete exact drill resources
+      but cannot stop the state machine or start a restore, and only the boundary-
+      constrained `jsc-public-beta-backup-restore` service role is passed to
+      AWS Backup.
 - [ ] The source-build job has no OIDC permission/AWS credentials; only the
       separate publisher loads the checksum-bound prepared archive and assumes
       the build role. No repository build/test code runs in that publisher.
@@ -80,16 +97,28 @@ Terraform plan or AWS credit award alone is not launch approval.
       signatures match and are no more than 48 hours old. The preloaded image,
       initial update/reload and subsequent idempotent health pass were exercised;
       signatures remain ephemeral cache data and are never a backup dependency.
-- [ ] The downloaded release artifact's GitHub attestation, successful build
-      run, manifest digest and workspace-lock digest all match. A forward
-      release uses the exact current `main` SHA; a rollback additionally proves
-      the historical build SHA is an ancestor and hashes its historical lock.
+- [ ] The downloaded final release artifact's GitHub attestation, successful
+      build run, manifest digest and workspace-lock digest all match, and its
+      provenance says `buildPurpose=release` rather than `restore-candidate`.
+      A forward release uses the exact current `main` SHA; a rollback
+      additionally proves the historical build SHA is an ancestor and hashes
+      its historical lock.
 - [ ] The Landing static tar, embedded `config/app-config.json` and selected SAM
       copy match their signed SHA-256 values. Its exact reviewed legal/runtime
       values match the protected approval manifest, whose checksum is also
       signed. No legacy Amplify release was authorised by artifact generation.
 
 ## Runtime blockers and capacity
+
+- [ ] The retained `jsc-public-beta-rds-monitoring-boundary` exists from the
+      reviewed bootstrap update and its live default document has exactly the
+      six approved actions and two `RDSOSMetrics` resources; the exact
+      monitoring role uses it, trusts only `monitoring.rds.amazonaws.com` for
+      the full production DB ARN, and has only
+      `AmazonRDSEnhancedMonitoringRole` attached. The protected foundation
+      observed six consecutive `MonitoringInterval=60` samples and no
+      post-apply “unable to create credentials for” or “unable to configure”
+      Enhanced Monitoring RDS event.
 
 - [ ] Document Store contains `1183ce5a54ab60999ca37d826ceb16857d5763ff`
       (or a descendant) and accepts only ECS task-role credentials in S3 mode;
@@ -100,9 +129,12 @@ Terraform plan or AWS credit award alone is not launch approval.
       built runtime image.
 - [ ] `postcode-io-gateway` contains
       `f5588e5b0a2ca9e63319674f4b6cd40048b9e0fb` (or a descendant), and that
-      dependency, Location Service `91857140c71bfda8b807c535272f918fe7741263`,
-      Location Gateway `777ec7e8885fcb07368e05ad2543181e4ef7a891` and all
-      three exported OpenAPI hashes are recorded in the image manifest;
+      dependency, Location Service `4d8d09a79018c3f281cfead84348d14ed84be851`,
+      Location Gateway `86b2805c8430ede14a53a7320b87f0eeb2797b17` and all
+      three exported OpenAPI hashes are recorded in the image manifest. The
+      Location Service and Gateway hashes are respectively
+      `0cd7a877836dfbf1a42b5f71e0a807ec8dc99f88d69a695d7c5734e320cdef27`
+      and `30d71d6b2508c7cbd452b522c30c26bfa7a571e1f1ebcda979008422db469cfc`;
       `POSTCODES_IO_NORTHERN_IRELAND_ENABLED=false` rejects
       full/outward `BT` lookups before any cache/provider/network call. Enabling
       it has a separately completed `postcodes_ni` approval.
@@ -168,18 +200,74 @@ Terraform plan or AWS credit award alone is not launch approval.
       managed policies match the reviewed
       `aws-backup-managed-policy-contract.json`; any AWS-side policy revision
       was independently reviewed before the release preflight was rerun.
-- [ ] Latest RDS/S3 backup jobs succeeded, restore-role access is controlled,
-      and a quarterly isolated restore drill meeting the declared RPO/RTO is
-      recorded.
-- [ ] Permanent-erasure readiness v2 is `READY` for the exact reviewed
+- [ ] Latest RDS/S3 backup jobs succeeded. An attested
+      `purpose=restore-candidate` build from unchanged protected `main` was
+      created before the drill. The protected `prepare-restore-source` action
+      kept ingress fixed `503`, bootstrapped/migrated seven databases, quiesced
+      every service, and independently verified matching canary rows plus two
+      distinct checksum-bound S3 object versions before starting paired backups.
+      Protected tfvars supplied no `additional_tags`; a simulated preparation
+      failure proved the `always()` containment left the listener fixed `503`
+      and every application/scanner service at desired/running/pending zero.
+      The drill used only the exact run/release/source-preparation/canary/restore-start IDs and
+      recovery points from that retained evidence. Their creation skew was at
+      most ten minutes; completion skew was not misreported as consistency skew.
+      The candidate was never treated as a releasable artifact.
+- [ ] The protected restore workflow created a versioned, ACL-free,
+      public-blocked, exact-key SSE-KMS destination; restored private RDS with
+      the dedicated security group; and requested S3
+      `RestoreLatestVersionsUpTo=all`. `observe` bound the completed jobs to the
+      exact start artifact, sources, vault, restore role and destinations and
+      stripped only the measured inherited RDS production-only tags before
+      verifying the exact five drill ownership/cost tags and destination controls.
+      The protected semantic workflow then bound the fixed-network broker and
+      exact candidate children, exact seven-database source canary, restored
+      two-version payload/metadata/SHA integrity, empty-bootstrap
+      domain/payment invariants and synthetic non-customer journal
+      write/read/reconstruction. Its retained tombstone and locked journal were
+      explicitly approved. It did not claim customer object erasure, customer
+      metadata/object mapping or aggregate Document Store object health. The
+      semantic start held the shared AWS mutation lock until bounded terminal or
+      redrive state; no release/restore mutation overlapped any later
+      administrator redrive. Any redrive reused only the exact same canonical
+      source/replay operation and immutable one-version journal state; it did
+      not recreate a post-operation clone or accept extra rows/scopes/requests.
+- [ ] Permanent-erasure readiness v3 is `READY` for the exact reviewed
       document, backup and independently reviewed journal-retention policy
       versions. The 35-day maximum matches the foundation Backup plan; the
       machine-written Object-Locked journal is outside that restore blast
       radius; and `recoveryJournalWritePending`,
       `recoveryJournalEvidenceMissing`, `liveErasureReconciliationPending`,
       `restoreJournalReadPending`, `restoreReplayPending` and
-      `backupRetentionPending` are all zero. A completed isolated restore
-      replay and fresh backup-expiry attestation are recorded before traffic.
+      `backupRetentionOverdue` are all zero. `backupRetentionPending` is a
+      non-negative informational count and may be greater than zero only for
+      erasures still inside the allowed recovery window; it is not treated as
+      overdue.
+- [ ] After evidence retention, cleanup was separately dispatched through
+      `production-aws-restore-cleanup` with
+      `DELETE ISOLATED RESTORE DRILL <drill-id>`. The exact drill RDS target and
+      every S3 version/delete marker were removed before the bucket, and the
+      evidence/live record says `COMPLETED`; neither `observe`, evidence
+      validation nor the final build was misreported as cleanup. The exact
+      Standard execution was terminal and all semantic broker/child tasks were
+      contained before deletion; the permanent SSM tombstone and synthetic
+      Object Lock journal version were intentionally retained.
+- [ ] The reviewed `jsc-public-beta-restore-drill-evidence.v1` bytes bind the
+      candidate Document Store revision, OpenAPI hash and image digest, the
+      source-evidence/marker hashes and seven-database/two-version counts, the
+      creation-window-bound completed jobs, isolation, all-version S3 controls, semantic
+      checks, readiness v3 replay and truthful completed cleanup. Its signed
+      reference is retained, its SHA-256 exactly matches
+      `documentStorePermanentErasure.restoreDrillEvidenceSha256`, and the same
+      bytes are present in protected `RESTORE_DRILL_EVIDENCE_B64` for build,
+      plan and apply validation.
+- [ ] The exact candidate was promoted with `purpose=release` only after that
+      signed/hash-bound evidence and approval update, using the same candidate
+      release ID/build run. Promotion made no AWS call and did not rebuild or
+      republish images. Its `promotedFrom` hash, release ID, Infrastructure
+      revision, Document Store revision, OpenAPI hash and image digest still
+      match the drill; otherwise the drill was repeated. Only this newly
+      attested release artifact is selected for private prepare and activation.
 - [ ] The complete stateful-path inventory was reviewed: no required durable
       data depends on a container or EC2-host filesystem.
 - [ ] Key/secret rotation owners, account-removal retention, S3 quarantine
@@ -201,9 +289,10 @@ Terraform plan or AWS credit award alone is not launch approval.
 - [ ] At least one useful job provider is approved. Reed, Adzuna and JSearch
       remain disabled without written commercial display/cache/quota approval;
       NHS Jobs and DfE apprenticeships have independent decisions.
-- [ ] OpenAI has a current model/pricing decision, EU/privacy control record,
-      owner, cost/request ceilings and secret; no user data is sent until it
-      passes.
+- [ ] OpenAI has a current model/pricing decision, a reviewed `GLOBAL` /
+      `STANDARD_30_DAY_ABUSE_MONITORING` privacy-control record with data
+      sharing disabled, separate completed/due review dates, owner,
+      cost/request ceilings and secret; no user data is sent until it passes.
 - [ ] Google Maps remains disabled unless a named GCP project, separate program/
       billing decision, exact per-SKU quota IDs and daily limits, attribution/
       privacy decision and `googleBillingQuotasVerified=true` evidence are all
@@ -231,7 +320,10 @@ Terraform plan or AWS credit award alone is not launch approval.
 
 - [ ] The operations SNS email subscription is confirmed and CloudWatch/WAF/
       RDS/ECS/backup alarms have a recorded test delivery.
-- [ ] `CostCentre=public-beta` is activated as a billing cost-allocation tag.
+- [ ] All three USD 750 AWS Budgets are account-wide with no cost filter, so
+      tag propagation or an untagged resource cannot hide spend. Available
+      user-defined cost-allocation tags and material resource tags are recorded
+      separately for attribution.
 - [ ] The latest eu-west-2 estimate supports the approximately USD 560 baseline;
       the USD 750 alert threshold is approved and understood not to be a cap.
 - [ ] AWS Budgets thresholds and Cost Anomaly Detection are active; Google,

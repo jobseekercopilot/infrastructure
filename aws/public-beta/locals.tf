@@ -92,14 +92,17 @@ locals {
 
   openai_approval_complete = !var.enabled_integrations.openai || (
     local.approval_complete.openai &&
-    length(trimspace(try(local.approval_manifest.integrations.openai.privacyPolicyVersion, ""))) >= 3 &&
-    !can(regex(local.release_placeholder_pattern, trimspace(try(local.approval_manifest.integrations.openai.privacyPolicyVersion, "")))) &&
+    try(local.approval_manifest.integrations.openai.privacyPolicyVersion, "") == "openai-api-data-controls-2026-08-23" &&
     length(trimspace(try(local.approval_manifest.integrations.openai.privacyDecisionId, ""))) >= 8 &&
     !can(regex(local.release_placeholder_pattern, trimspace(try(local.approval_manifest.integrations.openai.privacyDecisionId, "")))) &&
     length(trimspace(try(local.approval_manifest.integrations.openai.privacyOwner, ""))) >= 3 &&
     !can(regex(local.release_placeholder_pattern, trimspace(try(local.approval_manifest.integrations.openai.privacyOwner, "")))) &&
     can(regex("^20[0-9]{2}-[0-9]{2}-[0-9]{2}$", try(local.approval_manifest.integrations.openai.privacyReviewedOn, ""))) &&
-    try(timecmp("${local.approval_manifest.integrations.openai.privacyReviewedOn}T00:00:00Z", plantimestamp()) <= 0, false)
+    try(timecmp("${local.approval_manifest.integrations.openai.privacyReviewedOn}T00:00:00Z", plantimestamp()) <= 0, false) &&
+    can(regex("^20[0-9]{2}-[0-9]{2}-[0-9]{2}$", try(local.approval_manifest.integrations.openai.privacyReviewDueOn, ""))) &&
+    try(timecmp("${local.approval_manifest.integrations.openai.privacyReviewDueOn}T23:59:59Z", plantimestamp()) >= 0, false) &&
+    try(timecmp("${local.approval_manifest.integrations.openai.privacyReviewDueOn}T00:00:00Z", "${local.approval_manifest.integrations.openai.privacyReviewedOn}T00:00:00Z") > 0, false) &&
+    try(timecmp("${local.approval_manifest.integrations.openai.privacyReviewDueOn}T00:00:00Z", timeadd("${local.approval_manifest.integrations.openai.privacyReviewedOn}T00:00:00Z", "2232h")) <= 0, false)
   )
 
   public_legal_contract           = local.approval_manifest.publicLegal
@@ -108,7 +111,7 @@ locals {
   github_environment_protection   = try(local.approval_manifest.githubEnvironmentProtection, {})
   github_environment_protection_complete = (
     try(local.github_environment_protection.reviewed, false) &&
-    try(local.github_environment_protection.environments, []) == ["production-build", "production-aws-plan", "production-aws"] &&
+    try(local.github_environment_protection.environments, []) == ["production-build", "production-aws-plan", "production-aws", "production-aws-restore", "production-aws-restore-cleanup"] &&
     try(local.github_environment_protection.operatorUsername, "") == "jobseekercopilot" &&
     !try(local.github_environment_protection.paidEnvironmentReviewerProtectionAvailable, true) &&
     try(local.github_environment_protection.ownerOnlyWorkflowActorVerified, false) &&
@@ -143,6 +146,8 @@ locals {
     try(local.document_store_erasure_approval.journalRetentionDays, 0) > 35 &&
     try(local.document_store_erasure_approval.externalDeletionJournalVerified, false) &&
     try(local.document_store_erasure_approval.isolatedRestoreReplayVerified, false) &&
+    can(regex("^[0-9a-f]{64}$", try(local.document_store_erasure_approval.restoreDrillEvidenceSha256, ""))) &&
+    try(local.document_store_erasure_approval.restoreDrillEvidenceSha256, "") != "0000000000000000000000000000000000000000000000000000000000000000" &&
     try(local.document_store_erasure_approval.journalRetentionDays, 0) >= try(local.public_legal_contract.accountDeletionCompletionDays, 0) &&
     try(local.document_store_erasure_approval.journalRetentionDays, 0) >= try(local.public_legal_contract.documentDeletionCompletionDays, 0)
   )
@@ -320,6 +325,7 @@ locals {
     "{{openai_privacy_decision_id}}"    = try(local.approval_manifest.integrations.openai.privacyDecisionId, "")
     "{{openai_privacy_owner}}"          = try(local.approval_manifest.integrations.openai.privacyOwner, "")
     "{{openai_privacy_reviewed_on}}"    = try(local.approval_manifest.integrations.openai.privacyReviewedOn, "")
+    "{{openai_privacy_review_due_on}}"  = try(local.approval_manifest.integrations.openai.privacyReviewDueOn, "")
   }
 
   payment_commercial_environment = {
@@ -385,7 +391,7 @@ locals {
         SPRING_DATASOURCE_HIKARI_MAX_LIFETIME       = "1500000"
       } : {},
       {
-        for key, value in service.environment : key => replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(
+        for key, value in service.environment : key => replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(
           value,
           "{{namespace}}", local.substitution_values["{{namespace}}"]),
           "{{db_endpoint}}", local.substitution_values["{{db_endpoint}}"]),
@@ -410,7 +416,8 @@ locals {
           "{{openai_privacy_policy_version}}", local.substitution_values["{{openai_privacy_policy_version}}"]),
           "{{openai_privacy_decision_id}}", local.substitution_values["{{openai_privacy_decision_id}}"]),
           "{{openai_privacy_owner}}", local.substitution_values["{{openai_privacy_owner}}"]),
-          "{{openai_privacy_reviewed_on}}", local.substitution_values["{{openai_privacy_reviewed_on}}"]
+          "{{openai_privacy_reviewed_on}}", local.substitution_values["{{openai_privacy_reviewed_on}}"]),
+          "{{openai_privacy_review_due_on}}", local.substitution_values["{{openai_privacy_review_due_on}}"]
         )
       },
       name == "payment-service" ? local.payment_commercial_environment : {},
@@ -499,7 +506,7 @@ locals {
   zero_digest          = "sha256:${join("", [for _ in range(64) : "0"])}"
 
   frontend_release_ready = (
-    try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.revision, "") == "3cdb1dec9f6a8b78dbf4c576fdc960ff00aa111a" &&
+    try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.revision, "") == "5e923c815e585e433573f50ba0395e71302785ca" &&
     try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.artifactContractSha256, "") == "801fab5beb7ea81798677086ef00a94759294a1e85915f74da843632de2c6f75" &&
     try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.packaging, "") == "OCI_SSR_BFF" &&
     try(local.image_manifest.images["job-seeker-copilot-client"].revision, "") == try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.revision, "") &&
@@ -541,11 +548,11 @@ locals {
         openApiSha256 = "8321009c305d2d22986224e366df6f0b451c1b5587d05dd0ec4876441e09d7ff"
       }
       locationService = {
-        revision      = "91857140c71bfda8b807c535272f918fe7741263"
-        openApiSha256 = "cd74fbf278c710a2782bbbe6473f9f708a19b6dd9329f42927ce302bb53f5f6b"
+        revision      = "4d8d09a79018c3f281cfead84348d14ed84be851"
+        openApiSha256 = "0cd7a877836dfbf1a42b5f71e0a807ec8dc99f88d69a695d7c5734e320cdef27"
       }
       locationGateway = {
-        revision      = "777ec7e8885fcb07368e05ad2543181e4ef7a891"
+        revision      = "86b2805c8430ede14a53a7320b87f0eeb2797b17"
         openApiSha256 = "30d71d6b2508c7cbd452b522c30c26bfa7a571e1f1ebcda979008422db469cfc"
       }
     } &&
@@ -772,8 +779,25 @@ resource "terraform_data" "release_contract" {
     }
 
     precondition {
-      condition     = var.application_desired_count == 0 || local.document_store_permanent_erasure_runtime_enabled
-      error_message = "Starting the application requires the pinned Document Store permanent-erasure contract, exact 35-day backup policy, stable write fence/fingerprint secret, version-scoped S3 IAM and reviewed external deletion-journal/isolated-restore replay evidence."
+      condition = (
+        var.application_desired_count == 0 ||
+        local.document_store_permanent_erasure_runtime_enabled ||
+        var.restore_source_preparation
+      )
+      error_message = "Starting the application requires the pinned Document Store permanent-erasure contract and reviewed restore evidence, except for the protected dark restore-source preparation mode."
+    }
+
+    precondition {
+      condition = (
+        !var.restore_source_preparation ||
+        (
+          !var.offline_validation &&
+          !var.public_entrypoint_enabled &&
+          local.document_store_permanent_erasure_image_ready &&
+          length(var.additional_tags) == 0
+        )
+      )
+      error_message = "Restore-source preparation is live-only, requires the pinned permanent-erasure image contract, an empty additional_tags map and a public listener fixed at 503."
     }
 
     precondition {

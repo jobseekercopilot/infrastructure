@@ -20,6 +20,25 @@ LANDING_BUILDER = ROOT / "scripts" / "aws" / "build_landing_artifact.py"
 
 
 class PublicBetaAwsContractTest(unittest.TestCase):
+    def _load_bootstrap_template(self):
+        class CloudFormationLoader(yaml.SafeLoader):
+            pass
+
+        def construct_intrinsic(loader: yaml.SafeLoader, _suffix: str, node: yaml.Node):
+            if isinstance(node, yaml.ScalarNode):
+                return loader.construct_scalar(node)
+            if isinstance(node, yaml.SequenceNode):
+                return loader.construct_sequence(node)
+            return loader.construct_mapping(node)
+
+        CloudFormationLoader.add_multi_constructor("!", construct_intrinsic)
+        return yaml.load(
+            (ROOT / "aws" / "public-beta" / "bootstrap" / "state-and-oidc.yaml").read_text(
+                encoding="utf-8"
+            ),
+            Loader=CloudFormationLoader,
+        )
+
     def run_validator(self, *arguments: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
             ["python3", str(VALIDATOR), *arguments],
@@ -42,6 +61,26 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         self.assertIn("-var=application_desired_count=1", offline_plan)
         self.assertIn("-var=public_entrypoint_enabled=true", offline_plan)
         self.assertIn("fully approved activation topology passed", offline_plan)
+        offline_verifier = (ROOT / "scripts" / "aws" / "verify_offline_activation_plan.py").read_text(
+            encoding="utf-8"
+        )
+        for semantic_role in (
+            "jsc-public-beta-restore-semantic-broker-task",
+            "jsc-public-beta-restore-semantic-state-machine",
+        ):
+            self.assertIn(
+                f'"{semantic_role}": "arn:aws:iam::000000000000:policy/'
+                'jsc-public-beta-restore-semantic-broker-boundary"',
+                offline_verifier,
+            )
+        for journal_policy_owner in (
+            "aws_iam_role_policy.document_store",
+            "aws_iam_role_policy.restore_semantic_document_store_journal",
+            "aws_iam_role_policy.restore_semantic_verifier",
+        ):
+            self.assertIn(f'"{journal_policy_owner}"', offline_verifier)
+        self.assertIn("permanent-erasures/v1/7e57c0de-*", offline_verifier)
+        self.assertIn("erasure-journal data-plane IAM owner set differs", offline_verifier)
 
     def test_offline_activation_harness_cannot_run_on_main_with_live_credentials_or_backend(self) -> None:
         harness = ROOT / "scripts" / "aws" / "offline_terraform_plan.sh"
@@ -233,7 +272,10 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             self.assertIn("workflow_dispatch:", workflow)
             self.assertIn("github.ref == 'refs/heads/main'", workflow)
             self.assertIn(f"environment: {environment}", workflow)
-            self.assertIn("role-duration-seconds: 10800", workflow)
+            if name == "aws-public-beta-release.yml":
+                self.assertIn("inputs.action == 'prepare-restore-source' && 21600 || 10800", workflow)
+            else:
+                self.assertIn("role-duration-seconds: 10800", workflow)
             references = re.findall(r"^\s*uses:\s*[^\s#]+@([^\s#]+)", workflow, flags=re.MULTILINE)
             self.assertTrue(references)
             self.assertTrue(all(re.fullmatch(r"[0-9a-f]{40}", reference) for reference in references))
@@ -284,6 +326,19 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             valid = subprocess.run(command, env=command_environment, check=False, capture_output=True, text=True)
             self.assertEqual(valid.returncode, 0, valid.stderr)
 
+            environment["name"] = "production-aws-restore-observe"
+            command_environment["ENVIRONMENT_JSON"] = json.dumps(environment)
+            observe_allowed = subprocess.run(
+                [
+                    "bash", str(guard), "jobseekercopilot/infrastructure",
+                    "production-aws-restore-observe", "jobseekercopilot", "jobseekercopilot",
+                ],
+                env=command_environment, check=False, capture_output=True, text=True,
+            )
+            self.assertEqual(observe_allowed.returncode, 0, observe_allowed.stderr)
+            environment["name"] = "production-build"
+            command_environment["ENVIRONMENT_JSON"] = json.dumps(environment)
+
             wrong_actor = subprocess.run(
                 [*command[:-1], "another-user"],
                 env=command_environment, check=False, capture_output=True, text=True,
@@ -321,6 +376,11 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             ("aws-public-beta-build.yml", "production-build"),
             ("aws-public-beta-release.yml", "production-aws-plan"),
             ("aws-public-beta-release.yml", "production-aws"),
+            ("aws-public-beta-restore-drill.yml", "production-aws-restore"),
+            ("aws-public-beta-restore-drill.yml", "production-aws-restore-cleanup"),
+            ("aws-public-beta-restore-semantic.yml", "production-aws-restore"),
+            ("aws-public-beta-restore-semantic.yml", "production-aws-restore-observe"),
+            ("aws-public-beta-restore-semantic.yml", "production-aws-restore-cleanup"),
         ):
             workflow = (ROOT / ".github" / "workflows" / workflow_name).read_text(encoding="utf-8")
             self.assertIn(
@@ -330,6 +390,21 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             )
         build = (ROOT / ".github" / "workflows" / "aws-public-beta-build.yml").read_text(encoding="utf-8")
         self.assertGreaterEqual(build.count("actions: read"), 2)
+        guard_source = guard.read_text(encoding="utf-8")
+        self.assertIn("aws-restore|aws-restore-cleanup|aws-restore-observe", guard_source)
+
+        restore_drill = (ROOT / ".github" / "workflows" / "aws-public-beta-restore-drill.yml").read_text(
+            encoding="utf-8"
+        )
+        restore_semantic = (
+            ROOT / ".github" / "workflows" / "aws-public-beta-restore-semantic.yml"
+        ).read_text(encoding="utf-8")
+        self.assertIn("group: jsc-public-beta-aws-mutation", restore_drill)
+        self.assertIn("group: jsc-public-beta-aws-mutation", restore_semantic)
+        publish_job = build.split("\n  publish:\n", maxsplit=1)[1].split("\n  promote:\n", maxsplit=1)[0]
+        self.assertIn("group: jsc-public-beta-aws-mutation", publish_job)
+        self.assertNotIn("group: jsc-public-beta-restore-drill", restore_drill)
+        self.assertNotIn("group: jsc-public-beta-restore-semantic", restore_semantic)
 
     def test_bootstrap_apply_role_cannot_escalate_or_mutate_unrelated_resources(self) -> None:
         class CloudFormationLoader(yaml.SafeLoader):
@@ -375,6 +450,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             "ApplyTagAndStateGuardPolicy",
         ]
         apply_role = resources["ApplyRole"]["Properties"]
+        self.assertEqual(apply_role["MaxSessionDuration"], 21600)
         self.assertEqual(set(apply_role["ManagedPolicyArns"]), set(managed_policy_names))
         self.assertLessEqual(len(apply_role["ManagedPolicyArns"]), 10)
         self.assertEqual(
@@ -408,11 +484,17 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             "WorkloadPermissionsBoundary": (
                 "arn:aws:iam::123456789012:policy/jsc-public-beta-workload-boundary"
             ),
+            "RdsMonitoringPermissionsBoundary": (
+                "arn:aws:iam::123456789012:policy/jsc-public-beta-rds-monitoring-boundary"
+            ),
             "BackupWorkloadBoundary": (
                 "arn:aws:iam::123456789012:policy/jsc-public-beta-backup-boundary"
             ),
             "BackupRestoreWorkloadBoundary": (
                 "arn:aws:iam::123456789012:policy/jsc-public-beta-backup-restore-boundary"
+            ),
+            "RestoreSemanticBrokerPermissionsBoundary": (
+                "arn:aws:iam::123456789012:policy/jsc-public-beta-restore-semantic-broker-boundary"
             ),
         }
 
@@ -451,7 +533,9 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             )
             statements.extend(document["Statement"])
         for boundary_name in (
-            "WorkloadPermissionsBoundary", "BackupWorkloadBoundary", "BackupRestoreWorkloadBoundary",
+            "WorkloadPermissionsBoundary", "RdsMonitoringPermissionsBoundary",
+            "BackupWorkloadBoundary", "BackupRestoreWorkloadBoundary",
+            "RestoreSemanticBrokerPermissionsBoundary",
         ):
             document = resources[boundary_name]["Properties"]["PolicyDocument"]
             self.assertLessEqual(
@@ -479,6 +563,26 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         )
         self.assertEqual(create_role["Condition"]["StringEquals"]["aws:RequestTag/Environment"], "public-beta")
         self.assertTrue(all("github" not in arn for arn in create_role["Resource"]))
+        self.assertNotIn("rds-monitoring", json.dumps(create_role["Resource"]))
+        create_monitoring_role = by_sid["CreateRdsMonitoringBoundaryConstrainedRole"]
+        self.assertEqual(
+            create_monitoring_role["Condition"]["StringEquals"]["iam:PermissionsBoundary"],
+            "RdsMonitoringPermissionsBoundary",
+        )
+        manage_monitoring_role = by_sid["ManageOnlyRdsMonitoringBoundaryConstrainedRole"]
+        self.assertEqual(
+            set(manage_monitoring_role["Condition"]["StringEquals"]["iam:PermissionsBoundary"]),
+            {"WorkloadPermissionsBoundary", "RdsMonitoringPermissionsBoundary"},
+        )
+        self.assertEqual(
+            set(manage_monitoring_role["Action"]),
+            {"iam:DeleteRole", "iam:UpdateAssumeRolePolicy", "iam:UpdateRoleDescription"},
+        )
+        repair_monitoring_role = by_sid["RepairOnlyRdsMonitoringWorkloadBoundary"]
+        self.assertEqual(
+            repair_monitoring_role["Condition"]["StringEquals"]["iam:PermissionsBoundary"],
+            "RdsMonitoringPermissionsBoundary",
+        )
 
         tagged_create = by_sid["CreateOnlyTaggedNetworkResources"]
         self.assertNotEqual(tagged_create["Resource"], "*")
@@ -618,7 +722,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
                 "role/jsc-public-beta-ecs-instance", "WorkloadPermissionsBoundary",
             ),
             "AttachOnlyRdsMonitoringPolicy": (
-                "role/jsc-public-beta-rds-monitoring", "WorkloadPermissionsBoundary",
+                "role/jsc-public-beta-rds-monitoring", "RdsMonitoringPermissionsBoundary",
             ),
             "AttachOnlyBackupPolicies": (
                 "role/jsc-public-beta-backup", "BackupWorkloadBoundary",
@@ -733,7 +837,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         boundary_statements = resources["WorkloadPermissionsBoundary"]["Properties"]["PolicyDocument"]["Statement"]
         boundary_by_sid = {statement["Sid"]: statement for statement in boundary_statements}
         self.assertEqual(
-            boundary_by_sid["UseOnlyFoundationPublicBetaDataKey"]["Resource"],
+            boundary_by_sid["FoundationDataKey"]["Resource"],
             "ApplicationDataKey.Arn",
         )
         self.assertTrue(all(
@@ -741,24 +845,25 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             or "jsc-public-beta-documents-${AWS::AccountId}" in arn
             for arn in boundary_by_sid["PublicBetaBucketsOnly"]["Resource"]
         ))
+        self.assertIn("s3:GetBucketVersioning", boundary_by_sid["PublicBetaBucketsOnly"]["Action"])
         self.assertEqual(
-            boundary_by_sid["WriteOnlyImmutableErasureJournalRecords"]["Action"],
+            boundary_by_sid["ImmutableJournalWrite"]["Action"],
             "s3:PutObject",
         )
         self.assertIn(
             "/permanent-erasures/v1/*",
-            boundary_by_sid["WriteOnlyImmutableErasureJournalRecords"]["Resource"],
+            boundary_by_sid["ImmutableJournalWrite"]["Resource"],
         )
         self.assertEqual(
-            set(boundary_by_sid["ReadOnlyBoundErasureJournalRecords"]["Action"]),
+            set(boundary_by_sid["BoundJournalRead"]["Action"]),
             {"s3:GetObject", "s3:GetObjectVersion"},
         )
         self.assertEqual(
-            set(boundary_by_sid["UseOnlyErasureJournalKeyThroughS3"]["Action"]),
+            set(boundary_by_sid["JournalKmsThroughS3"]["Action"]),
             {"kms:Decrypt", "kms:GenerateDataKey"},
         )
         self.assertEqual(
-            boundary_by_sid["UseOnlyErasureJournalKeyThroughS3"]["Resource"],
+            boundary_by_sid["JournalKmsThroughS3"]["Resource"],
             "ErasureJournalKey.Arn",
         )
         for foundation_name in (
@@ -776,6 +881,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             "ErasureJournalBucketPolicy",
             "OperationsTopicPolicy",
             "WorkloadPermissionsBoundary",
+            "RdsMonitoringPermissionsBoundary",
             "BackupWorkloadBoundary",
             "BackupRestoreWorkloadBoundary",
         ):
@@ -805,17 +911,49 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             self.assertNotIn(foundation_resource, terraform_source)
         self.assertIn("var.foundation_data_kms_key_arn", terraform_source)
         self.assertIn("var.foundation_backup_plan_id", terraform_source)
-        role_count = len(re.findall(r'^resource "aws_iam_role"', terraform_source, flags=re.MULTILINE))
+        role_boundaries = {}
+        for role_name, role_body in re.findall(
+            r'^resource "aws_iam_role" "([^"]+)" \{(.*?)(?=^resource |\Z)',
+            terraform_source,
+            flags=re.MULTILINE | re.DOTALL,
+        ):
+            boundary_match = re.search(r'permissions_boundary\s*=\s*"([^"]+)"', role_body)
+            self.assertIsNotNone(boundary_match, f"{role_name} has no permissions boundary")
+            role_boundaries[role_name] = boundary_match.group(1)
+        exceptional_boundaries = {
+            "backup": "jsc-public-beta-backup-boundary",
+            "backup_restore": "jsc-public-beta-backup-restore-boundary",
+            "rds_monitoring": "jsc-public-beta-rds-monitoring-boundary",
+            "restore_semantic_broker_task": "jsc-public-beta-restore-semantic-broker-boundary",
+            "restore_semantic_state_machine": "jsc-public-beta-restore-semantic-broker-boundary",
+        }
         self.assertEqual(
-            terraform_source.count(
-                'permissions_boundary = "arn:aws:iam::${var.aws_account_id}:policy/jsc-public-beta-workload-boundary"'
-            ),
-            role_count - 2,
+            {
+                name: boundary.rsplit("/", maxsplit=1)[-1]
+                for name, boundary in role_boundaries.items()
+                if not boundary.endswith("/jsc-public-beta-workload-boundary")
+            },
+            exceptional_boundaries,
         )
+        self.assertTrue(
+            all(
+                boundary.endswith("/jsc-public-beta-workload-boundary")
+                for name, boundary in role_boundaries.items()
+                if name not in exceptional_boundaries
+            )
+        )
+        self.assertEqual(terraform_source.count("jsc-public-beta-rds-monitoring-boundary"), 1)
         self.assertEqual(terraform_source.count("jsc-public-beta-backup-boundary"), 1)
         self.assertEqual(terraform_source.count("jsc-public-beta-backup-restore-boundary"), 1)
+        self.assertEqual(terraform_source.count("jsc-public-beta-restore-semantic-broker-boundary"), 2)
         self.assertNotIn("jsc-public-beta-erasure-journal-read-boundary", terraform_source)
         release = (ROOT / ".github" / "workflows" / "aws-public-beta-release.yml").read_text(encoding="utf-8")
+        self.assertEqual(release.count("group: jsc-public-beta-aws-mutation"), 1)
+        mutate_job = release.split("\n  mutate:\n", maxsplit=1)[1]
+        self.assertIn(
+            "    concurrency:\n      group: jsc-public-beta-aws-mutation\n      cancel-in-progress: false",
+            mutate_job,
+        )
         self.assertIn('test "$build_sha" = "$GITHUB_SHA"', release)
         self.assertEqual(release.count("Validate release contract before assuming AWS"), 2)
         self.assertEqual(release.count("verify_frontend_release_artifact.sh"), 2)
@@ -1125,6 +1263,41 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             )
         self.assertNotIn('value        = "1000"', parameter_group)
 
+    def test_rds_enhanced_monitoring_is_exactly_scoped_and_fail_closed(self) -> None:
+        data = (ROOT / "aws" / "public-beta" / "data.tf").read_text(encoding="utf-8")
+        role = data.split('resource "aws_iam_role" "rds_monitoring" {', maxsplit=1)[1].split(
+            'resource "aws_iam_role_policy_attachment" "rds_monitoring"', maxsplit=1
+        )[0]
+        self.assertIn("jsc-public-beta-rds-monitoring-boundary", role)
+        self.assertIn(
+            '"aws:SourceArn" = "arn:aws:rds:${var.aws_region}:${var.aws_account_id}:db:${local.name_prefix}-postgres"',
+            role,
+        )
+        self.assertNotIn('db:*', role)
+        database = data.split('resource "aws_db_instance" "postgres" {', maxsplit=1)[1]
+        self.assertIn("monitoring_interval             = 60", database)
+        self.assertIn("monitoring_role_arn             = aws_iam_role.rds_monitoring.arn", database)
+
+        template = self._load_bootstrap_template()
+        resources = template["Resources"]
+        boundary = resources["RdsMonitoringPermissionsBoundary"]
+        self.assertEqual(boundary["DeletionPolicy"], "Retain")
+        self.assertEqual(boundary["UpdateReplacePolicy"], "Retain")
+        statements = boundary["Properties"]["PolicyDocument"]["Statement"]
+        self.assertEqual(
+            {statement["Resource"] for statement in statements},
+            {
+                "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:RDSOSMetrics",
+                "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:RDSOSMetrics:log-stream:*",
+            },
+        )
+        self.assertNotIn("/jsc/public-beta/", json.dumps(boundary))
+        self.assertNotIn("*", statements[0]["Resource"])
+
+        release = (ROOT / "scripts" / "aws" / "public_beta_release.sh").read_text(encoding="utf-8")
+        self.assertIn("verify_live_rds_monitoring.py", release)
+        self.assertIn("--allow-rds-monitoring-migration", release)
+
     def test_public_security_log_retention_matches_every_diagnostic_store(self) -> None:
         data = (ROOT / "aws" / "public-beta" / "data.tf").read_text(encoding="utf-8")
         compute = (ROOT / "aws" / "public-beta" / "compute.tf").read_text(encoding="utf-8")
@@ -1220,8 +1393,15 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         self.assertNotIn("register-scalable-target", emergency)
         self.assertNotIn("DynamicScalingOutSuspended", emergency)
         self.assertIn("--desired-count 0", emergency)
-        self.assertIn("all application/scanner tasks are stopped", emergency)
+        self.assertIn("all application/scanner/operator tasks are stopped", emergency)
         self.assertIn("expected_services+=(clamav)", emergency)
+        self.assertIn("aws ecs list-tags-for-resource", emergency)
+        self.assertIn('$tags.Purpose == "ReleaseOperator"', emergency)
+        self.assertIn("aws ecs stop-task", emergency)
+        self.assertLess(
+            emergency.index("aws ecs stop-task"),
+            emergency.index("tagged operators were stopped, but"),
+        )
         self.assertIn('if: inputs.action != \'foundation\' && inputs.action != \'darken\'', workflow)
         self.assertIn("Execute approval-independent emergency containment", workflow)
         self.assertIn('EXPECTED_RELEASE_ID: ${{ inputs.release_id }}', workflow)
@@ -1271,6 +1451,27 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         self.assertEqual(approvals["gcpBudgetAlertThresholdPercents"], [50, 75, 90, 100])
         self.assertEqual(runtime["google-maps-gateway"]["environment"]["GOOGLE_MAPS_ENABLED"], "{{google_enabled}}")
 
+    def test_openai_runtime_contract_matches_available_account_evidence(self) -> None:
+        approvals = json.loads(
+            (ROOT / "aws" / "public-beta" / "config" / "launch-approvals.json").read_text(encoding="utf-8")
+        )["integrations"]["openai"]
+        environment = json.loads(
+            (ROOT / "aws" / "public-beta" / "config" / "runtime-services.json").read_text(encoding="utf-8")
+        )["services"]["llm-gateway"]["environment"]
+
+        self.assertEqual(environment["OPENAI_ENDPOINT"], "https://api.openai.com/v1/chat/completions")
+        self.assertEqual(environment["OPENAI_DATA_REGION"], "GLOBAL")
+        self.assertEqual(
+            environment["OPENAI_DATA_CONTROL_MODE"],
+            "STANDARD_30_DAY_ABUSE_MONITORING",
+        )
+        self.assertEqual(environment["OPENAI_DATA_SHARING_MODE"], "DISABLED")
+        self.assertEqual(environment["OPENAI_PRIVACY_REVIEWED_ON"], "{{openai_privacy_reviewed_on}}")
+        self.assertEqual(environment["OPENAI_PRIVACY_REVIEW_DUE_ON"], "{{openai_privacy_review_due_on}}")
+        self.assertNotIn("OPENAI_PRIVACY_REVIEW_ON", environment)
+        self.assertIn("privacyReviewedOn", approvals)
+        self.assertIn("privacyReviewDueOn", approvals)
+
     def test_client_and_registration_legal_contracts_fail_closed(self) -> None:
         runtime = json.loads(
             (ROOT / "aws" / "public-beta" / "config" / "runtime-services.json").read_text(encoding="utf-8")
@@ -1317,11 +1518,11 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         erasure_evidence = image_manifest["dependencyEvidence"]["documentStorePermanentErasure"]
         self.assertEqual(
             erasure_evidence["revision"],
-            "e35761d1b1f810dff3c727c317d2c9c4335bcb8d",
+            "159f75701654d5e0a951f0546cf1583e993a9b47",
         )
         self.assertEqual(
             erasure_evidence["openApiSha256"],
-            "66b0b21bc93928f2fc17c576692199878f250dbbdf7db632b191468137b896f1",
+            "e43ef6ea262553eb5fd5752b984d6cf027a538b930a1dff7288091e7a3ee1242",
         )
         self.assertEqual(
             erasure_evidence["restoreReplayRunbookSha256"],
@@ -1350,7 +1551,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         compute = (ROOT / "aws" / "public-beta" / "compute.tf").read_text(encoding="utf-8")
         journal_policy = compute.split(
             'sid     = "WriteOnlyImmutableErasureJournalRecords"', maxsplit=1
-        )[1].split('resource "aws_iam_role_policy" "document_store"', maxsplit=1)[0]
+        )[1].split('data "aws_iam_policy_document" "document_store"', maxsplit=1)[0]
         self.assertIn("permanent-erasures/v1/*", journal_policy)
         for action in ("s3:PutObject", "s3:GetObject", "s3:GetObjectVersion", "kms:GenerateDataKey", "kms:Decrypt"):
             self.assertIn(action, journal_policy)
@@ -1360,17 +1561,22 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, journal_policy)
         self.assertNotRegex(journal_policy, r'actions\s*=\s*\[[^]]*"kms:(Encrypt|DescribeKey)"')
+        self.assertNotIn("s3:x-amz-server-side-encryption-bucket-key-enabled", journal_policy)
+        self.assertIn('variable = "s3:x-amz-server-side-encryption"', journal_policy)
+        self.assertIn('variable = "s3:x-amz-server-side-encryption-aws-kms-key-id"', journal_policy)
         self.assertIn('variable = "kms:ViaService"', journal_policy)
         self.assertIn('variable = "kms:EncryptionContext:aws:s3:arn"', journal_policy)
 
         preflight = (ROOT / "aws" / "public-beta" / "operator" / "preflight.sh").read_text(encoding="utf-8")
-        self.assertIn('document-permanent-erasure-readiness.v2', preflight)
+        self.assertIn('document-permanent-erasure-readiness.v3', preflight)
         for pending_count in (
             "recoveryJournalWritePending", "recoveryJournalEvidenceMissing",
             "liveErasureReconciliationPending", "restoreJournalReadPending",
-            "restoreReplayPending", "backupRetentionPending",
+            "restoreReplayPending", "backupRetentionOverdue",
         ):
             self.assertIn(f".{pending_count} == 0", preflight)
+        self.assertIn(".backupRetentionPending >= 0", preflight)
+        self.assertNotIn(".backupRetentionPending == 0", preflight)
 
     def test_release_approval_rejects_placeholders_zero_hashes_and_incoherent_provenance(self) -> None:
         spec = importlib.util.spec_from_file_location("validate_public_beta_approvals", VALIDATOR)
@@ -1407,6 +1613,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             "journalRetentionDays": 90,
             "externalDeletionJournalVerified": True,
             "isolatedRestoreReplayVerified": True,
+            "restoreDrillEvidenceSha256": "3" * 64,
         })
         legal_hash = "1" * 64
         approvals["publicLegal"].update({
@@ -1447,6 +1654,15 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         })
         module.validate_approvals(approvals, True)
 
+        pending_restore_candidate = copy.deepcopy(approvals)
+        pending_restore_candidate["documentStorePermanentErasure"].update({
+            "isolatedRestoreReplayVerified": False,
+            "restoreDrillEvidenceSha256": "",
+        })
+        module.validate_approvals(pending_restore_candidate, True, restore_candidate=True)
+        with self.assertRaisesRegex(module.ContractError, "isolated-restore replay evidence"):
+            module.validate_approvals(pending_restore_candidate, True)
+
         mutations = (
             (("publicLegal", "reviewedBy"), "TBD"),
             (("publicLegal", "evidenceReference"), "PLACEHOLDER"),
@@ -1461,6 +1677,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             (("documentStorePermanentErasure", "journalRetentionPolicyVersion"), "UNAPPROVED"),
             (("documentStorePermanentErasure", "externalDeletionJournalVerified"), False),
             (("documentStorePermanentErasure", "isolatedRestoreReplayVerified"), False),
+            (("documentStorePermanentErasure", "restoreDrillEvidenceSha256"), "0" * 64),
         )
         for path, value in mutations:
             candidate = copy.deepcopy(approvals)
@@ -1521,11 +1738,33 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         openai_placeholder = copy.deepcopy(approvals)
         openai = approve_common(openai_placeholder, "openai")
         openai.update({
-            "privacyPolicyVersion": "privacy-2026-08-15",
+            "privacyPolicyVersion": "openai-api-data-controls-2026-08-23",
             "privacyDecisionId": "privacy-decision-record-15",
             "privacyOwner": "Data protection owner",
             "privacyReviewedOn": today.isoformat(),
+            "privacyReviewDueOn": (today + module.datetime.timedelta(days=90)).isoformat(),
         })
+        overdue_openai = copy.deepcopy(openai_placeholder)
+        overdue_openai["integrations"]["openai"]["privacyReviewDueOn"] = (
+            today - module.datetime.timedelta(days=1)
+        ).isoformat()
+        with self.assertRaisesRegex(module.ContractError, "already overdue"):
+            module.validate_approvals(overdue_openai, True)
+
+        distant_openai = copy.deepcopy(openai_placeholder)
+        distant_openai["integrations"]["openai"]["privacyReviewDueOn"] = (
+            today + module.datetime.timedelta(days=94)
+        ).isoformat()
+        with self.assertRaisesRegex(module.ContractError, "within 93 days"):
+            module.validate_approvals(distant_openai, True)
+
+        stale_policy_openai = copy.deepcopy(openai_placeholder)
+        stale_policy_openai["integrations"]["openai"]["privacyPolicyVersion"] = (
+            "openai-api-data-controls-2026-07-25"
+        )
+        with self.assertRaisesRegex(module.ContractError, "current reviewed privacy policy version"):
+            module.validate_approvals(stale_policy_openai, True)
+
         openai["privacyDecisionId"] = "TBD"
         with self.assertRaisesRegex(module.ContractError, "privacyDecisionId"):
             module.validate_approvals(openai_placeholder, True)
@@ -1566,11 +1805,11 @@ class PublicBetaAwsContractTest(unittest.TestCase):
                     "openApiSha256": "8321009c305d2d22986224e366df6f0b451c1b5587d05dd0ec4876441e09d7ff",
                 },
                 "locationService": {
-                    "revision": "91857140c71bfda8b807c535272f918fe7741263",
-                    "openApiSha256": "cd74fbf278c710a2782bbbe6473f9f708a19b6dd9329f42927ce302bb53f5f6b",
+                    "revision": "4d8d09a79018c3f281cfead84348d14ed84be851",
+                    "openApiSha256": "0cd7a877836dfbf1a42b5f71e0a807ec8dc99f88d69a695d7c5734e320cdef27",
                 },
                 "locationGateway": {
-                    "revision": "777ec7e8885fcb07368e05ad2543181e4ef7a891",
+                    "revision": "86b2805c8430ede14a53a7320b87f0eeb2797b17",
                     "openApiSha256": "30d71d6b2508c7cbd452b522c30c26bfa7a571e1f1ebcda979008422db469cfc",
                 },
             },
@@ -1585,6 +1824,10 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             {name: locked_revisions[name] for name in (
                 "authentication-service",
                 "user-management-gateway",
+                "location-gateway",
+                "location-service",
+                "llm-gateway",
+                "document-store-service",
                 "document-generation-gateway",
                 "payment-service",
                 "payment-gateway",
@@ -1596,12 +1839,16 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             {
                 "authentication-service": "369e4bd96957dd22f254ae2c61d7a84744ac8d12",
                 "user-management-gateway": "a5b2e064a8b9e082378a94603467773dd97349e8",
+                "location-gateway": "86b2805c8430ede14a53a7320b87f0eeb2797b17",
+                "location-service": "4d8d09a79018c3f281cfead84348d14ed84be851",
+                "llm-gateway": "d84427061766244ec10e367fb3a7a6587809612c",
+                "document-store-service": "159f75701654d5e0a951f0546cf1583e993a9b47",
                 "document-generation-gateway": "e15784c7098d327835e2a7d14dd257c1b95b08bd",
                 "payment-service": "baeec9aa8da1285a2406900c9550773ac3841af7",
                 "payment-gateway": "ab721f1b4377ba250d33b99a1690cb1abd96b864",
                 "stripe-gateway": "18a831025c916b209ff0e9038b608a53b7efd452",
                 "system-data-service": "2b2bd1fdb87036baf3186c88b854b39cef2abc96",
-                "job-seeker-copilot-client": "3cdb1dec9f6a8b78dbf4c576fdc960ff00aa111a",
+                "job-seeker-copilot-client": "5e923c815e585e433573f50ba0395e71302785ca",
                 "e2e": "9eaf0d3330f9593554a6197ccd934d0e0f255626",
             },
         )
@@ -1652,7 +1899,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         self.assertFalse(images["capabilities"]["frontendArtifactsVerified"])
         self.assertEqual(images["dependencyEvidence"]["frontendArtifacts"], {
             "client": {
-                "revision": "3cdb1dec9f6a8b78dbf4c576fdc960ff00aa111a",
+                "revision": "5e923c815e585e433573f50ba0395e71302785ca",
                 "artifactContractSha256": "801fab5beb7ea81798677086ef00a94759294a1e85915f74da843632de2c6f75",
                 "packaging": "OCI_SSR_BFF",
             },
@@ -1960,6 +2207,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             self.assertEqual(budget["DependsOn"], "OperationsTopicPolicy")
             self.assertEqual(budget["DeletionPolicy"], "Retain")
             self.assertEqual(budget["UpdateReplacePolicy"], "Retain")
+            self.assertNotIn("CostFilters", budget["Properties"]["Budget"])
 
         def notifications(name: str) -> set[tuple[str, int]]:
             entries = resources[name]["Properties"]["NotificationsWithSubscribers"]

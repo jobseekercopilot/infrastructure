@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import datetime
 import hashlib
+import importlib.util
 import json
 import re
 import sys
@@ -24,9 +25,9 @@ ADZUNA_RUNTIME_HEALTH_REVISION = "594ac33862c6360fe05768905bab0e2cb9ac1898"
 JSEARCH_RUNTIME_HEALTH_REVISION = "79677c6586207f5aa30b9c6d0720f5ed2cfe728a"
 POSTCODES_NI_GATE_REVISION = "f5588e5b0a2ca9e63319674f4b6cd40048b9e0fb"
 POSTCODES_NI_GATE_OPENAPI_SHA256 = "8321009c305d2d22986224e366df6f0b451c1b5587d05dd0ec4876441e09d7ff"
-LOCATION_SERVICE_NI_REVISION = "91857140c71bfda8b807c535272f918fe7741263"
-LOCATION_SERVICE_NI_OPENAPI_SHA256 = "cd74fbf278c710a2782bbbe6473f9f708a19b6dd9329f42927ce302bb53f5f6b"
-LOCATION_GATEWAY_NI_REVISION = "777ec7e8885fcb07368e05ad2543181e4ef7a891"
+LOCATION_SERVICE_NI_REVISION = "4d8d09a79018c3f281cfead84348d14ed84be851"
+LOCATION_SERVICE_NI_OPENAPI_SHA256 = "0cd7a877836dfbf1a42b5f71e0a807ec8dc99f88d69a695d7c5734e320cdef27"
+LOCATION_GATEWAY_NI_REVISION = "86b2805c8430ede14a53a7320b87f0eeb2797b17"
 LOCATION_GATEWAY_NI_OPENAPI_SHA256 = "30d71d6b2508c7cbd452b522c30c26bfa7a571e1f1ebcda979008422db469cfc"
 AUTH_PAYMENT_V2_REVISION = "d447addae21714f51267c0ab073377c24e3cfe81"
 AUTH_PAYMENT_V2_OPENAPI_SHA256 = "8ef5f12a32e836c2046fb163944b62d76cea31e389612408ca6ed1d1ccc42884"
@@ -44,10 +45,11 @@ STRIPE_GATEWAY_V2_OPENAPI_SHA256 = "4fc3c82918d2c062c56a5326b783dfabcf2c3fd68dfd
 SYSTEM_DATA_PAYMENT_FIXTURE_REVISION = "ca4bafeafbfe41b25a8507f6f08d97490ef71a28"
 E2E_PAYMENT_FIXTURE_REVISION = "cfa1a70a0028f11f8019c889b9057ba8124ff8f5"
 INFRASTRUCTURE_PAYMENT_FIXTURE_REVISION = "412566a750ead55740e0b2b4b81cebe29d3e0ad9"
-CLIENT_RELEASE_REVISION = "3cdb1dec9f6a8b78dbf4c576fdc960ff00aa111a"
+CLIENT_RELEASE_REVISION = "5e923c815e585e433573f50ba0395e71302785ca"
 CLIENT_ARTIFACT_CONTRACT_SHA256 = "801fab5beb7ea81798677086ef00a94759294a1e85915f74da843632de2c6f75"
 LANDING_RELEASE_REVISION = "ce2a2a45aa32c838f12b3a8ff692ac5c1a0cdee7"
 LANDING_ARTIFACT_CONTRACT_SHA256 = "9682372ef2d909de3b2b49c6d0fed232565b61e1b1fe0ac666ace58bfdb0804f"
+OPENAI_PRIVACY_POLICY_VERSION = "openai-api-data-controls-2026-08-23"
 EXCLUDED_REPOSITORIES = {"system-data-service", "e2e"}
 DATABASE_SERVICES = {
     "authentication-service",
@@ -155,6 +157,27 @@ def load_json(path: Path) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise ContractError(f"{display_path}: root must be an object")
     return value
+
+
+def validate_restore_evidence(
+    path: Path,
+    images: dict[str, Any],
+    infrastructure_revision: str,
+) -> None:
+    validator_path = ROOT / "scripts" / "aws" / "validate_restore_drill_evidence.py"
+    spec = importlib.util.spec_from_file_location("jsc_restore_drill_evidence", validator_path)
+    require(spec is not None and spec.loader is not None, "restore evidence validator cannot be loaded")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    try:
+        module.validate(
+            module.load(path),
+            images,
+            expected_infrastructure_revision=infrastructure_revision,
+            require_cleanup=True,
+        )
+    except (module.EvidenceError, OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
+        raise ContractError(f"restore drill evidence is invalid: {exc}") from exc
 
 
 def load_landing_runtime_config(archive_path: Path) -> dict[str, Any]:
@@ -732,7 +755,11 @@ def validate_images(images: dict[str, Any], runtime_names: set[str], release: bo
         require(all(image["digest"] == ZERO_DIGEST for image in image_entries.values()), "checked-in image digests must remain placeholders")
 
 
-def validate_approvals(approvals: dict[str, Any], release: bool) -> None:
+def validate_approvals(
+    approvals: dict[str, Any],
+    production: bool,
+    restore_candidate: bool = False,
+) -> None:
     require(approvals.get("schemaVersion") == 1, "launch approval schemaVersion must be 1")
     require(approvals.get("environment") == "public-beta", "launch approval environment must be public-beta")
     github_environment = approvals.get("githubEnvironmentProtection")
@@ -748,8 +775,11 @@ def validate_approvals(approvals: dict[str, Any], release: bool) -> None:
         "GitHub production-environment protection evidence is incomplete",
     )
     require(
-        github_environment["environments"] == ["production-build", "production-aws-plan", "production-aws"],
-        "GitHub protection evidence must cover the exact three production environments",
+        github_environment["environments"] == [
+            "production-build", "production-aws-plan", "production-aws",
+            "production-aws-restore", "production-aws-restore-cleanup",
+        ],
+        "GitHub protection evidence must cover the exact five production environments",
     )
     require(
         github_environment["operatorUsername"] == "jobseekercopilot",
@@ -759,7 +789,7 @@ def validate_approvals(approvals: dict[str, Any], release: bool) -> None:
         github_environment["paidEnvironmentReviewerProtectionAvailable"] is False,
         "GitHub protection evidence must record the unavailable paid reviewer control",
     )
-    if not release:
+    if not production:
         require(github_environment["reviewed"] is False, "checked-in GitHub environment evidence must fail closed")
         require(
             all(
@@ -797,7 +827,7 @@ def validate_approvals(approvals: dict[str, Any], release: bool) -> None:
         "reviewed", "reviewedBy", "reviewedOn", "evidenceReference",
         "retentionPolicyVersion", "backupRetentionPolicyVersion", "journalRetentionPolicyVersion",
         "maximumBackupRetentionDays", "journalRetentionDays", "externalDeletionJournalVerified",
-        "isolatedRestoreReplayVerified",
+        "isolatedRestoreReplayVerified", "restoreDrillEvidenceSha256",
     }
     require(
         isinstance(erasure, dict) and set(erasure) == erasure_fields,
@@ -808,7 +838,7 @@ def validate_approvals(approvals: dict[str, Any], release: bool) -> None:
         and erasure["maximumBackupRetentionDays"] == 35,
         "Document Store permanent erasure must use the exact 35-day platform backup maximum",
     )
-    if not release:
+    if not production:
         require(erasure["reviewed"] is False, "checked-in permanent-erasure approval must fail closed")
         require(
             erasure["retentionPolicyVersion"] == "NOT_CONFIGURED"
@@ -816,7 +846,8 @@ def validate_approvals(approvals: dict[str, Any], release: bool) -> None:
             and erasure["journalRetentionPolicyVersion"] == "NOT_CONFIGURED"
             and erasure["journalRetentionDays"] == 0
             and erasure["externalDeletionJournalVerified"] is False
-            and erasure["isolatedRestoreReplayVerified"] is False,
+            and erasure["isolatedRestoreReplayVerified"] is False
+            and erasure["restoreDrillEvidenceSha256"] == "",
             "checked-in permanent-erasure policy and recovery evidence must remain unconfigured",
         )
     else:
@@ -851,11 +882,25 @@ def validate_approvals(approvals: dict[str, Any], release: bool) -> None:
             and 36 <= erasure["journalRetentionDays"] <= 400,
             "release erasure-journal retention must exceed the backup window and stay within the reviewed bound",
         )
-        require(
-            erasure["externalDeletionJournalVerified"] is True
-            and erasure["isolatedRestoreReplayVerified"] is True,
-            "release requires reviewed external deletion-journal and isolated-restore replay evidence",
-        )
+        require(erasure["externalDeletionJournalVerified"] is True,
+                "release candidate requires the reviewed external deletion journal")
+        if restore_candidate:
+            if erasure["isolatedRestoreReplayVerified"] is True:
+                require(
+                    re.fullmatch(r"[0-9a-f]{64}", str(erasure["restoreDrillEvidenceSha256"])) is not None
+                    and erasure["restoreDrillEvidenceSha256"] != ZERO_SHA256,
+                    "completed restore approval must retain its evidence checksum",
+                )
+            else:
+                require(erasure["restoreDrillEvidenceSha256"] == "",
+                        "pending restore candidate cannot carry a completed-drill checksum")
+        else:
+            require(
+                erasure["isolatedRestoreReplayVerified"] is True
+                and re.fullmatch(r"[0-9a-f]{64}", str(erasure["restoreDrillEvidenceSha256"])) is not None
+                and erasure["restoreDrillEvidenceSha256"] != ZERO_SHA256,
+                "release requires checksum-bound isolated-restore replay evidence",
+            )
     legal = approvals.get("publicLegal")
     legal_fields = {
         "reviewed", "reviewedBy", "evidenceReference", "legalVersion", "effectiveOn",
@@ -866,7 +911,7 @@ def validate_approvals(approvals: dict[str, Any], release: bool) -> None:
         "clientLegalArtifactSha256", "landingLegalArtifactSha256",
     }
     require(isinstance(legal, dict) and legal_fields.issubset(legal), "public legal approval metadata is incomplete")
-    if not release:
+    if not production:
         require(legal["reviewed"] is False, "checked-in public legal review must fail closed")
         require(legal["legalVersion"] == "NOT_CONFIGURED", "checked-in public legal version must be NOT_CONFIGURED")
         require(legal["legalEntityType"] == "NOT_CONFIGURED", "checked-in seller type must be NOT_CONFIGURED")
@@ -942,7 +987,7 @@ def validate_approvals(approvals: dict[str, Any], release: bool) -> None:
     }
     for name, approval in integrations.items():
         require(common.issubset(approval), f"{name}: approval/quota/cost/attribution metadata is incomplete")
-        if not release:
+        if not production:
             require(approval["approved"] is False, f"{name}: checked-in approval template must fail closed")
         elif approval["approved"] is True:
             require_substantive(approval["approvalReference"], f"integrations.{name}.approvalReference")
@@ -977,7 +1022,7 @@ def validate_approvals(approvals: dict[str, Any], release: bool) -> None:
         google["gcpBudgetAlertThresholdPercents"] == [50, 75, 90, 100],
         "Google Maps billing alerts must retain the reviewed 50/75/90/100 percent thresholds",
     )
-    if not release:
+    if not production:
         require(google["googleBillingQuotasVerified"] is False, "checked-in Google billing quota capability must fail closed")
     elif google["approved"]:
         require(google["googleBillingQuotasVerified"] is True, "approved Google Maps requires verified billing quotas")
@@ -1003,13 +1048,29 @@ def validate_approvals(approvals: dict[str, Any], release: bool) -> None:
         require(google["googleBillingQuotasVerified"] is False, "unapproved Google Maps cannot attest billing quotas")
 
     openai = integrations["openai"]
-    openai_fields = {"privacyPolicyVersion", "privacyDecisionId", "privacyOwner", "privacyReviewedOn"}
+    openai_fields = {
+        "privacyPolicyVersion", "privacyDecisionId", "privacyOwner",
+        "privacyReviewedOn", "privacyReviewDueOn",
+    }
     require(openai_fields.issubset(openai), "OpenAI approval needs privacy decision provenance")
-    if release and openai["approved"]:
+    if production and openai["approved"]:
         for field, minimum in (("privacyPolicyVersion", 3), ("privacyDecisionId", 8), ("privacyOwner", 3)):
             require_substantive(openai[field], f"integrations.openai.{field}", minimum)
+        require(
+            openai["privacyPolicyVersion"] == OPENAI_PRIVACY_POLICY_VERSION,
+            "OpenAI approval must use the current reviewed privacy policy version",
+        )
         privacy_reviewed = parse_release_date(openai["privacyReviewedOn"], "integrations.openai.privacyReviewedOn")
+        privacy_review_due = parse_release_date(
+            openai["privacyReviewDueOn"], "integrations.openai.privacyReviewDueOn"
+        )
         require(privacy_reviewed <= reviewed_at.date(), "OpenAI privacy review follows reviewedAt provenance")
+        require(privacy_review_due >= reviewed_at.date(), "OpenAI privacy review is already overdue")
+        require(
+            privacy_reviewed < privacy_review_due
+            <= privacy_reviewed + datetime.timedelta(days=93),
+            "OpenAI privacy review due date must follow the completed review and be within 93 days",
+        )
     payment_fields = {
         "paymentReadinessStatus", "refundRunbookReference", "reconciliationRunbookReference",
         "checkoutEnabled", "checkoutReleaseAuthorised", "providerLiveModeExpected",
@@ -1049,7 +1110,7 @@ def validate_approvals(approvals: dict[str, Any], release: bool) -> None:
         and len({entry["priceId"] for entry in live_catalog}) == 3
     )
     require(empty_catalog or configured_catalog, "Live Stripe Product/Price identifiers are partial or invalid")
-    if release:
+    if production:
         require(stripe["legalEntityType"] == legal["legalEntityType"], "Payment seller type differs from public legal contract")
         require(
             stripe["legalEntityConfigurationVersion"] == legal["legalVersion"],
@@ -1086,7 +1147,7 @@ def validate_approvals(approvals: dict[str, Any], release: bool) -> None:
                 stripe["merchantTermsTraderDisclosureVerified"] is True,
                 "approved Stripe release needs reviewed merchant/trader disclosure",
             )
-    if not release:
+    if not production:
         require(stripe["taxTreatment"] == "VAT_NOT_CHARGED", "Payment tax treatment must default VAT_NOT_CHARGED")
         require(stripe["taxStatus"] == "NOT_CONFIGURED", "payment tax status must default NOT_CONFIGURED")
         require(stripe["legalEntityType"] == "NOT_CONFIGURED", "legal entity type must default NOT_CONFIGURED")
@@ -1140,6 +1201,9 @@ def validate_source_guards() -> None:
         'payment_contract_complete': "payment catalog/tax/terms/retention release gate",
         'public_legal_contract_complete': "shared Client/Authentication/Payment legal release gate",
         'document_store_permanent_erasure_runtime_enabled': "permanent-erasure evidence/runtime launch gate",
+        'restore_source_preparation': "dark candidate-only restore-source preparation gate",
+        'resource "aws_ecs_task_definition" "restore_source_canary"': "restore-source canary one-shot task",
+        'sid = "ReadWriteOnlyRestoreCanaryObjects"': "prefix-scoped restore-source S3 canary access",
         'POSTCODES_IO_NORTHERN_IRELAND_ENABLED': "fail-closed NI/BT postcode runtime binding",
         'STRIPE_API_VERSION': "explicit Stripe API version contract",
         'STRIPE_PRICE_STARTER': "approved Starter live Stripe Price",
@@ -1168,6 +1232,8 @@ def validate_source_guards() -> None:
         'retention_in_days = var.log_retention_days': "uniform CloudWatch retention",
         'expiration { days = var.log_retention_days }': "uniform encrypted access-log retention",
         'permissions_boundary = "arn:aws:iam::${var.aws_account_id}:policy/jsc-public-beta-workload-boundary"': "mandatory workload-role permissions boundary",
+        'permissions_boundary = "arn:aws:iam::${var.aws_account_id}:policy/jsc-public-beta-rds-monitoring-boundary"': "dedicated RDS monitoring permissions boundary",
+        '"aws:SourceArn" = "arn:aws:rds:${var.aws_region}:${var.aws_account_id}:db:${local.name_prefix}-postgres"': "exact RDS Enhanced Monitoring confused-deputy trust",
     }
     for fragment, description in required_fragments.items():
         require(fragment in source, f"Terraform is missing {description}")
@@ -1188,8 +1254,17 @@ def validate_source_guards() -> None:
         "Threshold: 750": "USD 750 ceiling alert",
         "ThresholdType: ABSOLUTE_VALUE": "absolute-dollar budget thresholds",
         "NotificationType: FORECASTED": "forecast budget alert",
+        "RdsMonitoringPermissionsBoundary": "retained RDSOSMetrics-only monitoring boundary",
+        "ManageOnlyRdsOsMetricsLogGroup": "RDSOSMetrics log-group boundary",
+        "WriteOnlyRdsOsMetricsLogStreams": "RDSOSMetrics log-stream boundary",
+        "ManageOnlyRestoreSourceCanaryMarker": "exact restore-source marker workload boundary",
+        "StartOnlyCustomerDataCanaryBackups": "exact-vault on-demand source-backup permission",
     }.items():
         require(fragment in bootstrap_source, f"bootstrap is missing {description}")
+    require(
+        "user:CostCentre$public-beta" not in bootstrap_source,
+        "retained safety budgets must be account-wide and independent of cost-tag propagation",
+    )
     require('self        = true' not in source, "shared self-referencing task security group is forbidden")
     require("AWS_ACCESS_KEY_ID" not in source, "Terraform must not inject static AWS access keys")
     locals_source = (MODULE / "locals.tf").read_text(encoding="utf-8")
@@ -1204,6 +1279,10 @@ def validate_source_guards() -> None:
     )
     require('variable = "s3:x-amz-acl"' not in source, "ALB log delivery must not require an unsupported canned-ACL header")
     compute = (MODULE / "compute.tf").read_text(encoding="utf-8")
+    require(
+        "s3:x-amz-server-side-encryption-bucket-key-enabled" not in compute,
+        "Document Store journal IAM uses a nonexistent S3 bucket-key condition",
+    )
     clamav_task = compute.split('resource "aws_ecs_task_definition" "clamav" {', maxsplit=1)[1].split(
         'resource "aws_ecs_service" "clamav" {', maxsplit=1
     )[0]
@@ -1215,18 +1294,31 @@ def validate_source_guards() -> None:
 
     preflight = (MODULE / "operator" / "preflight.sh").read_text(encoding="utf-8")
     require(
-        '.schemaVersion == "document-permanent-erasure-readiness.v2"' in preflight,
-        "release preflight must require the exact permanent-erasure readiness v2 schema",
+        '.schemaVersion == "document-permanent-erasure-readiness.v3"' in preflight,
+        "release preflight must require the exact permanent-erasure readiness v3 schema",
     )
     for pending_count in (
         "recoveryJournalWritePending", "recoveryJournalEvidenceMissing",
         "liveErasureReconciliationPending", "restoreJournalReadPending",
-        "restoreReplayPending", "backupRetentionPending",
+        "restoreReplayPending", "backupRetentionOverdue",
     ):
         require(
             f".{pending_count} == 0" in preflight,
             f"release preflight does not fail closed on {pending_count}",
         )
+    require(
+        ".backupRetentionPending >= 0" in preflight
+        and ".backupRetentionPending == 0" not in preflight,
+        "release preflight must expose in-window backup retention without treating it as overdue",
+    )
+    restore_canary = (MODULE / "operator" / "prepare-restore-source-canary.sh").read_text(encoding="utf-8")
+    require(
+        "existing_marker=" in restore_canary
+        and restore_canary.index("existing_marker=") < restore_canary.index("aws s3api put-object")
+        and "jsc_restore_source_canary_v1" in restore_canary
+        and "list-object-versions" in restore_canary,
+        "restore-source preparation must be retry-safe and verify seven-DB/versioned-S3 canary state",
+    )
 
     edge = (MODULE / "edge.tf").read_text(encoding="utf-8")
     for suffix in ("document-uploads$", "replace$"):
@@ -1244,6 +1336,7 @@ def validate_workflow_boundary() -> None:
 
     release_path = ROOT / ".github" / "workflows" / "aws-public-beta-release.yml"
     build_path = ROOT / ".github" / "workflows" / "aws-public-beta-build.yml"
+    restore_path = ROOT / ".github" / "workflows" / "aws-public-beta-restore-drill.yml"
     privileged_workflows: list[tuple[Path, str, str]] = []
     if release_path.exists():
         release = release_path.read_text(encoding="utf-8")
@@ -1253,6 +1346,11 @@ def validate_workflow_boundary() -> None:
         require("gh attestation verify" in release, "AWS release workflow must verify signed build provenance")
         require('.head_sha <<<"$run_json"' in release, "AWS release workflow must bind the build to the exact main revision")
         require("workspaceLockSha256" in release, "AWS release workflow must bind the build to the workspace lock")
+        require(
+            release.count(".promotedFrom") >= 2
+            and release.count('"restore-candidate"') >= 2,
+            "AWS release workflow must reject rebuilt or unpromoted final artifacts",
+        )
         require(
             'if [ "$RELEASE_ACTION" = rollback ]; then' in release
             and 'test "$build_sha" = "$GITHUB_SHA"' in release,
@@ -1269,6 +1367,24 @@ def validate_workflow_boundary() -> None:
         require("job-seeker-copilot-landing" in build, "immutable build must include the Landing release repository")
         require("LANDING_RUNTIME_ENV_B64" in build, "Landing build needs a protected, explicit runtime-config input")
         require("LAUNCH_APPROVALS_FILE" in build, "immutable build must bind the protected launch approval manifest")
+        require(
+            "candidate_build_run_id:" in build
+            and "inputs.purpose == 'restore-candidate'" in build
+            and build.count("inputs.purpose == 'restore-candidate'") >= 2
+            and "inputs.purpose == 'release'" in build,
+            "build workflow must separate restore-candidate publication from evidence-bound release promotion",
+        )
+        promotion_job = build.split("\n  promote:\n", maxsplit=1)[1]
+        promoter = (ROOT / "scripts" / "aws" / "promote_restore_candidate.py").read_text(encoding="utf-8")
+        require(
+            "Promote exact candidate digests without rebuilding or AWS access" in promotion_job
+            and "promote_restore_candidate.py" in promotion_job
+            and "configure-aws-credentials@" not in promotion_job
+            and '"buildPurpose": "release"' in promoter
+            and '"buildPurpose": "restore-candidate"' in promoter
+            and '"promotedFrom"' in promoter,
+            "final release must promote the exact attested candidate digests without AWS access or rebuilding",
+        )
         prepare_script = (ROOT / "scripts" / "aws" / "build_release_images.sh").read_text(encoding="utf-8")
         landing_builder = (ROOT / "scripts" / "aws" / "build_landing_artifact.py").read_text(encoding="utf-8")
         require("build_landing_artifact.py" in prepare_script,
@@ -1331,9 +1447,72 @@ def validate_workflow_boundary() -> None:
         publish_script = (ROOT / "scripts" / "aws" / "publish_release_images.sh").read_text(encoding="utf-8")
         require("aws ecr" not in prepare_script, "credential-free source build must not contain ECR calls")
         require("aws ecr get-login-password" in publish_script, "protected publisher must own ECR mutation")
+        require(
+            "--restore-candidate" in publish_script
+            and '--arg buildPurpose "restore-candidate"' in publish_script,
+            "ECR publisher must emit only a restore candidate; final release is an account-free promotion",
+        )
         require('push_image clamav "$clamav_image" 1.4.5' in publish_script,
                 "publisher must retain the reviewed ClamAV source revision")
         privileged_workflows.append((build_path, build, "production-build"))
+
+    if restore_path.exists():
+        restore = restore_path.read_text(encoding="utf-8")
+        require("workflow_dispatch:" in restore, "restore drill must be explicitly dispatched")
+        require("github.ref == 'refs/heads/main'" in restore, "restore drill must fail outside main")
+        require("environment: production-aws-restore" in restore,
+                "restore initiation needs its protected environment")
+        require("environment: production-aws-restore-cleanup" in restore,
+                "restore cleanup needs a separate protected environment")
+        require("AWS_RESTORE_DRILL_ROLE_ARN" in restore and "AWS_RESTORE_CLEANUP_ROLE_ARN" in restore,
+                "restore and cleanup must assume distinct least-privilege roles")
+        restore_job, cleanup_job = restore.split("\n  cleanup:\n", maxsplit=1)
+        require(
+            'verify_github_environment_protection.sh "$GITHUB_REPOSITORY" production-aws-restore ' in restore_job
+            and restore_job.index("production-aws-restore")
+            < restore_job.index("configure-aws-credentials@"),
+            "restore initiation must verify its exact protected environment before OIDC",
+        )
+        require(
+            'verify_github_environment_protection.sh "$GITHUB_REPOSITORY" production-aws-restore-cleanup ' in cleanup_job
+            and cleanup_job.index("production-aws-restore-cleanup")
+            < cleanup_job.index("configure-aws-credentials@"),
+            "restore cleanup must verify its distinct protected environment before OIDC",
+        )
+        require("public-beta-restore-candidate-" in restore and "gh attestation verify" in restore,
+                "restore start must consume an attested immutable candidate")
+        require(
+            "public-beta-restore-source-" in restore
+            and "validate_restore_source_evidence.py" in restore
+            and "source_preparation_run_id" in restore,
+            "restore start must consume the exact protected canary-bound paired-backup evidence",
+        )
+        require(
+            "public-beta-restore-start-" in restore
+            and "restore_start_run_id" in restore
+            and "Verify restore-start origin and immutable job binding" in restore,
+            "restore observation must consume the exact successful start evidence artifact",
+        )
+        restore_script = (ROOT / "scripts" / "aws" / "run_backup_restore_drill.sh").read_text(encoding="utf-8")
+        renderer = (ROOT / "scripts" / "aws" / "render_backup_restore_requests.py").read_text(encoding="utf-8")
+        require('"RestoreLatestVersionsUpTo": "all"' in renderer,
+                "S3 restore request must include all object versions")
+        require(
+            "get-recovery-point-restore-metadata" in restore_script
+            and 'json.dumps([args.restore_security_group_id]' in renderer,
+            "RDS restore must merge source metadata while forcing the isolated security group",
+        )
+        require("DELETE ISOLATED RESTORE DRILL" in restore_script and "delete-objects" in restore_script
+                and "--no-paginate" in restore_script and "RestoreDrillId" in restore_script,
+                "isolated restore cleanup must be explicit and version-aware")
+        require(
+            "verify_restore_database_tags" in restore_script
+            and "tag_restored_database_when_created" in restore_script
+            and ".RecoveryPointArn == $recovery" in restore_script
+            and ".CreatedResourceArn == $destination" in restore_script,
+            "restore jobs must bind exact sources/destinations and retain exact cost/ownership tags",
+        )
+        privileged_workflows.append((restore_path, restore, "production-aws-restore"))
 
     if release_path.exists():
         release = release_path.read_text(encoding="utf-8")
@@ -1359,6 +1538,13 @@ def validate_workflow_boundary() -> None:
             < emergency.index("aws ecs update-service"),
             "emergency darkening must close webhook/default public routes before task drain",
         )
+        require(
+            "prepare-restore-source" in release
+            and "public-beta-restore-candidate-" in release
+            and "validate_public_beta.py --restore-candidate" in release
+            and "Upload canary-bound paired-backup evidence" in release,
+            "protected release workflow must expose and retain exact candidate restore-source preparation",
+        )
 
     for path, workflow, environment in privileged_workflows:
         references = re.findall(r"^\s*uses:\s*[^\s#]+@([^\s#]+)", workflow, flags=re.MULTILINE)
@@ -1367,10 +1553,29 @@ def validate_workflow_boundary() -> None:
             all(re.fullmatch(r"[0-9a-f]{40}", reference) is not None for reference in references),
             f"{path.name}: every reusable action must be pinned to an immutable 40-character commit",
         )
-        require(
-            "role-duration-seconds: 10800" in workflow,
-            f"{path.name}: the reviewed three-hour OIDC session is required for {environment}",
-        )
+        if path == release_path:
+            require(
+                "inputs.action == 'prepare-restore-source' && 21600 || 10800" in workflow,
+                "release workflow must limit six-hour AWS credentials to measured restore-source preparation",
+            )
+            require(
+                "timeout-minutes: ${{ inputs.action == 'prepare-restore-source' && 360 || 180 }}" in workflow,
+                "release workflow must stay within the GitHub-hosted six-hour job limit",
+            )
+            require(
+                "inputs.action == 'prepare-restore-source' && 300 || 180" in workflow,
+                "release workflow must cap the restore-source mutation step at five hours",
+            )
+            require(
+                "steps.release.outcome == 'failure' || steps.release.outcome == 'cancelled'" in workflow
+                and "timeout-minutes: 30" in workflow,
+                "failed or cancelled restore-source mutation must reserve bounded emergency containment",
+            )
+        else:
+            require(
+                "role-duration-seconds: 10800" in workflow,
+                f"{path.name}: the reviewed three-hour OIDC session is required for {environment}",
+            )
         require(
             "actions: read" in workflow
             and 'verify_github_environment_protection.sh "$GITHUB_REPOSITORY"' in workflow
@@ -1397,38 +1602,66 @@ def validate_workflow_boundary() -> None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--release", action="store_true", help="require a launchable immutable manifest")
+    parser.add_argument(
+        "--restore-candidate",
+        action="store_true",
+        help="require production artifacts/approvals but permit the isolated restore drill to remain pending",
+    )
     parser.add_argument("--landing-only", action="store_true", help="validate protected Landing/legal input before image publication")
     parser.add_argument("--image-manifest", type=Path, default=MODULE / "config" / "image-manifest.json")
     parser.add_argument("--approval-manifest", type=Path, default=MODULE / "config" / "launch-approvals.json")
     parser.add_argument("--landing-archive", type=Path, help="checksum-verified Landing static artifact")
+    parser.add_argument("--restore-drill-evidence", type=Path, help="checksum-bound verified restore/replay evidence")
+    parser.add_argument(
+        "--infrastructure-revision",
+        help="exact protected-main Infrastructure revision exercised by the restore candidate",
+    )
     args = parser.parse_args()
 
     try:
+        require(not (args.release and args.restore_candidate), "--release and --restore-candidate are mutually exclusive")
         if args.landing_only:
-            require(not args.release, "--landing-only and --release are mutually exclusive")
+            require(not args.release and not args.restore_candidate,
+                    "--landing-only is a distinct pre-publication validation mode")
             require(args.landing_archive is not None, "Landing-only validation requires the static artifact")
             approvals = load_json(args.approval_manifest.resolve())
-            validate_approvals(approvals, True)
+            validate_approvals(approvals, True, restore_candidate=True)
             validate_landing_runtime_config(load_landing_runtime_config(args.landing_archive.resolve()), approvals)
             print("public-beta Landing/legal contract valid (account-free; no AWS calls)")
             return 0
+        production = args.release or args.restore_candidate
         runtime_names = validate_runtime(
             load_json(ROOT / "config" / "services.json"),
             load_json(MODULE / "config" / "runtime-services.json"),
         )
-        validate_images(load_json(args.image_manifest.resolve()), runtime_names, args.release)
+        images = load_json(args.image_manifest.resolve())
+        validate_images(images, runtime_names, production)
         approvals = load_json(args.approval_manifest.resolve())
-        validate_approvals(approvals, args.release)
-        if args.release:
-            require(args.landing_archive is not None, "release validation requires the Landing static artifact")
+        validate_approvals(approvals, production, restore_candidate=args.restore_candidate)
+        if production:
+            require(args.landing_archive is not None, "production validation requires the Landing static artifact")
             validate_landing_runtime_config(load_landing_runtime_config(args.landing_archive.resolve()), approvals)
+        if args.release:
+            require(args.restore_drill_evidence is not None, "release validation requires restore-drill evidence")
+            require(
+                isinstance(args.infrastructure_revision, str)
+                and re.fullmatch(r"[0-9a-f]{40}", args.infrastructure_revision) is not None
+                and args.infrastructure_revision != "0" * 40,
+                "release validation requires the exact protected-main Infrastructure revision",
+            )
+            evidence_path = args.restore_drill_evidence.resolve()
+            require(evidence_path.is_file() and not evidence_path.is_symlink(), "restore-drill evidence is missing or unsafe")
+            expected_sha = approvals["documentStorePermanentErasure"]["restoreDrillEvidenceSha256"]
+            require(hashlib.sha256(evidence_path.read_bytes()).hexdigest() == expected_sha,
+                    "restore-drill evidence differs from its launch-approval checksum")
+            validate_restore_evidence(evidence_path, images, args.infrastructure_revision)
         validate_source_guards()
         validate_workflow_boundary()
     except ContractError as exc:
         print(f"public-beta AWS contract invalid: {exc}", file=sys.stderr)
         return 1
 
-    mode = "release" if args.release else "account-free template"
+    mode = "release" if args.release else "restore candidate" if args.restore_candidate else "account-free template"
     print(f"public-beta AWS contract valid ({mode}; no AWS calls)")
     return 0
 

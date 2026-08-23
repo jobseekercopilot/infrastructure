@@ -93,7 +93,7 @@ jq \
        | .value.scanStatus="PASSED"
        | .value.revision=(
            if .key == "clamav" then "1.4.5"
-           elif .key == "job-seeker-copilot-client" then "3cdb1dec9f6a8b78dbf4c576fdc960ff00aa111a"
+           elif .key == "job-seeker-copilot-client" then "5e923c815e585e433573f50ba0395e71302785ca"
            else $sourceRevision
            end
          )
@@ -134,16 +134,20 @@ positive_approval_manifest="$validation_root/positive-approval-manifest.json"
 positive_image_manifest="$validation_root/positive-image-manifest.json"
 positive_tfvars="$validation_root/positive.tfvars.json"
 review_date=$(date -u +%Y-%m-%d)
+review_due_date=$(date -u -d "$review_date + 90 days" +%Y-%m-%d)
 reviewed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 legal_version="uk-public-beta-$review_date"
 client_legal_sha=$(printf '6%.0s' {1..64})
 landing_legal_sha=$(printf '7%.0s' {1..64})
+restore_evidence_sha=$(printf 'a%.0s' {1..64})
 jq \
   --arg reviewedAt "$reviewed_at" \
   --arg reviewDate "$review_date" \
+  --arg reviewDueDate "$review_due_date" \
   --arg legalVersion "$legal_version" \
   --arg clientLegalSha "$client_legal_sha" \
   --arg landingLegalSha "$landing_legal_sha" \
+  --arg restoreEvidenceSha "$restore_evidence_sha" \
   '.reviewedAt=$reviewedAt
    | .githubEnvironmentProtection += {
        reviewed:true,
@@ -168,7 +172,8 @@ jq \
        maximumBackupRetentionDays:35,
        journalRetentionDays:90,
        externalDeletionJournalVerified:true,
-       isolatedRestoreReplayVerified:true
+       isolatedRestoreReplayVerified:true,
+       restoreDrillEvidenceSha256:$restoreEvidenceSha
      }
    | .publicLegal += {
        reviewed:true,
@@ -221,10 +226,11 @@ jq \
        expiresOn:"2099-12-31",
        monthlyRequestLimit:1000,
        monthlyCostCeilingGbp:50,
-       privacyPolicyVersion:$legalVersion,
+       privacyPolicyVersion:"openai-api-data-controls-2026-08-23",
        privacyDecisionId:"offline-activation/openai-privacy-decision",
        privacyOwner:"Account-free release validator",
-       privacyReviewedOn:$reviewDate
+       privacyReviewedOn:$reviewDate,
+       privacyReviewDueOn:$reviewDueDate
      }
    | .integrations.account_email += {
        approved:true,
