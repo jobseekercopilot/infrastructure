@@ -114,11 +114,34 @@ class AccountEmailSesTemplateTest(unittest.TestCase):
 
         apply_policy = resources["ApplyObservabilityPolicy"]["Properties"]["PolicyDocument"]["Statement"]
         by_sid = {statement["Sid"]: statement for statement in apply_policy}
-        create = by_sid["CreateOnlyExactAccountEmailConfigurationSet"]
+        create = by_sid["CreateOnlyTaggedAccountEmailConfigurationSet"]
+        tag = by_sid["TagOnlyExactAccountEmailConfigurationSet"]
         manage = by_sid["ManageOnlyTaggedAccountEmailConfiguration"]
-        self.assertEqual(create["Condition"]["StringEquals"]["ses:ApiVersion"], "2019-09-27")
-        self.assertEqual(manage["Condition"]["StringEquals"]["ses:ApiVersion"], "2019-09-27")
-        actions = set(create["Action"]) | set(manage["Action"])
+        required_create_tags = {
+            "aws:RequestTag/Application": "Job Seeker Copilot",
+            "aws:RequestTag/Environment": "public-beta",
+            "aws:RequestTag/ManagedBy": "Terraform",
+            "ses:ApiVersion": "2",
+        }
+        self.assertEqual(create["Action"], "ses:CreateConfigurationSet")
+        self.assertEqual(create["Resource"], "*")
+        self.assertEqual(create["Condition"]["StringEquals"], required_create_tags)
+        allowed_tag_keys = [
+            "Application", "Environment", "ManagedBy", "Repository", "CostCentre", "Purpose", "DataClass",
+        ]
+        self.assertEqual(
+            create["Condition"]["ForAllValues:StringEquals"]["aws:TagKeys"],
+            allowed_tag_keys,
+        )
+        self.assertEqual(tag["Action"], "ses:TagResource")
+        self.assertEqual(tag["Resource"], expected_source)
+        self.assertEqual(tag["Condition"]["StringEquals"], required_create_tags)
+        self.assertEqual(
+            tag["Condition"]["ForAllValues:StringEquals"]["aws:TagKeys"],
+            allowed_tag_keys,
+        )
+        self.assertEqual(manage["Condition"]["StringEquals"]["ses:ApiVersion"], "2")
+        actions = {create["Action"], tag["Action"]} | set(manage["Action"])
         self.assertNotIn("ses:SendEmail", actions)
         self.assertNotIn("ses:DeleteConfigurationSet", actions)
         self.assertNotIn("ses:DeleteConfigurationSetEventDestination", actions)

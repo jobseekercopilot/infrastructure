@@ -2070,6 +2070,35 @@ class PublicBetaAwsContractTest(unittest.TestCase):
 
         compute_statements = resources["ApplyComputePolicy"]["Properties"]["PolicyDocument"]["Statement"]
         compute_by_sid = {statement["Sid"]: statement for statement in compute_statements}
+        tagged_compute = compute_by_sid["ManageOnlyTaggedComputeResources"]
+        deregister = compute_by_sid["DeregisterTaskDefinitionsInRegion"]
+        self.assertNotIn("ecs:DeregisterTaskDefinition", tagged_compute["Action"])
+        self.assertFalse(any("task-definition/" in resource for resource in tagged_compute["Resource"]))
+        self.assertEqual(deregister["Action"], "ecs:DeregisterTaskDefinition")
+        self.assertEqual(deregister["Resource"], "*")
+        self.assertEqual(
+            deregister["Condition"],
+            {"StringEquals": {"aws:RequestedRegion": "AWS::Region"}},
+        )
+        self.assertEqual(
+            [
+                statement["Sid"]
+                for statement in compute_statements
+                if statement["Resource"] == "*"
+                and any(
+                    action.startswith("ecs:")
+                    for action in (
+                        statement["Action"]
+                        if isinstance(statement["Action"], list)
+                        else [statement["Action"]]
+                    )
+                )
+            ],
+            [
+                "DeregisterTaskDefinitionsInRegion",
+                "RequiredEcsAccountSetting",
+            ],
+        )
         private_zone = compute_by_sid["CreateHostedZoneRequiredByPrivateDnsNamespace"]
         self.assertEqual(private_zone["Action"], "route53:CreateHostedZone")
         self.assertNotIn("Condition", private_zone)
