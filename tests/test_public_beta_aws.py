@@ -1772,6 +1772,34 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             route53_actions,
             {"route53:CreateHostedZone", "route53:GetHostedZone", "route53:ListHostedZonesByName"},
         )
+        compute_launch_statements = resources["ApplyComputeLaunchPolicy"]["Properties"]["PolicyDocument"][
+            "Statement"
+        ]
+        compute_launch_by_sid = {statement["Sid"]: statement for statement in compute_launch_statements}
+        ecs_managed_tag = compute_launch_by_sid["AllowEcsManagedTagOnReviewedAutoScalingGroup"]
+        self.assertEqual(ecs_managed_tag["Effect"], "Allow")
+        self.assertEqual(ecs_managed_tag["Action"], "autoscaling:CreateOrUpdateTags")
+        self.assertEqual(
+            ecs_managed_tag["Resource"],
+            "arn:${AWS::Partition}:autoscaling:${AWS::Region}:${AWS::AccountId}:"
+            "autoScalingGroup:*:autoScalingGroupName/jsc-public-beta-ecs-*",
+        )
+        self.assertEqual(
+            ecs_managed_tag["Condition"]["StringEquals"],
+            {
+                "aws:ResourceTag/Application": "Job Seeker Copilot",
+                "aws:ResourceTag/Environment": "public-beta",
+                "aws:ResourceTag/ManagedBy": "Terraform",
+            },
+        )
+        self.assertEqual(
+            ecs_managed_tag["Condition"]["ForAllValues:StringEquals"]["aws:TagKeys"],
+            ["AmazonECSManaged"],
+        )
+        self.assertEqual(
+            ecs_managed_tag["Condition"]["Null"]["aws:RequestTag/AmazonECSManaged"],
+            "false",
+        )
 
         observability_statements = resources["ApplyObservabilityPolicy"]["Properties"]["PolicyDocument"]["Statement"]
         observability_by_sid = {statement["Sid"]: statement for statement in observability_statements}
@@ -1782,6 +1810,45 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         self.assertIn("wafv2:CreateWebACL", tagged_waf["Action"])
         self.assertTrue(
             any(":regional/regexpatternset/jsc-public-beta-*/*" in arn for arn in tagged_waf["Resource"])
+        )
+        waf_alb = observability_by_sid["AssociateWafOnlyWithTaggedPublicBetaAlb"]
+        self.assertEqual(
+            set(waf_alb["Action"]),
+            {
+                "elasticloadbalancing:CreateWebACLAssociation",
+                "elasticloadbalancing:DeleteWebACLAssociation",
+                "elasticloadbalancing:GetLoadBalancerWebACL",
+            },
+        )
+        self.assertTrue(waf_alb["Resource"].endswith("loadbalancer/app/jsc-public-beta-*/*"))
+        delegated_set_web_acl = observability_by_sid["AllowWafDelegatedSetWebAcl"]
+        self.assertEqual(delegated_set_web_acl["Effect"], "Allow")
+        self.assertEqual(delegated_set_web_acl["Action"], "elasticloadbalancing:SetWebACL")
+        self.assertEqual(delegated_set_web_acl["Resource"], "*")
+        self.assertNotIn("Condition", delegated_set_web_acl)
+        self.assertEqual(
+            sum(
+                action == "elasticloadbalancing:SetWebACL"
+                for statement in observability_statements
+                for action in (
+                    statement["Action"]
+                    if isinstance(statement["Action"], list)
+                    else [statement["Action"]]
+                )
+            ),
+            1,
+        )
+        self.assertNotIn(
+            "elasticloadbalancing:*",
+            {
+                action
+                for statement in observability_statements
+                for action in (
+                    statement["Action"]
+                    if isinstance(statement["Action"], list)
+                    else [statement["Action"]]
+                )
+            },
         )
 
         iam_statements = resources["ApplyReleaseOperationsPolicy"]["Properties"]["PolicyDocument"]["Statement"]
