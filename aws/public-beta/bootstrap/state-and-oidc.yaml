@@ -1170,6 +1170,32 @@ Resources:
               StringEquals:
                 kms:ViaService: !Sub s3.${AWS::Region}.amazonaws.com
                 kms:EncryptionContext:aws:s3:arn: !GetAtt ErasureJournalBucket.Arn
+
+  RdsMonitoringPermissionsBoundary:
+    Type: AWS::IAM::ManagedPolicy
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      ManagedPolicyName: jsc-public-beta-rds-monitoring-boundary
+      Description: Maximum CloudWatch Logs permissions for the exact public-beta RDS Enhanced Monitoring role.
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: ManageOnlyRdsOsMetricsLogGroup
+            Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:PutRetentionPolicy
+            Resource: !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:RDSOSMetrics
+          - Sid: WriteOnlyRdsOsMetricsLogStreams
+            Effect: Allow
+            Action:
+              - logs:CreateLogStream
+              - logs:DescribeLogStreams
+              - logs:GetLogEvents
+              - logs:PutLogEvents
+            Resource: !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:RDSOSMetrics:log-stream:*
+
   BackupWorkloadBoundary:
     Type: AWS::IAM::ManagedPolicy
     DeletionPolicy: Retain
@@ -2443,7 +2469,7 @@ Resources:
             Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-rds-monitoring
             Condition:
               ArnEquals:
-                iam:PermissionsBoundary: !Ref WorkloadPermissionsBoundary
+                iam:PermissionsBoundary: !Ref RdsMonitoringPermissionsBoundary
                 iam:PolicyARN: !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole
           - Sid: AttachOnlyBackupPolicies
             Effect: Allow
@@ -2498,7 +2524,6 @@ Resources:
             Action: iam:CreateRole
             Resource:
               - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-ecs-instance
-              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-rds-monitoring
               - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-vpc-flow
               - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-release-operator-role
               - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-*-execution
@@ -2506,6 +2531,16 @@ Resources:
             Condition:
               StringEquals:
                 iam:PermissionsBoundary: !Ref WorkloadPermissionsBoundary
+                aws:RequestTag/Application: Job Seeker Copilot
+                aws:RequestTag/Environment: public-beta
+                aws:RequestTag/ManagedBy: Terraform
+          - Sid: CreateRdsMonitoringBoundaryConstrainedRole
+            Effect: Allow
+            Action: iam:CreateRole
+            Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-rds-monitoring
+            Condition:
+              StringEquals:
+                iam:PermissionsBoundary: !Ref RdsMonitoringPermissionsBoundary
                 aws:RequestTag/Application: Job Seeker Copilot
                 aws:RequestTag/Environment: public-beta
                 aws:RequestTag/ManagedBy: Terraform
@@ -2539,7 +2574,6 @@ Resources:
               - iam:UpdateRoleDescription
             Resource:
               - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-ecs-instance
-              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-rds-monitoring
               - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-vpc-flow
               - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-release-operator-role
               - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-*-execution
@@ -2547,6 +2581,21 @@ Resources:
             Condition:
               StringEquals:
                 iam:PermissionsBoundary: !Ref WorkloadPermissionsBoundary
+                aws:ResourceTag/Application: Job Seeker Copilot
+                aws:ResourceTag/Environment: public-beta
+                aws:ResourceTag/ManagedBy: Terraform
+          - Sid: ManageOnlyRdsMonitoringBoundaryConstrainedRole
+            Effect: Allow
+            Action:
+              - iam:DeleteRole
+              - iam:UpdateAssumeRolePolicy
+              - iam:UpdateRoleDescription
+            Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-rds-monitoring
+            Condition:
+              StringEquals:
+                iam:PermissionsBoundary:
+                  - !Ref WorkloadPermissionsBoundary
+                  - !Ref RdsMonitoringPermissionsBoundary
                 aws:ResourceTag/Application: Job Seeker Copilot
                 aws:ResourceTag/Environment: public-beta
                 aws:ResourceTag/ManagedBy: Terraform
@@ -2632,7 +2681,6 @@ Resources:
             Action: iam:PutRolePermissionsBoundary
             Resource:
               - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-ecs-instance
-              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-rds-monitoring
               - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-vpc-flow
               - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-release-operator-role
               - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-*-execution
@@ -2640,6 +2688,16 @@ Resources:
             Condition:
               StringEquals:
                 iam:PermissionsBoundary: !Ref WorkloadPermissionsBoundary
+                aws:ResourceTag/Application: Job Seeker Copilot
+                aws:ResourceTag/Environment: public-beta
+                aws:ResourceTag/ManagedBy: Terraform
+          - Sid: RepairOnlyRdsMonitoringWorkloadBoundary
+            Effect: Allow
+            Action: iam:PutRolePermissionsBoundary
+            Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-rds-monitoring
+            Condition:
+              StringEquals:
+                iam:PermissionsBoundary: !Ref RdsMonitoringPermissionsBoundary
                 aws:ResourceTag/Application: Job Seeker Copilot
                 aws:ResourceTag/Environment: public-beta
                 aws:ResourceTag/ManagedBy: Terraform
@@ -2927,6 +2985,8 @@ Outputs:
     Value: !GetAtt ApplyRole.Arn
   WorkloadPermissionsBoundaryArn:
     Value: !Ref WorkloadPermissionsBoundary
+  RdsMonitoringPermissionsBoundaryArn:
+    Value: !Ref RdsMonitoringPermissionsBoundary
   BackupPermissionsBoundaryArn:
     Value: !Ref BackupWorkloadBoundary
   BackupRestorePermissionsBoundaryArn:

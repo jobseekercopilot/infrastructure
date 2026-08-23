@@ -12,6 +12,8 @@ output "release_contract" {
     database_bootstrap_task_definition     = aws_ecs_task_definition.database_bootstrap.arn
     migration_verification_task_definition = aws_ecs_task_definition.migration_verification.arn
     release_preflight_task_definition      = aws_ecs_task_definition.release_preflight.arn
+    database_identifier                    = aws_db_instance.postgres.identifier
+    rds_monitoring_role_arn                = aws_iam_role.rds_monitoring.arn
     database_bootstrap_marker              = "/jsc/${var.environment}/release/database-bootstrap"
     release_preflight_marker               = "/jsc/${var.environment}/release/preflight"
   }

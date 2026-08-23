@@ -373,6 +373,7 @@ def verify_activation_plan(plan: dict[str, Any], runtime: dict[str, Any]) -> Non
 
     common_boundary = "arn:aws:iam::000000000000:policy/jsc-public-beta-workload-boundary"
     exact_boundaries = {
+        "jsc-public-beta-rds-monitoring": "arn:aws:iam::000000000000:policy/jsc-public-beta-rds-monitoring-boundary",
         "jsc-public-beta-backup": "arn:aws:iam::000000000000:policy/jsc-public-beta-backup-boundary",
         "jsc-public-beta-backup-restore": "arn:aws:iam::000000000000:policy/jsc-public-beta-backup-restore-boundary",
     }
@@ -390,7 +391,7 @@ def verify_activation_plan(plan: dict[str, Any], runtime: dict[str, Any]) -> Non
         )
     require(
         set(exact_boundaries).issubset({role.get("values", {}).get("name") for role in iam_roles}),
-        "one or more specialised backup IAM roles are absent",
+        "one or more specialised monitoring/backup IAM roles are absent",
     )
 
     data_key = "arn:aws:kms:eu-west-2:000000000000:key/00000000-0000-0000-0000-000000000000"
@@ -404,6 +405,7 @@ def verify_activation_plan(plan: dict[str, Any], runtime: dict[str, Any]) -> Non
         "deletion_protection": True,
         "skip_final_snapshot": False,
         "performance_insights_kms_key_id": data_key,
+        "monitoring_interval": 60,
     }.items():
         require(database.get(field) == expected, f"rendered RDS protection differs: {field}")
 

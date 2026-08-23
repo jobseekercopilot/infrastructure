@@ -178,6 +178,20 @@ the read-only SES/SNS/KMS verification described in
 [account-email delivery](../account-email-ses.md). It sends no email. Keep the
 ALB fixed at `503`.
 
+For the first release after the dedicated RDS monitoring-boundary change,
+update the manual bootstrap from the exact promoted `main` bytes before this
+dispatch, following the ordered migration in the bootstrap README. The
+foundation plan must update `jsc-public-beta-rds-monitoring` in place from the
+common boundary to `jsc-public-beta-rds-monitoring-boundary`, tighten its trust
+from `db:*` to the full `jsc-public-beta-postgres` ARN and leave the DB itself
+unreplaced. The preflight verifies the bootstrap-owned boundary's live default
+document exactly; a missing or broadened policy is a hard stop. If an apply is
+interrupted after trust narrows but before its boundary changes, the next
+foundation preflight accepts only that exact safer intermediate so Terraform
+can retry. A successful Terraform apply is not sufficient evidence: the
+workflow must then pass the exact post-migration IAM check and its live RDS
+stability/event verifier at `MonitoringInterval=60`.
+
 ## 4. Build one immutable release
 
 Manually dispatch `AWS Public Beta Immutable Build` on `main`. Record the build

@@ -11,12 +11,17 @@ plan is applied.
 AWS Backup managed policies are also outside this repository's control. Their
 reviewed default versions and required allow statements are rechecked on every
 protected release before Terraform can attach them.
+
+The retained RDS monitoring permissions boundary is bootstrap-owned rather
+than Terraform-owned. Its live default policy is therefore compared with the
+exact reviewed RDSOSMetrics document before any Terraform plan can be applied.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -29,6 +34,10 @@ class LiveIamContractError(ValueError):
 
 
 JsonObject = dict[str, Any]
+RDS_MONITORING_ROLE_NAME = "jsc-public-beta-rds-monitoring"
+RDS_MONITORING_BOUNDARY_NAME = "jsc-public-beta-rds-monitoring-boundary"
+LEGACY_WORKLOAD_BOUNDARY_NAME = "jsc-public-beta-workload-boundary"
+RDS_MONITORING_POLICY_ARN = "arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole"
 
 
 def load_json(path: Path) -> JsonObject:
@@ -107,10 +116,90 @@ def is_wildcard_passrole_name(name: str) -> bool:
     )
 
 
+def is_exact_rds_monitoring_migration_state(
+    actual_boundary: Any,
+    actual_trust: Any,
+    expected_role: JsonObject,
+) -> bool:
+    """Recognise only the one reviewed, one-way RDS role migration state.
+
+    The first foundation reconciliation after introducing the dedicated
+    RDSOSMetrics boundary must be able to replace the old common boundary and
+    wildcard database trust. The AWS provider updates trust before it updates
+    a role boundary, so an interrupted apply may also leave the old boundary
+    with the already-narrowed exact trust. Only those two states are accepted,
+    and the release script performs the verifier again without this exception
+    after Terraform applies the migration.
+    """
+    expected_boundary = expected_role.get("boundary")
+    expected_trust = expected_role.get("trust")
+    if not isinstance(expected_boundary, str) or not isinstance(expected_trust, dict):
+        return False
+
+    boundary_match = re.fullmatch(
+        rf"arn:aws:iam::([0-9]{{12}}):policy/{re.escape(RDS_MONITORING_BOUNDARY_NAME)}",
+        expected_boundary,
+    )
+    if boundary_match is None:
+        return False
+
+    statements = expected_trust.get("Statement")
+    if not isinstance(statements, list) or len(statements) != 1 or not isinstance(statements[0], dict):
+        return False
+    statement = statements[0]
+    condition = statement.get("Condition")
+    if not isinstance(condition, dict):
+        return False
+    source_account = condition.get("StringEquals", {}).get("aws:SourceAccount")
+    source_arn = condition.get("ArnEquals", {}).get("aws:SourceArn")
+    if (
+        not isinstance(source_account, str)
+        or source_account != boundary_match.group(1)
+        or not isinstance(source_arn, str)
+        or source_arn != f"arn:aws:rds:eu-west-2:{source_account}:db:jsc-public-beta-postgres"
+    ):
+        return False
+
+    reviewed_trust = {
+        "Version": "2012-10-17",
+        "Statement": [{
+            "Effect": "Allow",
+            "Principal": {"Service": "monitoring.rds.amazonaws.com"},
+            "Action": "sts:AssumeRole",
+            "Condition": {
+                "StringEquals": {"aws:SourceAccount": source_account},
+                "ArnEquals": {"aws:SourceArn": source_arn},
+            },
+        }],
+    }
+    if expected_trust != normalize_policy(reviewed_trust):
+        return False
+
+    legacy_boundary = expected_boundary.removesuffix(RDS_MONITORING_BOUNDARY_NAME) + LEGACY_WORKLOAD_BOUNDARY_NAME
+    legacy_trust = {
+        "Version": "2012-10-17",
+        "Statement": [{
+            "Effect": "Allow",
+            "Principal": {"Service": "monitoring.rds.amazonaws.com"},
+            "Action": "sts:AssumeRole",
+            "Condition": {
+                "StringEquals": {"aws:SourceAccount": source_account},
+                "ArnLike": {"aws:SourceArn": f"arn:aws:rds:eu-west-2:{source_account}:db:*"},
+            },
+        }],
+    }
+    normalized_actual_trust = normalize_policy(actual_trust)
+    return actual_boundary == legacy_boundary and normalized_actual_trust in (
+        normalize_policy(legacy_trust),
+        normalize_policy(reviewed_trust),
+    )
+
+
 def verify_roles(
     plan: JsonObject,
     live: JsonObject,
     role_reader: Callable[[str], JsonObject] | None = None,
+    allow_rds_monitoring_migration: bool = False,
 ) -> None:
     expected = planned_roles(plan)
     if live.get("IsTruncated") is True or live.get("Marker"):
@@ -137,6 +226,16 @@ def verify_roles(
             raise LiveIamContractError(f"IAM GetRole returned a malformed or mismatched role: {name}")
         boundary = complete_role.get("PermissionsBoundary")
         actual_boundary = boundary.get("PermissionsBoundaryArn") if isinstance(boundary, dict) else None
+        if (
+            allow_rds_monitoring_migration
+            and name == RDS_MONITORING_ROLE_NAME
+            and is_exact_rds_monitoring_migration_state(
+                actual_boundary,
+                complete_role.get("AssumeRolePolicyDocument"),
+                expected[name],
+            )
+        ):
+            continue
         if actual_boundary != expected[name]["boundary"]:
             raise LiveIamContractError(f"reserved role has the wrong permissions boundary: {name}")
         if normalize_policy(complete_role.get("AssumeRolePolicyDocument")) != expected[name]["trust"]:
@@ -146,6 +245,104 @@ def verify_roles(
     # planned roles have all been checked above; no wildcard collision can be
     # silently ignored.
     _ = seen
+
+
+def verify_rds_monitoring_policies(attached: JsonObject, inline: JsonObject) -> None:
+    if attached.get("IsTruncated") is True or attached.get("Marker"):
+        raise LiveIamContractError("RDS monitoring attached-policy response is incomplete")
+    policies = attached.get("AttachedPolicies")
+    if not isinstance(policies, list) or not all(isinstance(item, dict) for item in policies):
+        raise LiveIamContractError("RDS monitoring attached-policy response is malformed")
+    actual_arns = {item.get("PolicyArn") for item in policies}
+    if actual_arns != {RDS_MONITORING_POLICY_ARN}:
+        raise LiveIamContractError("RDS monitoring role does not have exactly the reviewed managed policy")
+
+    if inline.get("IsTruncated") is True or inline.get("Marker"):
+        raise LiveIamContractError("RDS monitoring inline-policy response is incomplete")
+    policy_names = inline.get("PolicyNames")
+    if not isinstance(policy_names, list) or not all(isinstance(item, str) for item in policy_names):
+        raise LiveIamContractError("RDS monitoring inline-policy response is malformed")
+    if policy_names:
+        raise LiveIamContractError("RDS monitoring role has an unexpected inline policy")
+
+
+def expected_rds_monitoring_boundary(account_id: str) -> JsonObject:
+    log_group_arn = f"arn:aws:logs:eu-west-2:{account_id}:log-group:RDSOSMetrics"
+    return {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Sid": "ManageOnlyRdsOsMetricsLogGroup",
+                "Effect": "Allow",
+                "Action": [
+                    "logs:CreateLogGroup",
+                    "logs:PutRetentionPolicy",
+                ],
+                "Resource": log_group_arn,
+            },
+            {
+                "Sid": "WriteOnlyRdsOsMetricsLogStreams",
+                "Effect": "Allow",
+                "Action": [
+                    "logs:CreateLogStream",
+                    "logs:DescribeLogStreams",
+                    "logs:GetLogEvents",
+                    "logs:PutLogEvents",
+                ],
+                "Resource": f"{log_group_arn}:log-stream:*",
+            },
+        ],
+    }
+
+
+def verify_rds_monitoring_boundary(
+    plan: JsonObject,
+    reader: Callable[[list[str]], JsonObject] | None = None,
+) -> None:
+    """Prove the bootstrap-owned live boundary is the exact reviewed policy."""
+    if reader is None:
+        reader = aws_json
+    role = planned_roles(plan).get(RDS_MONITORING_ROLE_NAME)
+    if not isinstance(role, dict):
+        raise LiveIamContractError("Terraform plan omits the RDS monitoring role")
+    boundary_arn = role.get("boundary")
+    if not isinstance(boundary_arn, str):
+        raise LiveIamContractError("planned RDS monitoring role omits its boundary")
+    boundary_match = re.fullmatch(
+        rf"arn:aws:iam::([0-9]{{12}}):policy/{re.escape(RDS_MONITORING_BOUNDARY_NAME)}",
+        boundary_arn,
+    )
+    if boundary_match is None:
+        raise LiveIamContractError("planned RDS monitoring boundary ARN is not exact")
+
+    metadata = reader(["iam", "get-policy", "--policy-arn", boundary_arn])
+    policy = metadata.get("Policy")
+    if not isinstance(policy, dict):
+        raise LiveIamContractError("RDS monitoring boundary metadata omits Policy")
+    default_version = policy.get("DefaultVersionId")
+    if (
+        policy.get("Arn") != boundary_arn
+        or policy.get("PolicyName") != RDS_MONITORING_BOUNDARY_NAME
+        or policy.get("IsAttachable") is not True
+        or not isinstance(default_version, str)
+        or re.fullmatch(r"v[1-9][0-9]*", default_version) is None
+    ):
+        raise LiveIamContractError("RDS monitoring boundary metadata is not exact")
+
+    version = reader([
+        "iam", "get-policy-version", "--policy-arn", boundary_arn,
+        "--version-id", default_version,
+    ])
+    policy_version = version.get("PolicyVersion")
+    if (
+        not isinstance(policy_version, dict)
+        or policy_version.get("VersionId") != default_version
+        or policy_version.get("IsDefaultVersion") is not True
+    ):
+        raise LiveIamContractError("RDS monitoring boundary default version is not exact")
+    expected_document = expected_rds_monitoring_boundary(boundary_match.group(1))
+    if normalize_policy(policy_version.get("Document")) != normalize_policy(expected_document):
+        raise LiveIamContractError("RDS monitoring boundary policy document drifted")
 
 
 def allowed_statements(document: Any) -> list[JsonObject]:
@@ -244,9 +441,11 @@ def main() -> int:
     parser.add_argument("--plan-json", type=Path, required=True)
     parser.add_argument("--backup-contract", type=Path, required=True)
     parser.add_argument("--region", required=True)
+    parser.add_argument("--allow-rds-monitoring-migration", action="store_true")
     args = parser.parse_args()
     try:
         plan = load_json(args.plan_json)
+        verify_rds_monitoring_boundary(plan)
         roles = aws_json(["iam", "list-roles", "--region", args.region])
 
         def read_role(name: str) -> JsonObject:
@@ -256,12 +455,38 @@ def main() -> int:
                 raise LiveIamContractError(f"IAM GetRole response omits Role: {name}")
             return role
 
-        verify_roles(plan, roles, read_role)
+        verify_roles(
+            plan,
+            roles,
+            read_role,
+            allow_rds_monitoring_migration=args.allow_rds_monitoring_migration,
+        )
+        live_role_names = {
+            role.get("RoleName")
+            for role in roles.get("Roles", [])
+            if isinstance(role, dict)
+        }
+        if RDS_MONITORING_ROLE_NAME in live_role_names:
+            verify_rds_monitoring_policies(
+                aws_json([
+                    "iam", "list-attached-role-policies",
+                    "--role-name", RDS_MONITORING_ROLE_NAME,
+                    "--region", args.region,
+                ]),
+                aws_json([
+                    "iam", "list-role-policies",
+                    "--role-name", RDS_MONITORING_ROLE_NAME,
+                    "--region", args.region,
+                ]),
+            )
         verify_backup_policies(load_json(args.backup_contract))
     except (OSError, json.JSONDecodeError, LiveIamContractError) as exc:
         print(f"Live release IAM verification failed: {exc}", file=sys.stderr)
         return 3
-    print("Verified reserved IAM roles and four reviewed AWS Backup managed policies.")
+    print(
+        "Verified the RDS monitoring boundary, reserved IAM roles, RDS monitoring "
+        "policy scope and four reviewed AWS Backup policies."
+    )
     return 0
 
 
