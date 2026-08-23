@@ -56,11 +56,12 @@ key ARN, and S3 Bucket Keys enabled.
 
 After S3 accepts the write, Document Store must strongly read the exact
 returned `VersionId`, compare the exact canonical bytes and digest, and verify
-the returned SSE-KMS evidence. Only then may PostgreSQL bind the exact object
-key, version and SHA-256 and transition the operation to
-`OBJECT_ERASURE_PENDING`. An ambiguous response is reconciled by exact-key or
-exact-version reads; a collision, missing version, byte/hash mismatch or
-encryption mismatch fails closed. No operator supplies an object key.
+the returned SSE-KMS key and `BucketKeyEnabled=true` evidence. Only then may
+PostgreSQL bind the exact object key, version and SHA-256 and transition the
+operation to `OBJECT_ERASURE_PENDING`. An ambiguous response is reconciled by
+exact-key or exact-version reads; a collision, missing version, byte/hash
+mismatch or encryption mismatch fails closed. No operator supplies an object
+key.
 
 The task role permits only:
 
@@ -72,8 +73,11 @@ The task role permits only:
 It has no journal List, Head, Delete, version-delete, governance-bypass,
 bucket-administration or Backup-vault permission. The release operator has no
 direct journal data-plane permission. The bucket policy independently denies
-insecure transport, missing/wrong SSE-KMS headers, the wrong key and a missing
-or disabled bucket-key header.
+insecure transport, missing/wrong SSE-KMS headers and the wrong key. The bucket
+default and client request both enable S3 Bucket Keys. AWS does not expose the
+bucket-key request header as an S3 IAM condition key, so the identity policy
+must retain only the valid exact-algorithm/key conditions and the application
+must prove bucket-key use from the version-scoped read-back.
 
 ## Normal erasure and backup-expiry attestation
 
