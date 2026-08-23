@@ -101,7 +101,7 @@ def main() -> int:
         source_evidence = load_json(source_evidence_path)
         require(manifest.get("sourceBranch") == "main", "restore candidate must come from protected main")
         release_id = manifest.get("releaseId")
-        require(isinstance(release_id, str) and re.fullmatch(r"[0-9]{8}T[0-9]{6}Z-[0-9a-f]{7,40}", release_id),
+        require(isinstance(release_id, str) and re.fullmatch(r"[0-9]{8}T[0-9]{6}Z-[0-9a-f]{12}", release_id),
                 "restore candidate release ID is malformed")
         require(provenance.get("releaseId") == release_id, "candidate provenance release ID mismatch")
         require(provenance.get("buildPurpose") == "restore-candidate",
@@ -117,6 +117,7 @@ def main() -> int:
         require(provenance.get("imageManifestSha256") == manifest_sha, "candidate manifest provenance mismatch")
         document_evidence = manifest.get("dependencyEvidence", {}).get("documentStorePermanentErasure", {})
         document_image = manifest.get("images", {}).get("document-store-service", {})
+        operator_image = manifest.get("images", {}).get("release-operator", {})
         revision = document_evidence.get("revision")
         openapi_sha = document_evidence.get("openApiSha256")
         digest = document_image.get("digest")
@@ -125,6 +126,12 @@ def main() -> int:
         require(re.fullmatch(r"[0-9a-f]{64}", str(openapi_sha)) is not None, "Document Store OpenAPI hash is not pinned")
         require(re.fullmatch(r"sha256:[0-9a-f]{64}", str(digest)) is not None, "Document Store image digest is not pinned")
         require(document_image.get("scanStatus") == "PASSED", "Document Store restore candidate has not passed scanning")
+        operator_digest = operator_image.get("digest")
+        require(
+            re.fullmatch(r"sha256:[0-9a-f]{64}", str(operator_digest)) is not None,
+            "release-operator image digest is not pinned",
+        )
+        require(operator_image.get("scanStatus") == "PASSED", "release-operator restore candidate has not passed scanning")
         candidate_build_run_id = str(source_evidence.get("releaseCandidate", {}).get("buildRunId", ""))
         validate_source_evidence(
             source_evidence,
@@ -214,10 +221,13 @@ def main() -> int:
             "drillId": args.drill_id,
             "releaseCandidate": {
                 "releaseId": release_id,
+                "buildRunId": candidate_build_run_id,
                 "infrastructureRevision": infrastructure_revision,
+                "releaseAttestationId": source_evidence["releaseCandidate"]["releaseAttestationId"],
                 "documentStoreRevision": revision,
                 "documentStoreOpenApiSha256": openapi_sha,
                 "documentStoreImageDigest": digest,
+                "releaseOperatorImageDigest": operator_digest,
             },
             "sourceRecoveryPoints": {
                 "rds": args.rds_recovery_point_arn,

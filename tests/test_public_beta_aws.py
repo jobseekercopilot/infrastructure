@@ -1433,7 +1433,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         erasure_evidence = image_manifest["dependencyEvidence"]["documentStorePermanentErasure"]
         self.assertEqual(
             erasure_evidence["revision"],
-            "86e40b2797afc2c4b9edc1ebe969a4e7249c3d6a",
+            "159f75701654d5e0a951f0546cf1583e993a9b47",
         )
         self.assertEqual(
             erasure_evidence["openApiSha256"],
@@ -1757,7 +1757,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
                 "location-gateway": "86b2805c8430ede14a53a7320b87f0eeb2797b17",
                 "location-service": "4d8d09a79018c3f281cfead84348d14ed84be851",
                 "llm-gateway": "d84427061766244ec10e367fb3a7a6587809612c",
-                "document-store-service": "86e40b2797afc2c4b9edc1ebe969a4e7249c3d6a",
+                "document-store-service": "159f75701654d5e0a951f0546cf1583e993a9b47",
                 "document-generation-gateway": "e15784c7098d327835e2a7d14dd257c1b95b08bd",
                 "payment-service": "baeec9aa8da1285a2406900c9550773ac3841af7",
                 "payment-gateway": "ab721f1b4377ba250d33b99a1690cb1abd96b864",

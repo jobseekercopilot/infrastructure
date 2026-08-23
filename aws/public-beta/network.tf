@@ -255,11 +255,11 @@ resource "aws_security_group" "operator" {
   lifecycle { create_before_destroy = true }
 }
 
-# These two groups are deliberately inert during normal operation. The
-# protected restore-verification start role may add only the exact temporary
-# PostgreSQL, VPC-DNS, S3-prefix-list and caller-to-candidate paths documented
-# by the drill contract. The separate cleanup role removes their recorded rule
-# IDs; neither group is shared with the production database or service fleet.
+# These two groups contain a fixed, Terraform-owned allowlist. No task ENI uses
+# the verifier group during normal operation, while the restored database group
+# permits PostgreSQL only from that otherwise-unattached group. The OIDC drill
+# roles cannot mutate either group, so a task-definition override cannot create
+# a path to the production database or widen the restored database exposure.
 resource "aws_security_group" "restore_database" {
   name_prefix = "${local.name_prefix}-restore-db-"
   description = "No-ingress RDS destination boundary for isolated restore drills"
@@ -297,6 +297,69 @@ resource "aws_security_group" "clamav" {
   }
 
   lifecycle { create_before_destroy = true }
+}
+
+resource "aws_vpc_security_group_ingress_rule" "restore_database_from_semantic_verifier" {
+  security_group_id            = aws_security_group.restore_database.id
+  description                  = "TLS PostgreSQL only from isolated restore semantic tasks"
+  from_port                    = 5432
+  to_port                      = 5432
+  ip_protocol                  = "tcp"
+  referenced_security_group_id = aws_security_group.restore_semantic_verifier.id
+}
+
+resource "aws_vpc_security_group_egress_rule" "restore_semantic_verifier_database" {
+  security_group_id            = aws_security_group.restore_semantic_verifier.id
+  description                  = "TLS PostgreSQL only to the isolated restore database"
+  from_port                    = 5432
+  to_port                      = 5432
+  ip_protocol                  = "tcp"
+  referenced_security_group_id = aws_security_group.restore_database.id
+}
+
+resource "aws_vpc_security_group_ingress_rule" "restore_semantic_verifier_self" {
+  security_group_id            = aws_security_group.restore_semantic_verifier.id
+  description                  = "Verifier caller to candidate Document Store only"
+  from_port                    = 8089
+  to_port                      = 8089
+  ip_protocol                  = "tcp"
+  referenced_security_group_id = aws_security_group.restore_semantic_verifier.id
+}
+
+resource "aws_vpc_security_group_egress_rule" "restore_semantic_verifier_self" {
+  security_group_id            = aws_security_group.restore_semantic_verifier.id
+  description                  = "Verifier caller to candidate Document Store only"
+  from_port                    = 8089
+  to_port                      = 8089
+  ip_protocol                  = "tcp"
+  referenced_security_group_id = aws_security_group.restore_semantic_verifier.id
+}
+
+resource "aws_vpc_security_group_egress_rule" "restore_semantic_verifier_s3" {
+  security_group_id = aws_security_group.restore_semantic_verifier.id
+  description       = "Restored canary and immutable journal through the S3 gateway endpoint"
+  from_port         = 443
+  to_port           = 443
+  ip_protocol       = "tcp"
+  prefix_list_id    = aws_vpc_endpoint.s3.prefix_list_id
+}
+
+resource "aws_vpc_security_group_egress_rule" "restore_semantic_verifier_dns_udp" {
+  security_group_id = aws_security_group.restore_semantic_verifier.id
+  description       = "VPC DNS over UDP"
+  from_port         = 53
+  to_port           = 53
+  ip_protocol       = "udp"
+  cidr_ipv4         = "${cidrhost(aws_vpc.main.cidr_block, 2)}/32"
+}
+
+resource "aws_vpc_security_group_egress_rule" "restore_semantic_verifier_dns_tcp" {
+  security_group_id = aws_security_group.restore_semantic_verifier.id
+  description       = "VPC DNS over TCP"
+  from_port         = 53
+  to_port           = 53
+  ip_protocol       = "tcp"
+  cidr_ipv4         = "${cidrhost(aws_vpc.main.cidr_block, 2)}/32"
 }
 
 resource "aws_security_group" "database" {

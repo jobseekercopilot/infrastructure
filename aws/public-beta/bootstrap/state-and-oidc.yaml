@@ -54,12 +54,9 @@ Parameters:
   RestoreEnvironmentName:
     Type: String
     Default: production-aws-restore
-  RestoreSemanticStartEnvironmentName:
-    Type: String
-    Default: production-aws-restore-semantic-start
   RestoreSemanticObserveEnvironmentName:
     Type: String
-    Default: production-aws-restore-semantic-observe
+    Default: production-aws-restore-observe
   RestoreCleanupEnvironmentName:
     Type: String
     Default: production-aws-restore-cleanup
@@ -1160,7 +1157,7 @@ Resources:
             Condition:
               StringEquals:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
-                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubOrganisation}@${GitHubOrganisationId}/${GitHubRepository}@${GitHubRepositoryId}:environment:${RestoreSemanticStartEnvironmentName}
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubOrganisation}@${GitHubOrganisationId}/${GitHubRepository}@${GitHubRepositoryId}:environment:${RestoreEnvironmentName}
       Policies:
         - PolicyName: StartOnlyIsolatedRestoreSemanticVerification
           PolicyDocument:
@@ -1207,63 +1204,6 @@ Resources:
                   - ssm:ListTagsForResource
                   - ssm:PutParameter
                 Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/jsc/public-beta/restore-semantic/*/start
-              - Sid: AuthorizeOnlyDedicatedRestoreSemanticGroups
-                Effect: Allow
-                Action:
-                  - ec2:AuthorizeSecurityGroupEgress
-                  - ec2:AuthorizeSecurityGroupIngress
-                Resource: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:security-group/*
-                Condition:
-                  StringEquals:
-                    ec2:ResourceTag/Application: Job Seeker Copilot
-                    ec2:ResourceTag/Environment: public-beta
-                    ec2:ResourceTag/ManagedBy: Terraform
-                    ec2:ResourceTag/Purpose:
-                      - RestoreDatabase
-                      - RestoreSemanticVerifier
-              - Sid: CreateOnlyTaggedRestoreSemanticRules
-                Effect: Allow
-                Action:
-                  - ec2:AuthorizeSecurityGroupEgress
-                  - ec2:AuthorizeSecurityGroupIngress
-                Resource: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:security-group-rule/*
-                Condition:
-                  StringEquals:
-                    aws:RequestTag/Application: Job Seeker Copilot
-                    aws:RequestTag/Environment: public-beta
-                    aws:RequestTag/ManagedBy: RestoreSemanticVerification
-                  'Null':
-                    aws:RequestTag/RestoreDrillId: 'false'
-                    aws:RequestTag/Purpose: 'false'
-                  ForAllValues:StringEquals:
-                    aws:TagKeys:
-                      - Application
-                      - Environment
-                      - ManagedBy
-                      - RestoreDrillId
-                      - Purpose
-              - Sid: TagOnlyNewRestoreSemanticRules
-                Effect: Allow
-                Action: ec2:CreateTags
-                Resource: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:security-group-rule/*
-                Condition:
-                  StringEquals:
-                    ec2:CreateAction:
-                      - AuthorizeSecurityGroupEgress
-                      - AuthorizeSecurityGroupIngress
-                    aws:RequestTag/Application: Job Seeker Copilot
-                    aws:RequestTag/Environment: public-beta
-                    aws:RequestTag/ManagedBy: RestoreSemanticVerification
-                  'Null':
-                    aws:RequestTag/RestoreDrillId: 'false'
-                    aws:RequestTag/Purpose: 'false'
-                  ForAllValues:StringEquals:
-                    aws:TagKeys:
-                      - Application
-                      - Environment
-                      - ManagedBy
-                      - RestoreDrillId
-                      - Purpose
               - Sid: RunOnlyRestoreSemanticTaskDefinitions
                 Effect: Allow
                 Action: ecs:RunTask
@@ -1423,49 +1363,33 @@ Resources:
                   - ecs:ListTagsForResource
                   - rds:DescribeDBInstances
                   - rds:ListTagsForResource
+                Resource: '*'
+              - Sid: ReadOnlyExactRestoreSemanticStartMarker
+                Effect: Allow
+                Action:
                   - ssm:GetParameter
                   - ssm:ListTagsForResource
-                Resource: '*'
+                Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/jsc/public-beta/restore-semantic/*/start
               - Sid: StopOnlyTaggedRestoreSemanticTasks
                 Effect: Allow
                 Action: ecs:StopTask
                 Resource: !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task/jsc-public-beta/*
                 Condition:
+                  ArnEquals:
+                    ecs:cluster: !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:cluster/jsc-public-beta
                   StringEquals:
-                    ecs:ResourceTag/App: Job Seeker Copilot
-                    ecs:ResourceTag/Environment: public-beta
-                    ecs:ResourceTag/ManagedBy: RestoreSemanticVerification
+                    aws:ResourceTag/Application: Job Seeker Copilot
+                    aws:ResourceTag/Environment: public-beta
+                    aws:ResourceTag/ManagedBy: RestoreSemanticVerification
                   'Null':
-                    ecs:ResourceTag/RestoreDrillId: 'false'
-              - Sid: RevokeOnlyDedicatedRestoreDatabaseIngress
-                Effect: Allow
-                Action: ec2:RevokeSecurityGroupIngress
-                Resource: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:security-group/*
-                Condition:
-                  StringEquals:
-                    ec2:ResourceTag/App: Job Seeker Copilot
-                    ec2:ResourceTag/Environment: public-beta
-                    ec2:ResourceTag/ManagedBy: Terraform
-                    ec2:ResourceTag/Purpose: RestoreDatabase
-              - Sid: RevokeOnlyDedicatedRestoreSemanticRules
-                Effect: Allow
-                Action:
-                  - ec2:RevokeSecurityGroupEgress
-                  - ec2:RevokeSecurityGroupIngress
-                Resource: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:security-group/*
-                Condition:
-                  StringEquals:
-                    ec2:ResourceTag/App: Job Seeker Copilot
-                    ec2:ResourceTag/Environment: public-beta
-                    ec2:ResourceTag/ManagedBy: Terraform
-                    ec2:ResourceTag/Purpose: RestoreSemanticVerifier
+                    aws:ResourceTag/RestoreDrillId: 'false'
               - Sid: DeleteOnlyTaggedRestoreSemanticStartMarker
                 Effect: Allow
                 Action: ssm:DeleteParameter
                 Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/jsc/public-beta/restore-semantic/*/start
                 Condition:
                   StringEquals:
-                    aws:ResourceTag/App: Job Seeker Copilot
+                    aws:ResourceTag/Application: Job Seeker Copilot
                     aws:ResourceTag/Environment: public-beta
                     aws:ResourceTag/ManagedBy: RestoreSemanticVerification
                   'Null':
