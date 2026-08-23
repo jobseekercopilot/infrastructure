@@ -96,47 +96,116 @@ or disabled bucket-key header.
    API. Document Store stores only the required hashed reference and state; do
    not log or copy raw evidence.
 6. Require the readiness response to have schema
-   `document-permanent-erasure-readiness.v2`, `enabled:true`, `ready:true`,
-   `status:READY`, the exact reviewed policy versions,
-   `maximumBackupRetentionDays:35`, and all six counters at zero:
+   `document-permanent-erasure-readiness.v3`, `enabled:true`, `ready:true`,
+   `status:READY`, the exact reviewed policy versions and
+   `maximumBackupRetentionDays:35`. The blocking counters
    `recoveryJournalWritePending`, `recoveryJournalEvidenceMissing`,
    `liveErasureReconciliationPending`, `restoreJournalReadPending`,
-   `restoreReplayPending` and `backupRetentionPending`.
+   `restoreReplayPending` and `backupRetentionOverdue` must all be zero.
+   `backupRetentionPending` is a non-negative informational count for erasures
+   still inside their permitted recovery window; it does not by itself block
+   readiness. Once an attestation is due, an unattested item is overdue and
+   must be represented by `backupRetentionOverdue`, which does block readiness.
 
 ## Isolated restore replay
 
 Any restored database, bucket or recovery point is hostile until erasure replay
-proves otherwise.
+proves otherwise. The repository supplies a guarded restore control plane; it
+does not prove that the protected GitHub environments, bootstrap roles,
+isolated network, application verification task or reviewed evidence exist in
+the live account.
 
-1. Restore into a new isolated VPC/security group with no ALB, Route 53,
-   service discovery, provider egress or user traffic. Never replace the live
-   stack in place.
-2. Mount the stable fingerprint primary/previous key ring and exact journal
-   configuration. Keep the permanent write fence, normal purge, permanent
-   erasure and versioned-object erasure enabled. Startup and readiness must
-   fail when any retained verifier lacks its key or journal evidence.
-3. The restore scheduler durably records each required journal-read/replay
+1. On the exact protected `main`, dispatch `AWS Public Beta Immutable Build`
+   with `purpose=restore-candidate`. This production-shaped build may leave
+   only `isolatedRestoreReplayVerified=false` and
+   `restoreDrillEvidenceSha256=""` pending. Record its run ID and release ID.
+   It is a drill input, not an artifact that the release workflow may prepare,
+   activate or roll back.
+2. Provision and review the dedicated no-ingress restore security group before
+   the drill. The automated RDS request uses the existing private
+   `jsc-public-beta-postgres` DB subnet group, that security group as its sole
+   security group and `PubliclyAccessible=false`; it does not create a new VPC
+   or network controls. Do not attach the restored database or bucket to the
+   ALB, Route 53, service discovery, providers or the public fleet.
+3. From the same unchanged protected `main`, dispatch `AWS Public Beta Isolated
+   Restore Drill` with `action=start`, the attested candidate run/release IDs,
+   completed tagged RDS and S3 recovery points from the reviewed window, the
+   security-group ID and exact confirmation
+   `START ISOLATED RESTORE DRILL <drill-id>`. The
+   `production-aws-restore` environment assumes the restore-initiator role,
+   which creates and verifies the exact versioned, ACL-free, public-blocked,
+   SSE-KMS destination bucket and passes only
+   `jsc-public-beta-backup-restore` to AWS Backup. The S3 request names that
+   pre-created destination, fixes `RestoreACLs=false` and
+   `RestoreLatestVersionsUpTo=all`, and omits the S3-unsupported source-tag copy
+   field; a latest-only restore is invalid.
+4. After both jobs complete, dispatch `action=observe` with their exact job
+   IDs, the same security-group ID and
+   `OBSERVE ISOLATED RESTORE DRILL <drill-id>`. This proves only the AWS Backup
+   job status, private RDS placement and destination-bucket controls. It does
+   not run Document Store, replay erasures, validate domain data, sign evidence
+   or clean up resources.
+5. Through a separately reviewed, ephemeral and audited verification path,
+   mount the stable fingerprint primary/previous key ring and exact journal
+   configuration on the candidate Document Store image. Keep the permanent
+   write fence, normal purge, permanent erasure and versioned-object erasure
+   enabled. Startup and readiness must fail when any retained verifier lacks
+   its key or journal evidence.
+6. The restore scheduler durably records each required journal-read/replay
    request. For each operation, call
    `PUT /internal/retention/v1/permanent-erasures/{operationId}/restore-replays/{restoreReplayId}`
    with the exact owner header, retention-administrator service token and a
    bounded non-secret `evidenceReference`.
-4. Document Store reads the server-owned immutable record by its bound key and
+7. Document Store reads the server-owned immutable record by its bound key and
    version, verifies bytes/digest/fingerprint, and idempotently re-erases the
    exact database and versioned-S3 scope. The raw journal key, version and
    content are never returned or logged. HTTP 202 remains isolated and
    retryable; HTTP 200 means the replay step is complete, not that restored
    backups have expired.
-5. Run reconciliation until journal-read, live-erasure and restore-replay
-   pending counts are zero. Keep the candidate isolated through any recreated
-   backup horizon and obtain a fresh backup-expiry attestation; never waive or
-   shorten the 35-day evidence rule.
-6. Run the release preflight and require exact readiness v2 `READY` with all
-   six counters zero. Independently prove no exceptional recovery point can
-   reintroduce an erased scope.
-7. Record the signed restore/replay evidence reference. Only a separate
-   reviewed traffic change may then attach DNS/ALB. Missing evidence, a key
-   mismatch, a pending counter or a reconciliation error is a hard stop: keep
-   the candidate isolated and escalate.
+8. Run database, document and payment/domain verification plus reconciliation
+   until the journal-write/evidence, journal-read, live-erasure and replay
+   blocking counts are zero. Run the release preflight and require exact
+   readiness v3 `READY` with `backupRetentionOverdue=0`. A non-negative
+   `backupRetentionPending` may remain while the corresponding erasures are
+   still inside the 35-day recovery window; separately prove there is no
+   already-overdue or exceptional recovery point capable of reintroducing an
+   erased scope.
+9. Assemble a draft exact `jsc-public-beta-restore-drill-evidence.v1` record. It
+   must bind the candidate Document Store revision, OpenAPI SHA-256 and image
+   digest, completed RDS/S3 jobs, all-version S3 controls, the declared recovery-
+   point skew, isolation, seven-database/domain/document checks, replay/
+   readiness v3 results and the truthful cleanup status. Preserve the evidence
+   needed for review without customer data; while cleanup is outstanding use
+   `PENDING_SEPARATE_APPROVAL`.
+10. Preserve evidence, then separately dispatch `action=cleanup` through
+    `production-aws-restore-cleanup` with
+    `DELETE ISOLATED RESTORE DRILL <drill-id>`. Its distinct deletion-only role
+    deletes only the exact drill-named RDS target and every version/delete
+    marker in the exact drill bucket before deleting that bucket. Neither
+    `observe` nor evidence validation performs cleanup; a recorded
+    `PENDING_SEPARATE_APPROVAL` remains an outstanding live action. After
+    successful cleanup, finalise and review/sign the evidence with
+    `cleanupStatus=COMPLETED` and retain its signed evidence reference. Never
+    silently edit an already signed pending-status record; issue a new reviewed
+    completion record.
+11. Hash the final reviewed evidence bytes into
+    `documentStorePermanentErasure.restoreDrillEvidenceSha256`, set
+    `isolatedRestoreReplayVerified=true`, and supply the same bytes as protected
+    `RESTORE_DRILL_EVIDENCE_B64`. Only then dispatch `AWS Public Beta Immutable
+    Build` with `purpose=release`, the same candidate release ID and candidate
+    build run ID. That account-free path re-verifies the candidate attestation
+    and promotes its exact manifest/image/Frontend digests without rebuilding
+    or publishing to ECR. Its new provenance must say `buildPurpose=release`
+    and hash-bind the `restore-candidate` source in `promotedFrom`; the promoted
+    manifest receives a new GitHub build-provenance attestation. Validation
+    checksum-binds the evidence through the launch approval and requires its
+    release ID, Infrastructure revision, Document Store revision, OpenAPI hash
+    and image digest to match. Any mismatch requires a new drill, not an edited
+    attestation or bypass.
+12. Use only that final attested release artifact for the normal private
+    prepare and separate activation. Missing evidence, a key/digest mismatch,
+    an overdue/blocking counter, a reconciliation error or an uncompleted
+    required cleanup is a hard stop; keep the restore isolated and escalate.
 
 This recovery procedure does not grant the task or operator any permission to
 delete the immutable journal or mutate the retained foundation.

@@ -9,6 +9,8 @@ tfvars_file=${TF_VARS_FILE:-}
 image_manifest=${IMAGE_MANIFEST:-}
 approval_manifest=${APPROVAL_MANIFEST:-}
 landing_archive=${LANDING_ARCHIVE:-}
+restore_drill_evidence=${RESTORE_DRILL_EVIDENCE:-}
+release_provenance=${RELEASE_PROVENANCE:-}
 
 case "$action" in foundation|plan|prepare|activate|rollback) ;;
   *) echo "Usage: $0 {foundation|plan|prepare|activate|rollback}" >&2; exit 2 ;;
@@ -44,9 +46,28 @@ fi
 release_id=$(jq -er '.releaseId' "$manifest")
 if [[ "$action" != "foundation" ]]; then
   [[ -f "$landing_archive" ]] || { echo "Missing checksum-bound Landing release artifact." >&2; exit 2; }
+  [[ -f "$restore_drill_evidence" && ! -L "$restore_drill_evidence" ]] || {
+    echo "Missing checksum-bound restore-drill evidence." >&2
+    exit 2
+  }
+  [[ -f "$release_provenance" && ! -L "$release_provenance" ]] || {
+    echo "Missing checksum-bound release provenance." >&2
+    exit 2
+  }
+  infrastructure_revision=$(jq -er '.infrastructureRevision | select(test("^[0-9a-f]{40}$"))' "$release_provenance")
+  [[ "$(jq -er .releaseId "$release_provenance")" == "$release_id" ]] || {
+    echo "Release provenance does not match the image manifest." >&2
+    exit 2
+  }
+  [[ "$(jq -er .imageManifestSha256 "$release_provenance")" == "$(sha256sum "$manifest" | cut -d' ' -f1)" ]] || {
+    echo "Release provenance does not bind the image manifest." >&2
+    exit 2
+  }
   python3 "$repository_root/scripts/aws/validate_public_beta.py" \
     --release --image-manifest "$manifest" --approval-manifest "$approval_manifest" \
-    --landing-archive "$landing_archive"
+    --landing-archive "$landing_archive" \
+    --infrastructure-revision "$infrastructure_revision" \
+    --restore-drill-evidence "$restore_drill_evidence"
 fi
 
 common_arguments=(

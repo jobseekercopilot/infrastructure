@@ -340,6 +340,8 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             ("aws-public-beta-build.yml", "production-build"),
             ("aws-public-beta-release.yml", "production-aws-plan"),
             ("aws-public-beta-release.yml", "production-aws"),
+            ("aws-public-beta-restore-drill.yml", "production-aws-restore"),
+            ("aws-public-beta-restore-drill.yml", "production-aws-restore-cleanup"),
         ):
             workflow = (ROOT / ".github" / "workflows" / workflow_name).read_text(encoding="utf-8")
             self.assertIn(
@@ -349,6 +351,8 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             )
         build = (ROOT / ".github" / "workflows" / "aws-public-beta-build.yml").read_text(encoding="utf-8")
         self.assertGreaterEqual(build.count("actions: read"), 2)
+        guard_source = guard.read_text(encoding="utf-8")
+        self.assertIn("aws-restore|aws-restore-cleanup", guard_source)
 
     def test_bootstrap_apply_role_cannot_escalate_or_mutate_unrelated_resources(self) -> None:
         class CloudFormationLoader(yaml.SafeLoader):
@@ -1397,11 +1401,11 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         erasure_evidence = image_manifest["dependencyEvidence"]["documentStorePermanentErasure"]
         self.assertEqual(
             erasure_evidence["revision"],
-            "e35761d1b1f810dff3c727c317d2c9c4335bcb8d",
+            "eb6b7890c2328e1768bffddfd1824f6fe309d560",
         )
         self.assertEqual(
             erasure_evidence["openApiSha256"],
-            "66b0b21bc93928f2fc17c576692199878f250dbbdf7db632b191468137b896f1",
+            "e43ef6ea262553eb5fd5752b984d6cf027a538b930a1dff7288091e7a3ee1242",
         )
         self.assertEqual(
             erasure_evidence["restoreReplayRunbookSha256"],
@@ -1444,13 +1448,15 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         self.assertIn('variable = "kms:EncryptionContext:aws:s3:arn"', journal_policy)
 
         preflight = (ROOT / "aws" / "public-beta" / "operator" / "preflight.sh").read_text(encoding="utf-8")
-        self.assertIn('document-permanent-erasure-readiness.v2', preflight)
+        self.assertIn('document-permanent-erasure-readiness.v3', preflight)
         for pending_count in (
             "recoveryJournalWritePending", "recoveryJournalEvidenceMissing",
             "liveErasureReconciliationPending", "restoreJournalReadPending",
-            "restoreReplayPending", "backupRetentionPending",
+            "restoreReplayPending", "backupRetentionOverdue",
         ):
             self.assertIn(f".{pending_count} == 0", preflight)
+        self.assertIn(".backupRetentionPending >= 0", preflight)
+        self.assertNotIn(".backupRetentionPending == 0", preflight)
 
     def test_release_approval_rejects_placeholders_zero_hashes_and_incoherent_provenance(self) -> None:
         spec = importlib.util.spec_from_file_location("validate_public_beta_approvals", VALIDATOR)
@@ -1487,6 +1493,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             "journalRetentionDays": 90,
             "externalDeletionJournalVerified": True,
             "isolatedRestoreReplayVerified": True,
+            "restoreDrillEvidenceSha256": "3" * 64,
         })
         legal_hash = "1" * 64
         approvals["publicLegal"].update({
@@ -1527,6 +1534,15 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         })
         module.validate_approvals(approvals, True)
 
+        pending_restore_candidate = copy.deepcopy(approvals)
+        pending_restore_candidate["documentStorePermanentErasure"].update({
+            "isolatedRestoreReplayVerified": False,
+            "restoreDrillEvidenceSha256": "",
+        })
+        module.validate_approvals(pending_restore_candidate, True, restore_candidate=True)
+        with self.assertRaisesRegex(module.ContractError, "isolated-restore replay evidence"):
+            module.validate_approvals(pending_restore_candidate, True)
+
         mutations = (
             (("publicLegal", "reviewedBy"), "TBD"),
             (("publicLegal", "evidenceReference"), "PLACEHOLDER"),
@@ -1541,6 +1557,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             (("documentStorePermanentErasure", "journalRetentionPolicyVersion"), "UNAPPROVED"),
             (("documentStorePermanentErasure", "externalDeletionJournalVerified"), False),
             (("documentStorePermanentErasure", "isolatedRestoreReplayVerified"), False),
+            (("documentStorePermanentErasure", "restoreDrillEvidenceSha256"), "0" * 64),
         )
         for path, value in mutations:
             candidate = copy.deepcopy(approvals)

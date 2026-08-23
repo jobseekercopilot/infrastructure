@@ -112,7 +112,7 @@ fi
 jq -e \
   --arg retention "$DOCUMENT_ERASURE_RETENTION_POLICY_VERSION" \
   --arg backup "$DOCUMENT_ERASURE_BACKUP_POLICY_VERSION" '
-    .schemaVersion == "document-permanent-erasure-readiness.v2" and
+    .schemaVersion == "document-permanent-erasure-readiness.v3" and
     .enabled == true and .ready == true and .status == "READY" and
     .policyVersion == $retention and
     .backupRetentionPolicyVersion == $backup and
@@ -124,7 +124,9 @@ jq -e \
     .liveErasureReconciliationPending == 0 and
     .restoreJournalReadPending == 0 and
     .restoreReplayPending == 0 and
-    .backupRetentionPending == 0
+    (.backupRetentionPending | type == "number") and
+    .backupRetentionPending >= 0 and
+    .backupRetentionOverdue == 0
   ' "$document_erasure_response" >/dev/null || {
     echo "release preflight failed: document-erasure capability is not READY" >&2
     exit 3

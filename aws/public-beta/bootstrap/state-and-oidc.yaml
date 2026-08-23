@@ -51,6 +51,12 @@ Parameters:
   ApplyEnvironmentName:
     Type: String
     Default: production-aws
+  RestoreEnvironmentName:
+    Type: String
+    Default: production-aws-restore
+  RestoreCleanupEnvironmentName:
+    Type: String
+    Default: production-aws-restore-cleanup
   ErasureJournalRetentionDays:
     Type: Number
     MinValue: 36
@@ -997,6 +1003,158 @@ Resources:
                   - ecr:UploadLayerPart
                 Resource: !Sub arn:${AWS::Partition}:ecr:${AWS::Region}:${AWS::AccountId}:repository/jsc-public-beta/*
 
+  RestoreDrillRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: jsc-public-beta-github-restore-drill
+      MaxSessionDuration: 10800
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !If
+                - CreateGitHubOidcProvider
+                - !Ref GitHubOidcProvider
+                - !Ref ExistingGitHubOidcProviderArn
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubOrganisation}@${GitHubOrganisationId}/${GitHubRepository}@${GitHubRepositoryId}:environment:${RestoreEnvironmentName}
+      Policies:
+        - PolicyName: IsolatedRestoreInitiation
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: ReadExactCustomerDataVault
+                Effect: Allow
+                Action: backup:DescribeBackupVault
+                Resource: !GetAtt CustomerDataBackupVault.BackupVaultArn
+              - Sid: ReadAndStartOnlyTaggedCustomerRecoveryPoints
+                Effect: Allow
+                Action:
+                  - backup:DescribeRecoveryPoint
+                  - backup:GetRecoveryPointRestoreMetadata
+                  - backup:ListTags
+                  - backup:StartRestoreJob
+                Resource: !Sub arn:${AWS::Partition}:backup:${AWS::Region}:${AWS::AccountId}:recovery-point:*
+                Condition:
+                  StringEquals:
+                    aws:ResourceTag/Application: Job Seeker Copilot
+                    aws:ResourceTag/Environment: public-beta
+                    aws:ResourceTag/RestoreTest: quarterly
+              - Sid: ObserveRestoreJobsWithoutMutation
+                Effect: Allow
+                Action:
+                  - backup:DescribeRestoreJob
+                  - backup:ListRestoreJobs
+                Resource: '*'
+              - Sid: PassOnlyBoundaryConstrainedRestoreRole
+                Effect: Allow
+                Action: iam:PassRole
+                Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/jsc-public-beta-backup-restore
+                Condition:
+                  StringEquals:
+                    iam:PassedToService: backup.amazonaws.com
+              - Sid: CreateOnlyNamedRestoreBuckets
+                Effect: Allow
+                Action: s3:CreateBucket
+                Resource: !Sub arn:${AWS::Partition}:s3:::jsc-public-beta-restore-${AWS::AccountId}-*
+                Condition:
+                  StringEquals:
+                    aws:RequestedRegion: !Ref AWS::Region
+              - Sid: ProtectAndInspectOnlyNamedRestoreBuckets
+                Effect: Allow
+                Action:
+                  - s3:GetBucketLocation
+                  - s3:GetBucketOwnershipControls
+                  - s3:GetBucketPolicy
+                  - s3:GetBucketPolicyStatus
+                  - s3:GetBucketTagging
+                  - s3:GetBucketVersioning
+                  - s3:GetEncryptionConfiguration
+                  - s3:GetPublicAccessBlock
+                  - s3:ListBucket
+                  - s3:ListBucketVersions
+                  - s3:PutBucketOwnershipControls
+                  - s3:PutBucketPolicy
+                  - s3:PutBucketTagging
+                  - s3:PutBucketVersioning
+                  - s3:PutEncryptionConfiguration
+                  - s3:PutPublicAccessBlock
+                Resource: !Sub arn:${AWS::Partition}:s3:::jsc-public-beta-restore-${AWS::AccountId}-*
+              - Sid: InspectOnlyIsolatedRestoreNetworkAndDatabase
+                Effect: Allow
+                Action:
+                  - ec2:DescribeSecurityGroups
+                  - ec2:DescribeSubnets
+                  - rds:DescribeDBInstances
+                  - rds:ListTagsForResource
+                Resource: '*'
+              - Sid: InspectOnlyDocumentStoreCandidateImage
+                Effect: Allow
+                Action:
+                  - ecr:BatchGetImage
+                  - ecr:DescribeImageScanFindings
+                  - ecr:DescribeImages
+                Resource: !Sub arn:${AWS::Partition}:ecr:${AWS::Region}:${AWS::AccountId}:repository/jsc-public-beta/document-store-service
+              - Sid: DescribeOnlyFoundationDataKey
+                Effect: Allow
+                Action: kms:DescribeKey
+                Resource: !GetAtt ApplicationDataKey.Arn
+
+  RestoreCleanupRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: jsc-public-beta-github-restore-cleanup
+      MaxSessionDuration: 10800
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !If
+                - CreateGitHubOidcProvider
+                - !Ref GitHubOidcProvider
+                - !Ref ExistingGitHubOidcProviderArn
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubOrganisation}@${GitHubOrganisationId}/${GitHubRepository}@${GitHubRepositoryId}:environment:${RestoreCleanupEnvironmentName}
+      Policies:
+        - PolicyName: DeleteOnlyIsolatedRestoreResources
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: ObserveDatabaseDeletion
+                Effect: Allow
+                Action: rds:DescribeDBInstances
+                Resource: '*'
+              - Sid: DeleteOnlyNamedRestoreDatabases
+                Effect: Allow
+                Action: rds:DeleteDBInstance
+                Resource: !Sub arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:db:jsc-public-beta-restore-*
+              - Sid: InspectAndDeleteOnlyNamedRestoreBuckets
+                Effect: Allow
+                Action:
+                  - s3:DeleteBucket
+                  - s3:DeleteBucketPolicy
+                  - s3:GetBucketLocation
+                  - s3:GetBucketTagging
+                  - s3:ListBucket
+                  - s3:ListBucketVersions
+                Resource: !Sub arn:${AWS::Partition}:s3:::jsc-public-beta-restore-${AWS::AccountId}-*
+              - Sid: DeleteOnlyNamedRestoreObjectsAndVersions
+                Effect: Allow
+                Action:
+                  - s3:AbortMultipartUpload
+                  - s3:DeleteObject
+                  - s3:DeleteObjectVersion
+                  - s3:ListMultipartUploadParts
+                Resource: !Sub arn:${AWS::Partition}:s3:::jsc-public-beta-restore-${AWS::AccountId}-*/*
+
   WorkloadPermissionsBoundary:
     Type: AWS::IAM::ManagedPolicy
     DeletionPolicy: Retain
@@ -1319,6 +1477,9 @@ Resources:
             Effect: Allow
             Action:
               - rds:AddTagsToResource
+              # Required by AWSBackupServiceRolePolicyForRestores v35. This is
+              # still limited by the boundary to the isolated drill prefix;
+              # human cleanup remains separately protected below.
               - rds:DeleteDBInstance
             Resource: !Sub arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:db:jsc-public-beta-restore-*
           - Sid: ExactPrivateIsolatedRdsSnapshotRestoreTarget
@@ -1350,13 +1511,15 @@ Resources:
           - Sid: ExactIsolatedRestoreObjects
             Effect: Allow
             Action:
-              - s3:DeleteObject
               - s3:GetObject
               - s3:GetObjectAcl
               - s3:GetObjectTagging
               - s3:GetObjectVersion
               - s3:GetObjectVersionAcl
               - s3:ListMultipartUploadParts
+              # Required by AWSBackupServiceRolePolicyForS3Restore v2 and
+              # confined to the pre-created isolated destination objects.
+              - s3:DeleteObject
               - s3:PutObject
               - s3:PutObjectAcl
               - s3:PutObjectTagging
@@ -2983,6 +3146,10 @@ Outputs:
     Value: !GetAtt BuildRole.Arn
   ApplyRoleArn:
     Value: !GetAtt ApplyRole.Arn
+  RestoreDrillRoleArn:
+    Value: !GetAtt RestoreDrillRole.Arn
+  RestoreCleanupRoleArn:
+    Value: !GetAtt RestoreCleanupRole.Arn
   WorkloadPermissionsBoundaryArn:
     Value: !Ref WorkloadPermissionsBoundary
   RdsMonitoringPermissionsBoundaryArn:

@@ -108,7 +108,7 @@ locals {
   github_environment_protection   = try(local.approval_manifest.githubEnvironmentProtection, {})
   github_environment_protection_complete = (
     try(local.github_environment_protection.reviewed, false) &&
-    try(local.github_environment_protection.environments, []) == ["production-build", "production-aws-plan", "production-aws"] &&
+    try(local.github_environment_protection.environments, []) == ["production-build", "production-aws-plan", "production-aws", "production-aws-restore", "production-aws-restore-cleanup"] &&
     try(local.github_environment_protection.operatorUsername, "") == "jobseekercopilot" &&
     !try(local.github_environment_protection.paidEnvironmentReviewerProtectionAvailable, true) &&
     try(local.github_environment_protection.ownerOnlyWorkflowActorVerified, false) &&
@@ -143,6 +143,8 @@ locals {
     try(local.document_store_erasure_approval.journalRetentionDays, 0) > 35 &&
     try(local.document_store_erasure_approval.externalDeletionJournalVerified, false) &&
     try(local.document_store_erasure_approval.isolatedRestoreReplayVerified, false) &&
+    can(regex("^[0-9a-f]{64}$", try(local.document_store_erasure_approval.restoreDrillEvidenceSha256, ""))) &&
+    try(local.document_store_erasure_approval.restoreDrillEvidenceSha256, "") != "0000000000000000000000000000000000000000000000000000000000000000" &&
     try(local.document_store_erasure_approval.journalRetentionDays, 0) >= try(local.public_legal_contract.accountDeletionCompletionDays, 0) &&
     try(local.document_store_erasure_approval.journalRetentionDays, 0) >= try(local.public_legal_contract.documentDeletionCompletionDays, 0)
   )
