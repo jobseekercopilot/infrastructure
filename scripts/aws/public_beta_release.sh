@@ -72,6 +72,8 @@ verify_live_release_iam() {
   plan_json=$(mktemp /tmp/jsc-live-iam-plan.XXXXXX.json)
   temporary_release_files+=("$plan_json")
   terraform -chdir="$module" show -json "$plan" >"$plan_json"
+  python3 "$repository_root/scripts/aws/verify_saved_release_plan.py" \
+    --plan-json "$plan_json"
   python3 "$repository_root/scripts/aws/verify_live_release_iam.py" \
     --plan-json "$plan_json" \
     --backup-contract "$backup_policy_contract" \
