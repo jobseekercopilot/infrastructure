@@ -99,8 +99,8 @@ Complete the [launch checklist](launch-checklist.md). In particular:
   and Auth snapshot SHA-256
   `95811cb81b0c32ad2f9c5cc42cd8f85c0385359cdade6c0f9e67e3ed63950dc0`.
   The final payment chain is Document Generation Gateway
-  `cd9b71a3d4dbfbe41d6784f3eeeb7b1b113f5218`, Payment Service
-  `39005690b2fe5a1da6208b25c3e0e4c9c57c7eb3`, Payment Gateway
+  `e15784c7098d327835e2a7d14dd257c1b95b08bd`, Payment Service
+  `baeec9aa8da1285a2406900c9550773ac3841af7`, Payment Gateway
   `99ee685a6809a254305a4cbb4dd92ba0fa7751bc`, and Stripe Gateway
   `04dd9fa7c095f65120afd37cfc11380176756216`, each bound to the exact exported
   OpenAPI hash in the manifest. The release builder proves every reviewed SHA

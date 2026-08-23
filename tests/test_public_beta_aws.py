@@ -1915,12 +1915,12 @@ class PublicBetaAwsContractTest(unittest.TestCase):
                 "authSnapshotSha256": "95811cb81b0c32ad2f9c5cc42cd8f85c0385359cdade6c0f9e67e3ed63950dc0",
             },
             "documentGenerationGateway": {
-                "revision": "cd9b71a3d4dbfbe41d6784f3eeeb7b1b113f5218",
-                "openApiSha256": "864ba3c36b2ba4bcd1749edc597ed903a21e7dfa515bb2809d3bc9b9cf878f42",
+                "revision": "e15784c7098d327835e2a7d14dd257c1b95b08bd",
+                "openApiSha256": "930d8612d035c72a18107a7ea0afe3c1af52b2f86240c61b27c096c388dce895",
             },
             "paymentService": {
-                "revision": "39005690b2fe5a1da6208b25c3e0e4c9c57c7eb3",
-                "openApiSha256": "40aa59f62a4ad4d956c2324c9c8d9fa154e4b04b49c029cbda0d80cc2c5dcdc9",
+                "revision": "baeec9aa8da1285a2406900c9550773ac3841af7",
+                "openApiSha256": "77186ce39bd32be4d8aed80b496df5873cf9e16c9ea911d7bc9b364d8a7b46e3",
             },
             "paymentGateway": {
                 "revision": "99ee685a6809a254305a4cbb4dd92ba0fa7751bc",
