@@ -126,9 +126,20 @@ class AccountEmailSesTemplateTest(unittest.TestCase):
         self.assertEqual(create["Action"], "ses:CreateConfigurationSet")
         self.assertEqual(create["Resource"], "*")
         self.assertEqual(create["Condition"]["StringEquals"], required_create_tags)
+        allowed_tag_keys = [
+            "Application", "Environment", "ManagedBy", "Repository", "CostCentre", "Purpose", "DataClass",
+        ]
+        self.assertEqual(
+            create["Condition"]["ForAllValues:StringEquals"]["aws:TagKeys"],
+            allowed_tag_keys,
+        )
         self.assertEqual(tag["Action"], "ses:TagResource")
         self.assertEqual(tag["Resource"], expected_source)
         self.assertEqual(tag["Condition"]["StringEquals"], required_create_tags)
+        self.assertEqual(
+            tag["Condition"]["ForAllValues:StringEquals"]["aws:TagKeys"],
+            allowed_tag_keys,
+        )
         self.assertEqual(manage["Condition"]["StringEquals"]["ses:ApiVersion"], "2")
         actions = {create["Action"], tag["Action"]} | set(manage["Action"])
         self.assertNotIn("ses:SendEmail", actions)

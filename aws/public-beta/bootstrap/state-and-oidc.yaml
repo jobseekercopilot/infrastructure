@@ -2822,6 +2822,15 @@ Resources:
                 aws:RequestTag/Environment: public-beta
                 aws:RequestTag/ManagedBy: Terraform
                 ses:ApiVersion: '2'
+              ForAllValues:StringEquals:
+                aws:TagKeys:
+                  - Application
+                  - Environment
+                  - ManagedBy
+                  - Repository
+                  - CostCentre
+                  - Purpose
+                  - DataClass
           - Sid: TagOnlyExactAccountEmailConfigurationSet
             Effect: Allow
             Action: ses:TagResource
@@ -2832,6 +2841,15 @@ Resources:
                 aws:RequestTag/Environment: public-beta
                 aws:RequestTag/ManagedBy: Terraform
                 ses:ApiVersion: '2'
+              ForAllValues:StringEquals:
+                aws:TagKeys:
+                  - Application
+                  - Environment
+                  - ManagedBy
+                  - Repository
+                  - CostCentre
+                  - Purpose
+                  - DataClass
           - Sid: ManageOnlyTaggedAccountEmailConfiguration
             Effect: Allow
             Action:
