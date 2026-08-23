@@ -779,8 +779,25 @@ resource "terraform_data" "release_contract" {
     }
 
     precondition {
-      condition     = var.application_desired_count == 0 || local.document_store_permanent_erasure_runtime_enabled
-      error_message = "Starting the application requires the pinned Document Store permanent-erasure contract, exact 35-day backup policy, stable write fence/fingerprint secret, version-scoped S3 IAM and reviewed external deletion-journal/isolated-restore replay evidence."
+      condition = (
+        var.application_desired_count == 0 ||
+        local.document_store_permanent_erasure_runtime_enabled ||
+        var.restore_source_preparation
+      )
+      error_message = "Starting the application requires the pinned Document Store permanent-erasure contract and reviewed restore evidence, except for the protected dark restore-source preparation mode."
+    }
+
+    precondition {
+      condition = (
+        !var.restore_source_preparation ||
+        (
+          !var.offline_validation &&
+          !var.public_entrypoint_enabled &&
+          local.document_store_permanent_erasure_image_ready &&
+          length(var.additional_tags) == 0
+        )
+      )
+      error_message = "Restore-source preparation is live-only, requires the pinned permanent-erasure image contract, an empty additional_tags map and a public listener fixed at 503."
     }
 
     precondition {

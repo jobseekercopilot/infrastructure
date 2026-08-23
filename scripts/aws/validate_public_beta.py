@@ -1201,6 +1201,9 @@ def validate_source_guards() -> None:
         'payment_contract_complete': "payment catalog/tax/terms/retention release gate",
         'public_legal_contract_complete': "shared Client/Authentication/Payment legal release gate",
         'document_store_permanent_erasure_runtime_enabled': "permanent-erasure evidence/runtime launch gate",
+        'restore_source_preparation': "dark candidate-only restore-source preparation gate",
+        'resource "aws_ecs_task_definition" "restore_source_canary"': "restore-source canary one-shot task",
+        'sid = "ReadWriteOnlyRestoreCanaryObjects"': "prefix-scoped restore-source S3 canary access",
         'POSTCODES_IO_NORTHERN_IRELAND_ENABLED': "fail-closed NI/BT postcode runtime binding",
         'STRIPE_API_VERSION': "explicit Stripe API version contract",
         'STRIPE_PRICE_STARTER': "approved Starter live Stripe Price",
@@ -1254,6 +1257,8 @@ def validate_source_guards() -> None:
         "RdsMonitoringPermissionsBoundary": "retained RDSOSMetrics-only monitoring boundary",
         "ManageOnlyRdsOsMetricsLogGroup": "RDSOSMetrics log-group boundary",
         "WriteOnlyRdsOsMetricsLogStreams": "RDSOSMetrics log-stream boundary",
+        "ManageOnlyRestoreSourceCanaryMarker": "exact restore-source marker workload boundary",
+        "StartOnlyCustomerDataCanaryBackups": "exact-vault on-demand source-backup permission",
     }.items():
         require(fragment in bootstrap_source, f"bootstrap is missing {description}")
     require('self        = true' not in source, "shared self-referencing task security group is forbidden")
@@ -1297,6 +1302,14 @@ def validate_source_guards() -> None:
         ".backupRetentionPending >= 0" in preflight
         and ".backupRetentionPending == 0" not in preflight,
         "release preflight must expose in-window backup retention without treating it as overdue",
+    )
+    restore_canary = (MODULE / "operator" / "prepare-restore-source-canary.sh").read_text(encoding="utf-8")
+    require(
+        "existing_marker=" in restore_canary
+        and restore_canary.index("existing_marker=") < restore_canary.index("aws s3api put-object")
+        and "jsc_restore_source_canary_v1" in restore_canary
+        and "list-object-versions" in restore_canary,
+        "restore-source preparation must be retry-safe and verify seven-DB/versioned-S3 canary state",
     )
 
     edge = (MODULE / "edge.tf").read_text(encoding="utf-8")
@@ -1460,6 +1473,18 @@ def validate_workflow_boundary() -> None:
         )
         require("public-beta-restore-candidate-" in restore and "gh attestation verify" in restore,
                 "restore start must consume an attested immutable candidate")
+        require(
+            "public-beta-restore-source-" in restore
+            and "validate_restore_source_evidence.py" in restore
+            and "source_preparation_run_id" in restore,
+            "restore start must consume the exact protected canary-bound paired-backup evidence",
+        )
+        require(
+            "public-beta-restore-start-" in restore
+            and "restore_start_run_id" in restore
+            and "Verify restore-start origin and immutable job binding" in restore,
+            "restore observation must consume the exact successful start evidence artifact",
+        )
         restore_script = (ROOT / "scripts" / "aws" / "run_backup_restore_drill.sh").read_text(encoding="utf-8")
         renderer = (ROOT / "scripts" / "aws" / "render_backup_restore_requests.py").read_text(encoding="utf-8")
         require('"RestoreLatestVersionsUpTo": "all"' in renderer,
@@ -1472,6 +1497,13 @@ def validate_workflow_boundary() -> None:
         require("DELETE ISOLATED RESTORE DRILL" in restore_script and "delete-objects" in restore_script
                 and "--no-paginate" in restore_script and "RestoreDrillId" in restore_script,
                 "isolated restore cleanup must be explicit and version-aware")
+        require(
+            "verify_restore_database_tags" in restore_script
+            and "tag_restored_database_when_created" in restore_script
+            and ".RecoveryPointArn == $recovery" in restore_script
+            and ".CreatedResourceArn == $destination" in restore_script,
+            "restore jobs must bind exact sources/destinations and retain exact cost/ownership tags",
+        )
         privileged_workflows.append((restore_path, restore, "production-aws-restore"))
 
     if release_path.exists():
@@ -1498,6 +1530,13 @@ def validate_workflow_boundary() -> None:
             < emergency.index("aws ecs update-service"),
             "emergency darkening must close webhook/default public routes before task drain",
         )
+        require(
+            "prepare-restore-source" in release
+            and "public-beta-restore-candidate-" in release
+            and "validate_public_beta.py --restore-candidate" in release
+            and "Upload canary-bound paired-backup evidence" in release,
+            "protected release workflow must expose and retain exact candidate restore-source preparation",
+        )
 
     for path, workflow, environment in privileged_workflows:
         references = re.findall(r"^\s*uses:\s*[^\s#]+@([^\s#]+)", workflow, flags=re.MULTILINE)
@@ -1506,10 +1545,29 @@ def validate_workflow_boundary() -> None:
             all(re.fullmatch(r"[0-9a-f]{40}", reference) is not None for reference in references),
             f"{path.name}: every reusable action must be pinned to an immutable 40-character commit",
         )
-        require(
-            "role-duration-seconds: 10800" in workflow,
-            f"{path.name}: the reviewed three-hour OIDC session is required for {environment}",
-        )
+        if path == release_path:
+            require(
+                "inputs.action == 'prepare-restore-source' && 21600 || 10800" in workflow,
+                "release workflow must limit six-hour AWS credentials to measured restore-source preparation",
+            )
+            require(
+                "timeout-minutes: ${{ inputs.action == 'prepare-restore-source' && 360 || 180 }}" in workflow,
+                "release workflow must stay within the GitHub-hosted six-hour job limit",
+            )
+            require(
+                "inputs.action == 'prepare-restore-source' && 300 || 180" in workflow,
+                "release workflow must cap the restore-source mutation step at five hours",
+            )
+            require(
+                "steps.release.outcome == 'failure' || steps.release.outcome == 'cancelled'" in workflow
+                and "timeout-minutes: 30" in workflow,
+                "failed or cancelled restore-source mutation must reserve bounded emergency containment",
+            )
+        else:
+            require(
+                "role-duration-seconds: 10800" in workflow,
+                f"{path.name}: the reviewed three-hour OIDC session is required for {environment}",
+            )
         require(
             "actions: read" in workflow
             and 'verify_github_environment_protection.sh "$GITHUB_REPOSITORY"' in workflow

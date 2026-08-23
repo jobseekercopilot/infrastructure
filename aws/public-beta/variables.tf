@@ -135,6 +135,12 @@ variable "offline_activation_validation" {
   }
 }
 
+variable "restore_source_preparation" {
+  description = "Protected candidate-only mode that may start the private fleet solely to migrate and seed a restore canary before immediately quiescing it."
+  type        = bool
+  default     = false
+}
+
 variable "image_manifest_path" {
   description = "Path relative to this module, or an absolute path, to the immutable release image manifest."
   type        = string

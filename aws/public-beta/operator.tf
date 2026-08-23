@@ -69,6 +69,86 @@ resource "aws_iam_role" "operator_task" {
   permissions_boundary = "arn:aws:iam::${var.aws_account_id}:policy/jsc-public-beta-workload-boundary"
 }
 
+resource "aws_iam_role" "operator_restore_canary_task" {
+  name                 = "${local.name_prefix}-restore-canary-task"
+  assume_role_policy   = data.aws_iam_policy_document.task_trust.json
+  permissions_boundary = "arn:aws:iam::${var.aws_account_id}:policy/jsc-public-beta-workload-boundary"
+}
+
+data "aws_iam_policy_document" "operator_restore_canary" {
+  statement {
+    sid = "ListOnlyRestoreCanaryVersions"
+    actions = [
+      "s3:ListBucket",
+      "s3:ListBucketVersions",
+    ]
+    resources = [aws_s3_bucket.documents.arn]
+
+    condition {
+      test     = "StringLike"
+      variable = "s3:prefix"
+      values   = ["restore-canary/v1/*"]
+    }
+  }
+
+  statement {
+    sid = "ReadWriteOnlyRestoreCanaryObjects"
+    actions = [
+      "s3:GetObject",
+      "s3:GetObjectVersion",
+      "s3:PutObject",
+    ]
+    resources = ["${aws_s3_bucket.documents.arn}/restore-canary/v1/*"]
+  }
+
+  statement {
+    sid = "UseOnlyFoundationDataKeyForRestoreCanary"
+    actions = [
+      "kms:Decrypt",
+      "kms:GenerateDataKey",
+    ]
+    resources = [var.foundation_data_kms_key_arn]
+
+    condition {
+      test     = "StringEquals"
+      variable = "kms:ViaService"
+      values   = ["s3.${var.aws_region}.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringLike"
+      variable = "kms:EncryptionContext:aws:s3:arn"
+      values = [
+        aws_s3_bucket.documents.arn,
+        "${aws_s3_bucket.documents.arn}/restore-canary/v1/*",
+      ]
+    }
+  }
+
+  statement {
+    sid       = "ReadOnlyExactDatabaseBootstrapMarker"
+    actions   = ["ssm:GetParameter"]
+    resources = ["arn:aws:ssm:${var.aws_region}:${var.aws_account_id}:parameter/jsc/${var.environment}/release/database-bootstrap"]
+  }
+
+  statement {
+    sid = "ManageOnlyExactRestoreSourceCanaryMarker"
+    actions = [
+      "ssm:AddTagsToResource",
+      "ssm:GetParameter",
+      "ssm:ListTagsForResource",
+      "ssm:PutParameter",
+    ]
+    resources = ["arn:aws:ssm:${var.aws_region}:${var.aws_account_id}:parameter/jsc/${var.environment}/release/restore-source-canary"]
+  }
+}
+
+resource "aws_iam_role_policy" "operator_restore_canary" {
+  name   = "restore-source-canary"
+  role   = aws_iam_role.operator_restore_canary_task.id
+  policy = data.aws_iam_policy_document.operator_restore_canary.json
+}
+
 locals {
   database_operator_environment = flatten([
     for key, database in local.databases : [
@@ -245,6 +325,65 @@ resource "aws_ecs_task_definition" "migration_verification" {
   }
 
   depends_on = [aws_iam_role_policy.operator_database_secrets]
+}
+
+resource "aws_ecs_task_definition" "restore_source_canary" {
+  family                   = "${local.name_prefix}-restore-source-canary"
+  requires_compatibilities = ["EC2"]
+  network_mode             = "awsvpc"
+  execution_role_arn       = aws_iam_role.operator_database_execution.arn
+  task_role_arn            = aws_iam_role.operator_restore_canary_task.arn
+
+  container_definitions = jsonencode([{
+    name      = "restore-source-canary"
+    image     = "${aws_ecr_repository.image["release-operator"].repository_url}@${local.image_manifest.images["release-operator"].digest}"
+    essential = true
+    cpu       = 256
+    memory    = 512
+    command   = ["/opt/jsc/prepare-restore-source-canary.sh"]
+    environment = concat([
+      { name = "AWS_REGION", value = var.aws_region },
+      { name = "PGHOST", value = aws_db_instance.postgres.address },
+      { name = "PGPORT", value = tostring(aws_db_instance.postgres.port) },
+      { name = "PGSSLMODE", value = "verify-full" },
+      { name = "PGSSLROOTCERT", value = "/etc/jsc/rds/global-bundle.pem" },
+      { name = "DOCUMENT_BUCKET", value = aws_s3_bucket.documents.bucket },
+      { name = "DOCUMENT_KMS_KEY_ARN", value = var.foundation_data_kms_key_arn },
+      { name = "RELEASE_ID", value = local.image_manifest.releaseId },
+      { name = "RELEASE_ATTESTATION_ID", value = local.release_attestation_id },
+      { name = "RESTORE_SOURCE_CANARY_MARKER", value = "/jsc/${var.environment}/release/restore-source-canary" },
+      { name = "DATABASE_BOOTSTRAP_MARKER", value = "/jsc/${var.environment}/release/database-bootstrap" },
+    ], local.database_operator_environment)
+    secrets                = local.database_operator_secrets
+    readonlyRootFilesystem = true
+    linuxParameters = {
+      initProcessEnabled = true
+      tmpfs = [{
+        containerPath = "/tmp"
+        size          = 32
+        mountOptions  = ["rw", "noexec", "nosuid", "nodev"]
+      }]
+    }
+    logConfiguration = {
+      logDriver = "awslogs"
+      options = {
+        awslogs-group         = aws_cloudwatch_log_group.operator.name
+        awslogs-region        = var.aws_region
+        awslogs-stream-prefix = "restore-source-canary"
+      }
+    }
+  }])
+
+  tags = {
+    Purpose      = "restore-source-canary"
+    ImageDigest  = local.image_manifest.images["release-operator"].digest
+    SourceCommit = local.image_manifest.images["release-operator"].revision
+  }
+
+  depends_on = [
+    aws_iam_role_policy.operator_database_secrets,
+    aws_iam_role_policy.operator_restore_canary,
+  ]
 }
 
 data "aws_ssm_parameter" "database_bootstrap" {

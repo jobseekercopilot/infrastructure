@@ -12,10 +12,12 @@ output "release_contract" {
     database_bootstrap_task_definition     = aws_ecs_task_definition.database_bootstrap.arn
     migration_verification_task_definition = aws_ecs_task_definition.migration_verification.arn
     release_preflight_task_definition      = aws_ecs_task_definition.release_preflight.arn
+    restore_source_canary_task_definition  = aws_ecs_task_definition.restore_source_canary.arn
     database_identifier                    = aws_db_instance.postgres.identifier
     rds_monitoring_role_arn                = aws_iam_role.rds_monitoring.arn
     database_bootstrap_marker              = "/jsc/${var.environment}/release/database-bootstrap"
     release_preflight_marker               = "/jsc/${var.environment}/release/preflight"
+    restore_source_canary_marker           = "/jsc/${var.environment}/release/restore-source-canary"
   }
 }
 
@@ -43,10 +45,12 @@ output "emergency_darken_contract" {
 
 output "data_recovery" {
   value = {
-    document_bucket_arn = aws_s3_bucket.documents.arn
-    postgres_arn        = aws_db_instance.postgres.arn
-    backup_vault_arn    = "arn:aws:backup:${var.aws_region}:${var.aws_account_id}:backup-vault:jsc-public-beta-customer-data"
-    restore_role_arn    = aws_iam_role.backup_restore.arn
+    document_bucket_arn  = aws_s3_bucket.documents.arn
+    document_bucket_name = aws_s3_bucket.documents.bucket
+    postgres_arn         = aws_db_instance.postgres.arn
+    backup_vault_arn     = "arn:aws:backup:${var.aws_region}:${var.aws_account_id}:backup-vault:jsc-public-beta-customer-data"
+    backup_role_arn      = aws_iam_role.backup.arn
+    restore_role_arn     = aws_iam_role.backup_restore.arn
   }
 }
 

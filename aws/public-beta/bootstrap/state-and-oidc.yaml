@@ -1038,7 +1038,9 @@ Resources:
                   - backup:GetRecoveryPointRestoreMetadata
                   - backup:ListTags
                   - backup:StartRestoreJob
-                Resource: !Sub arn:${AWS::Partition}:backup:${AWS::Region}:${AWS::AccountId}:recovery-point:*
+                Resource:
+                  - !Sub arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:snapshot:awsbackup:job-*
+                  - !Sub arn:${AWS::Partition}:backup:${AWS::Region}:${AWS::AccountId}:recovery-point:*
                 Condition:
                   StringEquals:
                     aws:ResourceTag/Application: Job Seeker Copilot
@@ -1092,6 +1094,45 @@ Resources:
                   - rds:DescribeDBInstances
                   - rds:ListTagsForResource
                 Resource: '*'
+              - Sid: TagOnlyNamedRestoreDatabases
+                Effect: Allow
+                Action: rds:AddTagsToResource
+                Resource: !Sub arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:db:jsc-public-beta-restore-*
+                Condition:
+                  StringEquals:
+                    aws:RequestTag/Application: Job Seeker Copilot
+                    aws:RequestTag/Environment: public-beta
+                    aws:RequestTag/ManagedBy: RestoreDrill
+                    aws:RequestTag/CostCentre: public-beta
+                  ForAllValues:StringEquals:
+                    aws:TagKeys:
+                      - Application
+                      - Environment
+                      - ManagedBy
+                      - RestoreDrillId
+                      - CostCentre
+                  'Null':
+                    aws:RequestTag/RestoreDrillId: 'false'
+              - Sid: RemoveOnlyCopiedTagsFromNamedRestoreDatabases
+                Effect: Allow
+                Action: rds:RemoveTagsFromResource
+                Resource: !Sub arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:db:jsc-public-beta-restore-*
+                Condition:
+                  StringEquals:
+                    aws:ResourceTag/Application: Job Seeker Copilot
+                    aws:ResourceTag/Environment: public-beta
+                    aws:ResourceTag/ManagedBy: RestoreDrill
+                    aws:ResourceTag/CostCentre: public-beta
+                  ForAllValues:StringEquals:
+                    aws:TagKeys:
+                      - Name
+                      - Repository
+                      - DataClass
+                      - Backup
+                      - BetaBlocker
+                  'Null':
+                    aws:ResourceTag/RestoreDrillId: 'false'
+                    aws:TagKeys: 'false'
               - Sid: InspectOnlyDocumentStoreCandidateImage
                 Effect: Allow
                 Action:
@@ -1130,12 +1171,22 @@ Resources:
             Statement:
               - Sid: ObserveDatabaseDeletion
                 Effect: Allow
-                Action: rds:DescribeDBInstances
+                Action:
+                  - rds:DescribeDBInstances
+                  - rds:ListTagsForResource
                 Resource: '*'
               - Sid: DeleteOnlyNamedRestoreDatabases
                 Effect: Allow
                 Action: rds:DeleteDBInstance
                 Resource: !Sub arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:db:jsc-public-beta-restore-*
+                Condition:
+                  StringEquals:
+                    aws:ResourceTag/Application: Job Seeker Copilot
+                    aws:ResourceTag/Environment: public-beta
+                    aws:ResourceTag/ManagedBy: RestoreDrill
+                    aws:ResourceTag/CostCentre: public-beta
+                  'Null':
+                    aws:ResourceTag/RestoreDrillId: 'false'
               - Sid: InspectAndDeleteOnlyNamedRestoreBuckets
                 Effect: Allow
                 Action:
@@ -1213,6 +1264,14 @@ Resources:
               - ssm:UpdateInstanceAssociationStatus
               - ssm:UpdateInstanceInformation
             Resource: '*'
+          - Sid: ManageOnlyRestoreSourceCanaryMarker
+            Effect: Allow
+            Action:
+              - ssm:AddTagsToResource
+              - ssm:GetParameter
+              - ssm:ListTagsForResource
+              - ssm:PutParameter
+            Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/jsc/public-beta/release/restore-source-canary
           - Sid: PullOnlyPublicBetaImages
             Effect: Allow
             Action:
@@ -2566,6 +2625,10 @@ Resources:
             Resource:
               - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/jsc/public-beta/release/database-bootstrap
               - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/jsc/public-beta/release/preflight
+          - Sid: ReadOnlyExactRestoreSourceCanaryMarker
+            Effect: Allow
+            Action: ssm:GetParameter
+            Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/jsc/public-beta/release/restore-source-canary
           - Sid: RunOnlyReviewedReleaseOperatorTasks
             Effect: Allow
             Action: ecs:RunTask
@@ -2573,9 +2636,25 @@ Resources:
               - !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/jsc-public-beta-database-bootstrap:*
               - !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/jsc-public-beta-migration-verification:*
               - !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/jsc-public-beta-release-preflight:*
+              - !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/jsc-public-beta-restore-source-canary:*
             Condition:
               ArnEquals:
                 ecs:cluster: !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:cluster/jsc-public-beta
+              StringEquals:
+                aws:RequestTag/Application: Job Seeker Copilot
+                aws:RequestTag/Environment: public-beta
+                aws:RequestTag/ManagedBy: Terraform
+                aws:RequestTag/Purpose: ReleaseOperator
+              ForAllValues:StringEquals:
+                aws:TagKeys:
+                  - Application
+                  - Environment
+                  - ManagedBy
+                  - Purpose
+          - Sid: StartOnlyCustomerDataCanaryBackups
+            Effect: Allow
+            Action: backup:StartBackupJob
+            Resource: !GetAtt CustomerDataBackupVault.BackupVaultArn
           - Sid: PassOnlyEcsInstanceRoleToEc2
             Effect: Allow
             Action: iam:PassRole
@@ -2800,6 +2879,35 @@ Resources:
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
+          - Sid: TagOnlyReviewedOperatorTasksDuringRun
+            Effect: Allow
+            Action: ecs:TagResource
+            Resource: !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task/jsc-public-beta/*
+            Condition:
+              StringEquals:
+                aws:RequestTag/Application: Job Seeker Copilot
+                aws:RequestTag/Environment: public-beta
+                aws:RequestTag/ManagedBy: Terraform
+                aws:RequestTag/Purpose: ReleaseOperator
+                ecs:CreateAction: RunTask
+              ForAllValues:StringEquals:
+                aws:TagKeys:
+                  - Application
+                  - Environment
+                  - ManagedBy
+                  - Purpose
+          - Sid: StopOnlyHungReleaseOperatorTasks
+            Effect: Allow
+            Action: ecs:StopTask
+            Resource: !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task/jsc-public-beta/*
+            Condition:
+              ArnEquals:
+                ecs:cluster: !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:cluster/jsc-public-beta
+              StringEquals:
+                aws:ResourceTag/Application: Job Seeker Copilot
+                aws:ResourceTag/Environment: public-beta
+                aws:ResourceTag/ManagedBy: Terraform
+                aws:ResourceTag/Purpose: ReleaseOperator
           - Sid: CreateOnlyExactTaggedAutoScalingGroup
             Effect: Allow
             Action: autoscaling:CreateAutoScalingGroup
@@ -2889,7 +2997,12 @@ Resources:
     Type: AWS::IAM::Role
     Properties:
       RoleName: jsc-public-beta-github-apply
-      MaxSessionDuration: 10800
+      # Restore-source preparation includes ordered migrations plus a real RDS
+      # backup that has taken ~2h42m live. The protected workflow requests the
+      # six-hour maximum only for that action, while its five-hour mutation-step
+      # cap reserves hosted-job time for containment; ordinary mutations retain
+      # three-hour sessions.
+      MaxSessionDuration: 21600
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:

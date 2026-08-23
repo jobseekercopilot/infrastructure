@@ -252,7 +252,10 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             self.assertIn("workflow_dispatch:", workflow)
             self.assertIn("github.ref == 'refs/heads/main'", workflow)
             self.assertIn(f"environment: {environment}", workflow)
-            self.assertIn("role-duration-seconds: 10800", workflow)
+            if name == "aws-public-beta-release.yml":
+                self.assertIn("inputs.action == 'prepare-restore-source' && 21600 || 10800", workflow)
+            else:
+                self.assertIn("role-duration-seconds: 10800", workflow)
             references = re.findall(r"^\s*uses:\s*[^\s#]+@([^\s#]+)", workflow, flags=re.MULTILINE)
             self.assertTrue(references)
             self.assertTrue(all(re.fullmatch(r"[0-9a-f]{40}", reference) for reference in references))
@@ -398,6 +401,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             "ApplyTagAndStateGuardPolicy",
         ]
         apply_role = resources["ApplyRole"]["Properties"]
+        self.assertEqual(apply_role["MaxSessionDuration"], 21600)
         self.assertEqual(set(apply_role["ManagedPolicyArns"]), set(managed_policy_names))
         self.assertLessEqual(len(apply_role["ManagedPolicyArns"]), 10)
         self.assertEqual(
@@ -1304,8 +1308,15 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         self.assertNotIn("register-scalable-target", emergency)
         self.assertNotIn("DynamicScalingOutSuspended", emergency)
         self.assertIn("--desired-count 0", emergency)
-        self.assertIn("all application/scanner tasks are stopped", emergency)
+        self.assertIn("all application/scanner/operator tasks are stopped", emergency)
         self.assertIn("expected_services+=(clamav)", emergency)
+        self.assertIn("aws ecs list-tags-for-resource", emergency)
+        self.assertIn('$tags.Purpose == "ReleaseOperator"', emergency)
+        self.assertIn("aws ecs stop-task", emergency)
+        self.assertLess(
+            emergency.index("aws ecs stop-task"),
+            emergency.index("tagged operators were stopped, but"),
+        )
         self.assertIn('if: inputs.action != \'foundation\' && inputs.action != \'darken\'', workflow)
         self.assertIn("Execute approval-independent emergency containment", workflow)
         self.assertIn('EXPECTED_RELEASE_ID: ${{ inputs.release_id }}', workflow)
@@ -1422,7 +1433,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         erasure_evidence = image_manifest["dependencyEvidence"]["documentStorePermanentErasure"]
         self.assertEqual(
             erasure_evidence["revision"],
-            "eb6b7890c2328e1768bffddfd1824f6fe309d560",
+            "86e40b2797afc2c4b9edc1ebe969a4e7249c3d6a",
         )
         self.assertEqual(
             erasure_evidence["openApiSha256"],
@@ -1743,7 +1754,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
                 "location-gateway": "86b2805c8430ede14a53a7320b87f0eeb2797b17",
                 "location-service": "4d8d09a79018c3f281cfead84348d14ed84be851",
                 "llm-gateway": "d84427061766244ec10e367fb3a7a6587809612c",
-                "document-store-service": "eb6b7890c2328e1768bffddfd1824f6fe309d560",
+                "document-store-service": "86e40b2797afc2c4b9edc1ebe969a4e7249c3d6a",
                 "document-generation-gateway": "e15784c7098d327835e2a7d14dd257c1b95b08bd",
                 "payment-service": "baeec9aa8da1285a2406900c9550773ac3841af7",
                 "payment-gateway": "ab721f1b4377ba250d33b99a1690cb1abd96b864",

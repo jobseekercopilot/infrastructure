@@ -4,7 +4,7 @@ FROM ${POSTGRES_IMAGE}
 ARG RDS_CA_BUNDLE_URL
 ARG RDS_CA_BUNDLE_SHA256
 
-RUN apk add --no-cache ca-certificates curl jq
+RUN apk add --no-cache aws-cli ca-certificates curl jq
 
 RUN test -n "${RDS_CA_BUNDLE_URL}" \
     && test -n "${RDS_CA_BUNDLE_SHA256}" \
@@ -16,10 +16,11 @@ RUN test -n "${RDS_CA_BUNDLE_URL}" \
     && rm /tmp/rds-global-bundle.pem
 
 COPY bootstrap-databases.sh /opt/jsc/bootstrap-databases.sh
+COPY prepare-restore-source-canary.sh /opt/jsc/prepare-restore-source-canary.sh
 COPY preflight.sh /opt/jsc/preflight.sh
 COPY verify-migrations.sh /opt/jsc/verify-migrations.sh
 
-RUN chmod 0555 /opt/jsc/bootstrap-databases.sh /opt/jsc/preflight.sh /opt/jsc/verify-migrations.sh
+RUN chmod 0555 /opt/jsc/bootstrap-databases.sh /opt/jsc/prepare-restore-source-canary.sh /opt/jsc/preflight.sh /opt/jsc/verify-migrations.sh
 
 USER 65534:65534
 ENTRYPOINT ["/bin/sh"]

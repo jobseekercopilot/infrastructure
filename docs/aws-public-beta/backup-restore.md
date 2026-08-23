@@ -82,21 +82,47 @@ drills; the data-service owners validate semantic consistency.
 
 Never test by overwriting a production database or production S3 key.
 
-1. If this is an incident, put the public listener into fixed-`503` mode first.
-   For a routine drill, leave production unchanged and record the drill ID,
-   owner, start time and intended recovery window.
+1. Put the public listener into fixed-`503` mode and record the maintenance
+   window, drill ID, owner, start time and intended recovery window. Source
+   preparation deliberately starts the private fleet and then quiesces it; it
+   is never an online zero-downtime drill.
 2. On the exact protected `main`, dispatch `AWS Public Beta Immutable Build`
    with `purpose=restore-candidate`. Record the successful run ID and release
    ID. Candidate validation requires production-shaped images and approvals but
    permits the isolated replay flag/hash alone to remain pending. A candidate
-   artifact cannot be passed to the protected release workflow.
-3. Select completed, quarterly-tagged RDS and S3 recovery points from the same
-   reviewed daily window. Separately provision/review the dedicated no-ingress
+   artifact cannot enter normal release prepare/activation; only the exceptional
+   dark source-preparation action may consume it.
+3. Dispatch the protected release workflow with
+   `action=prepare-restore-source`, the exact candidate run/release IDs, a new
+   canary ID and `PREPARE RESTORE SOURCE <release-id> <canary-id>`. It keeps the
+   listener fixed `503`, bootstraps seven databases, privately applies and
+   verifies Flyway, quiesces every service, then writes and independently
+   re-verifies a controlled cross-database marker and two checksum-bound S3
+   object versions. Only after those live preconditions pass does the exact-vault
+   `StartBackupJob` path start paired RDS/S3 jobs through the existing
+   boundary-constrained backup role. Preserve the uploaded source-evidence
+   artifact and its actual recovery-point tags. The poll is bounded at four
+   hours because the measured first RDS backup took about 2h42m; this is distinct
+   from the eight-hour recovery objective. The protected source action has a
+   five-hour mutation-step ceiling inside the GitHub-hosted runner's hard
+   six-hour job limit and six-hour role session. This leaves real headroom for
+   checkout/init plus the bounded 30-minute containment step. The protected
+   preparation rejects non-empty Terraform `additional_tags`, keeping the
+   measured RDS copied-tag set deterministic. If
+   any private-start, migration or canary step fails, the workflow's `always()`
+   containment fixes the edge at `503` and drains every application/scanner
+   service before the failed run ends. If the bounded poll expires,
+   re-run the exact candidate/canary: the marker and jobs are idempotently reused.
+4. Select only the completed recovery points named by that source evidence.
+   Their creation timestamps—not their potentially very different completion
+   timestamps—must be within ten minutes, and each job must complete within the
+   eight-hour RTO. Separately provision/review the dedicated no-ingress
    verification security group. The workflow does not create or alter the VPC,
    subnet group, security group or an application verification task.
-4. Without changing `main`, manually dispatch `AWS Public Beta Isolated Restore
+5. Without changing `main`, manually dispatch `AWS Public Beta Isolated Restore
    Drill` with `action=start`, an 8–32 character drill ID, the candidate build
-   run/release IDs, both recovery-point ARNs, the security-group ID and:
+   run/release IDs, source-preparation run/canary IDs, both recovery-point ARNs,
+   the security-group ID and:
 
    ```text
    START ISOLATED RESTORE DRILL <drill-id>
@@ -113,41 +139,59 @@ Never test by overwriting a production database or production S3 key.
    `EncryptionType=SSE-KMS`, the exact foundation data key and
    `RestoreLatestVersionsUpTo=all`, and omits the S3-unsupported
    `CopySourceTagsToRestoredResource` request field. Restoring only
-   current/latest objects is not a valid permanent-erasure drill.
-5. Retain the uploaded non-secret start artifact, including request hashes,
+   current/latest objects is not a valid permanent-erasure drill. RDS can copy
+   source tags regardless of the request's copy-tags flag. As soon as the exact
+   destination ARN appears, start writes the five canonical drill ownership/cost
+   tags, removes only the measured source-only `Name`, `Repository`, `DataClass`,
+   `Backup` and `BetaBlocker` keys through a tag-conditioned permission, and
+   verifies that no unexpected non-AWS tag remains.
+6. Retain the uploaded non-secret start artifact, including request hashes,
    candidate bindings and both job IDs. After both jobs finish, dispatch
-   `action=observe` with the same drill/security-group IDs, both job IDs and:
+   `action=observe` with the same drill/security-group IDs, the successful exact
+   restore-start workflow run ID, both job IDs and:
 
    ```text
    OBSERVE ISOLATED RESTORE DRILL <drill-id>
    ```
 
-   Observation verifies completed AWS Backup jobs, private RDS placement and
-   destination bucket controls only. It does not run an application task,
+   Observation verifies each job against the exact start artifact, source
+   recovery point/resource/vault, restore role and destination; it also verifies
+   private RDS placement and both destinations' ownership/cost/security tags and
+   bucket controls. It does not run an application task,
    inspect customer/domain data, replay erasures, generate final evidence or
    delete the restore.
-6. Through a separately approved ephemeral access path, run the exact candidate
-   image against the isolated destinations. Verify all seven logical databases
-   and roles, Flyway histories, referential/domain invariants, payment-ledger
+7. Through a separately approved ephemeral access path, run the exact candidate
+   image against the isolated destinations. First verify the exact source marker
+   SHA and row in `jsc_restore_source_canary_v1` in all seven logical databases,
+   then enumerate exactly two versions of the canary key in the restored bucket.
+   AWS Backup assigns new destination VersionIds, so never require equality with
+   the source IDs. Instead require two distinct destination IDs and verify the
+   canonical generation-one/generation-two payloads, metadata, sizes and exact
+   source SHA-256 values, with zero destination delete markers for that exact key.
+   A missing, extra, deleted or mismatched canary blocks every later semantic claim. Verify
+   all seven logical databases and roles, Flyway histories, referential/domain invariants, payment-ledger
    reconciliation and the approved synthetic journey. Verify Document Store
    metadata/object mapping and sampled checksums, then run retention in
    report-only mode. Missing or extra data is an integrity incident. Do not
    attach either destination to the public fleet or record customer payloads.
-7. Follow the [permanent-erasure recovery procedure](document-store-permanent-erasure.md)
+8. Follow the [permanent-erasure recovery procedure](document-store-permanent-erasure.md)
    to read the external journal and replay exact erasures. Readiness must be
    `document-permanent-erasure-readiness.v3`, `READY`, with journal, live replay
    and `backupRetentionOverdue` blockers at zero. A non-negative
    `backupRetentionPending` is informational for an erasure still inside its
    allowed recovery window and is not required to be zero.
-8. Assemble a draft exact `jsc-public-beta-restore-drill-evidence.v1` record
-   with the candidate revision/OpenAPI/image digest, completed job timestamps, recovery-
-   point skew, isolation, all-version S3 settings, database/document/domain and
+9. Assemble a draft exact `jsc-public-beta-restore-drill-evidence.v1` record
+   with the candidate revision/OpenAPI/image digest, source-evidence/marker
+   hashes and seven-database/source-two-version/restored-two-generation counts,
+   `restoredDeleteMarkerCount=0`, `restoredGenerationPayloadsVerified=true` and
+   `sourceVersionIdsPreserved=false`, completed job timestamps,
+   maximum ten-minute recovery-point creation skew, isolation, all-version S3 settings, database/document/domain and
    replay results, reviewer, evidence reference and cleanup status. The record
    must cover no more than the 8-hour RTO and contain no credentials or customer
    payloads. Preserve all evidence needed to review the result before deleting
    the isolated destinations; while cleanup is outstanding its truthful status
    is `PENDING_SEPARATE_APPROVAL`.
-9. After evidence retention is confirmed, dispatch the distinct cleanup job
+10. After evidence retention is confirmed, dispatch the distinct cleanup job
    through `production-aws-restore-cleanup` with `action=cleanup` and:
 
    ```text
@@ -163,7 +207,7 @@ Never test by overwriting a production database or production S3 key.
    cleanup, finalise and review/sign the completed evidence. If a pending-status
    record was already signed, retain it and create a new reviewed completion
    record rather than silently editing the signed bytes.
-10. SHA-256 the final reviewed evidence bytes, put that digest in
+11. SHA-256 the final reviewed evidence bytes, put that digest in
     `documentStorePermanentErasure.restoreDrillEvidenceSha256`, set
     `isolatedRestoreReplayVerified=true`, and supply the same bytes through
     protected `RESTORE_DRILL_EVIDENCE_B64`. Dispatch `AWS Public Beta Immutable
