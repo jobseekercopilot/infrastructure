@@ -384,7 +384,7 @@ class ReleaseScriptOrderingTest(unittest.TestCase):
 
         lines = script.splitlines()
         operator_lines = [index for index, line in enumerate(lines) if "run_release_operator.sh" in line]
-        self.assertEqual(len(operator_lines), 4)
+        self.assertEqual(len(operator_lines), 8)
         for index in operator_lines:
             self.assertIn("verify_current_iam_contract", lines[index - 1])
 

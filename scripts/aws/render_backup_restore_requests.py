@@ -11,6 +11,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+from validate_restore_source_evidence import SourceEvidenceError, validate as validate_source_evidence
+
 
 class RequestError(RuntimeError):
     pass
@@ -59,6 +61,7 @@ def main() -> int:
     )
     parser.add_argument("--image-manifest", type=Path, required=True)
     parser.add_argument("--provenance", type=Path, required=True)
+    parser.add_argument("--restore-source-evidence", type=Path, required=True)
     parser.add_argument("--created-at", required=True)
     parser.add_argument("--output-directory", type=Path, required=True)
     args = parser.parse_args()
@@ -72,14 +75,16 @@ def main() -> int:
         )
         require(re.fullmatch(r"sg-[0-9a-f]{8,17}", args.restore_security_group_id) is not None,
                 "restore security group ID is malformed")
-        recovery_pattern = re.compile(
+        rds_recovery_pattern = re.compile(
+            rf"arn:aws:rds:{args.region}:{args.account_id}:snapshot:awsbackup:job-[A-Za-z0-9-]+"
+        )
+        s3_recovery_pattern = re.compile(
             rf"arn:aws:backup:{args.region}:{args.account_id}:recovery-point:[A-Za-z0-9-]+"
         )
-        for label, value in (
-            ("RDS", args.rds_recovery_point_arn),
-            ("S3", args.s3_recovery_point_arn),
-        ):
-            require(recovery_pattern.fullmatch(value) is not None, f"{label} recovery point ARN is out of scope")
+        require(rds_recovery_pattern.fullmatch(args.rds_recovery_point_arn) is not None,
+                "RDS recovery point ARN is out of scope")
+        require(s3_recovery_pattern.fullmatch(args.s3_recovery_point_arn) is not None,
+                "S3 recovery point ARN is out of scope")
         require(args.rds_recovery_point_arn != args.s3_recovery_point_arn,
                 "RDS and S3 recovery points must be distinct")
         expected_role = f"arn:aws:iam::{args.account_id}:role/jsc-public-beta-backup-restore"
@@ -92,6 +97,8 @@ def main() -> int:
 
         manifest = load_json(args.image_manifest.resolve())
         provenance = load_json(args.provenance.resolve())
+        source_evidence_path = args.restore_source_evidence.resolve()
+        source_evidence = load_json(source_evidence_path)
         require(manifest.get("sourceBranch") == "main", "restore candidate must come from protected main")
         release_id = manifest.get("releaseId")
         require(isinstance(release_id, str) and re.fullmatch(r"[0-9]{8}T[0-9]{6}Z-[0-9a-f]{7,40}", release_id),
@@ -118,6 +125,15 @@ def main() -> int:
         require(re.fullmatch(r"[0-9a-f]{64}", str(openapi_sha)) is not None, "Document Store OpenAPI hash is not pinned")
         require(re.fullmatch(r"sha256:[0-9a-f]{64}", str(digest)) is not None, "Document Store image digest is not pinned")
         require(document_image.get("scanStatus") == "PASSED", "Document Store restore candidate has not passed scanning")
+        candidate_build_run_id = str(source_evidence.get("releaseCandidate", {}).get("buildRunId", ""))
+        validate_source_evidence(
+            source_evidence,
+            manifest,
+            provenance,
+            candidate_build_run_id,
+            expected_rds_recovery_point=args.rds_recovery_point_arn,
+            expected_s3_recovery_point=args.s3_recovery_point_arn,
+        )
 
         raw_rds_metadata = load_json(args.rds_restore_metadata.resolve())
         source_rds_metadata = raw_rds_metadata.get("RestoreMetadata")
@@ -151,7 +167,11 @@ def main() -> int:
         bucket = f"jsc-public-beta-restore-{args.account_id}-{args.drill_id}"
         database = f"jsc-public-beta-restore-{args.drill_id}"
         require(len(bucket) <= 63 and len(database) <= 63, "drill ID makes a destination name too long")
-        token_seed = f"{release_id}:{args.drill_id}".encode()
+        source_evidence_sha = hashlib.sha256(source_evidence_path.read_bytes()).hexdigest()
+        token_seed = (
+            f"{release_id}:{args.drill_id}:{args.rds_recovery_point_arn}:"
+            f"{args.s3_recovery_point_arn}:{source_evidence_sha}"
+        ).encode()
 
         rds_metadata = dict(source_rds_metadata)
         rds_metadata.pop("AvailabilityZone", None)
@@ -203,6 +223,13 @@ def main() -> int:
                 "rds": args.rds_recovery_point_arn,
                 "s3": args.s3_recovery_point_arn,
             },
+            "restoreSource": {
+                "canaryId": source_evidence["sourceCanary"]["marker"]["canaryId"],
+                "markerSha256": source_evidence["sourceCanary"]["markerSha256"],
+                "evidenceSha256": source_evidence_sha,
+                "logicalDatabaseCount": len(source_evidence["sourceCanary"]["marker"]["logicalDatabases"]),
+                "documentObjectVersionCount": len(source_evidence["sourceCanary"]["marker"]["document"]["versions"]),
+            },
             "isolatedDestinations": {"rds": database, "s3": bucket},
             "requestSha256": {
                 "rds": hashlib.sha256(rds_bytes).hexdigest(),
@@ -222,7 +249,7 @@ def main() -> int:
             require(not path.exists(), f"refusing to overwrite restore request artifact: {path}")
             path.write_bytes(content)
             path.chmod(0o600)
-    except (OSError, json.JSONDecodeError, RequestError) as exc:
+    except (OSError, json.JSONDecodeError, RequestError, SourceEvidenceError, KeyError) as exc:
         print(f"restore request refused: {exc}", file=__import__("sys").stderr)
         return 2
 

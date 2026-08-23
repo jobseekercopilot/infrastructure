@@ -7,11 +7,11 @@
   "dependencyEvidence": {
     "documentStoreTaskRoleStorage": "1183ce5a54ab60999ca37d826ceb16857d5763ff",
     "documentStorePermanentErasure": {
-      "revision": "eb6b7890c2328e1768bffddfd1824f6fe309d560",
+      "revision": "86e40b2797afc2c4b9edc1ebe969a4e7249c3d6a",
       "openApiSha256": "e43ef6ea262553eb5fd5752b984d6cf027a538b930a1dff7288091e7a3ee1242",
       "maximumBackupRetentionDays": 35,
       "restoreReplayRunbook": "docs/aws-public-beta/document-store-permanent-erasure.md",
-      "restoreReplayRunbookSha256": "2f3bc1cc5ddba1a9f65898c3655646387500d34ee6e249e78b4da908450d3281"
+      "restoreReplayRunbookSha256": "077464cca9753f5b584ccde9995ba505c582e24d78e398a1f2f5af52a9e31e40"
     },
     "adzunaRuntimeHealth": "594ac33862c6360fe05768905bab0e2cb9ac1898",
     "jsearchRuntimeHealth": "79677c6586207f5aa30b9c6d0720f5ed2cfe728a",

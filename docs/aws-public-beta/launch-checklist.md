@@ -198,14 +198,25 @@ Terraform plan or AWS credit award alone is not launch approval.
       was independently reviewed before the release preflight was rerun.
 - [ ] Latest RDS/S3 backup jobs succeeded. An attested
       `purpose=restore-candidate` build from unchanged protected `main` was
-      created before the drill; the drill used its exact run/release IDs and
-      completed tagged RDS/S3 recovery points from the reviewed window. The
-      candidate was never treated as a releasable artifact.
+      created before the drill. The protected `prepare-restore-source` action
+      kept ingress fixed `503`, bootstrapped/migrated seven databases, quiesced
+      every service, and independently verified matching canary rows plus two
+      distinct checksum-bound S3 object versions before starting paired backups.
+      Protected tfvars supplied no `additional_tags`; a simulated preparation
+      failure proved the `always()` containment left the listener fixed `503`
+      and every application/scanner service at desired/running/pending zero.
+      The drill used only the exact run/release/source-preparation/canary/restore-start IDs and
+      recovery points from that retained evidence. Their creation skew was at
+      most ten minutes; completion skew was not misreported as consistency skew.
+      The candidate was never treated as a releasable artifact.
 - [ ] The protected restore workflow created a versioned, ACL-free,
       public-blocked, exact-key SSE-KMS destination; restored private RDS with
       the dedicated security group; and requested S3
-      `RestoreLatestVersionsUpTo=all`. `observe` proved only the completed jobs
-      and destination controls. Separately reviewed ephemeral application,
+      `RestoreLatestVersionsUpTo=all`. `observe` bound the completed jobs to the
+      exact start artifact, sources, vault, restore role and destinations and
+      stripped only the measured inherited RDS production-only tags before
+      verifying the exact five drill ownership/cost tags and destination controls.
+      Separately reviewed ephemeral application,
       seven-database, domain/payment, document-integrity and erasure-replay
       verification supplied the remaining RPO/RTO evidence.
 - [ ] Permanent-erasure readiness v3 is `READY` for the exact reviewed
@@ -227,7 +238,8 @@ Terraform plan or AWS credit award alone is not launch approval.
       validation nor the final build was misreported as cleanup.
 - [ ] The reviewed `jsc-public-beta-restore-drill-evidence.v1` bytes bind the
       candidate Document Store revision, OpenAPI hash and image digest, the
-      same-window completed jobs, isolation, all-version S3 controls, semantic
+      source-evidence/marker hashes and seven-database/two-version counts, the
+      creation-window-bound completed jobs, isolation, all-version S3 controls, semantic
       checks, readiness v3 replay and truthful completed cleanup. Its signed
       reference is retained, its SHA-256 exactly matches
       `documentStorePermanentErasure.restoreDrillEvidenceSha256`, and the same

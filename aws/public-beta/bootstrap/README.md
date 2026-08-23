@@ -236,6 +236,15 @@ Bootstrap outputs establish only the trust boundary. An owner separately
 records these non-secret variables and protected inputs; no bootstrap template
 or workflow invents their values.
 
+The Apply role permits a six-hour maximum session so the measured ~2h42m RDS
+on-demand backup can follow ordered private migration/quiescence in one protected
+`prepare-restore-source` job. The workflow requests that duration only for this
+action. GitHub-hosted jobs have a hard six-hour limit, so the mutation step is
+capped at five hours. The remaining outer window covers checkout/init and
+reserves 30 minutes for fail-closed containment; an exact candidate/canary retry
+resumes the idempotent jobs if the bounded step expires. Normal apply mutations
+retain three-hour sessions and job bounds.
+
 | Environment | Name | Kind | Purpose |
 |---|---|---|---|
 | all five | `AWS_ACCOUNT_ID` where used | variable | exact 12-digit target account |
@@ -249,6 +258,7 @@ or workflow invents their values.
 | build, plan and apply | `RESTORE_DRILL_EVIDENCE_B64` | protected secret | exact reviewed non-secret restore/replay evidence; required for final `purpose=release`, plan and mutations, and SHA-256-bound by the launch approval |
 | `production-aws-plan` | `AWS_PLAN_ROLE_ARN` | variable | `PlanRoleArn` output |
 | `production-aws` | `AWS_APPLY_ROLE_ARN` | variable | `ApplyRoleArn` output |
+| `production-aws` | restore-source evidence artifact | workflow output | non-secret exact candidate/canary marker, actual paired recovery-point tags/job metadata and hashes; never customer payloads |
 | `production-aws` | `WORKLOAD_PERMISSIONS_BOUNDARY_ARN` | variable/evidence | `WorkloadPermissionsBoundaryArn`; must match standard Terraform workload roles |
 | `production-aws` | `RDS_MONITORING_PERMISSIONS_BOUNDARY_ARN` | variable/evidence | `RdsMonitoringPermissionsBoundaryArn`; must match only the Enhanced Monitoring service role |
 | `production-aws` | `BACKUP_PERMISSIONS_BOUNDARY_ARN` / `BACKUP_RESTORE_PERMISSIONS_BOUNDARY_ARN` | variables/evidence | exact specialised bootstrap boundary outputs for scheduled backup and isolated restore roles |

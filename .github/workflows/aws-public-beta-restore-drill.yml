@@ -16,6 +16,18 @@ on:
         description: Successful restore-candidate build run; required only for start.
         required: false
         type: string
+      source_preparation_run_id:
+        description: Successful protected prepare-restore-source run; required only for start.
+        required: false
+        type: string
+      source_canary_id:
+        description: Exact canary ID emitted by prepare-restore-source; required only for start.
+        required: false
+        type: string
+      restore_start_run_id:
+        description: Successful exact restore-start workflow run; required only for observe.
+        required: false
+        type: string
       release_id:
         description: Exact restore-candidate release ID; required only for start.
         required: false
@@ -102,6 +114,71 @@ jobs:
           test "$(jq -r .infrastructureRevision "$PROVENANCE")" = "$GITHUB_SHA"
           test "$(jq -r .imageManifestSha256 "$PROVENANCE")" = "$(sha256sum "$MANIFEST" | cut -d' ' -f1)"
           gh attestation verify "$MANIFEST" --repo "$GITHUB_REPOSITORY"
+      - name: Download protected canary-bound source evidence
+        if: inputs.action == 'start'
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: public-beta-restore-source-${{ inputs.release_id }}-${{ inputs.source_canary_id }}
+          path: ${{ runner.temp }}/restore-source
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.source_preparation_run_id }}
+      - name: Verify protected source-preparation origin and evidence
+        if: inputs.action == 'start'
+        env:
+          CANDIDATE_BUILD_RUN_ID: ${{ inputs.candidate_build_run_id }}
+          EXPECTED_RDS_RECOVERY_POINT: ${{ inputs.rds_recovery_point_arn }}
+          EXPECTED_S3_RECOVERY_POINT: ${{ inputs.s3_recovery_point_arn }}
+          EXPECTED_SOURCE_CANARY_ID: ${{ inputs.source_canary_id }}
+          GH_TOKEN: ${{ github.token }}
+          IMAGE_MANIFEST: ${{ runner.temp }}/restore-candidate/image-manifest.json
+          PROVENANCE: ${{ runner.temp }}/restore-candidate/provenance.json
+          SOURCE_EVIDENCE: ${{ runner.temp }}/restore-source/restore-source-evidence.json
+          SOURCE_PREPARATION_RUN_ID: ${{ inputs.source_preparation_run_id }}
+        run: |
+          case "$SOURCE_PREPARATION_RUN_ID" in *[!0-9]*|'') echo "Invalid source-preparation run ID" >&2; exit 2;; esac
+          run_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_PREPARATION_RUN_ID}")"
+          test "$(jq -r .name <<<"$run_json")" = 'AWS Public Beta Protected Release'
+          test "$(jq -r .event <<<"$run_json")" = workflow_dispatch
+          test "$(jq -r .head_branch <<<"$run_json")" = main
+          test "$(jq -r .head_sha <<<"$run_json")" = "$GITHUB_SHA"
+          test "$(jq -r .conclusion <<<"$run_json")" = success
+          python3 scripts/aws/validate_restore_source_evidence.py \
+            --evidence "$SOURCE_EVIDENCE" --image-manifest "$IMAGE_MANIFEST" --provenance "$PROVENANCE" \
+            --candidate-build-run-id "$CANDIDATE_BUILD_RUN_ID" \
+            --expected-canary-id "$EXPECTED_SOURCE_CANARY_ID" \
+            --expected-rds-recovery-point "$EXPECTED_RDS_RECOVERY_POINT" \
+            --expected-s3-recovery-point "$EXPECTED_S3_RECOVERY_POINT"
+      - name: Download exact restore-start evidence
+        if: inputs.action == 'observe'
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: public-beta-restore-start-${{ inputs.drill_id }}
+          path: ${{ runner.temp }}/restore-start
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.restore_start_run_id }}
+      - name: Verify restore-start origin and immutable job binding
+        if: inputs.action == 'observe'
+        env:
+          EXPECTED_RDS_JOB_ID: ${{ inputs.rds_restore_job_id }}
+          EXPECTED_S3_JOB_ID: ${{ inputs.s3_restore_job_id }}
+          GH_TOKEN: ${{ github.token }}
+          RESTORE_DRILL_ID: ${{ inputs.drill_id }}
+          RESTORE_START_EVIDENCE: ${{ runner.temp }}/restore-start/restore-start-evidence.json
+          RESTORE_START_RUN_ID: ${{ inputs.restore_start_run_id }}
+        run: |
+          case "$RESTORE_START_RUN_ID" in *[!0-9]*|'') echo "Invalid restore-start run ID" >&2; exit 2;; esac
+          run_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RESTORE_START_RUN_ID}")"
+          test "$(jq -r .name <<<"$run_json")" = 'AWS Public Beta Isolated Restore Drill'
+          test "$(jq -r .event <<<"$run_json")" = workflow_dispatch
+          test "$(jq -r .head_branch <<<"$run_json")" = main
+          test "$(jq -r .head_sha <<<"$run_json")" = "$GITHUB_SHA"
+          test "$(jq -r .conclusion <<<"$run_json")" = success
+          jq -e --arg drill "$RESTORE_DRILL_ID" --arg rds "$EXPECTED_RDS_JOB_ID" --arg s3 "$EXPECTED_S3_JOB_ID" '
+            .schemaVersion == "jsc-public-beta-restore-request.v1" and .status == "RESTORES_STARTED" and
+            .drillId == $drill and .restoreJobIds == {rds:$rds,s3:$s3} and
+            (.restoreSourceEvidenceSha256 | test("^[0-9a-f]{64}$")) and
+            (.restoreRoleArn | test("^arn:aws:iam::[0-9]{12}:role/jsc-public-beta-backup-restore$"))
+          ' "$RESTORE_START_EVIDENCE" >/dev/null
       - name: Configure restore-initiator AWS role
         uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5
         with:
@@ -117,6 +194,9 @@ jobs:
           AWS_REGION: eu-west-2
           IMAGE_MANIFEST: ${{ runner.temp }}/restore-candidate/image-manifest.json
           PROVENANCE: ${{ runner.temp }}/restore-candidate/provenance.json
+          RESTORE_SOURCE_EVIDENCE: ${{ runner.temp }}/restore-source/restore-source-evidence.json
+          RESTORE_START_EVIDENCE: ${{ runner.temp }}/restore-start/restore-start-evidence.json
+          CANDIDATE_BUILD_RUN_ID: ${{ inputs.candidate_build_run_id }}
           RDS_RECOVERY_POINT_ARN: ${{ inputs.rds_recovery_point_arn }}
           RDS_RESTORE_JOB_ID: ${{ inputs.rds_restore_job_id }}
           RESTORE_DRILL_CONFIRMATION: ${{ inputs.confirmation }}

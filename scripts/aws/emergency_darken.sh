@@ -114,8 +114,29 @@ for service in "${services[@]}"; do
   fi
 done
 
+# A runner/API interruption can strand a tagged one-shot operator between
+# RunTask and its normal timeout cleanup. Stop only the protected release-
+# operator tasks; service tasks do not carry Purpose=ReleaseOperator and the
+# IAM grant independently enforces this exact tag boundary.
+running_tasks=$(aws ecs list-tasks \
+  --region "$region" --cluster "$cluster_name" --desired-status RUNNING --output json)
+while IFS= read -r task_arn; do
+  [[ -n "$task_arn" ]] || continue
+  task_tags=$(aws ecs list-tags-for-resource --region "$region" --resource-arn "$task_arn" --output json)
+  if jq -e '
+    (.tags | from_entries) as $tags |
+    $tags.Application == "Job Seeker Copilot" and
+    $tags.Environment == "public-beta" and
+    $tags.ManagedBy == "Terraform" and
+    $tags.Purpose == "ReleaseOperator"
+  ' <<<"$task_tags" >/dev/null; then
+    aws ecs stop-task --region "$region" --cluster "$cluster_name" --task "$task_arn" \
+      --reason "JSC emergency containment of protected release operator" >/dev/null
+  fi
+done < <(jq -r '.taskArns[]?' <<<"$running_tasks")
+
 (( update_failures == 0 )) || {
-  echo "Public edge is dark, but $update_failures task/autoscaling updates failed; investigate immediately." >&2
+  echo "Public edge is dark and tagged operators were stopped, but $update_failures task drain requests failed; investigate immediately." >&2
   exit 4
 }
 
@@ -131,8 +152,10 @@ while (( SECONDS < deadline )); do
       all_stopped=false
     fi
   done
-  if [[ "$all_stopped" == true ]]; then
-    echo "Emergency darkening complete: public edge is 503 and all application/scanner tasks are stopped."
+  running_tasks=$(aws ecs list-tasks \
+    --region "$region" --cluster "$cluster_name" --desired-status RUNNING --output json)
+  if [[ "$all_stopped" == true ]] && jq -e '.taskArns | length == 0' <<<"$running_tasks" >/dev/null; then
+    echo "Emergency darkening complete: public edge is 503 and all application/scanner/operator tasks are stopped."
     exit 0
   fi
   sleep 15

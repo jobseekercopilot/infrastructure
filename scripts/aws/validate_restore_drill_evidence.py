@@ -44,8 +44,8 @@ def timestamp(value: Any, label: str) -> dt.datetime:
         parsed = dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError as exc:
         raise EvidenceError(f"{label} must be a UTC timestamp") from exc
-    require(parsed.tzinfo is not None and parsed.utcoffset() == dt.timedelta(0), f"{label} must be UTC")
-    return parsed
+    require(parsed.tzinfo is not None, f"{label} must include an explicit UTC offset")
+    return parsed.astimezone(dt.timezone.utc)
 
 
 def exact_keys(value: Any, keys: set[str], label: str) -> dict[str, Any]:
@@ -62,7 +62,7 @@ def validate(
     exact_keys(evidence, {
         "schemaVersion", "status", "environment", "drillId", "startedAt", "completedAt",
         "reviewedBy", "reviewedOn", "evidenceReference", "releaseCandidate", "recoveryWindow",
-        "isolatedDestinations", "restoreJobs", "s3RestoreControls", "databaseVerification",
+        "restoreSource", "isolatedDestinations", "restoreJobs", "s3RestoreControls", "databaseVerification",
         "documentVerification", "erasureReplayVerification", "cleanupStatus",
     }, "restore evidence")
     require(evidence["schemaVersion"] == "jsc-public-beta-restore-drill-evidence.v1", "restore evidence schema mismatch")
@@ -115,22 +115,58 @@ def validate(
     require(candidate["documentStoreImageDigest"] == image["digest"], "restore evidence used another Document Store image")
 
     window = exact_keys(evidence["recoveryWindow"], {
-        "rdsRecoveryPointArn", "s3RecoveryPointArn", "rdsCompletedAt", "s3CompletedAt", "maximumSkewMinutes",
+        "rdsRecoveryPointArn", "s3RecoveryPointArn", "rdsCreatedAt", "s3CreatedAt",
+        "rdsCompletedAt", "s3CompletedAt", "maximumCreationSkewMinutes",
     }, "recovery window")
-    for label in ("rdsRecoveryPointArn", "s3RecoveryPointArn"):
-        require(re.fullmatch(r"arn:aws:backup:eu-west-2:[0-9]{12}:recovery-point:[A-Za-z0-9-]+", str(window[label])),
-                f"{label} is malformed")
+    require(re.fullmatch(
+        r"arn:aws:rds:eu-west-2:[0-9]{12}:snapshot:awsbackup:job-[A-Za-z0-9-]+",
+        str(window["rdsRecoveryPointArn"]),
+    ), "rdsRecoveryPointArn does not use the live AWS Backup RDS snapshot shape")
+    require(re.fullmatch(
+        r"arn:aws:backup:eu-west-2:[0-9]{12}:recovery-point:[A-Za-z0-9-]+",
+        str(window["s3RecoveryPointArn"]),
+    ), "s3RecoveryPointArn does not use the live AWS Backup S3 recovery-point shape")
     rds_completed = timestamp(window["rdsCompletedAt"], "rdsCompletedAt")
     s3_completed = timestamp(window["s3CompletedAt"], "s3CompletedAt")
+    rds_created = timestamp(window["rdsCreatedAt"], "rdsCreatedAt")
+    s3_created = timestamp(window["s3CreatedAt"], "s3CreatedAt")
+    require(rds_created <= rds_completed and s3_created <= s3_completed,
+            "recovery-point creation/completion timestamps are incoherent")
     require(rds_completed <= started and s3_completed <= started,
             "selected recovery points were not complete before the drill started")
     require(started - rds_completed <= dt.timedelta(days=35)
             and started - s3_completed <= dt.timedelta(days=35),
             "selected recovery points are outside the reviewed 35-day backup window")
-    skew = abs((rds_completed - s3_completed).total_seconds()) / 60
-    require(type(window["maximumSkewMinutes"]) is int and 0 <= window["maximumSkewMinutes"] <= 1440,
-            "recovery-window skew bound is invalid")
-    require(skew <= window["maximumSkewMinutes"], "RDS and S3 recovery points exceed the reviewed consistency window")
+    skew = abs((rds_created - s3_created).total_seconds()) / 60
+    require(type(window["maximumCreationSkewMinutes"]) is int
+            and 0 <= window["maximumCreationSkewMinutes"] <= 10,
+            "recovery-window creation-skew bound is invalid")
+    require(skew <= window["maximumCreationSkewMinutes"],
+            "RDS and S3 recovery-point starts exceed the reviewed consistency window")
+
+    restore_source = exact_keys(evidence["restoreSource"], {
+        "canaryId", "sourceEvidenceSha256", "canaryMarkerSha256",
+        "logicalDatabaseCount", "documentObjectVersionCount",
+        "restoredDocumentObjectVersionCount", "restoredDeleteMarkerCount", "restoredGenerationPayloadsVerified",
+        "sourceVersionIdsPreserved",
+    }, "restore source")
+    require(re.fullmatch(r"[a-z0-9](?:[a-z0-9-]{6,30}[a-z0-9])", str(restore_source["canaryId"])),
+            "restore-source canary ID is malformed")
+    for key in ("sourceEvidenceSha256", "canaryMarkerSha256"):
+        require(re.fullmatch(r"[0-9a-f]{64}", str(restore_source[key])) is not None
+                and restore_source[key] != "0" * 64, f"restore source {key} is invalid")
+    require(restore_source["logicalDatabaseCount"] == 7,
+            "restore source was not seeded across all seven logical databases")
+    require(restore_source["documentObjectVersionCount"] == 2,
+            "restore source did not contain exactly two bound S3 generations")
+    require(restore_source["restoredDocumentObjectVersionCount"] == 2,
+            "restored destination did not contain exactly two canary generations")
+    require(restore_source["restoredDeleteMarkerCount"] == 0,
+            "restored canary key contains a delete marker")
+    require(restore_source["restoredGenerationPayloadsVerified"] is True,
+            "restored canary generations were not verified by metadata/size/checksum")
+    require(restore_source["sourceVersionIdsPreserved"] is False,
+            "restore evidence incorrectly claims AWS Backup preserved source S3 VersionIds")
 
     destinations = exact_keys(evidence["isolatedDestinations"], {
         "rdsIdentifier", "s3Bucket", "privateRds", "isolatedSecurityGroupVerified", "notAttachedToPublicFleet",
