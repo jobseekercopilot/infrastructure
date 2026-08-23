@@ -33,6 +33,11 @@ class RestoreDrillContractTest(unittest.TestCase):
             "digest": "sha256:" + "4" * 64,
             "scanStatus": "PASSED",
         })
+        manifest["images"]["release-operator"].update({
+            "revision": revision,
+            "digest": "sha256:" + "5" * 64,
+            "scanStatus": "PASSED",
+        })
         return manifest
 
     def restore_source_evidence(self, manifest: dict, manifest_path: Path, provenance: dict) -> dict:
@@ -677,6 +682,183 @@ class RestoreDrillContractTest(unittest.TestCase):
         )
         tag_operator = guard_by_sid["TagOnlyReviewedOperatorTasksDuringRun"]
         self.assertEqual(tag_operator["Condition"]["StringEquals"]["ecs:CreateAction"], "RunTask")
+
+    def test_semantic_oidc_roles_orchestrator_and_cleanup_are_fail_closed(self) -> None:
+        class CloudFormationLoader(yaml.SafeLoader):
+            pass
+
+        def intrinsic(loader: yaml.SafeLoader, _suffix: str, node: yaml.Node):
+            if isinstance(node, yaml.ScalarNode):
+                return loader.construct_scalar(node)
+            if isinstance(node, yaml.SequenceNode):
+                return loader.construct_sequence(node)
+            return loader.construct_mapping(node)
+
+        CloudFormationLoader.add_multi_constructor("!", intrinsic)
+        template = yaml.load(
+            (ROOT / "aws" / "public-beta" / "bootstrap" / "state-and-oidc.yaml").read_text(),
+            Loader=CloudFormationLoader,
+        )
+        resources = template["Resources"]
+
+        def statements(role_name: str) -> list[dict]:
+            return resources[role_name]["Properties"]["Policies"][0]["PolicyDocument"]["Statement"]
+
+        start = statements("RestoreSemanticStartRole")
+        self.assertEqual(
+            {action for statement in start for action in (
+                statement["Action"] if isinstance(statement["Action"], list) else [statement["Action"]]
+            )},
+            {"states:StartExecution", "states:DescribeExecution"},
+        )
+        self.assertIn("stateMachine:jsc-public-beta-restore-semantic", json.dumps(start))
+        self.assertNotIn("ecs:", json.dumps(start))
+        self.assertNotIn("iam:PassRole", json.dumps(start))
+
+        observe = statements("RestoreSemanticObserveRole")
+        observe_json = json.dumps(observe)
+        self.assertIn("cloudtrail:LookupEvents", observe_json)
+        self.assertIn("ecs:ListServices", observe_json)
+        observe_actions = {
+            action
+            for statement in observe
+            for action in (
+                statement["Action"] if isinstance(statement["Action"], list) else [statement["Action"]]
+            )
+        }
+        self.assertEqual(
+            observe_actions,
+            {
+                "backup:DescribeRestoreJob",
+                "cloudtrail:LookupEvents",
+                "ec2:DescribeNetworkInterfaces",
+                "ec2:DescribePrefixLists",
+                "ec2:DescribeSecurityGroupRules",
+                "ec2:DescribeSecurityGroups",
+                "ec2:DescribeSubnets",
+                "ecs:DescribeServices",
+                "ecs:DescribeTaskDefinition",
+                "ecs:DescribeTasks",
+                "ecs:ListServices",
+                "ecs:ListTagsForResource",
+                "ecs:ListTasks",
+                "elasticloadbalancing:DescribeListeners",
+                "elasticloadbalancing:DescribeLoadBalancers",
+                "elasticloadbalancing:DescribeRules",
+                "iam:GetRole",
+                "iam:GetRolePolicy",
+                "iam:GetPolicy",
+                "iam:GetPolicyVersion",
+                "iam:ListAttachedRolePolicies",
+                "iam:ListRolePolicies",
+                "logs:GetLogEvents",
+                "rds:DescribeDBInstances",
+                "rds:ListTagsForResource",
+                "s3:GetBucketLocation",
+                "s3:GetBucketOwnershipControls",
+                "s3:GetBucketPolicy",
+                "s3:GetBucketPolicyStatus",
+                "s3:GetBucketTagging",
+                "s3:GetBucketVersioning",
+                "s3:GetEncryptionConfiguration",
+                "s3:GetPublicAccessBlock",
+                "ssm:GetParameter",
+                "ssm:ListTagsForResource",
+                "states:DescribeExecution",
+                "states:DescribeStateMachine",
+            },
+        )
+        for mutation in (
+            "states:StartExecution", "states:StopExecution", "ecs:RunTask", "ecs:StopTask",
+            "iam:PassRole", "ssm:PutParameter", "ssm:DeleteParameter",
+        ):
+            self.assertNotIn(mutation, observe_json)
+
+        cleanup = statements("RestoreCleanupRole")
+        cleanup_json = json.dumps(cleanup)
+        self.assertIn("backup:DescribeRestoreJob", cleanup_json)
+        self.assertIn("states:DescribeExecution", cleanup_json)
+        self.assertNotIn("states:StopExecution", cleanup_json)
+        self.assertNotIn("ssm:DeleteParameter", cleanup_json)
+        stop_tasks = next(statement for statement in cleanup if statement["Sid"] == "StopOnlyTaggedRestoreSemanticTasks")
+        self.assertEqual(
+            set(stop_tasks["Condition"]["StringEquals"]["aws:ResourceTag/ManagedBy"]),
+            {"RestoreSemanticVerification", "RestoreSemanticBroker"},
+        )
+        boundary = resources["RestoreSemanticBrokerPermissionsBoundary"]
+        self.assertEqual(boundary["DeletionPolicy"], "Retain")
+        self.assertEqual(boundary["UpdateReplacePolicy"], "Retain")
+        boundary_json = json.dumps(boundary)
+        self.assertIn("s3:GetBucketOwnershipControls", boundary_json)
+        self.assertNotIn("s3:GetObject", boundary_json)
+        backup_restore_boundary = resources["BackupRestoreWorkloadBoundary"]["Properties"]["PolicyDocument"]
+        restore_objects = next(
+            statement for statement in backup_restore_boundary["Statement"]
+            if statement["Sid"] == "ExactIsolatedRestoreObjects"
+        )
+        self.assertEqual(restore_objects["Action"][0], "s3:DeleteObject")
+
+        script = (ROOT / "scripts" / "aws" / "run_restore_semantic_verification.sh").read_text()
+        self.assertIn("stepfunctions start-execution", script)
+        self.assertIn("stepfunctions describe-execution", script)
+        self.assertNotIn("stepfunctions stop-execution", script)
+        self.assertNotIn("ssm delete-parameter", script)
+        self.assertIn("AttributeKey=EventName,AttributeValue=RunTask", script)
+        self.assertIn("stable_count >= 2", script)
+        self.assertIn("+ 300", script)
+        self.assertNotIn("AttributeValue=CreateNetworkInterface", script)
+        self.assertIn("JSC_RESTORE_SEMANTIC_RAW_EVIDENCE_B64=", script)
+        self.assertIn("permanent marker retained", script)
+        self.assertIn("for desired in PENDING RUNNING", script)
+        self.assertIn("ExecutionAlreadyExists", script)
+        self.assertIn("ExecutionDoesNotExist", script)
+        self.assertIn("ParameterNotFound", script)
+        self.assertIn("prove_semantic_never_started", script)
+        self.assertIn("wait_for_exact_restore_jobs_terminal", script)
+        self.assertIn('--resource-id "$marker_name"', script)
+        self.assertIn('ln -- "$start_temporary" "$start_output"', script)
+        self.assertNotIn('>"$start_output"', script)
+        no_semantic_branch = script[script.index('if [[ "$action" == cleanup && -z "$semantic_start_evidence" ]]'):]
+        self.assertLess(
+            no_semantic_branch.index("wait_for_exact_restore_jobs_terminal"),
+            no_semantic_branch.index("prove_semantic_never_started"),
+        )
+
+        semantic_workflow = (
+            ROOT / ".github" / "workflows" / "aws-public-beta-restore-semantic.yml"
+        ).read_text()
+        self.assertIn("environment: production-aws-restore-observe", semantic_workflow)
+        self.assertIn("AWS_RESTORE_SEMANTIC_START_ROLE_ARN", semantic_workflow)
+        self.assertIn("AWS_RESTORE_SEMANTIC_OBSERVE_ROLE_ARN", semantic_workflow)
+        self.assertIn("Hold the global mutation lock until the Standard execution is terminal", semantic_workflow)
+        self.assertIn("role-duration-seconds: 10800", semantic_workflow)
+        self.assertIn("SECONDS + 9000", semantic_workflow)
+        self.assertIn("PENDING_REDRIVE", semantic_workflow)
+        self.assertIn("id: initial_binding_upload", semantic_workflow)
+        self.assertIn("continue-on-error: true", semantic_workflow)
+        self.assertIn("if: always()", semantic_workflow)
+        self.assertIn("Retry semantic execution binding upload after lock hold", semantic_workflow)
+        self.assertIn("Transient DescribeExecution failure; retaining the global mutation lock", semantic_workflow)
+        self.assertGreaterEqual(
+            semantic_workflow.count("scripts/aws/run_restore_semantic_verification.sh start"), 2
+        )
+        self.assertEqual(
+            semantic_workflow.count("group: jsc-public-beta-aws-mutation"),
+            1,
+        )
+        self.assertLess(
+            semantic_workflow.index("Verify containment artifact origins before AWS authentication"),
+            semantic_workflow.index("Configure deletion-only cleanup role"),
+        )
+        restore_workflow = (
+            ROOT / ".github" / "workflows" / "aws-public-beta-restore-drill.yml"
+        ).read_text()
+        self.assertLess(
+            restore_workflow.index("Refuse deletion until semantic execution is terminal and contained"),
+            restore_workflow.index("Delete only the exact isolated drill resources"),
+        )
+        self.assertIn("if: inputs.semantic_start_run_id != ''", restore_workflow)
+        self.assertIn('if [[ -n "$SEMANTIC_START_RUN_ID" ]]', restore_workflow)
 
 
 if __name__ == "__main__":

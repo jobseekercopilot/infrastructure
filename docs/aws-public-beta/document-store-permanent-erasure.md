@@ -133,12 +133,17 @@ the live account.
    the private fleet, write/re-read two checksum-bound versions of one controlled
    S3 object and matching rows in every database, and complete paired backups.
    Preserve the source-evidence artifact and use only its recovery points.
-3. Provision and review the dedicated no-ingress restore security group before
-   the drill. The automated RDS request uses the existing private
-   `jsc-public-beta-postgres` DB subnet group, that security group as its sole
-   security group and `PubliclyAccessible=false`; it does not create a new VPC
-   or network controls. Do not attach the restored database or bucket to the
-   ALB, Route 53, service discovery, providers or the public fleet.
+3. Apply and review the Terraform-owned restored-database, semantic-child and
+   secret-free-broker security groups before the drill. Their rules are static:
+   restored RDS accepts only PostgreSQL from the otherwise unattached semantic
+   group; semantic tasks have only that RDS path, the exact S3 gateway prefix,
+   VPC DNS and same-group port 8089; the broker has control-plane HTTPS and DNS
+   but no database credential. No GitHub OIDC identity can alter these rules or
+   directly run a child. Before approval the semantic group must have zero
+   attached ENIs. RDS uses the existing private `jsc-public-beta-postgres`
+   subnet group, the restored-database group as its sole group and
+   `PubliclyAccessible=false`. Do not attach either destination to the ALB,
+   Route 53, service discovery, providers or public fleet.
 4. From the same unchanged protected `main`, dispatch `AWS Public Beta Isolated
    Restore Drill` with `action=start`, the attested candidate run/release IDs,
    source-preparation run/canary IDs, its exact canary-bound RDS/S3 recovery
@@ -159,36 +164,49 @@ the live account.
    ownership/cost tags and destination-bucket controls. It does
    not run Document Store, replay erasures, validate domain data, sign evidence
    or clean up resources.
-6. Through a separately reviewed, ephemeral and audited verification path,
-   mount the stable fingerprint primary/previous key ring and exact journal
-   configuration on the candidate Document Store image. Keep the permanent
-   write fence, normal purge, permanent erasure and versioned-object erasure
-   enabled. Startup and readiness must fail when any retained verifier lacks
-   its key or journal evidence.
-7. The restore scheduler durably records each required journal-read/replay
-   request. For each operation, call
-   `PUT /internal/retention/v1/permanent-erasures/{operationId}/restore-replays/{restoreReplayId}`
-   with the exact owner header, retention-administrator service token and a
-   bounded non-secret `evidenceReference`.
-8. Document Store reads the server-owned immutable record by its bound key and
-   version, verifies bytes/digest/fingerprint, and idempotently re-erases the
-   exact database and versioned-S3 scope. The raw journal key, version and
-   content are never returned or logged. HTTP 202 remains isolated and
-   retryable; HTTP 200 means the replay step is complete, not that restored
-   backups have expired.
+6. Obtain explicit owner approval for one deliberately retained synthetic,
+   non-customer Object Lock journal version. Dispatch `AWS Public Beta Restore
+   Semantic Verification` with `action=start` and the exact confirmation. The
+   OIDC role may only start/describe the exact Standard state machine. That
+   machine fixes a secret-free broker task revision, roles, private subnets,
+   security group, command and tags; the broker alone fixes the exact clone,
+   candidate and verifier revisions, roles, commands and semantic group. It
+   derives drill-only authentication/fingerprint values and never injects the
+   production core secret. The candidate receives only its restored-database
+   password plus the reserved-prefix journal policy. Its liveness/startup and
+   Flyway state are checked; aggregate customer-object storage health is
+   intentionally not claimed, and unrelated background mutators are delayed or
+   disabled for longer than the bounded drill.
+7. The broker first creates the replay database from quiescent restored
+   `document_store`, before either candidate starts. The separate verifier then
+   calls the exact candidate application path with a reserved `7e57c0de-*`
+   operation and `documentIds:[]`: source permanent-erasure PUT, the same PUT
+   again, absent-operation restore-replay PUT on the pre-operation clone, and
+   the same replay PUT again. Every response is exact HTTP 202
+   `BACKUP_RETENTION_PENDING`. The empty scope is intentional non-customer
+   journal write/read/reconstruction evidence; it is not proof of customer
+   object deletion.
+8. The source candidate, never the caller, writes the server-owned immutable
+   journal. The replay candidate reads that exact key/version and reconstructs
+   the absent operation. The read-only verifier binds the DB key, VersionId and
+   SHA-256 to an exact one-version, zero-delete-marker S3 history, SSE-KMS,
+   bucket key, content metadata/payload and GOVERNANCE retention. Both API
+   retries must preserve the complete canonical responses, rows and journal
+   history. A redrive never reclones after this immutable identity is used; it
+   accepts only the same canonical source/replay state and repeats all
+   idempotency checks.
 9. Run database, document and payment/domain verification plus reconciliation
    only after the exact marker SHA/row exists in all seven restored databases
    and exactly two restored versions of the canary key have distinct new
    destination VersionIds, zero delete markers, and match the source generation payloads, metadata,
    sizes and SHA-256 values. AWS Backup does not preserve source VersionIds; use
    those only as source provenance, never as a destination equality check. Then
-   continue until the journal-write/evidence, journal-read, live-erasure and replay
-   blocking counts are zero. Run the release preflight and require exact
-   readiness v3 `READY` with `backupRetentionOverdue=0`. A non-negative
-   `backupRetentionPending` may remain while the corresponding erasures are
-   still inside the 35-day recovery window; separately prove there is no
-   already-overdue or exceptional recovery point capable of reintroducing an
-   erased scope.
+   continue until the journal-write/evidence, journal-read, live-erasure and
+   replay blocking counts are zero. Require exact readiness v3 `READY`, one
+   in-window `backupRetentionPending`, `backupRetentionOverdue=0` and every
+   actual blocker zero on both source and replay databases. Keep the public
+   listener fixed at 503, public services at desired/running/pending zero and
+   every semantic task outside the public fleet.
 10. Assemble a draft exact `jsc-public-beta-restore-drill-evidence.v1` record. It
    must bind the candidate Document Store revision, OpenAPI SHA-256 and image
    digest, canary source-evidence/marker hashes, completed RDS/S3 jobs,
@@ -208,7 +226,17 @@ the live account.
     successful cleanup, finalise and review/sign the evidence with
     `cleanupStatus=COMPLETED` and retain its signed evidence reference. Never
     silently edit an already signed pending-status record; issue a new reviewed
-    completion record.
+    completion record. Cleanup retains the permanent tagged SSM tombstone and
+    synthetic locked journal version so the operation namespace cannot be
+    reused.
+
+    Supply the semantic-start run ID whenever semantic verification was
+    started. It may be omitted only to clean a restore for which that path was
+    never launched: the cleanup guard must prove the deterministic execution
+    and marker absent, no drill-tagged semantic/broker task or ENI, and both
+    exact restore jobs terminal and still bound to their approved recovery
+    points, role and destinations. Otherwise it refuses deletion; it never
+    creates an immutable journal entry solely to make cleanup possible.
 12. Hash the final reviewed evidence bytes into
     `documentStorePermanentErasure.restoreDrillEvidenceSha256`, set
     `isolatedRestoreReplayVerified=true`, and supply the same bytes as protected

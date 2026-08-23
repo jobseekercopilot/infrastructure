@@ -30,6 +30,7 @@ case "$purpose" in
   release-preflight) task_definition=$(jq -er '.release_preflight_task_definition' <<<"$contract") ;;
   restore-source-canary-prepare|restore-source-canary-verify)
     task_definition=$(jq -er '.restore_source_canary_task_definition' <<<"$contract")
+    security_group=$(jq -er '.restore_source_canary_security_group' <<<"$contract")
     ;;
 esac
 
