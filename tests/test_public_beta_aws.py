@@ -1706,11 +1706,11 @@ class PublicBetaAwsContractTest(unittest.TestCase):
                     "openApiSha256": "8321009c305d2d22986224e366df6f0b451c1b5587d05dd0ec4876441e09d7ff",
                 },
                 "locationService": {
-                    "revision": "91857140c71bfda8b807c535272f918fe7741263",
-                    "openApiSha256": "cd74fbf278c710a2782bbbe6473f9f708a19b6dd9329f42927ce302bb53f5f6b",
+                    "revision": "4d8d09a79018c3f281cfead84348d14ed84be851",
+                    "openApiSha256": "0cd7a877836dfbf1a42b5f71e0a807ec8dc99f88d69a695d7c5734e320cdef27",
                 },
                 "locationGateway": {
-                    "revision": "777ec7e8885fcb07368e05ad2543181e4ef7a891",
+                    "revision": "86b2805c8430ede14a53a7320b87f0eeb2797b17",
                     "openApiSha256": "30d71d6b2508c7cbd452b522c30c26bfa7a571e1f1ebcda979008422db469cfc",
                 },
             },
@@ -1725,6 +1725,10 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             {name: locked_revisions[name] for name in (
                 "authentication-service",
                 "user-management-gateway",
+                "location-gateway",
+                "location-service",
+                "llm-gateway",
+                "document-store-service",
                 "document-generation-gateway",
                 "payment-service",
                 "payment-gateway",
@@ -1736,12 +1740,16 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             {
                 "authentication-service": "369e4bd96957dd22f254ae2c61d7a84744ac8d12",
                 "user-management-gateway": "a5b2e064a8b9e082378a94603467773dd97349e8",
+                "location-gateway": "86b2805c8430ede14a53a7320b87f0eeb2797b17",
+                "location-service": "4d8d09a79018c3f281cfead84348d14ed84be851",
+                "llm-gateway": "d84427061766244ec10e367fb3a7a6587809612c",
+                "document-store-service": "eb6b7890c2328e1768bffddfd1824f6fe309d560",
                 "document-generation-gateway": "e15784c7098d327835e2a7d14dd257c1b95b08bd",
                 "payment-service": "baeec9aa8da1285a2406900c9550773ac3841af7",
                 "payment-gateway": "ab721f1b4377ba250d33b99a1690cb1abd96b864",
                 "stripe-gateway": "18a831025c916b209ff0e9038b608a53b7efd452",
                 "system-data-service": "2b2bd1fdb87036baf3186c88b854b39cef2abc96",
-                "job-seeker-copilot-client": "3cdb1dec9f6a8b78dbf4c576fdc960ff00aa111a",
+                "job-seeker-copilot-client": "5e923c815e585e433573f50ba0395e71302785ca",
                 "e2e": "9eaf0d3330f9593554a6197ccd934d0e0f255626",
             },
         )
@@ -1792,7 +1800,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         self.assertFalse(images["capabilities"]["frontendArtifactsVerified"])
         self.assertEqual(images["dependencyEvidence"]["frontendArtifacts"], {
             "client": {
-                "revision": "3cdb1dec9f6a8b78dbf4c576fdc960ff00aa111a",
+                "revision": "5e923c815e585e433573f50ba0395e71302785ca",
                 "artifactContractSha256": "801fab5beb7ea81798677086ef00a94759294a1e85915f74da843632de2c6f75",
                 "packaging": "OCI_SSR_BFF",
             },

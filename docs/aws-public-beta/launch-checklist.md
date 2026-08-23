@@ -28,12 +28,18 @@ Terraform plan or AWS credit award alone is not launch approval.
 - [ ] `develop` has the tested landing, application, service and infrastructure
       changes; each reviewed release was subsequently promoted to `main`.
 - [ ] `config/workspace-lock.json` pins every exact `main` revision used by the
-      immutable build, including every mandatory dependency revision.
+      immutable build, including Location Service
+      `4d8d09a79018c3f281cfead84348d14ed84be851`, Location Gateway
+      `86b2805c8430ede14a53a7320b87f0eeb2797b17`, LLM Gateway
+      `d84427061766244ec10e367fb3a7a6587809612c` and Client
+      `5e923c815e585e433573f50ba0395e71302785ca`.
 - [ ] The release ID/build run/image manifest and reviewer are recorded.
 - [ ] The pinned Client/Landing source revisions and artifact-contract checksums
       are ancestors of protected `main`; the protected build replaced only the
       generated Landing static/runtime-config/SAM `PENDING` hashes. Client is
-      the complete SSR/BFF OCI image; Landing is still explicitly `NOT_DEPLOYED`.
+      the complete SSR/BFF OCI image; its legal artifact is SHA-256
+      `040e208e49e9b12d8504fc3fe2b4f9ccd864f6a0d209475b77881e8b44b77b30`.
+      Landing is still explicitly `NOT_DEPLOYED`.
 
 ## Account, identity and supply chain
 
@@ -119,9 +125,12 @@ Terraform plan or AWS credit award alone is not launch approval.
       built runtime image.
 - [ ] `postcode-io-gateway` contains
       `f5588e5b0a2ca9e63319674f4b6cd40048b9e0fb` (or a descendant), and that
-      dependency, Location Service `91857140c71bfda8b807c535272f918fe7741263`,
-      Location Gateway `777ec7e8885fcb07368e05ad2543181e4ef7a891` and all
-      three exported OpenAPI hashes are recorded in the image manifest;
+      dependency, Location Service `4d8d09a79018c3f281cfead84348d14ed84be851`,
+      Location Gateway `86b2805c8430ede14a53a7320b87f0eeb2797b17` and all
+      three exported OpenAPI hashes are recorded in the image manifest. The
+      Location Service and Gateway hashes are respectively
+      `0cd7a877836dfbf1a42b5f71e0a807ec8dc99f88d69a695d7c5734e320cdef27`
+      and `30d71d6b2508c7cbd452b522c30c26bfa7a571e1f1ebcda979008422db469cfc`;
       `POSTCODES_IO_NORTHERN_IRELAND_ENABLED=false` rejects
       full/outward `BT` lookups before any cache/provider/network call. Enabling
       it has a separately completed `postcodes_ni` approval.
@@ -252,9 +261,10 @@ Terraform plan or AWS credit award alone is not launch approval.
 - [ ] At least one useful job provider is approved. Reed, Adzuna and JSearch
       remain disabled without written commercial display/cache/quota approval;
       NHS Jobs and DfE apprenticeships have independent decisions.
-- [ ] OpenAI has a current model/pricing decision, EU/privacy control record,
-      owner, cost/request ceilings and secret; no user data is sent until it
-      passes.
+- [ ] OpenAI has a current model/pricing decision, a reviewed `GLOBAL` /
+      `STANDARD_30_DAY_ABUSE_MONITORING` privacy-control record with data
+      sharing disabled, separate completed/due review dates, owner,
+      cost/request ceilings and secret; no user data is sent until it passes.
 - [ ] Google Maps remains disabled unless a named GCP project, separate program/
       billing decision, exact per-SKU quota IDs and daily limits, attribution/
       privacy decision and `googleBillingQuotasVerified=true` evidence are all
