@@ -350,13 +350,15 @@ for _attempt in {1..15}; do
   [[ "$(docker inspect --format '{{.State.Running}}' "$stripe_probe")" == "false" ]] && break
   sleep 2
 done
+stripe_fixture_logs=$(docker logs "$stripe_probe" 2>&1)
 if [[ "$(docker inspect --format '{{.State.Running}}' "$stripe_probe")" != "false" ]] ||
    [[ "$(docker inspect --format '{{.State.ExitCode}}' "$stripe_probe")" -eq 0 ]] ||
-   ! docker logs "$stripe_probe" 2>&1 | grep -Fq 'cannot start in FIXTURE mode with a production profile'; then
-  docker logs "$stripe_probe" >&2
+   ! grep -Fq 'cannot start in FIXTURE mode with a production profile' <<<"$stripe_fixture_logs"; then
+  printf '%s\n' "$stripe_fixture_logs" >&2
   echo "Stripe exact image did not reject production-profile FIXTURE startup." >&2
   exit 3
 fi
+unset stripe_fixture_logs
 cleanup_stripe_probe
 stripe_probe=
 

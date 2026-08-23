@@ -1258,6 +1258,12 @@ class PublicBetaAwsContractTest(unittest.TestCase):
 
         build = (ROOT / "scripts" / "aws" / "build_release_images.sh").read_text(encoding="utf-8")
         self.assertIn("did not reject production-profile FIXTURE startup", build)
+        self.assertIn('stripe_fixture_logs=$(docker logs "$stripe_probe" 2>&1)', build)
+        self.assertIn(
+            "grep -Fq 'cannot start in FIXTURE mode with a production profile' <<<\"$stripe_fixture_logs\"",
+            build,
+        )
+        self.assertNotIn('docker logs "$stripe_probe" 2>&1 | grep -Fq', build)
         self.assertIn("fixture payment-control route was present", build)
         self.assertIn("mode-conditional fixture control/provider bean was active", build)
         self.assertIn(".capabilities.stripeFixtureProductionIsolationVerified=true", build)
