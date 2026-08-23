@@ -1640,8 +1640,8 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
 
-        today = module.datetime.date.today()
         reviewed_at = module.datetime.datetime.now(module.datetime.timezone.utc).replace(microsecond=0)
+        today = reviewed_at.date()
         approvals = json.loads(
             (ROOT / "aws" / "public-beta" / "config" / "launch-approvals.json").read_text(encoding="utf-8")
         )
@@ -1931,8 +1931,8 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             {
                 "authentication-service": "369e4bd96957dd22f254ae2c61d7a84744ac8d12",
                 "user-management-gateway": "a5b2e064a8b9e082378a94603467773dd97349e8",
-                "location-gateway": "86b2805c8430ede14a53a7320b87f0eeb2797b17",
-                "location-service": "4d8d09a79018c3f281cfead84348d14ed84be851",
+                "location-gateway": "5acacb705bd8b4870ed33e24315b23c5df244132",
+                "location-service": "61800aef96b10a5e9d8d40503f9975a18c900025",
                 "llm-gateway": "d84427061766244ec10e367fb3a7a6587809612c",
                 "document-store-service": "159f75701654d5e0a951f0546cf1583e993a9b47",
                 "document-generation-gateway": "e15784c7098d327835e2a7d14dd257c1b95b08bd",
