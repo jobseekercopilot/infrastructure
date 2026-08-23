@@ -117,6 +117,67 @@ resource "aws_lb_target_group" "stripe" {
   lifecycle { create_before_destroy = true }
 }
 
+# ECS requires every target group named on CreateService to already be
+# associated with a load balancer, including when desired_count is zero. Keep
+# that control-plane association separate from the public listeners so the
+# dark foundation can create both services without making either route public.
+#
+# The ALB security group intentionally has no ingress for this listener port.
+# The TEST-NET-1 source conditions provide a second fail-closed boundary if a
+# later security-group edit is proposed accidentally. Listener/rule resources
+# do not add an hourly charge to the already-reviewed ALB shape, and retaining
+# them across activation/darkening prevents an association ordering race.
+resource "aws_lb_listener" "dark_target_group_association" {
+  load_balancer_arn = aws_lb.app.arn
+  port              = 65535
+  protocol          = "HTTP"
+
+  default_action {
+    type = "fixed-response"
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "Not a public listener."
+      status_code  = "503"
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "dark_frontend_association" {
+  listener_arn = aws_lb_listener.dark_target_group_association.arn
+  priority     = 49998
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.frontend.arn
+  }
+
+  condition {
+    source_ip { values = ["192.0.2.0/24"] }
+  }
+
+  condition {
+    host_header { values = ["frontend.dark-association.invalid"] }
+  }
+}
+
+resource "aws_lb_listener_rule" "dark_stripe_association" {
+  listener_arn = aws_lb_listener.dark_target_group_association.arn
+  priority     = 49999
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.stripe.arn
+  }
+
+  condition {
+    source_ip { values = ["192.0.2.0/24"] }
+  }
+
+  condition {
+    host_header { values = ["stripe.dark-association.invalid"] }
+  }
+}
+
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.app.arn
   port              = 80
