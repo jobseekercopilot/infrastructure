@@ -61,6 +61,26 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         self.assertIn("-var=application_desired_count=1", offline_plan)
         self.assertIn("-var=public_entrypoint_enabled=true", offline_plan)
         self.assertIn("fully approved activation topology passed", offline_plan)
+        offline_verifier = (ROOT / "scripts" / "aws" / "verify_offline_activation_plan.py").read_text(
+            encoding="utf-8"
+        )
+        for semantic_role in (
+            "jsc-public-beta-restore-semantic-broker-task",
+            "jsc-public-beta-restore-semantic-state-machine",
+        ):
+            self.assertIn(
+                f'"{semantic_role}": "arn:aws:iam::000000000000:policy/'
+                'jsc-public-beta-restore-semantic-broker-boundary"',
+                offline_verifier,
+            )
+        for journal_policy_owner in (
+            "aws_iam_role_policy.document_store",
+            "aws_iam_role_policy.restore_semantic_document_store_journal",
+            "aws_iam_role_policy.restore_semantic_verifier",
+        ):
+            self.assertIn(f'"{journal_policy_owner}"', offline_verifier)
+        self.assertIn("permanent-erasures/v1/7e57c0de-*", offline_verifier)
+        self.assertIn("erasure-journal data-plane IAM owner set differs", offline_verifier)
 
     def test_offline_activation_harness_cannot_run_on_main_with_live_credentials_or_backend(self) -> None:
         harness = ROOT / "scripts" / "aws" / "offline_terraform_plan.sh"
@@ -306,6 +326,19 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             valid = subprocess.run(command, env=command_environment, check=False, capture_output=True, text=True)
             self.assertEqual(valid.returncode, 0, valid.stderr)
 
+            environment["name"] = "production-aws-restore-observe"
+            command_environment["ENVIRONMENT_JSON"] = json.dumps(environment)
+            observe_allowed = subprocess.run(
+                [
+                    "bash", str(guard), "jobseekercopilot/infrastructure",
+                    "production-aws-restore-observe", "jobseekercopilot", "jobseekercopilot",
+                ],
+                env=command_environment, check=False, capture_output=True, text=True,
+            )
+            self.assertEqual(observe_allowed.returncode, 0, observe_allowed.stderr)
+            environment["name"] = "production-build"
+            command_environment["ENVIRONMENT_JSON"] = json.dumps(environment)
+
             wrong_actor = subprocess.run(
                 [*command[:-1], "another-user"],
                 env=command_environment, check=False, capture_output=True, text=True,
@@ -345,6 +378,9 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             ("aws-public-beta-release.yml", "production-aws"),
             ("aws-public-beta-restore-drill.yml", "production-aws-restore"),
             ("aws-public-beta-restore-drill.yml", "production-aws-restore-cleanup"),
+            ("aws-public-beta-restore-semantic.yml", "production-aws-restore"),
+            ("aws-public-beta-restore-semantic.yml", "production-aws-restore-observe"),
+            ("aws-public-beta-restore-semantic.yml", "production-aws-restore-cleanup"),
         ):
             workflow = (ROOT / ".github" / "workflows" / workflow_name).read_text(encoding="utf-8")
             self.assertIn(
@@ -355,7 +391,20 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         build = (ROOT / ".github" / "workflows" / "aws-public-beta-build.yml").read_text(encoding="utf-8")
         self.assertGreaterEqual(build.count("actions: read"), 2)
         guard_source = guard.read_text(encoding="utf-8")
-        self.assertIn("aws-restore|aws-restore-cleanup", guard_source)
+        self.assertIn("aws-restore|aws-restore-cleanup|aws-restore-observe", guard_source)
+
+        restore_drill = (ROOT / ".github" / "workflows" / "aws-public-beta-restore-drill.yml").read_text(
+            encoding="utf-8"
+        )
+        restore_semantic = (
+            ROOT / ".github" / "workflows" / "aws-public-beta-restore-semantic.yml"
+        ).read_text(encoding="utf-8")
+        self.assertIn("group: jsc-public-beta-aws-mutation", restore_drill)
+        self.assertIn("group: jsc-public-beta-aws-mutation", restore_semantic)
+        publish_job = build.split("\n  publish:\n", maxsplit=1)[1].split("\n  promote:\n", maxsplit=1)[0]
+        self.assertIn("group: jsc-public-beta-aws-mutation", publish_job)
+        self.assertNotIn("group: jsc-public-beta-restore-drill", restore_drill)
+        self.assertNotIn("group: jsc-public-beta-restore-semantic", restore_semantic)
 
     def test_bootstrap_apply_role_cannot_escalate_or_mutate_unrelated_resources(self) -> None:
         class CloudFormationLoader(yaml.SafeLoader):
@@ -444,6 +493,9 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             "BackupRestoreWorkloadBoundary": (
                 "arn:aws:iam::123456789012:policy/jsc-public-beta-backup-restore-boundary"
             ),
+            "RestoreSemanticBrokerPermissionsBoundary": (
+                "arn:aws:iam::123456789012:policy/jsc-public-beta-restore-semantic-broker-boundary"
+            ),
         }
 
         def render_policy_value(value):
@@ -483,6 +535,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         for boundary_name in (
             "WorkloadPermissionsBoundary", "RdsMonitoringPermissionsBoundary",
             "BackupWorkloadBoundary", "BackupRestoreWorkloadBoundary",
+            "RestoreSemanticBrokerPermissionsBoundary",
         ):
             document = resources[boundary_name]["Properties"]["PolicyDocument"]
             self.assertLessEqual(
@@ -784,7 +837,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         boundary_statements = resources["WorkloadPermissionsBoundary"]["Properties"]["PolicyDocument"]["Statement"]
         boundary_by_sid = {statement["Sid"]: statement for statement in boundary_statements}
         self.assertEqual(
-            boundary_by_sid["UseOnlyFoundationPublicBetaDataKey"]["Resource"],
+            boundary_by_sid["FoundationDataKey"]["Resource"],
             "ApplicationDataKey.Arn",
         )
         self.assertTrue(all(
@@ -792,24 +845,25 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             or "jsc-public-beta-documents-${AWS::AccountId}" in arn
             for arn in boundary_by_sid["PublicBetaBucketsOnly"]["Resource"]
         ))
+        self.assertIn("s3:GetBucketVersioning", boundary_by_sid["PublicBetaBucketsOnly"]["Action"])
         self.assertEqual(
-            boundary_by_sid["WriteOnlyImmutableErasureJournalRecords"]["Action"],
+            boundary_by_sid["ImmutableJournalWrite"]["Action"],
             "s3:PutObject",
         )
         self.assertIn(
             "/permanent-erasures/v1/*",
-            boundary_by_sid["WriteOnlyImmutableErasureJournalRecords"]["Resource"],
+            boundary_by_sid["ImmutableJournalWrite"]["Resource"],
         )
         self.assertEqual(
-            set(boundary_by_sid["ReadOnlyBoundErasureJournalRecords"]["Action"]),
+            set(boundary_by_sid["BoundJournalRead"]["Action"]),
             {"s3:GetObject", "s3:GetObjectVersion"},
         )
         self.assertEqual(
-            set(boundary_by_sid["UseOnlyErasureJournalKeyThroughS3"]["Action"]),
+            set(boundary_by_sid["JournalKmsThroughS3"]["Action"]),
             {"kms:Decrypt", "kms:GenerateDataKey"},
         )
         self.assertEqual(
-            boundary_by_sid["UseOnlyErasureJournalKeyThroughS3"]["Resource"],
+            boundary_by_sid["JournalKmsThroughS3"]["Resource"],
             "ErasureJournalKey.Arn",
         )
         for foundation_name in (
@@ -857,18 +911,49 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             self.assertNotIn(foundation_resource, terraform_source)
         self.assertIn("var.foundation_data_kms_key_arn", terraform_source)
         self.assertIn("var.foundation_backup_plan_id", terraform_source)
-        role_count = len(re.findall(r'^resource "aws_iam_role"', terraform_source, flags=re.MULTILINE))
+        role_boundaries = {}
+        for role_name, role_body in re.findall(
+            r'^resource "aws_iam_role" "([^"]+)" \{(.*?)(?=^resource |\Z)',
+            terraform_source,
+            flags=re.MULTILINE | re.DOTALL,
+        ):
+            boundary_match = re.search(r'permissions_boundary\s*=\s*"([^"]+)"', role_body)
+            self.assertIsNotNone(boundary_match, f"{role_name} has no permissions boundary")
+            role_boundaries[role_name] = boundary_match.group(1)
+        exceptional_boundaries = {
+            "backup": "jsc-public-beta-backup-boundary",
+            "backup_restore": "jsc-public-beta-backup-restore-boundary",
+            "rds_monitoring": "jsc-public-beta-rds-monitoring-boundary",
+            "restore_semantic_broker_task": "jsc-public-beta-restore-semantic-broker-boundary",
+            "restore_semantic_state_machine": "jsc-public-beta-restore-semantic-broker-boundary",
+        }
         self.assertEqual(
-            terraform_source.count(
-                'permissions_boundary = "arn:aws:iam::${var.aws_account_id}:policy/jsc-public-beta-workload-boundary"'
-            ),
-            role_count - 3,
+            {
+                name: boundary.rsplit("/", maxsplit=1)[-1]
+                for name, boundary in role_boundaries.items()
+                if not boundary.endswith("/jsc-public-beta-workload-boundary")
+            },
+            exceptional_boundaries,
+        )
+        self.assertTrue(
+            all(
+                boundary.endswith("/jsc-public-beta-workload-boundary")
+                for name, boundary in role_boundaries.items()
+                if name not in exceptional_boundaries
+            )
         )
         self.assertEqual(terraform_source.count("jsc-public-beta-rds-monitoring-boundary"), 1)
         self.assertEqual(terraform_source.count("jsc-public-beta-backup-boundary"), 1)
         self.assertEqual(terraform_source.count("jsc-public-beta-backup-restore-boundary"), 1)
+        self.assertEqual(terraform_source.count("jsc-public-beta-restore-semantic-broker-boundary"), 2)
         self.assertNotIn("jsc-public-beta-erasure-journal-read-boundary", terraform_source)
         release = (ROOT / ".github" / "workflows" / "aws-public-beta-release.yml").read_text(encoding="utf-8")
+        self.assertEqual(release.count("group: jsc-public-beta-aws-mutation"), 1)
+        mutate_job = release.split("\n  mutate:\n", maxsplit=1)[1]
+        self.assertIn(
+            "    concurrency:\n      group: jsc-public-beta-aws-mutation\n      cancel-in-progress: false",
+            mutate_job,
+        )
         self.assertIn('test "$build_sha" = "$GITHUB_SHA"', release)
         self.assertEqual(release.count("Validate release contract before assuming AWS"), 2)
         self.assertEqual(release.count("verify_frontend_release_artifact.sh"), 2)
@@ -1433,7 +1518,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         erasure_evidence = image_manifest["dependencyEvidence"]["documentStorePermanentErasure"]
         self.assertEqual(
             erasure_evidence["revision"],
-            "86e40b2797afc2c4b9edc1ebe969a4e7249c3d6a",
+            "159f75701654d5e0a951f0546cf1583e993a9b47",
         )
         self.assertEqual(
             erasure_evidence["openApiSha256"],
@@ -1466,7 +1551,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         compute = (ROOT / "aws" / "public-beta" / "compute.tf").read_text(encoding="utf-8")
         journal_policy = compute.split(
             'sid     = "WriteOnlyImmutableErasureJournalRecords"', maxsplit=1
-        )[1].split('resource "aws_iam_role_policy" "document_store"', maxsplit=1)[0]
+        )[1].split('data "aws_iam_policy_document" "document_store"', maxsplit=1)[0]
         self.assertIn("permanent-erasures/v1/*", journal_policy)
         for action in ("s3:PutObject", "s3:GetObject", "s3:GetObjectVersion", "kms:GenerateDataKey", "kms:Decrypt"):
             self.assertIn(action, journal_policy)
@@ -1757,7 +1842,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
                 "location-gateway": "86b2805c8430ede14a53a7320b87f0eeb2797b17",
                 "location-service": "4d8d09a79018c3f281cfead84348d14ed84be851",
                 "llm-gateway": "d84427061766244ec10e367fb3a7a6587809612c",
-                "document-store-service": "86e40b2797afc2c4b9edc1ebe969a4e7249c3d6a",
+                "document-store-service": "159f75701654d5e0a951f0546cf1583e993a9b47",
                 "document-generation-gateway": "e15784c7098d327835e2a7d14dd257c1b95b08bd",
                 "payment-service": "baeec9aa8da1285a2406900c9550773ac3841af7",
                 "payment-gateway": "ab721f1b4377ba250d33b99a1690cb1abd96b864",

@@ -49,16 +49,17 @@ step.
    operations topic, Backup vault/plan, reviewed ECS AMI input and Cost Anomaly
    controls listed in the bootstrap README. These foundation resources are
    deliberately outside routine Apply authority.
-5. Execute the approved change set manually. Record the outputs in the five
+5. Execute the approved change set manually. Record the outputs in the six
    GitHub environments described in the bootstrap README. For an existing
    bootstrap stack, the restore roles/outputs require a reviewed `UPDATE`
    change set; a repository merge does not create them.
 6. Protect `production-build`, `production-aws-plan`, `production-aws`,
-   `production-aws-restore` and `production-aws-restore-cleanup` for `main`
-   only and disable administrator bypass. The current private-repository plan
+   `production-aws-restore`, `production-aws-restore-observe` and
+   `production-aws-restore-cleanup` for `main` only and disable administrator
+   bypass. The current private-repository plan
    returns HTTP 422 for required reviewers, so the approved sole-operator
    fallback requires `jobseekercopilot` to be the workflow actor before OIDC is
-   issued. Record all five API-visible settings and the plan limitation in the
+   issued. Record all six API-visible settings and the plan limitation in the
    signed `githubEnvironmentProtection` approval block.
 7. Request/validate the exact `app.<domain>` ACM certificate through the
    separately reviewed account process and record its eu-west-2 ARN as
@@ -255,11 +256,15 @@ digests without rebuilding or calling AWS.
    remains exact. Any failure while the temporary private fleet is starting,
    migrating or seeding triggers an `always()` containment step that keeps the
    edge fixed `503` and drains every application/scanner service.
-3. Separately provision/review the dedicated no-ingress restore security group
-   and verify both restore GitHub environments and their exact bootstrap role
-   variables. Take the two recovery-point ARNs only from that successful source
-   evidence. RDS uses the live native `arn:aws:rds:...:snapshot:awsbackup:job-*`
-   shape; S3 uses `arn:aws:backup:...:recovery-point:*`.
+3. Apply and review the Terraform-owned restore database, semantic child and
+   broker security groups before the drill. Their rules are static: the restored
+   database accepts only PostgreSQL from the semantic group; semantic tasks have
+   only that database path, exact S3 gateway-prefix HTTPS, VPC DNS and same-group
+   port 8089; the secret-free broker has control-plane HTTPS and DNS. Verify the
+   three restore GitHub environments and exact bootstrap role variables. Take
+   the recovery-point ARNs only from successful source evidence. RDS uses the
+   native `arn:aws:rds:...:snapshot:awsbackup:job-*` shape; S3 uses
+   `arn:aws:backup:...:recovery-point:*`.
 4. From the same unchanged `main`, dispatch `AWS Public Beta Isolated Restore
    Drill` with `action=start`, the exact candidate run/release IDs, source
    preparation run/canary IDs, its exact paired recovery points, and
@@ -272,40 +277,93 @@ digests without rebuilding or calling AWS.
    Because RDS restores inherit source tags, start first establishes the five
    canonical drill tags, removes only the five measured production-only keys,
    and rejects any other unexpected non-AWS key before exact verification.
-5. Complete the residual live work that the workflow intentionally cannot
-   claim: provide an audited ephemeral verification path, run the exact
-   candidate image, first verify the exact canary marker/row in all seven
-   databases and exactly two restored canary generations by payload/checksum
-   under their newly assigned destination VersionIds (source VersionIds are not
-   preserved), then verify domain/document/payment
-   invariants, read the external erasure journal and replay exact erasures.
-   Require readiness schema v3 with all journal/live/replay blockers and
-   `backupRetentionOverdue` at zero. `backupRetentionPending` may be a
-   non-negative informational count for erasures still within the 35-day
-   recovery window.
+5. Obtain explicit owner approval for the drill's retained synthetic Object
+   Lock journal record, then dispatch `AWS Public Beta Restore Semantic
+   Verification` with `action=start`, the exact restore-start run ID and
+   `START RESTORE SEMANTIC VERIFICATION <drill-id>`. The protected start role can
+   only start/describe the exact bounded Standard state machine; it has no
+   `ecs:RunTask`, `iam:PassRole` or stop authority. The state machine fixes the
+   secret-free broker task revision, private subnets, broker security group,
+   roles, command and tags. The broker in turn fixes every child task revision,
+   role, command, synthetic credential, tag and semantic security group. It
+   verifies no semantic ENI exists before launch, clones restored
+   `document_store` while quiescent, and runs the exact candidate image against
+   the restored source database and its pre-operation clone. A durable tagged
+   SSM tombstone reserves the drill/operation namespace; never delete or reuse
+   it. Failed bounded attempts may be redriven only with the same exact input,
+   and every prior child must be stopped before the next attempt. The start job
+   holds the shared `jsc-public-beta-aws-mutation` concurrency group until the
+   Standard execution reaches a bounded terminal or explicit redrive state. An
+   administrator-triggered Step Functions redrive outlives that GitHub lock;
+   while it is active, do not dispatch any production release, restore or
+   cleanup mutation. Resume only after the redrive is terminal and exact task
+   containment has been proved. Redrive never reclones after the immutable
+   operation identity has been used: it permits only an untouched clone, the
+   exact same source operation with an untouched clone, or the exact same
+   canonical source/replay pair. Both APIs and their idempotent retries run
+   again and must retain one journal version; extra rows/scopes/requests or any
+   changed operation, replay or journal binding fail closed.
+
+   After the Standard execution is terminal, dispatch the same workflow with
+   `action=observe`, its successful semantic-start run ID and
+   `OBSERVE RESTORE SEMANTIC VERIFICATION <drill-id>`. The separate read-only
+   observer binds the stopped broker/child tasks, exact task definitions,
+   images, roles, static network, restore jobs/destinations and broker-issued
+   `RunTask` CloudTrail requests. It requires the source canary in all seven
+   databases and exactly two restored destination versions with new distinct
+   VersionIds, zero delete markers and exact generation metadata, sizes and
+   payload SHA-256 values. It then validates empty-bootstrap domain/payment
+   invariants and the real application-path synthetic empty-scope erasure:
+   exactly one immutable journal version across source retry, absent-operation
+   reconstruction from the pre-operation clone, replay retry, and readiness v3
+   `READY` with one in-window `backupRetentionPending`, zero overdue and zero
+   actual blockers. This proves non-customer journal write/read/reconstruction
+   and restored-canary version integrity. It does **not** claim customer object
+   erasure, customer metadata/object mapping or aggregate Document Store object
+   health; liveness, startup and Flyway are the only health claims.
 6. Assemble a draft exact `jsc-public-beta-restore-drill-evidence.v1` record. It
    binds the candidate Document Store revision, OpenAPI SHA-256 and image
    digest, same-window completed jobs, isolation and all-version S3 controls,
    the source-evidence/marker hashes, seven-database, source-two-version and
-   restored-two-generation counts, zero restored delete markers, verified generation payloads and
-   `sourceVersionIdsPreserved=false`,
-   semantic verification, replay/readiness results, RPO/RTO timing, reviewer,
+   restored-two-generation counts, zero restored delete markers, verified
+   generation payloads and `sourceVersionIdsPreserved=false`, the explicit
+   synthetic/non-customer scope limitations and independently observed
+   broker/runtime/network bindings, semantic verification, replay/readiness
+   results, RPO/RTO timing, reviewer,
    evidence reference and truthful cleanup status. The workflow does not
    assemble or sign this record; retain the supporting material outside
    customer payloads and use `PENDING_SEPARATE_APPROVAL` until cleanup succeeds.
    Pairing is measured from recovery-point creation/start timestamps (maximum
    ten minutes), not completion timestamps; each job still has its own eight-hour
    completion bound.
-7. Preserve the evidence, then dispatch cleanup separately through
-   `production-aws-restore-cleanup` with `action=cleanup` and
+7. Preserve the evidence. If containment must be repeated before deletion,
+   dispatch `AWS Public Beta Restore Semantic Verification` with
+   `action=contain` and `CONTAIN RESTORE SEMANTIC VERIFICATION <drill-id>`.
+   The cleanup identity cannot stop the Standard execution: it refuses until
+   the exact execution is terminal, then stops and proves zero exact pending or
+   running broker/child tasks. Next dispatch the isolated restore workflow
+   through `production-aws-restore-cleanup` with `action=cleanup`, the exact
+   semantic-start run ID and
    `DELETE ISOLATED RESTORE DRILL <drill-id>`. This deletion-only path removes
    the exact drill RDS target plus every S3 object version/delete marker and the
    exact bucket. `observe`, evidence validation and a later release build do not
    perform cleanup. If evidence was signed while
    `cleanupStatus=PENDING_SEPARATE_APPROVAL`, keep that residual live action
-   tracked until a new reviewed completion record exists. After successful
-   deletion, finalise and review/sign the evidence with
+   tracked until a new reviewed completion record exists. Cleanup retains both
+   the durable SSM tombstone and the synthetic locked journal version; their
+   retention is intentional namespace/provenance protection, not an incomplete
+   ephemeral-resource cleanup. After successful deletion, finalise and
+   review/sign the evidence with
    `cleanupStatus=COMPLETED`; do not silently edit already signed bytes.
+
+   Omit the semantic-start run ID only if semantic verification was never
+   started. The workflow then proves the deterministic Standard execution and
+   permanent marker absent, zero drill-tagged broker/child tasks and ENIs, and
+   exact terminal bindings for both AWS Backup restore jobs before allowing
+   deletion. Any execution, marker, task or uncertain restore state fails
+   closed and requires the original semantic-start artifact. This path never
+   launches the synthetic immutable-journal operation merely to clean an
+   isolated restore.
 8. Hash the exact final reviewed evidence bytes. Update the protected approval
    to `isolatedRestoreReplayVerified=true` and set
    `restoreDrillEvidenceSha256` to that non-zero SHA-256; supply the same bytes

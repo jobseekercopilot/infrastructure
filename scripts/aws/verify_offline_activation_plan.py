@@ -376,6 +376,8 @@ def verify_activation_plan(plan: dict[str, Any], runtime: dict[str, Any]) -> Non
         "jsc-public-beta-rds-monitoring": "arn:aws:iam::000000000000:policy/jsc-public-beta-rds-monitoring-boundary",
         "jsc-public-beta-backup": "arn:aws:iam::000000000000:policy/jsc-public-beta-backup-boundary",
         "jsc-public-beta-backup-restore": "arn:aws:iam::000000000000:policy/jsc-public-beta-backup-restore-boundary",
+        "jsc-public-beta-restore-semantic-broker-task": "arn:aws:iam::000000000000:policy/jsc-public-beta-restore-semantic-broker-boundary",
+        "jsc-public-beta-restore-semantic-state-machine": "arn:aws:iam::000000000000:policy/jsc-public-beta-restore-semantic-broker-boundary",
     }
     iam_roles = [resource for resource in resources if resource.get("type") == "aws_iam_role"]
     require(iam_roles, "activation plan contains no IAM workload roles")
@@ -547,7 +549,15 @@ def verify_activation_plan(plan: dict[str, Any], runtime: dict[str, Any]) -> Non
         require(forbidden_name not in document_environment, f"production journal leaked {forbidden_name}")
 
     document_iam_value = one(resources, "aws_iam_role_policy.document_store").get("values", {}).get("policy")
+    journal_bucket_arn = "arn:aws:s3:::jsc-public-beta-erasure-journal-000000000000"
     journal_object_arn = "arn:aws:s3:::jsc-public-beta-erasure-journal-000000000000/permanent-erasures/v1/*"
+    reserved_journal_object_arn = (
+        "arn:aws:s3:::jsc-public-beta-erasure-journal-000000000000/"
+        "permanent-erasures/v1/7e57c0de-*"
+    )
+    journal_key_arn = (
+        "arn:aws:kms:eu-west-2:000000000000:key/11111111-1111-1111-1111-111111111111"
+    )
     if isinstance(document_iam_value, str):
         document_iam = json.loads(document_iam_value)
         document_iam_by_sid = {
@@ -560,10 +570,7 @@ def verify_activation_plan(plan: dict[str, Any], runtime: dict[str, Any]) -> Non
             and write_journal.get("Condition") == {
                 "StringEquals": {
                     "s3:x-amz-server-side-encryption": "aws:kms",
-                    "s3:x-amz-server-side-encryption-aws-kms-key-id": (
-                        "arn:aws:kms:eu-west-2:000000000000:key/"
-                        "11111111-1111-1111-1111-111111111111"
-                    ),
+                    "s3:x-amz-server-side-encryption-aws-kms-key-id": journal_key_arn,
                 },
             },
             "Document Store immutable-journal write permission is not exact",
@@ -578,12 +585,12 @@ def verify_activation_plan(plan: dict[str, Any], runtime: dict[str, Any]) -> Non
         require(
             set(journal_kms.get("Action", [])) == {"kms:Decrypt", "kms:GenerateDataKey"}
             and journal_kms.get("Resource")
-            == "arn:aws:kms:eu-west-2:000000000000:key/11111111-1111-1111-1111-111111111111"
+            == journal_key_arn
             and journal_kms.get("Condition", {}).get("StringEquals", {}).get("kms:ViaService")
             == "s3.eu-west-2.amazonaws.com"
             and journal_kms.get("Condition", {}).get("StringEquals", {}).get(
                 "kms:EncryptionContext:aws:s3:arn"
-            ) == "arn:aws:s3:::jsc-public-beta-erasure-journal-000000000000",
+            ) == journal_bucket_arn,
             "Document Store journal KMS permission is not S3/bucket constrained",
         )
     else:
@@ -593,18 +600,122 @@ def verify_activation_plan(plan: dict[str, Any], runtime: dict[str, Any]) -> Non
             and document_iam_change.get("after_unknown", {}).get("policy") is True,
             "Document Store task IAM policy is neither rendered nor a planned generated policy",
         )
+    semantic_iam_value = one(
+        resources, "aws_iam_role_policy.restore_semantic_document_store_journal"
+    ).get("values", {}).get("policy")
+    require(isinstance(semantic_iam_value, str), "semantic journal task policy did not render exactly")
+    semantic_iam = json.loads(semantic_iam_value)
+    semantic_iam_by_sid = {
+        statement.get("Sid"): statement for statement in semantic_iam.get("Statement", [])
+    }
+    require(
+        set(semantic_iam_by_sid) == {
+            "WriteOnlyImmutableErasureJournalRecords",
+            "ReadOnlyBoundErasureJournalRecords",
+            "UseOnlyErasureJournalKeyThroughS3",
+        },
+        "semantic journal task policy has an unexpected statement",
+    )
+    semantic_write = semantic_iam_by_sid["WriteOnlyImmutableErasureJournalRecords"]
+    require(
+        semantic_write.get("Effect") == "Allow"
+        and semantic_write.get("Action") == "s3:PutObject"
+        and semantic_write.get("Resource") == reserved_journal_object_arn
+        and semantic_write.get("Condition") == {
+            "StringEquals": {
+                "s3:x-amz-server-side-encryption": "aws:kms",
+                "s3:x-amz-server-side-encryption-aws-kms-key-id": journal_key_arn,
+            },
+        },
+        "semantic journal write is not exact and reserved-prefix-only",
+    )
+    semantic_read = semantic_iam_by_sid["ReadOnlyBoundErasureJournalRecords"]
+    require(
+        semantic_read.get("Effect") == "Allow"
+        and set(semantic_read.get("Action", [])) == {"s3:GetObject", "s3:GetObjectVersion"}
+        and semantic_read.get("Resource") == reserved_journal_object_arn,
+        "semantic journal read is not exact and reserved-prefix-only",
+    )
+    semantic_kms = semantic_iam_by_sid["UseOnlyErasureJournalKeyThroughS3"]
+    require(
+        semantic_kms.get("Effect") == "Allow"
+        and set(semantic_kms.get("Action", [])) == {"kms:Decrypt", "kms:GenerateDataKey"}
+        and semantic_kms.get("Resource") == journal_key_arn
+        and semantic_kms.get("Condition") == {
+            "StringEquals": {
+                "kms:EncryptionContext:aws:s3:arn": journal_bucket_arn,
+                "kms:ViaService": "s3.eu-west-2.amazonaws.com",
+            },
+        },
+        "semantic journal KMS permission is not exact and S3/bucket constrained",
+    )
+
+    verifier_iam_value = one(resources, "aws_iam_role_policy.restore_semantic_verifier").get(
+        "values", {}
+    ).get("policy")
+    require(isinstance(verifier_iam_value, str), "semantic observer task policy did not render exactly")
+    verifier_iam = json.loads(verifier_iam_value)
+    verifier_journal_by_sid = {
+        statement.get("Sid"): statement
+        for statement in verifier_iam.get("Statement", [])
+        if journal_bucket_arn in json.dumps(statement, sort_keys=True)
+    }
+    require(
+        set(verifier_journal_by_sid) == {
+            "ListOnlyExactErasureJournalRecord",
+            "ReadOnlyExactErasureJournalRecord",
+            "DecryptOnlyErasureJournalThroughS3",
+        },
+        "semantic observer journal access has an unexpected statement",
+    )
+    verifier_list = verifier_journal_by_sid["ListOnlyExactErasureJournalRecord"]
+    require(
+        verifier_list.get("Effect") == "Allow"
+        and verifier_list.get("Action") == "s3:ListBucketVersions"
+        and verifier_list.get("Resource") == journal_bucket_arn
+        and verifier_list.get("Condition") == {
+            "StringLike": {"s3:prefix": "permanent-erasures/v1/7e57c0de-*"},
+        },
+        "semantic observer journal listing is not exact and reserved-prefix-only",
+    )
+    verifier_read = verifier_journal_by_sid["ReadOnlyExactErasureJournalRecord"]
+    require(
+        verifier_read.get("Effect") == "Allow"
+        and set(verifier_read.get("Action", []))
+        == {"s3:GetObject", "s3:GetObjectRetention", "s3:GetObjectVersion"}
+        and verifier_read.get("Resource") == reserved_journal_object_arn,
+        "semantic observer journal read is not exact and reserved-prefix-only",
+    )
+    verifier_kms = verifier_journal_by_sid["DecryptOnlyErasureJournalThroughS3"]
+    require(
+        verifier_kms.get("Effect") == "Allow"
+        and verifier_kms.get("Action") == "kms:Decrypt"
+        and verifier_kms.get("Resource") == journal_key_arn
+        and verifier_kms.get("Condition") == {
+            "StringEquals": {
+                "kms:EncryptionContext:aws:s3:arn": journal_bucket_arn,
+                "kms:ViaService": "s3.eu-west-2.amazonaws.com",
+            },
+        },
+        "semantic observer journal KMS permission is not exact and S3/bucket constrained",
+    )
+
     journal_policy_owners = {
         resource.get("address")
         for resource in resources
         if resource.get("type") == "aws_iam_role_policy"
         and "jsc-public-beta-erasure-journal" in str(resource.get("values", {}).get("policy", ""))
     }
-    expected_journal_policy_owners = (
-        {"aws_iam_role_policy.document_store"} if isinstance(document_iam_value, str) else set()
-    )
+    expected_journal_policy_owners = {
+        "aws_iam_role_policy.restore_semantic_document_store_journal",
+        "aws_iam_role_policy.restore_semantic_verifier",
+    }
+    if isinstance(document_iam_value, str):
+        expected_journal_policy_owners.add("aws_iam_role_policy.document_store")
     require(
         journal_policy_owners == expected_journal_policy_owners,
-        "erasure-journal data-plane IAM leaked beyond the Document Store task",
+        "erasure-journal data-plane IAM owner set differs: "
+        f"expected {sorted(expected_journal_policy_owners)}, got {sorted(journal_policy_owners)}",
     )
 
     parameter_group = one(resources, "aws_db_parameter_group.postgres").get("values", {})

@@ -152,6 +152,9 @@ jobs:
   publish:
     needs: prepare
     if: github.ref == 'refs/heads/main' && inputs.purpose == 'restore-candidate'
+    concurrency:
+      group: jsc-public-beta-aws-mutation
+      cancel-in-progress: false
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     environment: production-build
@@ -243,7 +246,6 @@ jobs:
     environment: production-build
     permissions:
       actions: read
-      attestations: read
       contents: read
       id-token: write
       attestations: write

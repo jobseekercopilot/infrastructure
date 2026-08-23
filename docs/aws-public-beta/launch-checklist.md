@@ -64,18 +64,22 @@ Terraform plan or AWS credit award alone is not launch approval.
 - [ ] State bucket public-access block, versioning, KMS encryption and native
       lock file are verified; a state recovery exercise is recorded.
 - [ ] `production-build`, `production-aws-plan`, `production-aws`,
-      `production-aws-restore` and `production-aws-restore-cleanup` allow only
-      `main`, disable administrator bypass, and have no unsupported reviewer
-      rule. The paid reviewer control is unavailable for the current private
+      `production-aws-restore`, `production-aws-restore-observe` and
+      `production-aws-restore-cleanup` allow only `main`, disable administrator
+      bypass, and have no unsupported reviewer rule. The paid reviewer control
+      is unavailable for the current private
       repository plan; the explicitly approved fallback requires
       `jobseekercopilot` to be the workflow actor before OIDC is issued, in
       addition to the exact manual confirmation phrase.
 - [ ] The manually executed bootstrap change set exposes the plan, build,
-      apply, restore-initiator and restore-cleanup role outputs. Each protected
+      apply, restore-initiator, semantic start, semantic read-only observer and
+      restore-cleanup role outputs. Each protected
       environment has only its matching role ARN and required non-secret
       inputs; there are no static AWS access keys in GitHub or tasks. The
-      restore initiator can start/observe but not delete, the cleanup role can
-      delete exact drill resources but not start, and only the boundary-
+      restore initiator can start/observe AWS Backup but not delete, semantic
+      start can only start/describe the fixed Standard state machine, semantic
+      observe is read-only, the cleanup role can delete exact drill resources
+      but cannot stop the state machine or start a restore, and only the boundary-
       constrained `jsc-public-beta-backup-restore` service role is passed to
       AWS Backup.
 - [ ] The source-build job has no OIDC permission/AWS credentials; only the
@@ -216,9 +220,18 @@ Terraform plan or AWS credit award alone is not launch approval.
       exact start artifact, sources, vault, restore role and destinations and
       stripped only the measured inherited RDS production-only tags before
       verifying the exact five drill ownership/cost tags and destination controls.
-      Separately reviewed ephemeral application,
-      seven-database, domain/payment, document-integrity and erasure-replay
-      verification supplied the remaining RPO/RTO evidence.
+      The protected semantic workflow then bound the fixed-network broker and
+      exact candidate children, exact seven-database source canary, restored
+      two-version payload/metadata/SHA integrity, empty-bootstrap
+      domain/payment invariants and synthetic non-customer journal
+      write/read/reconstruction. Its retained tombstone and locked journal were
+      explicitly approved. It did not claim customer object erasure, customer
+      metadata/object mapping or aggregate Document Store object health. The
+      semantic start held the shared AWS mutation lock until bounded terminal or
+      redrive state; no release/restore mutation overlapped any later
+      administrator redrive. Any redrive reused only the exact same canonical
+      source/replay operation and immutable one-version journal state; it did
+      not recreate a post-operation clone or accept extra rows/scopes/requests.
 - [ ] Permanent-erasure readiness v3 is `READY` for the exact reviewed
       document, backup and independently reviewed journal-retention policy
       versions. The 35-day maximum matches the foundation Backup plan; the
@@ -235,7 +248,10 @@ Terraform plan or AWS credit award alone is not launch approval.
       `DELETE ISOLATED RESTORE DRILL <drill-id>`. The exact drill RDS target and
       every S3 version/delete marker were removed before the bucket, and the
       evidence/live record says `COMPLETED`; neither `observe`, evidence
-      validation nor the final build was misreported as cleanup.
+      validation nor the final build was misreported as cleanup. The exact
+      Standard execution was terminal and all semantic broker/child tasks were
+      contained before deletion; the permanent SSM tombstone and synthetic
+      Object Lock journal version were intentionally retained.
 - [ ] The reviewed `jsc-public-beta-restore-drill-evidence.v1` bytes bind the
       candidate Document Store revision, OpenAPI hash and image digest, the
       source-evidence/marker hashes and seven-database/two-version counts, the

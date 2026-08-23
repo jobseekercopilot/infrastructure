@@ -18,7 +18,7 @@ case "$region" in eu-west-2) ;;
   *) echo "restore-source canary refused: region must be eu-west-2" >&2; exit 2 ;;
 esac
 case "$release_id" in
-  [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T[0-9][0-9][0-9][0-9][0-9][0-9]Z-[0-9a-f]*) ;;
+  [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T[0-9][0-9][0-9][0-9][0-9][0-9]Z-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]) ;;
   *) echo "restore-source canary refused: malformed release ID" >&2; exit 2 ;;
 esac
 case "$attestation_id" in
@@ -257,7 +257,7 @@ if [ "$mode" = prepare ]; then
       "$inspected_download" --output json)
     printf '%s' "$inspected_response" | jq -e \
       --arg key "$kms_key" --arg canary "$canary_id" '
-        .ServerSideEncryption == "aws:kms" and .SSEKMSKeyId == $key and
+        .ServerSideEncryption == "aws:kms" and .SSEKMSKeyId == $key and .BucketKeyEnabled == true and
         .ContentType == "application/json" and
         (.Metadata | keys == ["jsc-canary-generation","jsc-restore-canary"]) and
         .Metadata["jsc-restore-canary"] == $canary and
@@ -282,6 +282,7 @@ if [ "$mode" = prepare ]; then
     --region "$region" --bucket "$bucket" --prefix "$object_key" --output json)
   printf '%s' "$existing_versions" | jq -e --arg key "$object_key" '
     (.IsTruncated // false) == false and
+    all(.Versions[]?; .Key == $key) and all(.DeleteMarkers[]?; .Key == $key) and
     ([.DeleteMarkers[]? | select(.Key == $key)] | length) == 0 and
     ([.Versions[]? | select(.Key == $key)] | length) <= 2
   ' >/dev/null || {
@@ -389,6 +390,7 @@ marker_sha=$(printf '%s' "$marker" | sha256sum | cut -d' ' -f1)
 versions=$(aws s3api list-object-versions --region "$region" --bucket "$bucket" --prefix "$object_key" --output json)
 printf '%s' "$versions" | jq -e --arg key "$object_key" --arg v1 "$version_one" --arg v2 "$version_two" '
   (.IsTruncated // false) == false and
+  all(.Versions[]?; .Key == $key) and all(.DeleteMarkers[]?; .Key == $key) and
   ([.DeleteMarkers[]? | select(.Key == $key)] | length) == 0 and
   ([.Versions[]? | select(.Key == $key)] | length) == 2 and
   ([.Versions[]? | select(.Key == $key and (.VersionId == $v1 or .VersionId == $v2)) | .VersionId] | unique | length) == 2
@@ -401,9 +403,9 @@ for version_id in "$version_one" "$version_two"; do
   new_temporary_file
   downloaded=$temporary_file
   aws s3api get-object --region "$region" --bucket "$bucket" --key "$object_key" --version-id "$version_id" "$downloaded" \
-    --query '{encryption:ServerSideEncryption,kms:SSEKMSKeyId,contentLength:ContentLength,contentType:ContentType,metadata:Metadata}' --output json | \
+    --query '{encryption:ServerSideEncryption,kms:SSEKMSKeyId,bucketKey:BucketKeyEnabled,contentLength:ContentLength,contentType:ContentType,metadata:Metadata}' --output json | \
     jq -e --arg key "$kms_key" --arg canary "$canary_id" --arg generation "$generation" --argjson size "$expected_size" '
-      .encryption == "aws:kms" and .kms == $key and .contentLength == $size and
+      .encryption == "aws:kms" and .kms == $key and .bucketKey == true and .contentLength == $size and
       .contentType == "application/json" and
       (.metadata | keys == ["jsc-canary-generation","jsc-restore-canary"]) and
       .metadata["jsc-restore-canary"] == $canary and .metadata["jsc-canary-generation"] == $generation

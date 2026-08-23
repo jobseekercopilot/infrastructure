@@ -72,10 +72,11 @@ policies cannot accept its events.
 
 Record the outputs as protected GitHub environment variables. The current
 private-repository billing plan does not support required environment
-reviewers. Under the explicitly approved sole-operator fallback, create five
+reviewers. Under the explicitly approved sole-operator fallback, create six
 GitHub environments with administrator bypass disabled and a custom
 deployment-branch policy that permits only the `main` branch. Retain the exact
 `RestoreEnvironmentName=production-aws-restore` and
+`RestoreSemanticObserveEnvironmentName=production-aws-restore-observe` and
 `RestoreCleanupEnvironmentName=production-aws-restore-cleanup` inputs: those
 names are part of the OIDC subjects, workflow checks and signed approval, not
 aliases an operator may choose locally.
@@ -85,7 +86,8 @@ aliases an operator may choose locally.
 | `production-aws-plan` | `main` only | `PlanRoleArn` | refresh-backed release plan; never apply |
 | `production-build` | `main` only | `BuildRoleArn` | credential-free source preparation followed by isolated immutable ECR publication |
 | `production-aws` | `main` only | `ApplyRoleArn` | reviewed infrastructure apply and one-shot release operations |
-| `production-aws-restore` | `main` only | `RestoreDrillRoleArn` | create/protect exact drill buckets and start/observe isolated AWS Backup restores; no destination deletion |
+| `production-aws-restore` | `main` only | `RestoreDrillRoleArn`, `RestoreSemanticStartRoleArn` | create/protect exact drill buckets and start/observe isolated AWS Backup restores; start/describe only the fixed restore-semantic Standard execution; no destination deletion or direct semantic-task launch |
+| `production-aws-restore-observe` | `main` only | `RestoreSemanticObserveRoleArn` | read-only independent restore-semantic observation; no task, state-machine or destination mutation |
 | `production-aws-restore-cleanup` | `main` only | `RestoreCleanupRoleArn` | delete only exact drill-prefixed RDS/S3 destinations and all S3 versions; no restore start/pass-role |
 
 Develop and pull-request CI is account-free and receives no OIDC token. A merge
@@ -110,7 +112,7 @@ unreviewed import/split-ownership cycle. GitHub production environments are
 also human-created prerequisites: this AWS template cannot create or claim
 their branch/reviewer protection.
 
-The restore identities have three deliberately different duties. The GitHub
+The restore identities have five deliberately different duties. The GitHub
 restore-initiator role is trusted only by `production-aws-restore` and may pass
 only `jsc-public-beta-backup-restore` to AWS Backup. That service role remains
 constrained by `BackupRestorePermissionsBoundaryArn` to private drill-named
@@ -125,10 +127,16 @@ direct destination-delete actions. The GitHub cleanup role is trusted only by
 `iam:PassRole`, and can delete only drill-prefixed RDS instances plus objects,
 versions, delete markers, policies and buckets. A separate cleanup dispatch and
 typed `DELETE ISOLATED RESTORE DRILL <drill-id>` phrase are required after
-evidence retention. Defining these roles here does not update an existing
-stack: an administrator must execute a reviewed CloudFormation `UPDATE` change
-set and separately configure both GitHub environments before the drill workflow
-can use them.
+evidence retention. The semantic-start role reuses
+`production-aws-restore` but can only start/describe the exact bounded Standard
+state machine; it has no ECS `RunTask`, `PassRole` or stop authority. The
+semantic observer uses the distinct `production-aws-restore-observe` subject
+and is read-only. A retained dedicated broker permissions boundary constrains
+the state-machine and broker task control-plane roles; it is not the common
+workload boundary. Defining these roles here does not update an existing stack:
+an administrator must execute a reviewed CloudFormation `UPDATE` change set and
+separately configure all three restore GitHub environments before the drill
+workflows can use them.
 
 The service-bound apply role deliberately is not an account administrator.
 Workload roles must use a bootstrap-created permissions boundary; role
@@ -250,7 +258,7 @@ retain three-hour sessions and job bounds.
 
 | Environment | Name | Kind | Purpose |
 |---|---|---|---|
-| all five | `AWS_ACCOUNT_ID` where used | variable | exact 12-digit target account |
+| all six | `AWS_ACCOUNT_ID` where used | variable | exact 12-digit target account |
 | `production-build` | `AWS_BUILD_ROLE_ARN` | variable | `BuildRoleArn` output |
 | `production-build` | `RELEASE_READER_APP_ID` | variable | contents-read-only cross-repository GitHub App |
 | `production-build` | `RELEASE_READER_APP_PRIVATE_KEY` | secret | GitHub App private key; never an AWS key |
@@ -265,6 +273,7 @@ retain three-hour sessions and job bounds.
 | `production-aws` | `WORKLOAD_PERMISSIONS_BOUNDARY_ARN` | variable/evidence | `WorkloadPermissionsBoundaryArn`; must match standard Terraform workload roles |
 | `production-aws` | `RDS_MONITORING_PERMISSIONS_BOUNDARY_ARN` | variable/evidence | `RdsMonitoringPermissionsBoundaryArn`; must match only the Enhanced Monitoring service role |
 | `production-aws` | `BACKUP_PERMISSIONS_BOUNDARY_ARN` / `BACKUP_RESTORE_PERMISSIONS_BOUNDARY_ARN` | variables/evidence | exact specialised bootstrap boundary outputs for scheduled backup and isolated restore roles |
+| `production-aws` | `RESTORE_SEMANTIC_BROKER_PERMISSIONS_BOUNDARY_ARN` | variable/evidence | exact retained `RestoreSemanticBrokerPermissionsBoundaryArn`; used only by the semantic state-machine and broker task roles |
 | plan and apply | `TF_STATE_BUCKET` / `TF_STATE_KMS_KEY_ARN` | variables | bootstrap state outputs |
 | plan and apply | `foundation_data_kms_key_arn` | protected tfvars | `ApplicationDataKeyArn` bootstrap output |
 | plan and apply | `foundation_operations_topic_arn` | protected tfvars | `OperationsTopicArn` bootstrap output |
@@ -276,8 +285,11 @@ retain three-hour sessions and job bounds.
 | plan and apply | `foundation_monthly_alert_budget_usd` | protected tfvars | exact retained `MonthlyAlertBudgetUsd` output; default and current public-beta ceiling are USD 750 |
 | plan and apply | `PUBLIC_BETA_TFVARS_B64` | protected secret | reviewed non-secret Terraform input file |
 | `production-aws-restore` | `AWS_RESTORE_DRILL_ROLE_ARN` | variable | exact `RestoreDrillRoleArn` output; restore initiation/observation only |
+| `production-aws-restore` | `AWS_RESTORE_SEMANTIC_START_ROLE_ARN` | variable | exact `RestoreSemanticStartRoleArn`; start/describe only the fixed bounded semantic state machine |
 | restore and cleanup | `AWS_BACKUP_RESTORE_ROLE_ARN` | variable | exact `arn:aws:iam::<account>:role/jsc-public-beta-backup-restore`; passed only by initiation and checked as an invariant by cleanup |
 | `production-aws-restore` | `AWS_DATA_KMS_KEY_ARN` | variable/evidence | exact `ApplicationDataKeyArn` output used to protect the workflow-created pre-restore bucket |
+| `production-aws-restore-observe` | `AWS_RESTORE_SEMANTIC_OBSERVE_ROLE_ARN` | variable | exact `RestoreSemanticObserveRoleArn`; independent read-only semantic observation |
+| `production-aws-restore-observe` | `AWS_DATA_KMS_KEY_ARN` | variable/evidence | exact `ApplicationDataKeyArn` used only to compare restored destination controls |
 | `production-aws-restore-cleanup` | `AWS_RESTORE_CLEANUP_ROLE_ARN` | variable | exact `RestoreCleanupRoleArn` output; deletion-only drill cleanup |
 
 GitHub secrets are used for access control/redaction even where the payload is
