@@ -457,6 +457,7 @@ def validate_run_task_history(
     broker_start_tasks: set[str] = set()
     broker_containment_tasks: set[str] = set()
     broker_token_tasks: dict[str, str] = {}
+    broker_task_modes: dict[str, str] = {}
     broker_tokens_by_mode: dict[str, set[str]] = {"start": set(), "contain": set()}
     seen_start_event = False
     for event in sorted(state_events, key=lambda value: timestamp(value.get("eventTime"), "state RunTask eventTime")):
@@ -475,19 +476,28 @@ def validate_run_task_history(
         request = event.get("requestParameters")
         require(isinstance(request, dict), "state RunTask request is absent")
         required_request_keys = {
-            "cluster", "count", "enableECSManagedTags", "launchType", "networkConfiguration",
-            "overrides", "startedBy", "tags", "taskDefinition",
+            "clientToken", "cluster", "enableECSManagedTags", "group", "launchType",
+            "networkConfiguration", "overrides", "tags", "taskDefinition",
         }
-        require(set(request) == required_request_keys | {"clientToken"},
+        aws_owned_optional_keys = {"count", "startedBy"}
+        require(required_request_keys <= set(request)
+                and set(request) <= required_request_keys | aws_owned_optional_keys,
                 "state RunTask request has an incomplete or unexpected shape")
         token = request["clientToken"]
         require(isinstance(token, str) and 1 <= len(token) <= 64
                 and re.fullmatch(r"[\x21-\x7e]+", token) is not None,
                 "state RunTask generated client token is malformed")
-        started_by = request["startedBy"]
-        require(started_by in {"jsc-restore-semantic-broker", "jsc-restore-semantic-contain"},
-                "state RunTask StartedBy drifted")
-        mode = "start" if started_by == "jsc-restore-semantic-broker" else "contain"
+        require("count" not in request
+                or (type(request["count"]) is int and request["count"] == 1),
+                "state RunTask service-owned Count drifted")
+        require("startedBy" not in request or request["startedBy"] == "AWS Step Functions",
+                "state RunTask service-owned StartedBy drifted")
+        group_to_mode = {
+            "jsc-restore-semantic-broker": "start",
+            "jsc-restore-semantic-contain": "contain",
+        }
+        require(request["group"] in group_to_mode, "state RunTask Group drifted")
+        mode = group_to_mode[request["group"]]
         broker_tokens_by_mode[mode].add(token)
         if mode == "start":
             seen_start_event = True
@@ -495,7 +505,6 @@ def validate_run_task_history(
             require(seen_start_event, "state containment RunTask preceded every broker start request")
         require(request["cluster"] == context["clusterArn"]
                 and request["taskDefinition"] == context["brokerDefinitionArn"]
-                and request["count"] == 1 and type(request["count"]) is int
                 and request["launchType"] == "EC2"
                 and request["enableECSManagedTags"] is False,
                 "state RunTask fixed broker tuple drifted")
@@ -558,6 +567,9 @@ def validate_run_task_history(
             previous = broker_token_tasks.setdefault(token, task_arn)
             require(previous == task_arn,
                     "duplicate state RunTask client token returned multiple broker tasks")
+            previous_mode = broker_task_modes.setdefault(task_arn, mode)
+            require(previous_mode == mode,
+                    "state RunTask returned one broker task for multiple groups")
             broker_successful_tasks.add(task_arn)
             if mode == "start":
                 broker_start_tasks.add(task_arn)
@@ -603,6 +615,7 @@ def validate_run_task_history(
         task_facts[task_arn] = {
             "taskDefinitionArn": task.get("taskDefinitionArn"),
             "group": task.get("group"),
+            "startedBy": task.get("startedBy"),
             "lastStatus": task.get("lastStatus"),
             "imageDigest": (
                 task.get("containers", [{}])[0].get("imageDigest")
@@ -622,6 +635,7 @@ def validate_run_task_history(
             fact = task_facts[task_arn]
             require(fact["taskDefinitionArn"] == definitions[stage]
                     and fact["group"] == f"family:{expected_family[stage]}"
+                    and fact["startedBy"] == context["startedBy"]
                     and fact["lastStatus"] == "STOPPED"
                     and fact["imageDigest"] == expected_digest[stage]
                     and fact["tags"] == expected_tags
@@ -633,8 +647,14 @@ def validate_run_task_history(
                     f"attempt {number} {stage} task is not exact and STOPPED")
     for task_arn in broker_successful_tasks:
         fact = task_facts[task_arn]
+        expected_group = (
+            "jsc-restore-semantic-broker"
+            if broker_task_modes[task_arn] == "start"
+            else "jsc-restore-semantic-contain"
+        )
         require(fact["taskDefinitionArn"] == context["brokerDefinitionArn"]
-                and fact["group"] == "family:jsc-public-beta-restore-semantic-broker"
+                and fact["group"] == expected_group
+                and fact["startedBy"] == "AWS Step Functions"
                 and fact["lastStatus"] == "STOPPED"
                 and fact["imageDigest"] == context["releaseOperatorImageDigest"]
                 and fact["tags"] == broker_tags

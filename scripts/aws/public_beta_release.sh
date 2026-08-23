@@ -23,7 +23,7 @@ if [[ "$region" != "eu-west-2" || -z "$tfvars_file" || -z "$approval_manifest" ]
   exit 2
 fi
 
-for command_name in aws jq mktemp terraform; do
+for command_name in aws base64 jq mktemp terraform; do
   command -v "$command_name" >/dev/null || { echo "Missing required command: $command_name" >&2; exit 2; }
 done
 
@@ -122,6 +122,88 @@ cleanup_release_files() {
 }
 trap cleanup_release_files EXIT
 
+validate_state_machine_definitions_from_json() {
+  local terraform_json=$1
+  local source_label=$2
+  local address machine_type encoded_definition definition_file validation_file definitions_file
+  local state_machine_count
+  local validated=0
+
+  definitions_file=$(mktemp /tmp/jsc-state-machine-definitions.XXXXXX.tsv)
+  temporary_release_files+=("$definitions_file")
+  if ! state_machine_count=$(jq -er '
+    def modules: ., (.child_modules[]? | modules);
+    [(.planned_values.root_module // .values.root_module)
+      | modules
+      | .resources[]?
+      | select(.mode == "managed" and .type == "aws_sfn_state_machine")]
+    | length
+  ' "$terraform_json"); then
+    echo "Could not enumerate $source_label Terraform state-machine resources." >&2
+    exit 3
+  fi
+  if ! jq -r '
+    def modules: ., (.child_modules[]? | modules);
+    (.planned_values.root_module // .values.root_module)
+    | modules
+    | .resources[]?
+    | select(.mode == "managed" and .type == "aws_sfn_state_machine")
+    | select(.values.definition | type == "string")
+    | [.address, (.values.type // "STANDARD"), (.values.definition | @base64)]
+    | @tsv
+  ' "$terraform_json" >"$definitions_file"; then
+    echo "Could not extract $source_label Terraform state-machine definitions." >&2
+    exit 3
+  fi
+
+  while IFS=$'\t' read -r address machine_type encoded_definition; do
+    [[ -n "$address" && -n "$machine_type" && -n "$encoded_definition" ]] || continue
+    definition_file=$(mktemp /tmp/jsc-state-machine-definition.XXXXXX.json)
+    validation_file=$(mktemp /tmp/jsc-state-machine-validation.XXXXXX.json)
+    temporary_release_files+=("$definition_file" "$validation_file")
+    printf '%s' "$encoded_definition" | base64 --decode >"$definition_file"
+    if ! aws stepfunctions validate-state-machine-definition \
+      --region "$region" \
+      --definition "file://$definition_file" \
+      --type "$machine_type" \
+      --severity ERROR \
+      --max-results 100 \
+      --output json >"$validation_file"; then
+      echo "AWS could not validate the $source_label state-machine definition for $address." >&2
+      exit 3
+    fi
+    if ! jq -e '.result == "OK"' "$validation_file" >/dev/null; then
+      echo "AWS rejected the $source_label state-machine definition for $address:" >&2
+      jq -r '.diagnostics[]? | "\(.severity): \(.message)"' "$validation_file" >&2
+      exit 3
+    fi
+    ((validated += 1))
+    rm -f -- "$definition_file" "$validation_file"
+  done <"$definitions_file"
+
+  if (( validated != state_machine_count )); then
+    echo "Refusing: $source_label has $state_machine_count state-machine resource(s), but only $validated fully rendered definition(s). Stage prerequisites and re-plan." >&2
+    exit 3
+  fi
+  rm -f -- "$definitions_file"
+
+  echo "AWS state-machine definition validation passed for $validated $source_label definition(s)."
+}
+
+validate_planned_state_machine_definitions() {
+  local plan_json=$1
+  validate_state_machine_definitions_from_json "$plan_json" planned
+}
+
+validate_deployed_state_machine_definitions() {
+  local state_json
+  state_json=$(mktemp /tmp/jsc-live-state.XXXXXX.json)
+  temporary_release_files+=("$state_json")
+  terraform -chdir="$module" show -json >"$state_json"
+  validate_state_machine_definitions_from_json "$state_json" deployed
+  rm -f -- "$state_json"
+}
+
 verify_live_release_iam() {
   local plan=$1
   local allow_rds_monitoring_migration=${2:-false}
@@ -133,6 +215,8 @@ verify_live_release_iam() {
   plan_json=$(mktemp /tmp/jsc-live-iam-plan.XXXXXX.json)
   temporary_release_files+=("$plan_json")
   terraform -chdir="$module" show -json "$plan" >"$plan_json"
+  validate_planned_state_machine_definitions "$plan_json"
+  validate_deployed_state_machine_definitions
   python3 "$repository_root/scripts/aws/verify_saved_release_plan.py" \
     --plan-json "$plan_json"
   python3 "$repository_root/scripts/aws/verify_live_release_iam.py" \
@@ -298,6 +382,7 @@ targeted_plan_and_apply() {
   verify_live_release_iam "$plan"
   terraform -chdir="$module" show -no-color "$plan"
   terraform -chdir="$module" apply -input=false "$plan"
+  validate_deployed_state_machine_definitions
   rm -f "$plan"
 }
 

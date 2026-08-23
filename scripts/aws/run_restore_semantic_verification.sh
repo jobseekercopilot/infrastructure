@@ -30,6 +30,7 @@ case "$action" in start|observe|contain|cleanup) ;; *) fail "usage: $0 {start|ob
 [[ "$account_id" =~ ^[0-9]{12}$ ]] || fail "AWS account ID is malformed"
 [[ "$drill_id" =~ ^[a-z0-9]([a-z0-9-]{6,30})[a-z0-9]$ ]] || fail "drill ID is malformed"
 for command_name in aws base64 date jq ln mktemp python3 sed sha256sum sleep sort wc; do command -v "$command_name" >/dev/null || fail "missing command: $command_name"; done
+started_by="jsc-rs-$(printf '%s' "$drill_id" | sha256sum | cut -c1-20)"
 
 temporary_files=()
 cleanup_temporary_files() { if (( ${#temporary_files[@]} )); then rm -f -- "${temporary_files[@]}"; fi; }
@@ -187,7 +188,7 @@ prove_semantic_never_started() {
       described=$(aws ecs describe-tasks --region "$region" --cluster "$cluster_arn" --tasks "$task" --output json)
       family=$(jq -r '.tasks[0].group // ""' <<<"$described")
       case "$family" in
-        family:jsc-public-beta-restore-semantic-clone|family:jsc-public-beta-restore-semantic-document-store|family:jsc-public-beta-restore-semantic-verifier|family:jsc-public-beta-restore-semantic-broker)
+        family:jsc-public-beta-restore-semantic-clone|family:jsc-public-beta-restore-semantic-document-store|family:jsc-public-beta-restore-semantic-verifier|family:jsc-public-beta-restore-semantic-broker|jsc-restore-semantic-broker|jsc-restore-semantic-contain)
           tags=$(aws ecs list-tags-for-resource --region "$region" --resource-arn "$task" --output json)
           if jq -e --arg drill "$drill_id" 'any(.tags[]?;.key == "RestoreDrillId" and .value == $drill)' <<<"$tags" >/dev/null; then
             fail "semantic task exists for this drill; its exact execution binding artifact is required for cleanup" 3
@@ -290,7 +291,7 @@ contain_children_after_terminal_execution() {
     fi
     described=$(aws ecs describe-tasks --region "$region" --cluster "$cluster_arn" --tasks "$task" --output json)
     family=$(jq -r '.tasks[0].group//"MISSING"' <<<"$described")
-    case "$family" in family:jsc-public-beta-restore-semantic-clone|family:jsc-public-beta-restore-semantic-document-store|family:jsc-public-beta-restore-semantic-verifier|family:jsc-public-beta-restore-semantic-broker) ;;
+    case "$family" in family:jsc-public-beta-restore-semantic-clone|family:jsc-public-beta-restore-semantic-document-store|family:jsc-public-beta-restore-semantic-verifier|family:jsc-public-beta-restore-semantic-broker|jsc-restore-semantic-broker|jsc-restore-semantic-contain) ;;
       *) [[ "$recorded" == true ]] && containment_drift=true; continue ;;
     esac
     tags=$(aws ecs list-tags-for-resource --region "$region" --resource-arn "$task" --output json)
@@ -367,10 +368,19 @@ execution_start=$(jq -er '.startDate' <<<"$execution"); execution_stop=$(jq -er 
 
 # Resolve immutable task-definition revisions from stopped tasks, never from latest-family aliases or marker assertions.
 describe_exact_task() {
-  local task_arn=$1 family=$2 digest=$3 managed=$4 network_key=$5 described marker_network
+  local task_arn=$1 family=$2 digest=$3 managed=$4 network_key=$5 described marker_network expected_group expected_started_by
+  if [[ "$managed" == RestoreSemanticBroker ]]; then
+    expected_group=jsc-restore-semantic-broker
+    expected_started_by="AWS Step Functions"
+  else
+    expected_group="family:${family}"
+    expected_started_by=$started_by
+  fi
   described=$(aws ecs describe-tasks --region "$region" --cluster "$cluster_arn" --tasks "$task_arn" --include TAGS --output json)
-  jq -e --arg arn "$task_arn" --arg family "$family" --arg digest "$digest" '(.failures|length) == 0 and (.tasks|length) == 1 and
-    .tasks[0].taskArn == $arn and .tasks[0].group == ("family:"+$family) and .tasks[0].lastStatus == "STOPPED" and
+  jq -e --arg arn "$task_arn" --arg group "$expected_group" --arg started "$expected_started_by" --arg digest "$digest" '
+    (.failures|length) == 0 and (.tasks|length) == 1 and
+    .tasks[0].taskArn == $arn and .tasks[0].group == $group and .tasks[0].startedBy == $started and
+    .tasks[0].lastStatus == "STOPPED" and
     (.tasks[0].containers|length) == 1 and .tasks[0].containers[0].imageDigest == $digest' <<<"$described" >/dev/null || fail "stopped task binding drifted: $task_arn" 3
   assert_child_tags "$task_arn" "$managed"
   if [[ "$managed" == RestoreSemanticBroker ]]; then marker_network=$(jq -c '.runtimeBinding.broker|{eniId,privateIp,subnetId,securityGroupId}' <<<"$marker_json")
@@ -457,8 +467,8 @@ expected_state_machine=$(jq -cnS --arg cluster "$cluster_arn" --arg definition "
     {Key:"ManagedBy",Value:"RestoreSemanticBroker"},
     {Key:"RestoreDrillId","Value.$":"$.drillId"}
   ];
-  def parameters($started;$command;$environment): {
-    Cluster:$cluster,TaskDefinition:$definition,LaunchType:"EC2",Count:1,StartedBy:$started,
+  def parameters($group;$command;$environment): {
+    Cluster:$cluster,TaskDefinition:$definition,LaunchType:"EC2",Group:$group,
     NetworkConfiguration:network,
     Overrides:{ExecutionRoleArn:$exec,TaskRoleArn:$task,ContainerOverrides:[{
       Name:"restore-semantic-broker",Command:$command,Environment:$environment
@@ -545,7 +555,6 @@ jq -e --arg db "$database_sg" --arg semantic "$semantic_sg" --arg broker "$broke
 # CloudTrail ECS RunTask is authoritative after awsvpc trunk branch ENIs are
 # deleted; EC2 CreateNetworkInterface event history records only the trunk ENI.
 cloudtrail_start=$(date -u -d "$execution_start - 5 minutes" +%Y-%m-%dT%H:%M:%SZ)
-started_by="jsc-rs-$(printf '%s' "$drill_id" | sha256sum | cut -c1-20)"
 marker_endpoint=$(jq -er '.network.restoredDatabaseEndpoint' <<<"$marker_json")
 restored_arn="arn:aws:rds:${region}:${account_id}:db:${database}"
 verify_all_child_run_tasks() {

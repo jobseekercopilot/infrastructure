@@ -1,5 +1,8 @@
 import importlib.util
 import json
+import os
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -362,6 +365,44 @@ class RdsMonitoringPolicyContractTest(unittest.TestCase):
                     VERIFIER.verify_rds_monitoring_policies(attached, inline)
 
 class ReleaseScriptOrderingTest(unittest.TestCase):
+    def run_state_machine_schema_helper(
+        self, terraform_json: str, aws_result: str = '{"result":"OK"}'
+    ) -> subprocess.CompletedProcess[str]:
+        script = (ROOT / "scripts" / "aws" / "public_beta_release.sh").read_text(
+            encoding="utf-8"
+        )
+        start = script.index("validate_state_machine_definitions_from_json() {")
+        end = script.index("\n}\n\nvalidate_planned_state_machine_definitions()", start) + 2
+        validator = script[start:end]
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            terraform_path = root / "terraform.json"
+            terraform_path.write_text(terraform_json, encoding="utf-8")
+            fake_aws = root / "aws"
+            fake_aws.write_text(
+                "#!/bin/sh\nprintf '%s\\n' \"$FAKE_AWS_RESULT\"\n",
+                encoding="utf-8",
+            )
+            fake_aws.chmod(0o700)
+            harness = f'''set -euo pipefail
+umask 077
+region=eu-west-2
+temporary_release_files=()
+trap 'rm -f -- "${{temporary_release_files[@]}}"' EXIT
+{validator}
+validate_state_machine_definitions_from_json "$1" planned
+'''
+            environment = os.environ.copy()
+            environment["PATH"] = f"{root}:{environment['PATH']}"
+            environment["FAKE_AWS_RESULT"] = aws_result
+            return subprocess.run(
+                ["bash", "-c", harness, "validator-test", str(terraform_path)],
+                text=True,
+                capture_output=True,
+                env=environment,
+                check=False,
+            )
+
     def test_every_apply_uses_a_verified_saved_plan_and_every_operator_is_prechecked(self) -> None:
         script = (ROOT / "scripts" / "aws" / "public_beta_release.sh").read_text(encoding="utf-8")
         self.assertIn("umask 077", script)
@@ -380,6 +421,14 @@ class ReleaseScriptOrderingTest(unittest.TestCase):
         self.assertIn('if [[ "$label" == foundation ]]', full_apply)
 
         verifier = script.split("verify_live_release_iam() {", maxsplit=1)[1].split("\n}", maxsplit=1)[0]
+        self.assertLess(
+            verifier.index("validate_planned_state_machine_definitions"),
+            verifier.index("verify_saved_release_plan.py"),
+        )
+        self.assertLess(
+            verifier.index("validate_deployed_state_machine_definitions"),
+            verifier.index("verify_saved_release_plan.py"),
+        )
         self.assertLess(verifier.index("verify_saved_release_plan.py"), verifier.index("verify_live_release_iam.py"))
 
         lines = script.splitlines()
@@ -394,6 +443,81 @@ class ReleaseScriptOrderingTest(unittest.TestCase):
         self.assertIn('terraform -chdir="$module" show -json "$plan"', verifier)
         self.assertIn("verify_live_release_iam.py", verifier)
         self.assertIn('--backup-contract "$backup_policy_contract"', verifier)
+
+    def test_state_machine_definitions_are_schema_checked_by_aws_before_apply(self) -> None:
+        script = (ROOT / "scripts" / "aws" / "public_beta_release.sh").read_text(encoding="utf-8")
+        validator = script.split("validate_state_machine_definitions_from_json() {", maxsplit=1)[1].split(
+            "\n}", maxsplit=1
+        )[0]
+        self.assertIn('select(.mode == "managed" and .type == "aws_sfn_state_machine")', validator)
+        self.assertIn('select(.values.definition | type == "string")', validator)
+        self.assertIn("aws stepfunctions validate-state-machine-definition", validator)
+        self.assertIn('--definition "file://$definition_file"', validator)
+        self.assertIn('--type "$machine_type"', validator)
+        self.assertIn("--severity ERROR", validator)
+        self.assertIn("--max-results 100", validator)
+        self.assertIn(".result == \"OK\"", validator)
+        self.assertIn('if ! state_machine_count=$(jq -er', validator)
+        self.assertIn('if ! jq -r', validator)
+        self.assertIn('>"$definitions_file"', validator)
+        self.assertIn('done <"$definitions_file"', validator)
+        self.assertIn("validated != state_machine_count", validator)
+        self.assertIn("only $validated fully rendered definition", validator)
+        self.assertNotIn("cat \"$definition_file\"", validator)
+
+        planned = script.split("validate_planned_state_machine_definitions() {", maxsplit=1)[1].split(
+            "\n}", maxsplit=1
+        )[0]
+        self.assertNotIn("deferred", planned)
+        self.assertIn('validate_state_machine_definitions_from_json "$plan_json" planned', planned)
+
+        deployed = script.split("validate_deployed_state_machine_definitions() {", maxsplit=1)[1].split(
+            "\n}", maxsplit=1
+        )[0]
+        self.assertIn('terraform -chdir="$module" show -json', deployed)
+        self.assertIn('validate_state_machine_definitions_from_json "$state_json" deployed', deployed)
+        self.assertIn('rm -f -- "$state_json"', deployed)
+
+        targeted = script.split("targeted_plan_and_apply() {", maxsplit=1)[1].split(
+            "\n}", maxsplit=1
+        )[0]
+        self.assertGreater(
+            targeted.index("validate_deployed_state_machine_definitions"),
+            targeted.index('terraform -chdir="$module" apply'),
+        )
+
+    def test_state_machine_schema_helper_fails_closed_on_unknown_or_invalid_json(self) -> None:
+        definition = json.dumps({
+            "StartAt": "Complete",
+            "States": {"Complete": {"Type": "Succeed"}},
+        })
+        resource = {
+            "address": "aws_sfn_state_machine.example",
+            "mode": "managed",
+            "type": "aws_sfn_state_machine",
+            "values": {"definition": definition, "type": "STANDARD"},
+        }
+        plan = {"planned_values": {"root_module": {"resources": [resource]}}}
+        accepted = self.run_state_machine_schema_helper(json.dumps(plan))
+        self.assertEqual(accepted.returncode, 0, accepted.stderr)
+        self.assertIn("passed for 1 planned definition", accepted.stdout)
+
+        rejected = self.run_state_machine_schema_helper(
+            json.dumps(plan),
+            '{"result":"FAIL","diagnostics":[{"severity":"ERROR","message":"bad schema"}]}',
+        )
+        self.assertEqual(rejected.returncode, 3)
+        self.assertIn("AWS rejected", rejected.stderr)
+        self.assertIn("ERROR: bad schema", rejected.stderr)
+
+        resource["values"]["definition"] = None
+        unknown = self.run_state_machine_schema_helper(json.dumps(plan))
+        self.assertEqual(unknown.returncode, 3)
+        self.assertIn("only 0 fully rendered definition", unknown.stderr)
+
+        malformed = self.run_state_machine_schema_helper("{")
+        self.assertEqual(malformed.returncode, 3)
+        self.assertIn("Could not enumerate", malformed.stderr)
 
     def test_foundation_preflights_auto_scaling_launch_template_authorization(self) -> None:
         script = (ROOT / "scripts" / "aws" / "public_beta_release.sh").read_text(encoding="utf-8")

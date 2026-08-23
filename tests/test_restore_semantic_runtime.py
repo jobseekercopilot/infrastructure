@@ -12,6 +12,7 @@ BROKER = ROOT / "aws" / "public-beta" / "operator" / "run-restore-semantic-broke
 VERIFIER = ROOT / "aws" / "public-beta" / "operator" / "verify-restored-semantics.sh"
 CLONER = ROOT / "aws" / "public-beta" / "operator" / "clone-restored-document-store.sh"
 SOURCE = ROOT / "aws" / "public-beta" / "operator" / "prepare-restore-source-canary.sh"
+OBSERVER = ROOT / "scripts" / "aws" / "run_restore_semantic_verification.sh"
 
 
 def resource_block(text: str, kind: str, name: str) -> str:
@@ -51,6 +52,7 @@ class RestoreSemanticRuntimeContractTest(unittest.TestCase):
         cls.verifier = VERIFIER.read_text()
         cls.cloner = CLONER.read_text()
         cls.source = SOURCE.read_text()
+        cls.observer = OBSERVER.read_text()
 
     def test_all_runtime_scripts_have_posix_shell_syntax(self) -> None:
         for script in (BROKER, VERIFIER, CLONER, SOURCE):
@@ -370,10 +372,29 @@ class RestoreSemanticRuntimeContractTest(unittest.TestCase):
         self.assertIn("NetworkConfiguration = local.restore_semantic_broker_network", machine)
         self.assertIn("ExecutionRoleArn = aws_iam_role.restore_semantic_broker_execution.arn", machine)
         self.assertIn("TaskRoleArn      = aws_iam_role.restore_semantic_broker_task.arn", machine)
+        self.assertRegex(machine, r'Group\s+= "jsc-restore-semantic-broker"')
+        self.assertRegex(machine, r'Group\s+= "jsc-restore-semantic-contain"')
+        self.assertNotRegex(machine, r"\b(?:Count|StartedBy)\s*=")
         self.assertNotIn('"Overrides.$"', machine)
         self.assertIn("state machine did not apply the exact broker ownership tags", self.broker)
         self.assertIn(".tasks[0].overrides.containerOverrides[0].environment | from_entries", self.broker)
         self.assertIn("STATE_MACHINE_EXECUTION_ARN:$execution", self.broker)
+        self.assertIn('.tasks[0].group == "jsc-restore-semantic-broker"', self.broker)
+        self.assertIn('.tasks[0].startedBy == "AWS Step Functions"', self.broker)
+        self.assertGreaterEqual(self.observer.count("jsc-restore-semantic-broker"), 3)
+        self.assertGreaterEqual(self.observer.count("jsc-restore-semantic-contain"), 3)
+        self.assertIn('expected_group="family:${family}"', self.observer)
+        self.assertIn("expected_started_by=$started_by", self.observer)
+        self.assertIn("expected_group=jsc-restore-semantic-broker", self.observer)
+        self.assertIn('expected_started_by="AWS Step Functions"', self.observer)
+        self.assertIn(
+            '.tasks[0].group == $group and .tasks[0].startedBy == $started',
+            self.observer,
+        )
+        self.assertLess(
+            self.observer.index('started_by="jsc-rs-'),
+            self.observer.index("describe_exact_task()"),
+        )
         self.assertIn('values   = ["RestoreSemanticBroker"]', self.operator)
         self.assertIn('values   = ["RestoreSemanticVerification"]', self.operator)
 

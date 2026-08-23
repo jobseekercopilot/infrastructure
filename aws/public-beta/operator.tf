@@ -1430,8 +1430,7 @@ resource "aws_sfn_state_machine" "restore_semantic" {
           Cluster              = aws_ecs_cluster.main.arn
           TaskDefinition       = aws_ecs_task_definition.restore_semantic_broker.arn
           LaunchType           = "EC2"
-          Count                = 1
-          StartedBy            = "jsc-restore-semantic-broker"
+          Group                = "jsc-restore-semantic-broker"
           NetworkConfiguration = local.restore_semantic_broker_network
           Overrides = {
             ExecutionRoleArn = aws_iam_role.restore_semantic_broker_execution.arn
@@ -1456,8 +1455,7 @@ resource "aws_sfn_state_machine" "restore_semantic" {
           Cluster              = aws_ecs_cluster.main.arn
           TaskDefinition       = aws_ecs_task_definition.restore_semantic_broker.arn
           LaunchType           = "EC2"
-          Count                = 1
-          StartedBy            = "jsc-restore-semantic-contain"
+          Group                = "jsc-restore-semantic-contain"
           NetworkConfiguration = local.restore_semantic_broker_network
           Overrides = {
             ExecutionRoleArn = aws_iam_role.restore_semantic_broker_execution.arn

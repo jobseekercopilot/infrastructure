@@ -436,8 +436,8 @@ assert_broker_network() {
     --arg rdsRecovery "$rds_recovery_point_arn" --arg s3Recovery "$s3_recovery_point_arn" \
     --arg restoreRole "$restore_role_arn" '
     (.failures | length) == 0 and (.tasks | length) == 1 and
-    .tasks[0].taskDefinitionArn == $definition and .tasks[0].group == "family:jsc-public-beta-restore-semantic-broker" and
-    .tasks[0].launchType == "EC2" and .tasks[0].startedBy == "jsc-restore-semantic-broker" and
+    .tasks[0].taskDefinitionArn == $definition and .tasks[0].group == "jsc-restore-semantic-broker" and
+    .tasks[0].launchType == "EC2" and .tasks[0].startedBy == "AWS Step Functions" and
     .tasks[0].overrides.executionRoleArn == $exec and .tasks[0].overrides.taskRoleArn == $task and
     (.tasks[0].overrides.containerOverrides | length) == 1 and
     .tasks[0].overrides.containerOverrides[0].name == "restore-semantic-broker" and
