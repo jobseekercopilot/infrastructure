@@ -6,6 +6,11 @@ owns retained resources whose AWS-generated IDs make request-tag-based routine
 apply unsafe: retained KMS keys, the Object-Locked erasure journal, operations
 SNS topic, Backup vault/plan and Cost Anomaly monitor/subscription. It is not
 called by CI or release automation and it does not deploy the application.
+The operations-topic and notification-key policies also permit only the exact
+`JobSeekerCopilotAccountEmails` configuration-set ARN to publish SES delivery
+events. The normal Terraform root owns that configuration set; bootstrap owns
+only the retained notification boundary and the narrowly scoped plan/apply
+permissions required to reconcile it.
 
 Before creating a change set, an account administrator must verify the target
 account, `eu-west-2`, the unique state bucket name, the existing Route 53 hosted
@@ -57,6 +62,10 @@ These are operator instructions, not an automated apply. Verify the returned
 change set, local/object checksums, exact account/region and every named IAM
 resource before a separate approved execution. For an update use change-set
 type `UPDATE`; never fall back to an unversioned URL or inline template body.
+An update that introduces account-email SES support must complete before the
+normal `foundation` action, because the prior apply role cannot create or read
+the purpose-specific configuration set and the prior encrypted topic/key
+policies cannot accept its events.
 
 Record the outputs as protected GitHub environment variables. The current
 private-repository billing plan does not support required environment

@@ -58,6 +58,31 @@ class SavedReleasePlanTest(unittest.TestCase):
     def test_does_not_broaden_the_guard_to_unrelated_resources(self) -> None:
         VERIFIER.verify_no_cloud_map_service_destruction(plan_for(["delete", "create"], "aws_launch_template"))
 
+    def test_rejects_account_email_configuration_and_destination_destruction(self) -> None:
+        for resource_type in (
+            "aws_sesv2_configuration_set",
+            "aws_sesv2_configuration_set_event_destination",
+        ):
+            with self.subTest(resource_type=resource_type):
+                with self.assertRaisesRegex(
+                    VERIFIER.SavedReleasePlanError,
+                    "Account-email configuration/event deletion or replacement",
+                ):
+                    VERIFIER.verify_no_account_email_ses_destruction(
+                        plan_for(
+                            ["delete", "create"],
+                            resource_type,
+                            f"{resource_type}.account_email",
+                        )
+                    )
+
+    def test_allows_account_email_create_update_and_noop(self) -> None:
+        for actions in (["create"], ["update"], ["no-op"]):
+            with self.subTest(actions=actions):
+                VERIFIER.verify_no_account_email_ses_destruction(
+                    plan_for(actions, "aws_sesv2_configuration_set", "aws_sesv2_configuration_set.account_email")
+                )
+
     def test_rejects_missing_or_malformed_change_inventory(self) -> None:
         for malformed in ({}, {"resource_changes": [None]}, {"resource_changes": [{}]}):
             with self.subTest(plan=malformed):

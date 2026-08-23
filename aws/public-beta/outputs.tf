@@ -67,6 +67,19 @@ output "operations_topic_arn" {
   value = var.foundation_operations_topic_arn
 }
 
+output "account_email_delivery" {
+  description = "Non-secret, applied SES contract checked after foundation and before private/public service starts."
+  value = {
+    aws_account_id       = var.aws_account_id
+    identity_domain      = var.ses_identity_domain
+    sender               = var.account_email_sender
+    configuration_set    = aws_sesv2_configuration_set.account_email.configuration_set_name
+    event_destination    = aws_sesv2_configuration_set_event_destination.account_email.event_destination_name
+    event_types          = sort(tolist(local.account_email_event_types))
+    operations_topic_arn = var.foundation_operations_topic_arn
+  }
+}
+
 output "monthly_alert_budget_usd" {
   description = "Retained foundation alert threshold; AWS Budgets does not enforce a hard spending cap."
   value       = var.foundation_monthly_alert_budget_usd
