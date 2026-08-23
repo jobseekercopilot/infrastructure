@@ -27,7 +27,18 @@
     "journalRetentionDays": 0,
     "externalDeletionJournalVerified": false,
     "isolatedRestoreReplayVerified": false,
-    "restoreDrillEvidenceSha256": ""
+    "restoreDrillEvidenceSha256": "",
+    "initialPublicBetaRecoveryException": {
+      "approved": false,
+      "id": "",
+      "approvedBy": "",
+      "approvedAt": "",
+      "expiresAt": "",
+      "trackingReference": "",
+      "justification": "",
+      "compensatingControl": "",
+      "maximumApplicationDesiredCount": 0
+    }
   },
   "publicLegal": {
     "reviewed": false,

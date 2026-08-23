@@ -119,6 +119,17 @@ does not prove that the protected GitHub environments, bootstrap roles,
 isolated network, application verification task or reviewed evidence exist in
 the live account.
 
+For the first low-traffic public beta only, the product owner may approve a
+maximum seven-day `initialPublicBetaRecoveryException`. It does not assert a
+successful journal write/read, restore or replay. It requires the reviewed
+retained journal/backup controls, exact pinned Document Store contract, a P0
+tracking reference, compensating controls and the one-task application ceiling;
+it leaves `isolatedRestoreReplayVerified=false` and the evidence checksum empty.
+This permits the production erasure path to run under its existing write fence
+while the end-to-end drill is completed. The normal evidence gate and the
+workflow below remain unchanged and must replace the exception before it
+expires.
+
 1. On the exact protected `main`, dispatch `AWS Public Beta Immutable Build`
    with `purpose=restore-candidate`. This production-shaped build may leave
    only `isolatedRestoreReplayVerified=false` and

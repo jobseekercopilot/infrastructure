@@ -88,19 +88,22 @@ if [[ "$action" != "foundation" ]]; then
       --landing-archive "$landing_archive" \
       --infrastructure-revision "$infrastructure_revision"
   else
-    [[ -f "$restore_drill_evidence" && ! -L "$restore_drill_evidence" ]] || {
-      echo "Missing checksum-bound restore-drill evidence." >&2
-      exit 2
-    }
     [[ "$(jq -er .buildPurpose "$release_provenance")" == release ]] || {
       echo "Normal release actions accept only promoted release provenance." >&2
       exit 2
     }
+    restore_evidence_arguments=()
+    if [[ -n "$restore_drill_evidence" && -f "$restore_drill_evidence" && ! -L "$restore_drill_evidence" ]]; then
+      restore_evidence_arguments=(--restore-drill-evidence "$restore_drill_evidence")
+    elif [[ -n "$restore_drill_evidence" && ( -e "$restore_drill_evidence" || -L "$restore_drill_evidence" ) ]]; then
+      echo "Unsafe restore-drill evidence input." >&2
+      exit 2
+    fi
     python3 "$repository_root/scripts/aws/validate_public_beta.py" \
       --release --image-manifest "$manifest" --approval-manifest "$approval_manifest" \
       --landing-archive "$landing_archive" \
       --infrastructure-revision "$infrastructure_revision" \
-      --restore-drill-evidence "$restore_drill_evidence"
+      "${restore_evidence_arguments[@]}"
   fi
 fi
 

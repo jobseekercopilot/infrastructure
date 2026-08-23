@@ -1547,6 +1547,10 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         self.assertIn('regex("^[0-9a-f]{40}$"', erasure_ready)
         self.assertIn('regex("^[0-9a-f]{64}$"', erasure_ready)
         self.assertNotIn("PENDING", erasure_ready)
+        self.assertIn("initial_beta_recovery_exception_active", locals_source)
+        self.assertIn('timeadd(local.initial_beta_recovery_exception.approvedAt, "168h")', locals_source)
+        self.assertIn("document_store_erasure_release_authorised", locals_source)
+        self.assertIn("maximumApplicationDesiredCount", locals_source)
 
         compute = (ROOT / "aws" / "public-beta" / "compute.tf").read_text(encoding="utf-8")
         journal_policy = compute.split(
@@ -1662,6 +1666,43 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         module.validate_approvals(pending_restore_candidate, True, restore_candidate=True)
         with self.assertRaisesRegex(module.ContractError, "isolated-restore replay evidence"):
             module.validate_approvals(pending_restore_candidate, True)
+
+        exception_release = copy.deepcopy(pending_restore_candidate)
+        exception_release["documentStorePermanentErasure"]["initialPublicBetaRecoveryException"].update({
+            "approved": True,
+            "id": "initial-public-beta-recovery-2026-08-23",
+            "approvedBy": "Bernard McGeever, product owner",
+            "approvedAt": reviewed_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "expiresAt": (reviewed_at + module.datetime.timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "trackingReference": "https://github.com/jobseekercopilot/infrastructure/issues/999",
+            "justification": "Low-traffic initial public beta with the full recovery drill due within seven days.",
+            "compensatingControl": "Encrypted versioned storage, automated backups, fixed scaling ceilings and emergency darkening remain enabled.",
+            "maximumApplicationDesiredCount": 1,
+        })
+        module.validate_approvals(exception_release, True)
+
+        expired_exception = copy.deepcopy(exception_release)
+        expired_exception["documentStorePermanentErasure"]["initialPublicBetaRecoveryException"].update({
+            "approvedAt": (reviewed_at - module.datetime.timedelta(days=8)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "expiresAt": (reviewed_at - module.datetime.timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        })
+        with self.assertRaisesRegex(module.ContractError, "exception is expired"):
+            module.validate_approvals(expired_exception, True)
+
+        overlong_exception = copy.deepcopy(exception_release)
+        overlong_exception["documentStorePermanentErasure"]["initialPublicBetaRecoveryException"]["expiresAt"] = (
+            reviewed_at + module.datetime.timedelta(days=8)
+        ).strftime("%Y-%m-%dT%H:%M:%SZ")
+        with self.assertRaisesRegex(module.ContractError, "exceeds seven days"):
+            module.validate_approvals(overlong_exception, True)
+
+        completed_with_exception = copy.deepcopy(exception_release)
+        completed_with_exception["documentStorePermanentErasure"].update({
+            "isolatedRestoreReplayVerified": True,
+            "restoreDrillEvidenceSha256": "3" * 64,
+        })
+        with self.assertRaisesRegex(module.ContractError, "requires removal"):
+            module.validate_approvals(completed_with_exception, True)
 
         mutations = (
             (("publicLegal", "reviewedBy"), "TBD"),

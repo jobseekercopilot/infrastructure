@@ -108,6 +108,7 @@ locals {
   public_legal_contract           = local.approval_manifest.publicLegal
   payment_contract                = local.approval_manifest.integrations.stripe
   document_store_erasure_approval = try(local.approval_manifest.documentStorePermanentErasure, {})
+  initial_beta_recovery_exception = try(local.document_store_erasure_approval.initialPublicBetaRecoveryException, {})
   github_environment_protection   = try(local.approval_manifest.githubEnvironmentProtection, {})
   github_environment_protection_complete = (
     try(local.github_environment_protection.reviewed, false) &&
@@ -126,7 +127,7 @@ locals {
     try(timecmp("${local.github_environment_protection.reviewedOn}T00:00:00Z", plantimestamp()) <= 0, false) &&
     try(timecmp("${local.github_environment_protection.reviewedOn}T00:00:00Z", local.approval_manifest.reviewedAt) <= 0, false)
   )
-  document_store_erasure_approval_complete = (
+  document_store_erasure_controls_complete = (
     try(local.document_store_erasure_approval.reviewed, false) &&
     length(trimspace(try(local.document_store_erasure_approval.reviewedBy, ""))) >= 3 &&
     !can(regex(local.release_placeholder_pattern, trimspace(try(local.document_store_erasure_approval.reviewedBy, "")))) &&
@@ -145,11 +146,40 @@ locals {
     try(local.document_store_erasure_approval.journalRetentionDays, 0) == var.foundation_erasure_journal_retention_days &&
     try(local.document_store_erasure_approval.journalRetentionDays, 0) > 35 &&
     try(local.document_store_erasure_approval.externalDeletionJournalVerified, false) &&
-    try(local.document_store_erasure_approval.isolatedRestoreReplayVerified, false) &&
-    can(regex("^[0-9a-f]{64}$", try(local.document_store_erasure_approval.restoreDrillEvidenceSha256, ""))) &&
-    try(local.document_store_erasure_approval.restoreDrillEvidenceSha256, "") != "0000000000000000000000000000000000000000000000000000000000000000" &&
     try(local.document_store_erasure_approval.journalRetentionDays, 0) >= try(local.public_legal_contract.accountDeletionCompletionDays, 0) &&
     try(local.document_store_erasure_approval.journalRetentionDays, 0) >= try(local.public_legal_contract.documentDeletionCompletionDays, 0)
+  )
+  document_store_erasure_approval_complete = (
+    local.document_store_erasure_controls_complete &&
+    try(local.document_store_erasure_approval.isolatedRestoreReplayVerified, false) &&
+    can(regex("^[0-9a-f]{64}$", try(local.document_store_erasure_approval.restoreDrillEvidenceSha256, ""))) &&
+    try(local.document_store_erasure_approval.restoreDrillEvidenceSha256, "") != "0000000000000000000000000000000000000000000000000000000000000000"
+  )
+  initial_beta_recovery_exception_active = (
+    local.document_store_erasure_controls_complete &&
+    !try(local.document_store_erasure_approval.isolatedRestoreReplayVerified, false) &&
+    try(local.document_store_erasure_approval.restoreDrillEvidenceSha256, "") == "" &&
+    try(local.initial_beta_recovery_exception.approved, false) &&
+    can(regex("^[a-z0-9][a-z0-9-]{7,63}$", try(local.initial_beta_recovery_exception.id, ""))) &&
+    length(trimspace(try(local.initial_beta_recovery_exception.approvedBy, ""))) >= 3 &&
+    !can(regex(local.release_placeholder_pattern, trimspace(try(local.initial_beta_recovery_exception.approvedBy, "")))) &&
+    can(regex("^20[0-9]{2}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$", try(local.initial_beta_recovery_exception.approvedAt, ""))) &&
+    can(regex("^20[0-9]{2}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$", try(local.initial_beta_recovery_exception.expiresAt, ""))) &&
+    try(timecmp(local.initial_beta_recovery_exception.approvedAt, plantimestamp()) <= 0, false) &&
+    try(timecmp(local.initial_beta_recovery_exception.approvedAt, local.approval_manifest.reviewedAt) <= 0, false) &&
+    try(timecmp(local.initial_beta_recovery_exception.expiresAt, plantimestamp()) > 0, false) &&
+    try(timecmp(local.initial_beta_recovery_exception.expiresAt, timeadd(local.initial_beta_recovery_exception.approvedAt, "168h")) <= 0, false) &&
+    length(trimspace(try(local.initial_beta_recovery_exception.trackingReference, ""))) >= 8 &&
+    !can(regex(local.release_placeholder_pattern, trimspace(try(local.initial_beta_recovery_exception.trackingReference, "")))) &&
+    length(trimspace(try(local.initial_beta_recovery_exception.justification, ""))) >= 8 &&
+    !can(regex(local.release_placeholder_pattern, trimspace(try(local.initial_beta_recovery_exception.justification, "")))) &&
+    length(trimspace(try(local.initial_beta_recovery_exception.compensatingControl, ""))) >= 8 &&
+    !can(regex(local.release_placeholder_pattern, trimspace(try(local.initial_beta_recovery_exception.compensatingControl, "")))) &&
+    try(local.initial_beta_recovery_exception.maximumApplicationDesiredCount, 0) == 1
+  )
+  document_store_erasure_release_authorised = (
+    local.document_store_erasure_approval_complete ||
+    local.initial_beta_recovery_exception_active
   )
   document_store_permanent_erasure_image_ready = (
     try(local.image_manifest.capabilities.documentStorePermanentErasureVerified, false) &&
@@ -163,7 +193,7 @@ locals {
     try(local.image_manifest.dependencyEvidence.documentStorePermanentErasure.restoreReplayRunbookSha256, "") != "0000000000000000000000000000000000000000000000000000000000000000"
   )
   document_store_permanent_erasure_runtime_enabled = (
-    local.document_store_erasure_approval_complete &&
+    local.document_store_erasure_release_authorised &&
     local.document_store_permanent_erasure_image_ready
   )
   expected_catalog_plans = [
@@ -702,8 +732,10 @@ resource "terraform_data" "release_contract" {
     approvals = merge(local.approval_complete, {
       github_environment_protection = local.github_environment_protection_complete
       public_legal                  = local.public_legal_contract_complete
-      document_store_erasure        = local.document_store_erasure_approval_complete
+      document_store_erasure        = local.document_store_erasure_release_authorised
     })
+    recovery_drill_complete                = local.document_store_erasure_approval_complete
+    initial_beta_recovery_exception_active = local.initial_beta_recovery_exception_active
   }
 
   lifecycle {
@@ -784,7 +816,15 @@ resource "terraform_data" "release_contract" {
         local.document_store_permanent_erasure_runtime_enabled ||
         var.restore_source_preparation
       )
-      error_message = "Starting the application requires the pinned Document Store permanent-erasure contract and reviewed restore evidence, except for the protected dark restore-source preparation mode."
+      error_message = "Starting the application requires the pinned Document Store permanent-erasure contract plus reviewed restore evidence or an active seven-day initial-beta exception, except for the protected dark restore-source preparation mode."
+    }
+
+    precondition {
+      condition = (
+        !local.initial_beta_recovery_exception_active ||
+        var.application_desired_count <= try(local.initial_beta_recovery_exception.maximumApplicationDesiredCount, 0)
+      )
+      error_message = "The initial public-beta recovery exception cannot exceed its reviewed one-task application ceiling."
     }
 
     precondition {

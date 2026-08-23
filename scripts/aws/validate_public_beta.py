@@ -304,6 +304,18 @@ def parse_reviewed_at(value: Any) -> datetime.datetime:
     return parsed
 
 
+def parse_exact_utc_timestamp(value: Any, label: str) -> datetime.datetime:
+    text = str(value)
+    require(
+        re.fullmatch(r"20[0-9]{2}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z", text) is not None,
+        f"release requires an exact UTC RFC3339 timestamp: {label}",
+    )
+    try:
+        return datetime.datetime.strptime(text, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=datetime.timezone.utc)
+    except ValueError as exc:
+        raise ContractError(f"release timestamp is not real: {label}") from exc
+
+
 def validate_runtime(catalog: dict[str, Any], runtime: dict[str, Any]) -> set[str]:
     catalog_repositories = catalog.get("repositories")
     services = runtime.get("services")
@@ -828,10 +840,20 @@ def validate_approvals(
         "retentionPolicyVersion", "backupRetentionPolicyVersion", "journalRetentionPolicyVersion",
         "maximumBackupRetentionDays", "journalRetentionDays", "externalDeletionJournalVerified",
         "isolatedRestoreReplayVerified", "restoreDrillEvidenceSha256",
+        "initialPublicBetaRecoveryException",
     }
     require(
         isinstance(erasure, dict) and set(erasure) == erasure_fields,
         "Document Store permanent-erasure approval evidence is incomplete",
+    )
+    recovery_exception = erasure["initialPublicBetaRecoveryException"]
+    recovery_exception_fields = {
+        "approved", "id", "approvedBy", "approvedAt", "expiresAt", "trackingReference",
+        "justification", "compensatingControl", "maximumApplicationDesiredCount",
+    }
+    require(
+        isinstance(recovery_exception, dict) and set(recovery_exception) == recovery_exception_fields,
+        "initial public-beta recovery exception evidence is incomplete",
     )
     require(
         type(erasure["maximumBackupRetentionDays"]) is int
@@ -849,6 +871,20 @@ def validate_approvals(
             and erasure["isolatedRestoreReplayVerified"] is False
             and erasure["restoreDrillEvidenceSha256"] == "",
             "checked-in permanent-erasure policy and recovery evidence must remain unconfigured",
+        )
+        require(
+            recovery_exception == {
+                "approved": False,
+                "id": "",
+                "approvedBy": "",
+                "approvedAt": "",
+                "expiresAt": "",
+                "trackingReference": "",
+                "justification": "",
+                "compensatingControl": "",
+                "maximumApplicationDesiredCount": 0,
+            },
+            "checked-in initial public-beta recovery exception must fail closed",
         )
     else:
         reviewed_at = parse_reviewed_at(approvals.get("reviewedAt"))
@@ -884,6 +920,59 @@ def validate_approvals(
         )
         require(erasure["externalDeletionJournalVerified"] is True,
                 "release candidate requires the reviewed external deletion journal")
+        exception_approved = recovery_exception["approved"] is True
+        if exception_approved:
+            exception_id = str(recovery_exception["id"])
+            require(
+                re.fullmatch(r"[a-z0-9][a-z0-9-]{7,63}", exception_id) is not None,
+                "initial public-beta recovery exception ID is malformed",
+            )
+            require_substantive(
+                recovery_exception["approvedBy"],
+                "documentStorePermanentErasure.initialPublicBetaRecoveryException.approvedBy",
+                3,
+            )
+            for field in ("trackingReference", "justification", "compensatingControl"):
+                require_substantive(
+                    recovery_exception[field],
+                    f"documentStorePermanentErasure.initialPublicBetaRecoveryException.{field}",
+                )
+            approved_at = parse_exact_utc_timestamp(
+                recovery_exception["approvedAt"],
+                "documentStorePermanentErasure.initialPublicBetaRecoveryException.approvedAt",
+            )
+            expires_at = parse_exact_utc_timestamp(
+                recovery_exception["expiresAt"],
+                "documentStorePermanentErasure.initialPublicBetaRecoveryException.expiresAt",
+            )
+            now = datetime.datetime.now(datetime.timezone.utc)
+            require(approved_at <= reviewed_at, "recovery exception approval follows release provenance")
+            require(approved_at <= now, "recovery exception approval cannot be in the future")
+            require(expires_at > now, "initial public-beta recovery exception is expired")
+            require(
+                expires_at <= approved_at + datetime.timedelta(days=7),
+                "initial public-beta recovery exception exceeds seven days",
+            )
+            require(
+                type(recovery_exception["maximumApplicationDesiredCount"]) is int
+                and recovery_exception["maximumApplicationDesiredCount"] == 1,
+                "initial public-beta recovery exception must retain the one-task lean shape",
+            )
+        else:
+            require(
+                recovery_exception == {
+                    "approved": False,
+                    "id": "",
+                    "approvedBy": "",
+                    "approvedAt": "",
+                    "expiresAt": "",
+                    "trackingReference": "",
+                    "justification": "",
+                    "compensatingControl": "",
+                    "maximumApplicationDesiredCount": 0,
+                },
+                "inactive initial public-beta recovery exception must remain empty",
+            )
         if restore_candidate:
             if erasure["isolatedRestoreReplayVerified"] is True:
                 require(
@@ -895,11 +984,23 @@ def validate_approvals(
                 require(erasure["restoreDrillEvidenceSha256"] == "",
                         "pending restore candidate cannot carry a completed-drill checksum")
         else:
-            require(
+            completed_restore = (
                 erasure["isolatedRestoreReplayVerified"] is True
                 and re.fullmatch(r"[0-9a-f]{64}", str(erasure["restoreDrillEvidenceSha256"])) is not None
-                and erasure["restoreDrillEvidenceSha256"] != ZERO_SHA256,
-                "release requires checksum-bound isolated-restore replay evidence",
+                and erasure["restoreDrillEvidenceSha256"] != ZERO_SHA256
+            )
+            exception_release = (
+                exception_approved
+                and erasure["isolatedRestoreReplayVerified"] is False
+                and erasure["restoreDrillEvidenceSha256"] == ""
+            )
+            require(
+                completed_restore or exception_release,
+                "release requires checksum-bound isolated-restore replay evidence or an active initial-beta exception",
+            )
+            require(
+                not (exception_approved and completed_restore),
+                "completed restore evidence requires removal of the initial-beta exception",
             )
     legal = approvals.get("publicLegal")
     legal_fields = {
@@ -1385,6 +1486,11 @@ def validate_workflow_boundary() -> None:
             and '"promotedFrom"' in promoter,
             "final release must promote the exact attested candidate digests without AWS access or rebuilding",
         )
+        require(
+            promotion_job.count(".isolatedRestoreReplayVerified == true") >= 2
+            and 'release_evidence_args=(--restore-drill-evidence "$EVIDENCE")' in promotion_job,
+            "promotion must require checksum-bound restore evidence unless the protected initial-beta exception applies",
+        )
         prepare_script = (ROOT / "scripts" / "aws" / "build_release_images.sh").read_text(encoding="utf-8")
         landing_builder = (ROOT / "scripts" / "aws" / "build_landing_artifact.py").read_text(encoding="utf-8")
         require("build_landing_artifact.py" in prepare_script,
@@ -1545,6 +1651,13 @@ def validate_workflow_boundary() -> None:
             and "Upload canary-bound paired-backup evidence" in release,
             "protected release workflow must expose and retain exact candidate restore-source preparation",
         )
+        require(
+            release.count(".isolatedRestoreReplayVerified == true") >= 2
+            and release.count("release_evidence_args=(--restore-drill-evidence") >= 2
+            and 'restore_evidence_arguments=(--restore-drill-evidence "$restore_drill_evidence")'
+            in (ROOT / "scripts" / "aws" / "public_beta_release.sh").read_text(encoding="utf-8"),
+            "plan/apply must require restore evidence unless the protected initial-beta exception applies",
+        )
 
     for path, workflow, environment in privileged_workflows:
         references = re.findall(r"^\s*uses:\s*[^\s#]+@([^\s#]+)", workflow, flags=re.MULTILINE)
@@ -1597,6 +1710,8 @@ def validate_workflow_boundary() -> None:
             "account-free suite must exercise the fully approved public activation topology")
     require("Checked-in PENDING approvals/images correctly block" in offline_plan,
             "account-free suite must prove checked-in PENDING inputs cannot activate")
+    require("seven-day initial-beta recovery-exception topology passed" in offline_plan,
+            "account-free suite must exercise the bounded initial-beta recovery exception")
 
 
 def main() -> int:
@@ -1642,19 +1757,26 @@ def main() -> int:
             require(args.landing_archive is not None, "production validation requires the Landing static artifact")
             validate_landing_runtime_config(load_landing_runtime_config(args.landing_archive.resolve()), approvals)
         if args.release:
-            require(args.restore_drill_evidence is not None, "release validation requires restore-drill evidence")
             require(
                 isinstance(args.infrastructure_revision, str)
                 and re.fullmatch(r"[0-9a-f]{40}", args.infrastructure_revision) is not None
                 and args.infrastructure_revision != "0" * 40,
                 "release validation requires the exact protected-main Infrastructure revision",
             )
-            evidence_path = args.restore_drill_evidence.resolve()
-            require(evidence_path.is_file() and not evidence_path.is_symlink(), "restore-drill evidence is missing or unsafe")
-            expected_sha = approvals["documentStorePermanentErasure"]["restoreDrillEvidenceSha256"]
-            require(hashlib.sha256(evidence_path.read_bytes()).hexdigest() == expected_sha,
-                    "restore-drill evidence differs from its launch-approval checksum")
-            validate_restore_evidence(evidence_path, images, args.infrastructure_revision)
+            erasure = approvals["documentStorePermanentErasure"]
+            if erasure["isolatedRestoreReplayVerified"] is True:
+                require(args.restore_drill_evidence is not None, "release validation requires restore-drill evidence")
+                evidence_path = args.restore_drill_evidence.resolve()
+                require(evidence_path.is_file() and not evidence_path.is_symlink(), "restore-drill evidence is missing or unsafe")
+                expected_sha = erasure["restoreDrillEvidenceSha256"]
+                require(hashlib.sha256(evidence_path.read_bytes()).hexdigest() == expected_sha,
+                        "restore-drill evidence differs from its launch-approval checksum")
+                validate_restore_evidence(evidence_path, images, args.infrastructure_revision)
+            else:
+                require(
+                    args.restore_drill_evidence is None,
+                    "initial-beta exception release must not claim completed restore-drill evidence",
+                )
         validate_source_guards()
         validate_workflow_boundary()
     except ContractError as exc:
