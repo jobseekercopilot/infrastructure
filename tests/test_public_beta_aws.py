@@ -159,6 +159,71 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         self.assertIn("replace$", edge)
         self.assertEqual(edge.count('search_string         = "POST"'), 2)
 
+    def test_dark_target_group_associations_are_non_ingress_and_ordered(self) -> None:
+        edge = (ROOT / "aws" / "public-beta" / "edge.tf").read_text(encoding="utf-8")
+        network = (ROOT / "aws" / "public-beta" / "network.tf").read_text(encoding="utf-8")
+        compute = (ROOT / "aws" / "public-beta" / "compute.tf").read_text(encoding="utf-8")
+
+        association_listener = edge.split(
+            'resource "aws_lb_listener" "dark_target_group_association" {', maxsplit=1
+        )[1].split('resource "aws_lb_listener_rule" "dark_frontend_association" {', maxsplit=1)[0]
+        self.assertIn("port              = 65535", association_listener)
+        self.assertIn('protocol          = "HTTP"', association_listener)
+        self.assertIn('type = "fixed-response"', association_listener)
+        self.assertIn('status_code  = "503"', association_listener)
+
+        association_contracts = (
+            (
+                "dark_frontend_association",
+                'resource "aws_lb_listener_rule" "dark_stripe_association" {',
+                "frontend",
+                "frontend",
+            ),
+            ("dark_stripe_association", 'resource "aws_lb_listener" "http" {', "stripe", "stripe"),
+        )
+        for resource_name, next_marker, target_group_name, host_prefix in association_contracts:
+            rule = edge.split(
+                f'resource "aws_lb_listener_rule" "{resource_name}" {{', maxsplit=1
+            )[1].split(next_marker, maxsplit=1)[0]
+            self.assertIn(
+                "listener_arn = aws_lb_listener.dark_target_group_association.arn", rule
+            )
+            self.assertIn(f"target_group_arn = aws_lb_target_group.{target_group_name}.arn", rule)
+            self.assertIn('source_ip { values = ["192.0.2.0/24"] }', rule)
+            self.assertIn(
+                f'host_header {{ values = ["{host_prefix}.dark-association.invalid"] }}', rule
+            )
+
+        alb_security_group = network.split(
+            'resource "aws_security_group" "alb" {', maxsplit=1
+        )[1].split('resource "aws_security_group" "ecs_hosts" {', maxsplit=1)[0]
+        ingress_ports = {int(port) for port in re.findall(r"from_port\s+=\s+(\d+)", alb_security_group)}
+        self.assertEqual(ingress_ports, {80, 443})
+        self.assertNotIn("65535", alb_security_group)
+
+        https_listener = edge.split('resource "aws_lb_listener" "https" {', maxsplit=1)[1].split(
+            'resource "aws_lb_listener_rule" "stripe_webhook" {', maxsplit=1
+        )[0]
+        self.assertIn("for_each = var.public_entrypoint_enabled ? [1] : []", https_listener)
+        self.assertIn("target_group_arn = aws_lb_target_group.frontend.arn", https_listener)
+        self.assertIn("for_each = var.public_entrypoint_enabled ? [] : [1]", https_listener)
+        self.assertIn('status_code  = "503"', https_listener)
+        self.assertIn(
+            "count = local.has_tls_configuration && var.public_entrypoint_enabled && var.enabled_integrations.stripe ? 1 : 0",
+            edge,
+        )
+
+        application_service = compute.split('resource "aws_ecs_service" "service" {', maxsplit=1)[1]
+        application_dependencies = application_service.rsplit("depends_on = [", maxsplit=1)[1].split(
+            "]", maxsplit=1
+        )[0]
+        self.assertIn("aws_lb_listener_rule.dark_frontend_association", application_dependencies)
+        self.assertIn("aws_lb_listener_rule.dark_stripe_association", application_dependencies)
+        self.assertEqual(
+            len(re.findall(r'availability_zone_rebalancing\s+=\s+"DISABLED"', compute)), 2
+        )
+        self.assertNotRegex(compute, r'availability_zone_rebalancing\s+=\s+"ENABLED"')
+
     def test_privileged_actions_are_immutable_and_manually_gated(self) -> None:
         for name, environment in (
             ("aws-public-beta-build.yml", "production-build"),

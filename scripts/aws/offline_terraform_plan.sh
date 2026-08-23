@@ -307,6 +307,10 @@ AWS_ENDPOINT_URL=http://127.0.0.1:9 \
     -input=false \
     -lock=false \
     -var=offline_validation=true \
+    -var=app_domain_name=app.jobseekercopilot.com \
+    -var=route53_hosted_zone_id=Z00000000000000000000 \
+    -var=manage_certificate=false \
+    -var=existing_certificate_arn=arn:aws:acm:eu-west-2:000000000000:certificate/00000000-0000-0000-0000-000000000000 \
     -out="$validation_root/public-beta.tfplan" >"$plan_log" 2>&1 || {
       cat "$plan_log" >&2
       exit 1
@@ -314,6 +318,12 @@ AWS_ENDPOINT_URL=http://127.0.0.1:9 \
 
 plan_summary=$(sed -n '/^Plan: /p' "$plan_log" | tail -n 1)
 [[ -n "$plan_summary" ]] || { cat "$plan_log" >&2; echo "Offline plan did not produce a resource summary." >&2; exit 1; }
+terraform -chdir="$validation_root" show -json "$validation_root/public-beta.tfplan" \
+  > "$validation_root/public-beta.tfplan.json"
+python3 "$repository_root/scripts/aws/verify_offline_activation_plan.py" \
+  --mode dark \
+  "$validation_root/public-beta.tfplan.json" \
+  "$validation_root/config/runtime-services.json"
 echo "$plan_summary"
 echo "Account-free dark topology plan passed; no AWS state, AWS calls or live credentials were used."
 

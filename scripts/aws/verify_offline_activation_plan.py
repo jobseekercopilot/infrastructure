@@ -46,12 +46,195 @@ def one_change(plan: dict[str, Any], address: str) -> dict[str, Any]:
     return matches[0]
 
 
+def one_configuration(plan: dict[str, Any], address: str) -> dict[str, Any]:
+    resources = plan.get("configuration", {}).get("root_module", {}).get("resources", [])
+    matches = [resource for resource in resources if resource.get("address") == address]
+    require(len(matches) == 1, f"plan configuration needs exactly one {address}; found {len(matches)}")
+    return matches[0]
+
+
+def expression_references(resource: dict[str, Any], *path: str | int) -> set[str]:
+    value: Any = resource.get("expressions", {})
+    for segment in path:
+        if isinstance(segment, int):
+            require(isinstance(value, list) and len(value) > segment, f"missing expression index {segment}")
+            value = value[segment]
+        else:
+            require(isinstance(value, dict) and segment in value, f"missing expression {segment}")
+            value = value[segment]
+    require(isinstance(value, dict), "reference expression is not an object")
+    references = value.get("references", [])
+    require(isinstance(references, list), "expression references are not a list")
+    return set(references)
+
+
 def indexed_names(resources: list[dict[str, Any]], resource_type: str, name: str) -> set[str]:
     return {
         str(resource["index"])
         for resource in resources
         if resource.get("type") == resource_type and resource.get("name") == name and "index" in resource
     }
+
+
+def condition_values(resource: dict[str, Any], condition_name: str) -> set[str]:
+    return {
+        value
+        for condition in resource.get("values", {}).get("condition", [])
+        for block in condition.get(condition_name, [])
+        for value in block.get("values", [])
+    }
+
+
+def verify_dark_association_boundary(plan: dict[str, Any], resources: list[dict[str, Any]]) -> None:
+    listener = one(resources, "aws_lb_listener.dark_target_group_association").get("values", {})
+    require(
+        listener.get("protocol") == "HTTP" and listener.get("port") == 65535,
+        "target-group association listener is not the exact non-ingress endpoint",
+    )
+    listener_actions = listener.get("default_action", [])
+    require(
+        len(listener_actions) == 1
+        and listener_actions[0].get("type") == "fixed-response"
+        and listener_actions[0].get("fixed_response", [{}])[0].get("status_code") == "503",
+        "target-group association listener does not fail closed with 503",
+    )
+    listener_configuration = one_configuration(plan, "aws_lb_listener.dark_target_group_association")
+    require(
+        expression_references(listener_configuration, "load_balancer_arn")
+        == {"aws_lb.app", "aws_lb.app.arn"},
+        "target-group association listener is not attached to the reviewed application ALB",
+    )
+
+    association_contracts = {
+        "dark_frontend_association": ("frontend.dark-association.invalid", "frontend"),
+        "dark_stripe_association": ("stripe.dark-association.invalid", "stripe"),
+    }
+    for resource_name, (expected_host, target_group_name) in association_contracts.items():
+        rule = one(resources, f"aws_lb_listener_rule.{resource_name}")
+        actions = rule.get("values", {}).get("action", [])
+        require(
+            len(actions) == 1 and actions[0].get("type") == "forward",
+            f"{resource_name} is not a target-group association rule",
+        )
+        require(
+            condition_values(rule, "source_ip") == {"192.0.2.0/24"},
+            f"{resource_name} is not constrained to non-routable TEST-NET-1",
+        )
+        require(
+            condition_values(rule, "host_header") == {expected_host},
+            f"{resource_name} host guard differs from the reviewed fail-closed contract",
+        )
+        rule_configuration = one_configuration(plan, f"aws_lb_listener_rule.{resource_name}")
+        require(
+            expression_references(rule_configuration, "listener_arn")
+            == {
+                "aws_lb_listener.dark_target_group_association",
+                "aws_lb_listener.dark_target_group_association.arn",
+            },
+            f"{resource_name} is not attached to the non-ingress association listener",
+        )
+        require(
+            expression_references(rule_configuration, "action", 0, "target_group_arn")
+            == {
+                f"aws_lb_target_group.{target_group_name}",
+                f"aws_lb_target_group.{target_group_name}.arn",
+            },
+            f"{resource_name} does not associate the exact {target_group_name} target group",
+        )
+
+    service_configuration = one_configuration(plan, "aws_ecs_service.service")
+    service_dependencies = set(service_configuration.get("depends_on", []))
+    require(
+        {
+            "aws_lb_listener_rule.dark_frontend_association",
+            "aws_lb_listener_rule.dark_stripe_association",
+        }.issubset(service_dependencies),
+        "ECS service creation is not ordered after both target-group associations",
+    )
+
+    alb_security_group = one(resources, "aws_security_group.alb").get("values", {})
+    ingress = alb_security_group.get("ingress", [])
+    ingress_ports = {
+        (rule.get("from_port"), rule.get("to_port"), rule.get("protocol")) for rule in ingress
+    }
+    require(
+        ingress_ports == {(80, 80, "tcp"), (443, 443, "tcp")},
+        "ALB security group exposes a port outside public HTTP/HTTPS",
+    )
+    require(
+        all(rule.get("from_port") != 65535 and rule.get("to_port") != 65535 for rule in ingress),
+        "target-group association listener has public security-group ingress",
+    )
+
+    ecs_services = [resource for resource in resources if resource.get("type") == "aws_ecs_service"]
+    require(ecs_services, "plan contains no ECS services")
+    require(
+        all(resource.get("values", {}).get("availability_zone_rebalancing") == "DISABLED"
+            for resource in ecs_services),
+        "an ECS service enables AZ rebalancing with the reviewed 100% deployment ceiling",
+    )
+    require(
+        all(resource.get("values", {}).get("deployment_maximum_percent") == 100
+            and resource.get("values", {}).get("deployment_minimum_healthy_percent") == 0
+            for resource in ecs_services),
+        "an ECS service exceeds the reviewed stop-first 100%/0% deployment envelope",
+    )
+
+
+def verify_dark_plan(plan: dict[str, Any], runtime: dict[str, Any]) -> None:
+    expected_services = set(runtime.get("services", {}))
+    require(len(expected_services) == 27, f"runtime contract must contain 27 services; found {len(expected_services)}")
+
+    planned = plan.get("planned_values", {}).get("root_module")
+    require(isinstance(planned, dict), "Terraform plan has no planned root module")
+    resources = flatten_resources(planned)
+    verify_dark_association_boundary(plan, resources)
+
+    service_names = indexed_names(resources, "aws_ecs_service", "service")
+    require(service_names == expected_services, "dark plan ECS service set differs from the runtime contract")
+    expected_ecs_addresses = {
+        *(f'aws_ecs_service.service["{service}"]' for service in expected_services),
+        "aws_ecs_service.clamav",
+    }
+    actual_ecs_addresses = {
+        str(resource.get("address")) for resource in resources if resource.get("type") == "aws_ecs_service"
+    }
+    require(actual_ecs_addresses == expected_ecs_addresses, "dark plan contains an unexpected ECS service")
+    for service in expected_services:
+        resource = one(resources, f'aws_ecs_service.service["{service}"]')
+        require(resource.get("values", {}).get("desired_count") == 0, f"{service}: dark desired_count is not zero")
+    require(
+        one(resources, "aws_ecs_service.clamav").get("values", {}).get("desired_count") == 0,
+        "ClamAV dark desired_count is not zero",
+    )
+
+    https = one(resources, "aws_lb_listener.https[0]").get("values", {})
+    require(https.get("protocol") == "HTTPS" and https.get("port") == 443, "dark HTTPS listener is absent")
+    actions = https.get("default_action", [])
+    require(
+        len(actions) == 1
+        and actions[0].get("type") == "fixed-response"
+        and actions[0].get("fixed_response", [{}])[0].get("status_code") == "503",
+        "dark HTTPS listener does not return fixed 503",
+    )
+    http = one(resources, "aws_lb_listener.http").get("values", {})
+    http_actions = http.get("default_action", [])
+    require(http.get("protocol") == "HTTP" and http.get("port") == 80, "dark HTTP listener is absent")
+    require(
+        len(http_actions) == 1
+        and http_actions[0].get("type") == "redirect"
+        and http_actions[0].get("redirect", [{}])[0].get("protocol") == "HTTPS"
+        and http_actions[0].get("redirect", [{}])[0].get("port") == "443"
+        and http_actions[0].get("redirect", [{}])[0].get("status_code") == "HTTP_301",
+        "dark HTTP listener does not redirect only to the fixed-503 HTTPS listener",
+    )
+    listener_rule_names = {
+        str(resource.get("name")) for resource in resources if resource.get("type") == "aws_lb_listener_rule"
+    }
+    require(
+        listener_rule_names == {"dark_frontend_association", "dark_stripe_association"},
+        "dark plan contains a listener rule outside the two non-ingress associations",
+    )
 
 
 def verify_activation_plan(plan: dict[str, Any], runtime: dict[str, Any]) -> None:
@@ -63,11 +246,20 @@ def verify_activation_plan(plan: dict[str, Any], runtime: dict[str, Any]) -> Non
     planned = plan.get("planned_values", {}).get("root_module")
     require(isinstance(planned, dict), "Terraform plan has no planned root module")
     resources = flatten_resources(planned)
+    verify_dark_association_boundary(plan, resources)
 
     service_names = indexed_names(resources, "aws_ecs_service", "service")
     task_names = indexed_names(resources, "aws_ecs_task_definition", "service")
     require(service_names == expected_services, "planned ECS service set differs from the exact 27-service runtime contract")
     require(task_names == expected_services, "planned ECS task-definition set differs from the exact runtime contract")
+    expected_ecs_addresses = {
+        *(f'aws_ecs_service.service["{service}"]' for service in expected_services),
+        "aws_ecs_service.clamav",
+    }
+    actual_ecs_addresses = {
+        str(resource.get("address")) for resource in resources if resource.get("type") == "aws_ecs_service"
+    }
+    require(actual_ecs_addresses == expected_ecs_addresses, "activation plan contains an unexpected ECS service")
     for service in expected_services:
         resource = one(resources, f'aws_ecs_service.service["{service}"]')
         require(resource.get("values", {}).get("desired_count") == 1, f"{service}: desired_count is not one")
@@ -102,6 +294,14 @@ def verify_activation_plan(plan: dict[str, Any], runtime: dict[str, Any]) -> Non
     }
     require(paths == {"/api/v1/stripe/webhook"}, "Stripe webhook path is not exact")
     require(methods == {"POST"}, "Stripe webhook method is not exactly POST")
+    listener_rule_names = {
+        str(resource.get("name")) for resource in resources if resource.get("type") == "aws_lb_listener_rule"
+    }
+    require(
+        listener_rule_names
+        == {"dark_frontend_association", "dark_stripe_association", "stripe_webhook"},
+        "activation plan contains a listener rule outside the reviewed public/non-ingress routes",
+    )
     one(resources, "aws_route53_record.app[0]")
     one(resources, "aws_wafv2_web_acl_association.app")
 
@@ -420,15 +620,24 @@ def verify_activation_plan(plan: dict[str, Any], runtime: dict[str, Any]) -> Non
 
 def main() -> int:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--mode", choices=("activation", "dark"), default="activation")
     parser.add_argument("plan", type=Path)
     parser.add_argument("runtime_manifest", type=Path)
     args = parser.parse_args()
     try:
-        verify_activation_plan(load_json(args.plan), load_json(args.runtime_manifest))
+        plan = load_json(args.plan)
+        runtime = load_json(args.runtime_manifest)
+        if args.mode == "dark":
+            verify_dark_plan(plan, runtime)
+        else:
+            verify_activation_plan(plan, runtime)
     except (ActivationPlanError, OSError, json.JSONDecodeError) as exc:
-        print(f"offline activation plan invalid: {exc}", file=sys.stderr)
+        print(f"offline {args.mode} plan invalid: {exc}", file=sys.stderr)
         return 1
-    print("Rendered activation plan proves the 27-service fleet, scanner/operator, public routes and data controls.")
+    if args.mode == "dark":
+        print("Rendered dark plan proves fixed HTTPS 503 and non-ingress target-group associations.")
+    else:
+        print("Rendered activation plan proves the 27-service fleet, scanner/operator, public routes and data controls.")
     return 0
 
 
