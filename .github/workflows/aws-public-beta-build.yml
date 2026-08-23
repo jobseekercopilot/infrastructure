@@ -293,16 +293,19 @@ jobs:
           gh attestation verify "$MANIFEST" --repo "$GITHUB_REPOSITORY"
           scripts/aws/verify_frontend_release_artifact.sh \
             "$MANIFEST" "$PROVENANCE" "$LANDING_ARCHIVE" "$LANDING_METADATA" "$LANDING_SAM_TEMPLATE"
-      - name: Prepare protected final approval and completed restore evidence
+      - name: Prepare protected final approval and applicable recovery evidence
         env:
           LAUNCH_APPROVALS_B64: ${{ secrets.LAUNCH_APPROVALS_B64 }}
           RESTORE_DRILL_EVIDENCE_B64: ${{ secrets.RESTORE_DRILL_EVIDENCE_B64 }}
         run: |
           umask 077
           printenv LAUNCH_APPROVALS_B64 | base64 --decode > "${RUNNER_TEMP}/launch-approvals.json"
-          printenv RESTORE_DRILL_EVIDENCE_B64 | base64 --decode > "${RUNNER_TEMP}/restore-drill-evidence.json"
           jq -e 'type == "object"' "${RUNNER_TEMP}/launch-approvals.json" >/dev/null
-          jq -e 'type == "object"' "${RUNNER_TEMP}/restore-drill-evidence.json" >/dev/null
+          if jq -e '.documentStorePermanentErasure.isolatedRestoreReplayVerified == true' \
+            "${RUNNER_TEMP}/launch-approvals.json" >/dev/null; then
+            printenv RESTORE_DRILL_EVIDENCE_B64 | base64 --decode > "${RUNNER_TEMP}/restore-drill-evidence.json"
+            jq -e 'type == "object"' "${RUNNER_TEMP}/restore-drill-evidence.json" >/dev/null
+          fi
       - name: Promote exact candidate digests without rebuilding or AWS access
         env:
           BUILD_RUN_ID: ${{ inputs.candidate_build_run_id }}
@@ -326,21 +329,26 @@ jobs:
           mv "$promotion_directory/image-manifest.json" "$MANIFEST"
           mv "$promotion_directory/provenance.json" "$PROVENANCE"
           rmdir "$promotion_directory"
-          python3 scripts/aws/validate_restore_drill_evidence.py \
-            --evidence "$EVIDENCE" \
-            --image-manifest "$MANIFEST" \
-            --expected-infrastructure-revision "$GITHUB_SHA" \
-            --require-cleanup
+          release_evidence_args=()
+          if jq -e '.documentStorePermanentErasure.isolatedRestoreReplayVerified == true' \
+            "$APPROVALS" >/dev/null; then
+            python3 scripts/aws/validate_restore_drill_evidence.py \
+              --evidence "$EVIDENCE" \
+              --image-manifest "$MANIFEST" \
+              --expected-infrastructure-revision "$GITHUB_SHA" \
+              --require-cleanup
+            release_evidence_args=(--restore-drill-evidence "$EVIDENCE")
+          fi
           python3 scripts/aws/validate_public_beta.py --release \
             --image-manifest "$MANIFEST" \
             --approval-manifest "$APPROVALS" \
             --landing-archive "$LANDING_ARCHIVE" \
-            --restore-drill-evidence "$EVIDENCE" \
-            --infrastructure-revision "$GITHUB_SHA"
+            --infrastructure-revision "$GITHUB_SHA" \
+            "${release_evidence_args[@]}"
           scripts/aws/verify_frontend_release_artifact.sh \
             "$MANIFEST" "$PROVENANCE" "$LANDING_ARCHIVE" "$LANDING_METADATA" "$LANDING_SAM_TEMPLATE"
           chmod 0444 "$MANIFEST" "$PROVENANCE"
-      - name: Attest the evidence-bound release manifest
+      - name: Attest the approval-bound release manifest
         uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
         with:
           subject-path: ${{ runner.temp }}/public-beta-release/image-manifest.json

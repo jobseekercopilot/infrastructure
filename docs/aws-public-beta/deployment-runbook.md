@@ -223,6 +223,21 @@ live use is the protected, dark `prepare-restore-source` action below. After rev
 signed and checksum-bound, `release` promotes that exact candidate manifest and
 digests without rebuilding or calling AWS.
 
+The sole initial-public-beta exception is explicit and time-bounded. The
+protected approval may contain an approved
+`initialPublicBetaRecoveryException` for no more than seven days, with a named
+owner, approval timestamp, P0 tracking reference, justification, compensating
+controls and `maximumApplicationDesiredCount=1`. It may defer only the isolated
+RDS/S3 restore, semantic replay and checksum-bound restore evidence. Retained
+backup/journal controls, encryption, fixed scaling ceilings, cost protection,
+legal/payment gates, private preparation, smoke tests and emergency darkening
+remain mandatory. Under that active exception the exact attested candidate may
+be promoted without `RESTORE_DRILL_EVIDENCE_B64`; the approval must keep
+`isolatedRestoreReplayVerified=false` and `restoreDrillEvidenceSha256=""` and
+must not claim completed evidence. Complete the drill before expiry, replace
+the exception with the real evidence hash, and promote the same exact candidate
+digests again. An expired exception blocks every subsequent plan or mutation.
+
 1. On exact protected `main`, prepare a reviewed launch approval in which every
    production prerequisite is complete except the not-yet-run drill:
    `isolatedRestoreReplayVerified=false` and

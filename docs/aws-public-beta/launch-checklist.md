@@ -242,7 +242,11 @@ Terraform plan or AWS credit award alone is not launch approval.
       `backupRetentionOverdue` are all zero. `backupRetentionPending` is a
       non-negative informational count and may be greater than zero only for
       erasures still inside the allowed recovery window; it is not treated as
-      overdue.
+      overdue. For the first low-traffic beta only, an owner-approved
+      `initialPublicBetaRecoveryException` may defer this drill for at most seven
+      days when it names the P0 tracking item and compensating controls, retains
+      the one-task ceiling and truthfully leaves the replay flag/evidence hash
+      incomplete; every other launch gate remains mandatory.
 - [ ] After evidence retention, cleanup was separately dispatched through
       `production-aws-restore-cleanup` with
       `DELETE ISOLATED RESTORE DRILL <drill-id>`. The exact drill RDS target and

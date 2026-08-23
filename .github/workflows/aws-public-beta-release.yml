@@ -112,7 +112,10 @@ jobs:
           umask 077
           printenv PUBLIC_BETA_TFVARS_B64 | base64 --decode > "${RUNNER_TEMP}/public-beta.tfvars"
           printenv LAUNCH_APPROVALS_B64 | base64 --decode > "${RUNNER_TEMP}/launch-approvals.json"
-          printenv RESTORE_DRILL_EVIDENCE_B64 | base64 --decode > "${RUNNER_TEMP}/restore-drill-evidence.json"
+          if jq -e '.documentStorePermanentErasure.isolatedRestoreReplayVerified == true' \
+            "${RUNNER_TEMP}/launch-approvals.json" >/dev/null; then
+            printenv RESTORE_DRILL_EVIDENCE_B64 | base64 --decode > "${RUNNER_TEMP}/restore-drill-evidence.json"
+          fi
           test "$(jq -r .releaseId "${RUNNER_TEMP}/release-artifact/image-manifest.json")" = "$EXPECTED_RELEASE_ID"
       - name: Validate release contract before assuming AWS
         run: |
@@ -120,12 +123,16 @@ jobs:
             "$(sha256sum '${{ runner.temp }}/launch-approvals.json' | cut -d' ' -f1)"
           test "$(jq -r .launchApprovalManifestSha256 '${{ runner.temp }}/release-artifact/image-manifest.json')" = \
             "$(sha256sum '${{ runner.temp }}/launch-approvals.json' | cut -d' ' -f1)"
+          release_evidence_args=()
+          if [ -f '${{ runner.temp }}/restore-drill-evidence.json' ]; then
+            release_evidence_args=(--restore-drill-evidence '${{ runner.temp }}/restore-drill-evidence.json')
+          fi
           python3 scripts/aws/validate_public_beta.py --release \
             --image-manifest '${{ runner.temp }}/release-artifact/image-manifest.json' \
             --approval-manifest '${{ runner.temp }}/launch-approvals.json' \
             --landing-archive '${{ runner.temp }}/release-artifact/landing-static.tar' \
             --infrastructure-revision '${{ steps.build.outputs.build_sha }}' \
-            --restore-drill-evidence '${{ runner.temp }}/restore-drill-evidence.json'
+            "${release_evidence_args[@]}"
       - name: Configure read-only AWS plan role
         uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5
         with:
@@ -255,7 +262,9 @@ jobs:
           printenv PUBLIC_BETA_TFVARS_B64 | base64 --decode > "${RUNNER_TEMP}/public-beta.tfvars"
           printenv LAUNCH_APPROVALS_B64 | base64 --decode > "${RUNNER_TEMP}/launch-approvals.json"
           if [ "$RELEASE_ACTION" != foundation ]; then
-            if [ "$RELEASE_ACTION" != prepare-restore-source ]; then
+            if [ "$RELEASE_ACTION" != prepare-restore-source ] && \
+              jq -e '.documentStorePermanentErasure.isolatedRestoreReplayVerified == true' \
+                "${RUNNER_TEMP}/launch-approvals.json" >/dev/null; then
               printenv RESTORE_DRILL_EVIDENCE_B64 | base64 --decode > "${RUNNER_TEMP}/restore-drill-evidence.json"
             fi
             test "$(jq -r .releaseId "${RUNNER_TEMP}/release-artifact/image-manifest.json")" = "$EXPECTED_RELEASE_ID"
@@ -276,12 +285,16 @@ jobs:
               --landing-archive '${{ runner.temp }}/release-artifact/landing-static.tar' \
               --infrastructure-revision '${{ steps.build.outputs.build_sha }}'
           else
+            release_evidence_args=()
+            if [ -f '${{ runner.temp }}/restore-drill-evidence.json' ]; then
+              release_evidence_args=(--restore-drill-evidence '${{ runner.temp }}/restore-drill-evidence.json')
+            fi
             python3 scripts/aws/validate_public_beta.py --release \
               --image-manifest '${{ runner.temp }}/release-artifact/image-manifest.json' \
               --approval-manifest '${{ runner.temp }}/launch-approvals.json' \
               --landing-archive '${{ runner.temp }}/release-artifact/landing-static.tar' \
               --infrastructure-revision '${{ steps.build.outputs.build_sha }}' \
-              --restore-drill-evidence '${{ runner.temp }}/restore-drill-evidence.json'
+              "${release_evidence_args[@]}"
           fi
       - name: Configure protected AWS apply role
         uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5

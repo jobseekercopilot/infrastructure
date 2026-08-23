@@ -11,7 +11,7 @@
       "openApiSha256": "e43ef6ea262553eb5fd5752b984d6cf027a538b930a1dff7288091e7a3ee1242",
       "maximumBackupRetentionDays": 35,
       "restoreReplayRunbook": "docs/aws-public-beta/document-store-permanent-erasure.md",
-      "restoreReplayRunbookSha256": "2f1a4bba270e03af3422811ba73b41fcb255e99176d4755295cbb713353e481d"
+      "restoreReplayRunbookSha256": "f3cd7f00e729f1412149f770b4809b787b1ca6ad426e1ce6b3eca1a29b850af3"
     },
     "adzunaRuntimeHealth": "594ac33862c6360fe05768905bab0e2cb9ac1898",
     "jsearchRuntimeHealth": "79677c6586207f5aa30b9c6d0720f5ed2cfe728a",
