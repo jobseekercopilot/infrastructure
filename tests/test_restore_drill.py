@@ -682,6 +682,49 @@ class RestoreDrillContractTest(unittest.TestCase):
         )
         tag_operator = guard_by_sid["TagOnlyReviewedOperatorTasksDuringRun"]
         self.assertEqual(tag_operator["Condition"]["StringEquals"]["ecs:CreateAction"], "RunTask")
+        state_machine = guard_by_sid["ManageOnlyExactRestoreSemanticStateMachine"]
+        self.assertEqual(
+            set(state_machine["Action"]),
+            {
+                "states:CreateStateMachine",
+                "states:DeleteStateMachine",
+                "states:DescribeStateMachine",
+                "states:ListStateMachineVersions",
+                "states:ListTagsForResource",
+                "states:TagResource",
+                "states:UntagResource",
+                "states:UpdateStateMachine",
+            },
+        )
+        self.assertEqual(
+            state_machine["Resource"],
+            "arn:${AWS::Partition}:states:${AWS::Region}:${AWS::AccountId}:stateMachine:"
+            "jsc-public-beta-restore-semantic",
+        )
+        self.assertNotIn("states:ListStateMachines", json.dumps(guard_operations))
+
+        plan_statements = [
+            statement
+            for policy in resources["PlanRole"]["Properties"]["Policies"]
+            for statement in policy["PolicyDocument"]["Statement"]
+        ]
+        plan_by_sid = {
+            statement["Sid"]: statement for statement in plan_statements if "Sid" in statement
+        }
+        state_machine_read = plan_by_sid["ReadOnlyExactRestoreSemanticStateMachine"]
+        self.assertEqual(
+            set(state_machine_read["Action"]),
+            {
+                "states:DescribeStateMachine",
+                "states:ListStateMachineVersions",
+                "states:ListTagsForResource",
+            },
+        )
+        self.assertEqual(
+            state_machine_read["Resource"],
+            "arn:${AWS::Partition}:states:${AWS::Region}:${AWS::AccountId}:stateMachine:"
+            "jsc-public-beta-restore-semantic",
+        )
 
     def test_semantic_oidc_roles_orchestrator_and_cleanup_are_fail_closed(self) -> None:
         class CloudFormationLoader(yaml.SafeLoader):
