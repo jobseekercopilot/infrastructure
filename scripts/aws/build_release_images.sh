@@ -203,10 +203,13 @@ trap - EXIT HUP INT TERM
 
 export COMPOSE_PROJECT_NAME=jsc-release
 "$repository_root/scripts/test-all.sh" --profile full-fixture
-"$repository_root/scripts/build-all.sh" --profile full-fixture
+# Contract tests export several checksum-bound OpenAPI documents under target/.
+# Verify those exact bytes before the subsequent clean packaging pass removes
+# generated test output from Maven target directories.
 python3 "$repository_root/scripts/aws/verify_release_contract_hashes.py" \
   --workspace-root "$workspace_root" \
   --image-manifest "$template_manifest"
+"$repository_root/scripts/build-all.sh" --profile full-fixture
 
 # The workspace lifecycle builds source artifacts but intentionally does not
 # publish OCI images. Materialise the exact Compose build contexts under an
