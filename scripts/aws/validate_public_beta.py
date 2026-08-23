@@ -1168,6 +1168,8 @@ def validate_source_guards() -> None:
         'retention_in_days = var.log_retention_days': "uniform CloudWatch retention",
         'expiration { days = var.log_retention_days }': "uniform encrypted access-log retention",
         'permissions_boundary = "arn:aws:iam::${var.aws_account_id}:policy/jsc-public-beta-workload-boundary"': "mandatory workload-role permissions boundary",
+        'permissions_boundary = "arn:aws:iam::${var.aws_account_id}:policy/jsc-public-beta-rds-monitoring-boundary"': "dedicated RDS monitoring permissions boundary",
+        '"aws:SourceArn" = "arn:aws:rds:${var.aws_region}:${var.aws_account_id}:db:${local.name_prefix}-postgres"': "exact RDS Enhanced Monitoring confused-deputy trust",
     }
     for fragment, description in required_fragments.items():
         require(fragment in source, f"Terraform is missing {description}")
@@ -1188,6 +1190,9 @@ def validate_source_guards() -> None:
         "Threshold: 750": "USD 750 ceiling alert",
         "ThresholdType: ABSOLUTE_VALUE": "absolute-dollar budget thresholds",
         "NotificationType: FORECASTED": "forecast budget alert",
+        "RdsMonitoringPermissionsBoundary": "retained RDSOSMetrics-only monitoring boundary",
+        "ManageOnlyRdsOsMetricsLogGroup": "RDSOSMetrics log-group boundary",
+        "WriteOnlyRdsOsMetricsLogStreams": "RDSOSMetrics log-stream boundary",
     }.items():
         require(fragment in bootstrap_source, f"bootstrap is missing {description}")
     require('self        = true' not in source, "shared self-referencing task security group is forbidden")

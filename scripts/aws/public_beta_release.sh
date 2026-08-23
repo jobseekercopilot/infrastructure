@@ -68,7 +68,12 @@ trap cleanup_release_files EXIT
 
 verify_live_release_iam() {
   local plan=$1
+  local allow_rds_monitoring_migration=${2:-false}
   local plan_json
+  local -a migration_arguments=()
+  if [[ "$allow_rds_monitoring_migration" == true ]]; then
+    migration_arguments+=(--allow-rds-monitoring-migration)
+  fi
   plan_json=$(mktemp /tmp/jsc-live-iam-plan.XXXXXX.json)
   temporary_release_files+=("$plan_json")
   terraform -chdir="$module" show -json "$plan" >"$plan_json"
@@ -77,8 +82,22 @@ verify_live_release_iam() {
   python3 "$repository_root/scripts/aws/verify_live_release_iam.py" \
     --plan-json "$plan_json" \
     --backup-contract "$backup_policy_contract" \
-    --region "$region"
+    --region "$region" \
+    "${migration_arguments[@]}"
   rm -f "$plan_json"
+}
+
+verify_live_rds_monitoring() {
+  local not_before=$1
+  local contract database_identifier monitoring_role_arn
+  contract=$(terraform -chdir="$module" output -json release_contract)
+  database_identifier=$(jq -er '.database_identifier' <<<"$contract")
+  monitoring_role_arn=$(jq -er '.rds_monitoring_role_arn' <<<"$contract")
+  python3 "$repository_root/scripts/aws/verify_live_rds_monitoring.py" \
+    --region "$region" \
+    --db-instance-identifier "$database_identifier" \
+    --monitoring-role-arn "$monitoring_role_arn" \
+    --not-before "$not_before"
 }
 
 verify_current_iam_contract() {
@@ -170,16 +189,26 @@ plan_and_apply() {
   local desired=$1
   local public=$2
   local label=$3
-  local plan
+  local plan apply_started_at
+  local allow_rds_monitoring_migration=false
+  if [[ "$label" == foundation ]]; then
+    allow_rds_monitoring_migration=true
+  fi
   plan=$(mktemp "/tmp/jsc-${label}.XXXXXX.tfplan")
   temporary_release_files+=("$plan")
   terraform -chdir="$module" plan "${common_arguments[@]}" \
     -var="application_desired_count=$desired" \
     -var="public_entrypoint_enabled=$public" \
     -out="$plan"
-  verify_live_release_iam "$plan"
+  verify_live_release_iam "$plan" "$allow_rds_monitoring_migration"
   terraform -chdir="$module" show -no-color "$plan"
+  apply_started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
   terraform -chdir="$module" apply -input=false "$plan"
+  # Recheck IAM without the one-way legacy-role exception, then observe a
+  # stability window because RDS can asynchronously reject and revert an
+  # apparently successful Enhanced Monitoring modification.
+  verify_live_release_iam "$plan"
+  verify_live_rds_monitoring "$apply_started_at"
   rm -f "$plan"
 }
 

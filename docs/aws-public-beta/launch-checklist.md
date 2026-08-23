@@ -91,6 +91,16 @@ Terraform plan or AWS credit award alone is not launch approval.
 
 ## Runtime blockers and capacity
 
+- [ ] The retained `jsc-public-beta-rds-monitoring-boundary` exists from the
+      reviewed bootstrap update and its live default document has exactly the
+      six approved actions and two `RDSOSMetrics` resources; the exact
+      monitoring role uses it, trusts only `monitoring.rds.amazonaws.com` for
+      the full production DB ARN, and has only
+      `AmazonRDSEnhancedMonitoringRole` attached. The protected foundation
+      observed six consecutive `MonitoringInterval=60` samples and no
+      post-apply “unable to create credentials for” or “unable to configure”
+      Enhanced Monitoring RDS event.
+
 - [ ] Document Store contains `1183ce5a54ab60999ca37d826ceb16857d5763ff`
       (or a descendant) and accepts only ECS task-role credentials in S3 mode;
       no static key or custom S3 endpoint is injected.

@@ -21,6 +21,21 @@ TRUST = {
     }],
 }
 BOUNDARY = "arn:aws:iam::123456789012:policy/jsc-public-beta-workload-boundary"
+RDS_BOUNDARY = "arn:aws:iam::123456789012:policy/jsc-public-beta-rds-monitoring-boundary"
+RDS_TRUST = {
+    "Version": "2012-10-17",
+    "Statement": [{
+        "Effect": "Allow",
+        "Principal": {"Service": "monitoring.rds.amazonaws.com"},
+        "Action": "sts:AssumeRole",
+        "Condition": {
+            "StringEquals": {"aws:SourceAccount": "123456789012"},
+            "ArnEquals": {
+                "aws:SourceArn": "arn:aws:rds:eu-west-2:123456789012:db:jsc-public-beta-postgres"
+            },
+        },
+    }],
+}
 
 
 def plan_with_role(name: str = "jsc-public-beta-payment-service-task") -> dict:
@@ -46,6 +61,33 @@ def live_role(name: str = "jsc-public-beta-payment-service-task") -> dict:
         "RoleName": name,
         "PermissionsBoundary": {"PermissionsBoundaryArn": BOUNDARY},
         "AssumeRolePolicyDocument": TRUST,
+    }
+
+
+def rds_plan() -> dict:
+    value = plan_with_role("jsc-public-beta-rds-monitoring")
+    role = value["planned_values"]["root_module"]["resources"][0]["values"]
+    role["permissions_boundary"] = RDS_BOUNDARY
+    role["assume_role_policy"] = json.dumps(RDS_TRUST)
+    return value
+
+
+def legacy_rds_role() -> dict:
+    return {
+        "RoleName": "jsc-public-beta-rds-monitoring",
+        "PermissionsBoundary": {"PermissionsBoundaryArn": BOUNDARY},
+        "AssumeRolePolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [{
+                "Effect": "Allow",
+                "Principal": {"Service": "monitoring.rds.amazonaws.com"},
+                "Action": "sts:AssumeRole",
+                "Condition": {
+                    "StringEquals": {"aws:SourceAccount": "123456789012"},
+                    "ArnLike": {"aws:SourceArn": "arn:aws:rds:eu-west-2:123456789012:db:*"},
+                },
+            }],
+        },
     }
 
 
@@ -84,6 +126,33 @@ def backup_reader(contract: dict):
                 },
             },
         }
+
+    return reader
+
+
+def rds_boundary_reader(document: dict | None = None):
+    live_document = document or VERIFIER.expected_rds_monitoring_boundary("123456789012")
+
+    def reader(arguments: list[str]) -> dict:
+        arn = arguments[arguments.index("--policy-arn") + 1]
+        if arguments[1] == "get-policy":
+            return {
+                "Policy": {
+                    "Arn": arn,
+                    "PolicyName": VERIFIER.RDS_MONITORING_BOUNDARY_NAME,
+                    "IsAttachable": True,
+                    "DefaultVersionId": "v3",
+                },
+            }
+        if arguments[1] == "get-policy-version":
+            return {
+                "PolicyVersion": {
+                    "Document": live_document,
+                    "VersionId": "v3",
+                    "IsDefaultVersion": True,
+                },
+            }
+        raise AssertionError(arguments)
 
     return reader
 
@@ -151,6 +220,51 @@ class ReservedRoleContractTest(unittest.TestCase):
                 "Marker": "next-page",
             })
 
+    def test_exact_legacy_rds_role_is_allowed_only_for_one_way_migration(self) -> None:
+        legacy = legacy_rds_role()
+        listed = {"Roles": [{"RoleName": legacy["RoleName"]}]}
+        with self.assertRaisesRegex(VERIFIER.LiveIamContractError, "wrong permissions boundary"):
+            VERIFIER.verify_roles(rds_plan(), listed, lambda _name: legacy)
+        VERIFIER.verify_roles(
+            rds_plan(),
+            listed,
+            lambda _name: legacy,
+            allow_rds_monitoring_migration=True,
+        )
+
+    def test_interrupted_rds_migration_with_narrowed_trust_can_be_retried(self) -> None:
+        intermediate = legacy_rds_role()
+        intermediate["AssumeRolePolicyDocument"] = RDS_TRUST
+        listed = {"Roles": [{"RoleName": intermediate["RoleName"]}]}
+        with self.assertRaisesRegex(VERIFIER.LiveIamContractError, "wrong permissions boundary"):
+            VERIFIER.verify_roles(rds_plan(), listed, lambda _name: intermediate)
+        VERIFIER.verify_roles(
+            rds_plan(),
+            listed,
+            lambda _name: intermediate,
+            allow_rds_monitoring_migration=True,
+        )
+
+    def test_rds_migration_rejects_any_legacy_trust_or_boundary_variation(self) -> None:
+        candidates = []
+        wrong_boundary = legacy_rds_role()
+        wrong_boundary["PermissionsBoundary"] = {"PermissionsBoundaryArn": "arn:aws:iam::123456789012:policy/wrong"}
+        candidates.append(wrong_boundary)
+        wrong_trust = legacy_rds_role()
+        wrong_trust["AssumeRolePolicyDocument"]["Statement"][0]["Condition"]["ArnLike"][
+            "aws:SourceArn"
+        ] = "arn:aws:rds:eu-west-2:123456789012:db:other-*"
+        candidates.append(wrong_trust)
+        for candidate in candidates:
+            with self.subTest(candidate=candidate):
+                with self.assertRaises(VERIFIER.LiveIamContractError):
+                    VERIFIER.verify_roles(
+                        rds_plan(),
+                        {"Roles": [{"RoleName": candidate["RoleName"]}]},
+                        lambda _name, value=candidate: value,
+                        allow_rds_monitoring_migration=True,
+                    )
+
 
 class BackupManagedPolicyContractTest(unittest.TestCase):
     def test_reviewed_versions_sids_and_actions_are_accepted(self) -> None:
@@ -187,6 +301,66 @@ class BackupManagedPolicyContractTest(unittest.TestCase):
                     VERIFIER.verify_backup_policies(contract, reader)
 
 
+class RdsMonitoringPolicyContractTest(unittest.TestCase):
+    def test_exact_bootstrap_boundary_default_document_is_accepted(self) -> None:
+        VERIFIER.verify_rds_monitoring_boundary(rds_plan(), rds_boundary_reader())
+
+    def test_missing_bootstrap_boundary_fails_closed(self) -> None:
+        def missing(_arguments: list[str]) -> dict:
+            raise VERIFIER.LiveIamContractError("NoSuchEntity")
+
+        with self.assertRaisesRegex(VERIFIER.LiveIamContractError, "NoSuchEntity"):
+            VERIFIER.verify_rds_monitoring_boundary(rds_plan(), missing)
+
+    def test_broadened_bootstrap_boundary_document_is_rejected(self) -> None:
+        documents = []
+        extra_action = VERIFIER.expected_rds_monitoring_boundary("123456789012")
+        extra_action["Statement"][0]["Action"].append("logs:DeleteLogGroup")
+        documents.append(extra_action)
+        broad_resource = VERIFIER.expected_rds_monitoring_boundary("123456789012")
+        broad_resource["Statement"][1]["Resource"] = "*"
+        documents.append(broad_resource)
+        for document in documents:
+            with self.subTest(document=document):
+                with self.assertRaisesRegex(VERIFIER.LiveIamContractError, "document drifted"):
+                    VERIFIER.verify_rds_monitoring_boundary(
+                        rds_plan(),
+                        rds_boundary_reader(document),
+                    )
+
+    def test_bootstrap_boundary_metadata_must_be_exact(self) -> None:
+        base_reader = rds_boundary_reader()
+
+        def wrong_metadata(arguments: list[str]) -> dict:
+            value = base_reader(arguments)
+            if arguments[1] == "get-policy":
+                value["Policy"]["IsAttachable"] = False
+            return value
+
+        with self.assertRaisesRegex(VERIFIER.LiveIamContractError, "metadata is not exact"):
+            VERIFIER.verify_rds_monitoring_boundary(rds_plan(), wrong_metadata)
+
+    def test_exact_managed_policy_without_inline_policies_is_accepted(self) -> None:
+        VERIFIER.verify_rds_monitoring_policies(
+            {"AttachedPolicies": [{"PolicyArn": VERIFIER.RDS_MONITORING_POLICY_ARN}]},
+            {"PolicyNames": []},
+        )
+
+    def test_missing_extra_or_inline_policy_is_rejected(self) -> None:
+        candidates = (
+            ({"AttachedPolicies": []}, {"PolicyNames": []}),
+            ({"AttachedPolicies": [
+                {"PolicyArn": VERIFIER.RDS_MONITORING_POLICY_ARN},
+                {"PolicyArn": "arn:aws:iam::aws:policy/AdministratorAccess"},
+            ]}, {"PolicyNames": []}),
+            ({"AttachedPolicies": [{"PolicyArn": VERIFIER.RDS_MONITORING_POLICY_ARN}]},
+             {"PolicyNames": ["unexpected"]}),
+        )
+        for attached, inline in candidates:
+            with self.subTest(attached=attached, inline=inline):
+                with self.assertRaises(VERIFIER.LiveIamContractError):
+                    VERIFIER.verify_rds_monitoring_policies(attached, inline)
+
 class ReleaseScriptOrderingTest(unittest.TestCase):
     def test_every_apply_uses_a_verified_saved_plan_and_every_operator_is_prechecked(self) -> None:
         script = (ROOT / "scripts" / "aws" / "public_beta_release.sh").read_text(encoding="utf-8")
@@ -198,6 +372,12 @@ class ReleaseScriptOrderingTest(unittest.TestCase):
             body = script.split(f"{function_name}() {{", maxsplit=1)[1].split("\n}", maxsplit=1)[0]
             self.assertLess(body.index("verify_live_release_iam"), body.index("terraform -chdir=\"$module\" apply"))
             self.assertIn('apply -input=false "$plan"', body)
+
+        full_apply = script.split("plan_and_apply() {", maxsplit=1)[1].split("\n}", maxsplit=1)[0]
+        apply_index = full_apply.index('apply -input=false "$plan"')
+        self.assertGreater(full_apply.index('verify_live_release_iam "$plan"', apply_index), apply_index)
+        self.assertGreater(full_apply.index("verify_live_rds_monitoring", apply_index), apply_index)
+        self.assertIn('if [[ "$label" == foundation ]]', full_apply)
 
         verifier = script.split("verify_live_release_iam() {", maxsplit=1)[1].split("\n}", maxsplit=1)[0]
         self.assertLess(verifier.index("verify_saved_release_plan.py"), verifier.index("verify_live_release_iam.py"))

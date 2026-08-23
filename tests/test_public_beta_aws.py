@@ -20,6 +20,25 @@ LANDING_BUILDER = ROOT / "scripts" / "aws" / "build_landing_artifact.py"
 
 
 class PublicBetaAwsContractTest(unittest.TestCase):
+    def _load_bootstrap_template(self):
+        class CloudFormationLoader(yaml.SafeLoader):
+            pass
+
+        def construct_intrinsic(loader: yaml.SafeLoader, _suffix: str, node: yaml.Node):
+            if isinstance(node, yaml.ScalarNode):
+                return loader.construct_scalar(node)
+            if isinstance(node, yaml.SequenceNode):
+                return loader.construct_sequence(node)
+            return loader.construct_mapping(node)
+
+        CloudFormationLoader.add_multi_constructor("!", construct_intrinsic)
+        return yaml.load(
+            (ROOT / "aws" / "public-beta" / "bootstrap" / "state-and-oidc.yaml").read_text(
+                encoding="utf-8"
+            ),
+            Loader=CloudFormationLoader,
+        )
+
     def run_validator(self, *arguments: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
             ["python3", str(VALIDATOR), *arguments],
@@ -408,6 +427,9 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             "WorkloadPermissionsBoundary": (
                 "arn:aws:iam::123456789012:policy/jsc-public-beta-workload-boundary"
             ),
+            "RdsMonitoringPermissionsBoundary": (
+                "arn:aws:iam::123456789012:policy/jsc-public-beta-rds-monitoring-boundary"
+            ),
             "BackupWorkloadBoundary": (
                 "arn:aws:iam::123456789012:policy/jsc-public-beta-backup-boundary"
             ),
@@ -451,7 +473,8 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             )
             statements.extend(document["Statement"])
         for boundary_name in (
-            "WorkloadPermissionsBoundary", "BackupWorkloadBoundary", "BackupRestoreWorkloadBoundary",
+            "WorkloadPermissionsBoundary", "RdsMonitoringPermissionsBoundary",
+            "BackupWorkloadBoundary", "BackupRestoreWorkloadBoundary",
         ):
             document = resources[boundary_name]["Properties"]["PolicyDocument"]
             self.assertLessEqual(
@@ -479,6 +502,26 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         )
         self.assertEqual(create_role["Condition"]["StringEquals"]["aws:RequestTag/Environment"], "public-beta")
         self.assertTrue(all("github" not in arn for arn in create_role["Resource"]))
+        self.assertNotIn("rds-monitoring", json.dumps(create_role["Resource"]))
+        create_monitoring_role = by_sid["CreateRdsMonitoringBoundaryConstrainedRole"]
+        self.assertEqual(
+            create_monitoring_role["Condition"]["StringEquals"]["iam:PermissionsBoundary"],
+            "RdsMonitoringPermissionsBoundary",
+        )
+        manage_monitoring_role = by_sid["ManageOnlyRdsMonitoringBoundaryConstrainedRole"]
+        self.assertEqual(
+            set(manage_monitoring_role["Condition"]["StringEquals"]["iam:PermissionsBoundary"]),
+            {"WorkloadPermissionsBoundary", "RdsMonitoringPermissionsBoundary"},
+        )
+        self.assertEqual(
+            set(manage_monitoring_role["Action"]),
+            {"iam:DeleteRole", "iam:UpdateAssumeRolePolicy", "iam:UpdateRoleDescription"},
+        )
+        repair_monitoring_role = by_sid["RepairOnlyRdsMonitoringWorkloadBoundary"]
+        self.assertEqual(
+            repair_monitoring_role["Condition"]["StringEquals"]["iam:PermissionsBoundary"],
+            "RdsMonitoringPermissionsBoundary",
+        )
 
         tagged_create = by_sid["CreateOnlyTaggedNetworkResources"]
         self.assertNotEqual(tagged_create["Resource"], "*")
@@ -618,7 +661,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
                 "role/jsc-public-beta-ecs-instance", "WorkloadPermissionsBoundary",
             ),
             "AttachOnlyRdsMonitoringPolicy": (
-                "role/jsc-public-beta-rds-monitoring", "WorkloadPermissionsBoundary",
+                "role/jsc-public-beta-rds-monitoring", "RdsMonitoringPermissionsBoundary",
             ),
             "AttachOnlyBackupPolicies": (
                 "role/jsc-public-beta-backup", "BackupWorkloadBoundary",
@@ -776,6 +819,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             "ErasureJournalBucketPolicy",
             "OperationsTopicPolicy",
             "WorkloadPermissionsBoundary",
+            "RdsMonitoringPermissionsBoundary",
             "BackupWorkloadBoundary",
             "BackupRestoreWorkloadBoundary",
         ):
@@ -810,8 +854,9 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             terraform_source.count(
                 'permissions_boundary = "arn:aws:iam::${var.aws_account_id}:policy/jsc-public-beta-workload-boundary"'
             ),
-            role_count - 2,
+            role_count - 3,
         )
+        self.assertEqual(terraform_source.count("jsc-public-beta-rds-monitoring-boundary"), 1)
         self.assertEqual(terraform_source.count("jsc-public-beta-backup-boundary"), 1)
         self.assertEqual(terraform_source.count("jsc-public-beta-backup-restore-boundary"), 1)
         self.assertNotIn("jsc-public-beta-erasure-journal-read-boundary", terraform_source)
@@ -1124,6 +1169,41 @@ class PublicBetaAwsContractTest(unittest.TestCase):
                 rf'name\s+=\s+"{re.escape(name)}"[\s\S]*?value\s+=\s+"{re.escape(value)}"',
             )
         self.assertNotIn('value        = "1000"', parameter_group)
+
+    def test_rds_enhanced_monitoring_is_exactly_scoped_and_fail_closed(self) -> None:
+        data = (ROOT / "aws" / "public-beta" / "data.tf").read_text(encoding="utf-8")
+        role = data.split('resource "aws_iam_role" "rds_monitoring" {', maxsplit=1)[1].split(
+            'resource "aws_iam_role_policy_attachment" "rds_monitoring"', maxsplit=1
+        )[0]
+        self.assertIn("jsc-public-beta-rds-monitoring-boundary", role)
+        self.assertIn(
+            '"aws:SourceArn" = "arn:aws:rds:${var.aws_region}:${var.aws_account_id}:db:${local.name_prefix}-postgres"',
+            role,
+        )
+        self.assertNotIn('db:*', role)
+        database = data.split('resource "aws_db_instance" "postgres" {', maxsplit=1)[1]
+        self.assertIn("monitoring_interval             = 60", database)
+        self.assertIn("monitoring_role_arn             = aws_iam_role.rds_monitoring.arn", database)
+
+        template = self._load_bootstrap_template()
+        resources = template["Resources"]
+        boundary = resources["RdsMonitoringPermissionsBoundary"]
+        self.assertEqual(boundary["DeletionPolicy"], "Retain")
+        self.assertEqual(boundary["UpdateReplacePolicy"], "Retain")
+        statements = boundary["Properties"]["PolicyDocument"]["Statement"]
+        self.assertEqual(
+            {statement["Resource"] for statement in statements},
+            {
+                "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:RDSOSMetrics",
+                "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:RDSOSMetrics:log-stream:*",
+            },
+        )
+        self.assertNotIn("/jsc/public-beta/", json.dumps(boundary))
+        self.assertNotIn("*", statements[0]["Resource"])
+
+        release = (ROOT / "scripts" / "aws" / "public_beta_release.sh").read_text(encoding="utf-8")
+        self.assertIn("verify_live_rds_monitoring.py", release)
+        self.assertIn("--allow-rds-monitoring-migration", release)
 
     def test_public_security_log_retention_matches_every_diagnostic_store(self) -> None:
         data = (ROOT / "aws" / "public-beta" / "data.tf").read_text(encoding="utf-8")
