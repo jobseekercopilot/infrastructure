@@ -465,7 +465,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             "required",
         )
         self.assertEqual(
-            by_sid["CreateOnlyTaggedPrivateNetworkInterfaces"]["Condition"]["Bool"][
+            by_sid["CreateOnlyPrivateNetworkInterfacesFromReviewedTemplate"]["Condition"]["BoolIfExists"][
                 "ec2:AssociatePublicIpAddress"
             ],
             "false",
@@ -481,7 +481,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         for sid in (
             "RunOnlyReviewedEcsAmiFromLaunchTemplate", "RunOnlyFromTaggedPublicBetaTemplateResources",
             "CreateOnlyTaggedPublicBetaInstances",
-            "CreateOnlyTaggedPrivateNetworkInterfaces", "CreateOnlyTaggedEncryptedGp3Volumes",
+            "CreateOnlyTaggedEncryptedGp3Volumes",
         ):
             self.assertEqual(by_sid[sid]["Condition"]["Bool"]["ec2:IsLaunchTemplateResource"], "true")
         # The ASG supplies vpc_zone_identifier outside the launch template.
@@ -494,6 +494,16 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             "Terraform",
         )
         self.assertIn("ec2:LaunchTemplate", asg_subnet["Condition"]["ArnLike"])
+        asg_eni = by_sid["CreateOnlyPrivateNetworkInterfacesFromReviewedTemplate"]
+        self.assertNotIn("Bool", asg_eni["Condition"])
+        self.assertEqual(
+            asg_eni["Condition"]["StringEqualsIfExists"]["aws:RequestTag/ManagedBy"],
+            "Terraform",
+        )
+        self.assertEqual(
+            set(asg_eni["Condition"]["ArnLike"]),
+            {"ec2:LaunchTemplate", "ec2:Subnet", "ec2:Vpc"},
+        )
 
         create_database = by_sid["CreateOnlyReviewedPublicBetaDatabase"]
         self.assertIn(":db:jsc-public-beta-postgres", create_database["Resource"])
