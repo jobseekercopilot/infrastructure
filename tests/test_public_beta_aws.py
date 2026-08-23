@@ -1124,6 +1124,12 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         self.assertIn("reserved_cpu_units               = local.release_reserved_cpu", outputs)
         self.assertIn("task_slots=$(jq -er '.task_slots'", release)
 
+    def test_private_service_discovery_is_protected_from_provider_forcenew_drift(self) -> None:
+        compute = (ROOT / "aws" / "public-beta" / "compute.tf").read_text(encoding="utf-8")
+        self.assertNotIn("health_check_custom_config {}", compute)
+        self.assertNotIn("health_check_custom_config {", compute)
+        self.assertEqual(compute.count("prevent_destroy = true"), 3)
+
     def test_activation_requires_exact_prepared_release_markers(self) -> None:
         release = (ROOT / "scripts" / "aws" / "public_beta_release.sh").read_text(encoding="utf-8")
         activate = release.split("  activate)", maxsplit=1)[1]

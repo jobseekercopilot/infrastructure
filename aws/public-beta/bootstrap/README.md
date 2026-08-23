@@ -105,7 +105,17 @@ AWS's standalone, resource-agnostic `servicediscovery:TagResource` dependent
 action. That call is limited to the exact protected request tags and allowed
 tag keys; the apply role has no Cloud Map update, delete or untag action, so
 tagging an opaque pre-existing resource cannot unlock a destructive lifecycle.
-Any abandoned namespace/service is therefore a manually reviewed cleanup.
+The protected saved-plan verifier also refuses Cloud Map service deletion or
+replacement before apply. Any abandoned namespace/service is therefore a
+manually reviewed cleanup after its ownership, registrations and ECS
+dependencies have been proved safe.
+
+Cloud Map services deliberately omit an empty `health_check_custom_config`
+while AWS provider 6.55 is pinned. The provider does not materialise that empty
+block and subsequently proposes a ForceNew replacement on every refresh. ECS
+task/container health and service registration remain the runtime health
+boundary; adding Cloud Map custom-health filtering requires an explicit,
+reviewed migration rather than deploy-role delete permission.
 
 Apply has two inline policies: the exact state-object access and explicit
 non-removable state/tag/boundary guardrails. Their realistically rendered
