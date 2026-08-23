@@ -86,6 +86,9 @@ class ProviderSecretStoreTests(unittest.TestCase):
         self.assertNotIn("OPENAI_ORGANIZATION_ID is MISSING", failures)
         self.assertNotIn("OPENAI_PROJECT_ID is MISSING", failures)
         self.assertIn("OPENAI_PRIVACY_DECISION_ID is MISSING", failures)
+        self.assertIn("OPENAI_PRIVACY_REVIEWED_ON is MISSING", failures)
+        self.assertIn("OPENAI_PRIVACY_REVIEW_DUE_ON is MISSING", failures)
+        self.assertNotIn("OPENAI_PRIVACY_REVIEW_ON", "\n".join(failures))
         self.assertNotIn("not-a-real-secret", "\n".join(failures))
 
     def test_google_validation_requires_only_the_gateway_key(self) -> None:

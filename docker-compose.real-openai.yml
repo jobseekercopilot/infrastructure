@@ -8,10 +8,11 @@ services:
       OPENAI_DATA_REGION: ${OPENAI_DATA_REGION:?Declare the reviewed OpenAI data region in config/.secrets.env}
       OPENAI_DATA_CONTROL_MODE: ${OPENAI_DATA_CONTROL_MODE:?Declare the approved OpenAI data-control mode in config/.secrets.env}
       OPENAI_DATA_SHARING_MODE: ${OPENAI_DATA_SHARING_MODE:?Declare the OpenAI data-sharing setting in config/.secrets.env}
-      OPENAI_PRIVACY_POLICY_VERSION: openai-api-data-controls-2026-07-25
+      OPENAI_PRIVACY_POLICY_VERSION: openai-api-data-controls-2026-08-23
       OPENAI_PRIVACY_DECISION_ID: ${OPENAI_PRIVACY_DECISION_ID:?Add the durable privacy decision reference to config/.secrets.env}
       OPENAI_PRIVACY_OWNER: ${OPENAI_PRIVACY_OWNER:?Add the privacy decision owner to config/.secrets.env}
-      OPENAI_PRIVACY_REVIEW_ON: ${OPENAI_PRIVACY_REVIEW_ON:?Add the privacy review date to config/.secrets.env}
+      OPENAI_PRIVACY_REVIEWED_ON: ${OPENAI_PRIVACY_REVIEWED_ON:?Add the completed privacy review date to config/.secrets.env}
+      OPENAI_PRIVACY_REVIEW_DUE_ON: ${OPENAI_PRIVACY_REVIEW_DUE_ON:?Add the next privacy review due date to config/.secrets.env}
       GENERATION_MODEL_ID: gpt-4.1-mini-2025-04-14
       GENERATION_MODEL_DEPLOYMENT_VERSION: document-generation-gpt-4.1-mini-2025-04-14
       GENERATION_PRICING_VERSION: openai-standard-2026-07-29

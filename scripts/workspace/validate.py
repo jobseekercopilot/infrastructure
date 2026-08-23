@@ -257,7 +257,8 @@ def validate_workspace(
                     "OPENAI_DATA_SHARING_MODE=DISABLED\n"
                     "OPENAI_PRIVACY_DECISION_ID=privacy-decision/validation\n"
                     "OPENAI_PRIVACY_OWNER=Validation owner\n"
-                    "OPENAI_PRIVACY_REVIEW_ON=2026-10-25\n",
+                    "OPENAI_PRIVACY_REVIEWED_ON=2026-08-23\n"
+                    "OPENAI_PRIVACY_REVIEW_DUE_ON=2026-11-23\n",
                     encoding="utf-8",
                 )
                 secret_environment_file.chmod(0o600)

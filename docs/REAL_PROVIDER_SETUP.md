@@ -43,7 +43,8 @@ OPENAI_DATA_CONTROL_MODE=
 OPENAI_DATA_SHARING_MODE=
 OPENAI_PRIVACY_DECISION_ID=
 OPENAI_PRIVACY_OWNER=
-OPENAI_PRIVACY_REVIEW_ON=
+OPENAI_PRIVACY_REVIEWED_ON=
+OPENAI_PRIVACY_REVIEW_DUE_ON=
 GOOGLE_MAPS_API_KEY=
 ```
 
@@ -52,10 +53,13 @@ account uses multiple organizations or a legacy user API key, the optional
 `OPENAI_ORGANIZATION_ID` and `OPENAI_PROJECT_ID` values may be added to select
 the intended billing boundary explicitly.
 
-Do not guess the required privacy settings. The endpoint must exactly match the
-declared data region. The data-control, sharing, decision, owner and ISO-8601
-review date must match the recorded privacy decision. The LLM gateway refuses
-to start if that decision is absent, invalid or expired.
+Do not guess the required privacy settings. The initial public-beta evidence
+supports `https://api.openai.com/v1/chat/completions`, `GLOBAL`,
+`STANDARD_30_DAY_ABUSE_MONITORING` and data sharing `DISABLED`; it does not
+support a regional-residency or Zero Data Retention claim. The completed review
+and next-review due dates are distinct ISO-8601 values and must match the durable
+privacy decision. The LLM gateway refuses to start if that decision is absent,
+future-dated, overdue or scheduled more than 93 days after the completed review.
 
 Do not place a populated copy in Infrastructure or any service repository.
 Validate selected providers without printing values:

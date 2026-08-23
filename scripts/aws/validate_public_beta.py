@@ -49,6 +49,7 @@ CLIENT_RELEASE_REVISION = "3cdb1dec9f6a8b78dbf4c576fdc960ff00aa111a"
 CLIENT_ARTIFACT_CONTRACT_SHA256 = "801fab5beb7ea81798677086ef00a94759294a1e85915f74da843632de2c6f75"
 LANDING_RELEASE_REVISION = "ce2a2a45aa32c838f12b3a8ff692ac5c1a0cdee7"
 LANDING_ARTIFACT_CONTRACT_SHA256 = "9682372ef2d909de3b2b49c6d0fed232565b61e1b1fe0ac666ace58bfdb0804f"
+OPENAI_PRIVACY_POLICY_VERSION = "openai-api-data-controls-2026-08-23"
 EXCLUDED_REPOSITORIES = {"system-data-service", "e2e"}
 DATABASE_SERVICES = {
     "authentication-service",
@@ -1047,13 +1048,29 @@ def validate_approvals(
         require(google["googleBillingQuotasVerified"] is False, "unapproved Google Maps cannot attest billing quotas")
 
     openai = integrations["openai"]
-    openai_fields = {"privacyPolicyVersion", "privacyDecisionId", "privacyOwner", "privacyReviewedOn"}
+    openai_fields = {
+        "privacyPolicyVersion", "privacyDecisionId", "privacyOwner",
+        "privacyReviewedOn", "privacyReviewDueOn",
+    }
     require(openai_fields.issubset(openai), "OpenAI approval needs privacy decision provenance")
     if production and openai["approved"]:
         for field, minimum in (("privacyPolicyVersion", 3), ("privacyDecisionId", 8), ("privacyOwner", 3)):
             require_substantive(openai[field], f"integrations.openai.{field}", minimum)
+        require(
+            openai["privacyPolicyVersion"] == OPENAI_PRIVACY_POLICY_VERSION,
+            "OpenAI approval must use the current reviewed privacy policy version",
+        )
         privacy_reviewed = parse_release_date(openai["privacyReviewedOn"], "integrations.openai.privacyReviewedOn")
+        privacy_review_due = parse_release_date(
+            openai["privacyReviewDueOn"], "integrations.openai.privacyReviewDueOn"
+        )
         require(privacy_reviewed <= reviewed_at.date(), "OpenAI privacy review follows reviewedAt provenance")
+        require(privacy_review_due >= reviewed_at.date(), "OpenAI privacy review is already overdue")
+        require(
+            privacy_reviewed < privacy_review_due
+            <= privacy_reviewed + datetime.timedelta(days=93),
+            "OpenAI privacy review due date must follow the completed review and be within 93 days",
+        )
     payment_fields = {
         "paymentReadinessStatus", "refundRunbookReference", "reconciliationRunbookReference",
         "checkoutEnabled", "checkoutReleaseAuthorised", "providerLiveModeExpected",

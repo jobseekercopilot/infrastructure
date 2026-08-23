@@ -92,14 +92,17 @@ locals {
 
   openai_approval_complete = !var.enabled_integrations.openai || (
     local.approval_complete.openai &&
-    length(trimspace(try(local.approval_manifest.integrations.openai.privacyPolicyVersion, ""))) >= 3 &&
-    !can(regex(local.release_placeholder_pattern, trimspace(try(local.approval_manifest.integrations.openai.privacyPolicyVersion, "")))) &&
+    try(local.approval_manifest.integrations.openai.privacyPolicyVersion, "") == "openai-api-data-controls-2026-08-23" &&
     length(trimspace(try(local.approval_manifest.integrations.openai.privacyDecisionId, ""))) >= 8 &&
     !can(regex(local.release_placeholder_pattern, trimspace(try(local.approval_manifest.integrations.openai.privacyDecisionId, "")))) &&
     length(trimspace(try(local.approval_manifest.integrations.openai.privacyOwner, ""))) >= 3 &&
     !can(regex(local.release_placeholder_pattern, trimspace(try(local.approval_manifest.integrations.openai.privacyOwner, "")))) &&
     can(regex("^20[0-9]{2}-[0-9]{2}-[0-9]{2}$", try(local.approval_manifest.integrations.openai.privacyReviewedOn, ""))) &&
-    try(timecmp("${local.approval_manifest.integrations.openai.privacyReviewedOn}T00:00:00Z", plantimestamp()) <= 0, false)
+    try(timecmp("${local.approval_manifest.integrations.openai.privacyReviewedOn}T00:00:00Z", plantimestamp()) <= 0, false) &&
+    can(regex("^20[0-9]{2}-[0-9]{2}-[0-9]{2}$", try(local.approval_manifest.integrations.openai.privacyReviewDueOn, ""))) &&
+    try(timecmp("${local.approval_manifest.integrations.openai.privacyReviewDueOn}T23:59:59Z", plantimestamp()) >= 0, false) &&
+    try(timecmp("${local.approval_manifest.integrations.openai.privacyReviewDueOn}T00:00:00Z", "${local.approval_manifest.integrations.openai.privacyReviewedOn}T00:00:00Z") > 0, false) &&
+    try(timecmp("${local.approval_manifest.integrations.openai.privacyReviewDueOn}T00:00:00Z", timeadd("${local.approval_manifest.integrations.openai.privacyReviewedOn}T00:00:00Z", "2232h")) <= 0, false)
   )
 
   public_legal_contract           = local.approval_manifest.publicLegal
@@ -322,6 +325,7 @@ locals {
     "{{openai_privacy_decision_id}}"    = try(local.approval_manifest.integrations.openai.privacyDecisionId, "")
     "{{openai_privacy_owner}}"          = try(local.approval_manifest.integrations.openai.privacyOwner, "")
     "{{openai_privacy_reviewed_on}}"    = try(local.approval_manifest.integrations.openai.privacyReviewedOn, "")
+    "{{openai_privacy_review_due_on}}"  = try(local.approval_manifest.integrations.openai.privacyReviewDueOn, "")
   }
 
   payment_commercial_environment = {
@@ -387,7 +391,7 @@ locals {
         SPRING_DATASOURCE_HIKARI_MAX_LIFETIME       = "1500000"
       } : {},
       {
-        for key, value in service.environment : key => replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(
+        for key, value in service.environment : key => replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(
           value,
           "{{namespace}}", local.substitution_values["{{namespace}}"]),
           "{{db_endpoint}}", local.substitution_values["{{db_endpoint}}"]),
@@ -412,7 +416,8 @@ locals {
           "{{openai_privacy_policy_version}}", local.substitution_values["{{openai_privacy_policy_version}}"]),
           "{{openai_privacy_decision_id}}", local.substitution_values["{{openai_privacy_decision_id}}"]),
           "{{openai_privacy_owner}}", local.substitution_values["{{openai_privacy_owner}}"]),
-          "{{openai_privacy_reviewed_on}}", local.substitution_values["{{openai_privacy_reviewed_on}}"]
+          "{{openai_privacy_reviewed_on}}", local.substitution_values["{{openai_privacy_reviewed_on}}"]),
+          "{{openai_privacy_review_due_on}}", local.substitution_values["{{openai_privacy_review_due_on}}"]
         )
       },
       name == "payment-service" ? local.payment_commercial_environment : {},
