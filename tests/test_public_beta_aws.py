@@ -1723,6 +1723,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             )
         }
         self.assertIn("s3:GetAccelerateConfiguration", discovery_actions)
+        self.assertIn("s3:GetReplicationConfiguration", discovery_actions)
 
         compute_statements = resources["ApplyComputePolicy"]["Properties"]["PolicyDocument"]["Statement"]
         compute_by_sid = {statement["Sid"]: statement for statement in compute_statements}

@@ -1378,6 +1378,7 @@ Resources:
               - s3:GetEncryptionConfiguration
               - s3:GetLifecycleConfiguration
               - s3:GetPublicAccessBlock
+              - s3:GetReplicationConfiguration
               - s3:ListAllMyBuckets
               - s3:ListBucket
               - secretsmanager:DescribeSecret
