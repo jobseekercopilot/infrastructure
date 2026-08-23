@@ -245,12 +245,19 @@ class RestoreSemanticEvidenceTest(unittest.TestCase):
             tags = copy.deepcopy(task_tags)
             if stage == "broker":
                 tags[2]["value"] = "RestoreSemanticBroker"
+            group = (
+                "jsc-restore-semantic-broker"
+                if stage == "broker"
+                else f"family:jsc-public-beta-restore-semantic-{family_stage}"
+            )
+            started_by = "AWS Step Functions" if stage == "broker" else context["startedBy"]
             return {
                 "taskArn": task_arn,
                 "taskDefinitionArn": (
                     context["brokerDefinitionArn"] if stage == "broker" else definitions[stage]
                 ),
-                "group": f"family:jsc-public-beta-restore-semantic-{family_stage}",
+                "group": group,
+                "startedBy": started_by,
                 "lastStatus": "STOPPED",
                 "containers": [{"imageDigest": digest}],
                 "tags": tags,
@@ -390,6 +397,7 @@ class RestoreSemanticEvidenceTest(unittest.TestCase):
             "requestParameters": {
                 "clientToken": "state-token-fixture-1", "cluster": context["clusterArn"],
                 "count": 1, "enableECSManagedTags": False, "launchType": "EC2",
+                "group": "jsc-restore-semantic-broker",
                 "networkConfiguration": {"awsvpcConfiguration": {
                     "assignPublicIp": "DISABLED", "securityGroups": [context["brokerSecurityGroupId"]],
                     "subnets": context["privateSubnetIds"],
@@ -404,7 +412,7 @@ class RestoreSemanticEvidenceTest(unittest.TestCase):
                         ],
                     }],
                 },
-                "startedBy": "jsc-restore-semantic-broker", "tags": broker_tags,
+                "startedBy": "AWS Step Functions", "tags": broker_tags,
                 "taskDefinition": broker_definition,
             },
             "responseElements": {"failures": [], "tasks": [{"taskArn": marker_broker}]},
@@ -1067,6 +1075,82 @@ class RestoreSemanticEvidenceTest(unittest.TestCase):
         state_event["requestParameters"]["enableExecuteCommand"] = True
         with self.assertRaisesRegex(
             VALIDATOR_MODULE.SemanticEvidenceError, "state RunTask request.*unexpected shape"
+        ):
+            VALIDATOR_MODULE.validate_run_task_history(events, tasks, context)
+
+    def test_cloudtrail_state_broker_accepts_only_canonical_aws_owned_defaults(self) -> None:
+        for omitted in (("count",), ("startedBy",), ("count", "startedBy")):
+            with self.subTest(omitted=omitted):
+                events, tasks, context = self.run_task_fixture()
+                state_event = next(
+                    event for event in events
+                    if event["userIdentity"]["sessionContext"]["sessionIssuer"]["arn"]
+                    == context["stateMachineRoleArn"]
+                )
+                for field in omitted:
+                    state_event["requestParameters"].pop(field)
+                VALIDATOR_MODULE.validate_run_task_history(events, tasks, context)
+
+        mutations = (
+            ("count", 2, "service-owned Count drifted"),
+            ("startedBy", "jsc-restore-semantic-broker", "service-owned StartedBy drifted"),
+            ("group", "family:jsc-public-beta-restore-semantic-broker", "Group drifted"),
+        )
+        for field, value, message in mutations:
+            with self.subTest(field=field):
+                events, tasks, context = self.run_task_fixture()
+                state_event = next(
+                    event for event in events
+                    if event["userIdentity"]["sessionContext"]["sessionIssuer"]["arn"]
+                    == context["stateMachineRoleArn"]
+                )
+                state_event["requestParameters"][field] = value
+                with self.assertRaisesRegex(VALIDATOR_MODULE.SemanticEvidenceError, message):
+                    VALIDATOR_MODULE.validate_run_task_history(events, tasks, context)
+
+        events, tasks, context = self.run_task_fixture()
+        state_event = next(
+            event for event in events
+            if event["userIdentity"]["sessionContext"]["sessionIssuer"]["arn"]
+            == context["stateMachineRoleArn"]
+        )
+        state_event["requestParameters"]["overrides"]["containerOverrides"][0]["command"][-1] = (
+            "contain"
+        )
+        with self.assertRaisesRegex(
+            VALIDATOR_MODULE.SemanticEvidenceError, "broker command/environment drifted"
+        ):
+            VALIDATOR_MODULE.validate_run_task_history(events, tasks, context)
+
+    def test_cloudtrail_task_facts_bind_state_and_child_started_by_and_group(self) -> None:
+        events, tasks, context = self.run_task_fixture()
+        marker_task = next(
+            task for task in tasks["tasks"] if task["taskArn"] == context["markerBrokerTaskArn"]
+        )
+        marker_task["startedBy"] = "jsc-restore-semantic-broker"
+        with self.assertRaisesRegex(
+            VALIDATOR_MODULE.SemanticEvidenceError, "broker task is not exact and STOPPED"
+        ):
+            VALIDATOR_MODULE.validate_run_task_history(events, tasks, context)
+
+        events, tasks, context = self.run_task_fixture()
+        marker_task = next(
+            task for task in tasks["tasks"] if task["taskArn"] == context["markerBrokerTaskArn"]
+        )
+        marker_task["group"] = "family:jsc-public-beta-restore-semantic-broker"
+        with self.assertRaisesRegex(
+            VALIDATOR_MODULE.SemanticEvidenceError, "broker task is not exact and STOPPED"
+        ):
+            VALIDATOR_MODULE.validate_run_task_history(events, tasks, context)
+
+        events, tasks, context = self.run_task_fixture()
+        clone_task = next(
+            task for task in tasks["tasks"]
+            if task["taskArn"] == context["currentTasks"]["clone"]
+        )
+        clone_task["startedBy"] = "AWS Step Functions"
+        with self.assertRaisesRegex(
+            VALIDATOR_MODULE.SemanticEvidenceError, "attempt 2 clone task is not exact and STOPPED"
         ):
             VALIDATOR_MODULE.validate_run_task_history(events, tasks, context)
 
