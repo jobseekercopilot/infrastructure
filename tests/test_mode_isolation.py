@@ -118,7 +118,8 @@ class RenderedModeIsolationTests(unittest.TestCase):
                 "OPENAI_DATA_SHARING_MODE": "DISABLED",
                 "OPENAI_PRIVACY_DECISION_ID": "privacy-decision/test",
                 "OPENAI_PRIVACY_OWNER": "Test owner",
-                "OPENAI_PRIVACY_REVIEW_ON": "2026-10-25",
+                "OPENAI_PRIVACY_REVIEWED_ON": "2026-08-23",
+                "OPENAI_PRIVACY_REVIEW_DUE_ON": "2026-11-23",
             },
         )
         cls.models["real-providers"] = compose_model(

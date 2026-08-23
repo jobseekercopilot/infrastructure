@@ -1355,6 +1355,27 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         self.assertEqual(approvals["gcpBudgetAlertThresholdPercents"], [50, 75, 90, 100])
         self.assertEqual(runtime["google-maps-gateway"]["environment"]["GOOGLE_MAPS_ENABLED"], "{{google_enabled}}")
 
+    def test_openai_runtime_contract_matches_available_account_evidence(self) -> None:
+        approvals = json.loads(
+            (ROOT / "aws" / "public-beta" / "config" / "launch-approvals.json").read_text(encoding="utf-8")
+        )["integrations"]["openai"]
+        environment = json.loads(
+            (ROOT / "aws" / "public-beta" / "config" / "runtime-services.json").read_text(encoding="utf-8")
+        )["services"]["llm-gateway"]["environment"]
+
+        self.assertEqual(environment["OPENAI_ENDPOINT"], "https://api.openai.com/v1/chat/completions")
+        self.assertEqual(environment["OPENAI_DATA_REGION"], "GLOBAL")
+        self.assertEqual(
+            environment["OPENAI_DATA_CONTROL_MODE"],
+            "STANDARD_30_DAY_ABUSE_MONITORING",
+        )
+        self.assertEqual(environment["OPENAI_DATA_SHARING_MODE"], "DISABLED")
+        self.assertEqual(environment["OPENAI_PRIVACY_REVIEWED_ON"], "{{openai_privacy_reviewed_on}}")
+        self.assertEqual(environment["OPENAI_PRIVACY_REVIEW_DUE_ON"], "{{openai_privacy_review_due_on}}")
+        self.assertNotIn("OPENAI_PRIVACY_REVIEW_ON", environment)
+        self.assertIn("privacyReviewedOn", approvals)
+        self.assertIn("privacyReviewDueOn", approvals)
+
     def test_client_and_registration_legal_contracts_fail_closed(self) -> None:
         runtime = json.loads(
             (ROOT / "aws" / "public-beta" / "config" / "runtime-services.json").read_text(encoding="utf-8")
@@ -1618,11 +1639,33 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         openai_placeholder = copy.deepcopy(approvals)
         openai = approve_common(openai_placeholder, "openai")
         openai.update({
-            "privacyPolicyVersion": "privacy-2026-08-15",
+            "privacyPolicyVersion": "openai-api-data-controls-2026-08-23",
             "privacyDecisionId": "privacy-decision-record-15",
             "privacyOwner": "Data protection owner",
             "privacyReviewedOn": today.isoformat(),
+            "privacyReviewDueOn": (today + module.datetime.timedelta(days=90)).isoformat(),
         })
+        overdue_openai = copy.deepcopy(openai_placeholder)
+        overdue_openai["integrations"]["openai"]["privacyReviewDueOn"] = (
+            today - module.datetime.timedelta(days=1)
+        ).isoformat()
+        with self.assertRaisesRegex(module.ContractError, "already overdue"):
+            module.validate_approvals(overdue_openai, True)
+
+        distant_openai = copy.deepcopy(openai_placeholder)
+        distant_openai["integrations"]["openai"]["privacyReviewDueOn"] = (
+            today + module.datetime.timedelta(days=94)
+        ).isoformat()
+        with self.assertRaisesRegex(module.ContractError, "within 93 days"):
+            module.validate_approvals(distant_openai, True)
+
+        stale_policy_openai = copy.deepcopy(openai_placeholder)
+        stale_policy_openai["integrations"]["openai"]["privacyPolicyVersion"] = (
+            "openai-api-data-controls-2026-07-25"
+        )
+        with self.assertRaisesRegex(module.ContractError, "current reviewed privacy policy version"):
+            module.validate_approvals(stale_policy_openai, True)
+
         openai["privacyDecisionId"] = "TBD"
         with self.assertRaisesRegex(module.ContractError, "privacyDecisionId"):
             module.validate_approvals(openai_placeholder, True)
