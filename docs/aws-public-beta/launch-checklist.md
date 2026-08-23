@@ -145,10 +145,10 @@ Terraform plan or AWS credit award alone is not launch approval.
       and Auth snapshot SHA-256
       `95811cb81b0c32ad2f9c5cc42cd8f85c0385359cdade6c0f9e67e3ed63950dc0`;
       Document Generation Gateway is
-      `cd9b71a3d4dbfbe41d6784f3eeeb7b1b113f5218` / OpenAPI SHA-256
-      `864ba3c36b2ba4bcd1749edc597ed903a21e7dfa515bb2809d3bc9b9cf878f42`,
-      Payment is `39005690b2fe5a1da6208b25c3e0e4c9c57c7eb3` /
-      `40aa59f62a4ad4d956c2324c9c8d9fa154e4b04b49c029cbda0d80cc2c5dcdc9`,
+      `e15784c7098d327835e2a7d14dd257c1b95b08bd` / OpenAPI SHA-256
+      `930d8612d035c72a18107a7ea0afe3c1af52b2f86240c61b27c096c388dce895`,
+      Payment is `baeec9aa8da1285a2406900c9550773ac3841af7` /
+      `77186ce39bd32be4d8aed80b496df5873cf9e16c9ea911d7bc9b364d8a7b46e3`,
       Payment Gateway is `99ee685a6809a254305a4cbb4dd92ba0fa7751bc` /
       `9da54edec5a264e541433bf16dbc3826d8e0aa813ceb8e91fcdafab05f324b0b`,
       and Stripe Gateway is `04dd9fa7c095f65120afd37cfc11380176756216` /
