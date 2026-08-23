@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reject destructive Cloud Map changes before a protected saved plan is applied."""
+"""Reject destruction of retained runtime-discovery and account-email resources."""
 
 from __future__ import annotations
 
@@ -57,16 +57,54 @@ def verify_no_cloud_map_service_destruction(plan: dict[str, Any]) -> None:
         )
 
 
+def verify_no_account_email_ses_destruction(plan: dict[str, Any]) -> None:
+    changes = plan.get("resource_changes")
+    if not isinstance(changes, list):
+        raise SavedReleasePlanError("Terraform plan omits resource_changes")
+
+    destructive: list[str] = []
+    for resource in changes:
+        if not isinstance(resource, dict):
+            raise SavedReleasePlanError("Terraform resource change must be an object")
+        address = resource.get("address")
+        resource_type = resource.get("type")
+        change = resource.get("change")
+        actions = change.get("actions") if isinstance(change, dict) else None
+        if (
+            not isinstance(address, str)
+            or not isinstance(resource_type, str)
+            or not isinstance(actions, list)
+            or not all(isinstance(action, str) for action in actions)
+        ):
+            raise SavedReleasePlanError("Terraform resource change is malformed")
+        if resource_type not in {
+            "aws_sesv2_configuration_set",
+            "aws_sesv2_configuration_set_event_destination",
+        }:
+            continue
+        if "delete" in actions:
+            destructive.append(address)
+
+    if destructive:
+        joined = ", ".join(sorted(destructive))
+        raise SavedReleasePlanError(
+            "Account-email configuration/event deletion or replacement requires reviewed manual cleanup; "
+            f"refusing saved plan: {joined}"
+        )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--plan-json", type=Path, required=True)
     args = parser.parse_args()
     try:
-        verify_no_cloud_map_service_destruction(load_plan(args.plan_json))
+        plan = load_plan(args.plan_json)
+        verify_no_cloud_map_service_destruction(plan)
+        verify_no_account_email_ses_destruction(plan)
     except (OSError, json.JSONDecodeError, SavedReleasePlanError) as exc:
         print(f"Saved release plan verification failed: {exc}", file=sys.stderr)
         return 3
-    print("Verified saved release plan contains no Cloud Map service destruction.")
+    print("Verified saved release plan contains no Cloud Map or account-email SES destruction.")
     return 0
 
 

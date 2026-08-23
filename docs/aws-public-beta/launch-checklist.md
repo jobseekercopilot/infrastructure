@@ -217,8 +217,13 @@ Terraform plan or AWS credit award alone is not launch approval.
       accepted as evidence. The protected `liveStripeCatalog` records the exact
       three permanent live Product/Price pairs; each Price is one-off GBP at
       £4.99, £11.99 or £19.99 and maps only to Starter, Active or Power.
-- [ ] SES production access, SPF/DKIM, configuration set, suppression/bounce/
-      complaint handling and sender-domain ownership are verified.
+- [ ] SES production access, sending/enforcement health, SPF/DKIM, exact
+      `JobSeekerCopilotAccountEmails` configuration/event destination,
+      encrypted SNS/KMS publication, suppression/bounce/complaint handling and
+      sender-domain ownership pass the read-only release verifier. A named owner
+      separately approves one controlled tester account/mailbox and records a
+      redacted real password-reset delivery; automation must not choose a
+      recipient or retain an address/reset token.
 - [ ] Provider secret versions were supplied through the protected operator;
       no secrets appear in approval manifests, tfvars, plans or artifacts.
 

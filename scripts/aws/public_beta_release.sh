@@ -153,6 +153,19 @@ verify_existing_launch_template_authorization() {
   echo "Launch-template IAM preflight passed for $launch_template_id version $launch_template_version in every private subnet."
 }
 
+verify_account_email_ses() {
+  local contract
+  contract=$(terraform -chdir="$module" output -json account_email_delivery)
+  python3 "$repository_root/scripts/aws/verify_account_email_ses.py" \
+    --region "$region" \
+    --account-id "$(jq -er '.aws_account_id' <<<"$contract")" \
+    --identity-domain "$(jq -er '.identity_domain' <<<"$contract")" \
+    --sender "$(jq -er '.sender' <<<"$contract")" \
+    --configuration-set "$(jq -er '.configuration_set' <<<"$contract")" \
+    --event-destination "$(jq -er '.event_destination' <<<"$contract")" \
+    --topic-arn "$(jq -er '.operations_topic_arn' <<<"$contract")"
+}
+
 plan_and_apply() {
   local desired=$1
   local public=$2
@@ -365,6 +378,7 @@ prepare_private_fleet() {
   # Maintenance first: stop every app task. This is the intentional lean-node
   # stop-first strategy and prevents unschedulable old+new duplication.
   plan_and_apply 0 false "${verb,,}-dark"
+  verify_account_email_ses
   "$repository_root/scripts/aws/seed-runtime-secrets.sh" public-beta
   assert_capacity_ready
   verify_current_iam_contract 0 false database-bootstrap-iam
@@ -394,6 +408,7 @@ case "$action" in
     }
     verify_existing_launch_template_authorization
     plan_and_apply 0 false foundation
+    verify_account_email_ses
     ;;
   prepare)
     prepare_private_fleet PREPARE
@@ -406,6 +421,7 @@ case "$action" in
       echo "Refusing: confirmation must equal 'ACTIVATE $release_id'." >&2; exit 2;
     }
     assert_exact_prepared_release
+    verify_account_email_ses
     verify_current_iam_contract 1 false activation-operator-iam
     "$repository_root/scripts/aws/run_release_operator.sh" release-preflight "$module"
     write_marker preflight

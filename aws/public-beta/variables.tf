@@ -346,19 +346,36 @@ variable "application_base_url" {
 }
 
 variable "account_email_sender" {
-  type    = string
-  default = "accounts@jobseekercopilot.com"
+  description = "Exact verified From address for Authentication Service account-security email."
+  type        = string
+  default     = "accounts@jobseekercopilot.com"
+
+  validation {
+    condition     = var.account_email_sender == "accounts@jobseekercopilot.com"
+    error_message = "The public-beta account-email sender must remain accounts@jobseekercopilot.com."
+  }
 }
 
 variable "ses_identity_domain" {
-  description = "Existing verified SES identity owned by the landing/email stacks."
+  description = "Existing verified SES domain identity and DKIM contract owned by the landing email stack."
   type        = string
   default     = "jobseekercopilot.com"
+
+  validation {
+    condition     = var.ses_identity_domain == "jobseekercopilot.com"
+    error_message = "The public-beta account-email identity must remain jobseekercopilot.com."
+  }
 }
 
 variable "ses_configuration_set" {
-  type    = string
-  default = "JobSeekerCopilotAccountEmails"
+  description = "Terraform-owned, purpose-specific Authentication Service SES configuration set."
+  type        = string
+  default     = "JobSeekerCopilotAccountEmails"
+
+  validation {
+    condition     = var.ses_configuration_set == "JobSeekerCopilotAccountEmails"
+    error_message = "The public-beta account-email configuration set must remain JobSeekerCopilotAccountEmails."
+  }
 }
 
 variable "google_maximum_sessions" {
