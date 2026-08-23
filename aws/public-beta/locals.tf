@@ -494,11 +494,11 @@ locals {
   zero_digest          = "sha256:${join("", [for _ in range(64) : "0"])}"
 
   frontend_release_ready = (
-    try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.revision, "") == "8a23b2ae88f291087748c676bb92ca91d14addaa" &&
+    try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.revision, "") == "3cdb1dec9f6a8b78dbf4c576fdc960ff00aa111a" &&
     try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.artifactContractSha256, "") == "801fab5beb7ea81798677086ef00a94759294a1e85915f74da843632de2c6f75" &&
     try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.packaging, "") == "OCI_SSR_BFF" &&
     try(local.image_manifest.images["job-seeker-copilot-client"].revision, "") == try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.revision, "") &&
-    try(local.image_manifest.dependencyEvidence.frontendArtifacts.landing.revision, "") == "533a8086b3af8019cfcd585e50e44e64a0bc2e0d" &&
+    try(local.image_manifest.dependencyEvidence.frontendArtifacts.landing.revision, "") == "ce2a2a45aa32c838f12b3a8ff692ac5c1a0cdee7" &&
     try(local.image_manifest.dependencyEvidence.frontendArtifacts.landing.artifactContractSha256, "") == "9682372ef2d909de3b2b49c6d0fed232565b61e1b1fe0ac666ace58bfdb0804f" &&
     alltrue([
       for digest in [
