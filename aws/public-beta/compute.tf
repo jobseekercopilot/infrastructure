@@ -323,12 +323,19 @@ resource "aws_service_discovery_private_dns_namespace" "main" {
   name        = local.namespace_name
   description = "Private service discovery for Job Seeker Copilot public beta"
   vpc         = aws_vpc.main.id
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_service_discovery_service" "service" {
   for_each = local.raw_services
 
   name = each.key
+
+  # Do not add an empty health_check_custom_config block. AWS provider 6.55
+  # does not materialise it, then proposes a ForceNew replacement forever.
 
   dns_config {
     namespace_id   = aws_service_discovery_private_dns_namespace.main.id
@@ -340,9 +347,11 @@ resource "aws_service_discovery_service" "service" {
     }
   }
 
-  health_check_custom_config {}
-
   tags = { Service = each.key }
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_service_discovery_service" "clamav" {
@@ -358,9 +367,11 @@ resource "aws_service_discovery_service" "clamav" {
     }
   }
 
-  health_check_custom_config {}
-
   tags = { Service = "clamav" }
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 data "aws_iam_policy_document" "task_trust" {

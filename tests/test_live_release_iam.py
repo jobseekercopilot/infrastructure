@@ -199,6 +199,9 @@ class ReleaseScriptOrderingTest(unittest.TestCase):
             self.assertLess(body.index("verify_live_release_iam"), body.index("terraform -chdir=\"$module\" apply"))
             self.assertIn('apply -input=false "$plan"', body)
 
+        verifier = script.split("verify_live_release_iam() {", maxsplit=1)[1].split("\n}", maxsplit=1)[0]
+        self.assertLess(verifier.index("verify_saved_release_plan.py"), verifier.index("verify_live_release_iam.py"))
+
         lines = script.splitlines()
         operator_lines = [index for index, line in enumerate(lines) if "run_release_operator.sh" in line]
         self.assertEqual(len(operator_lines), 4)
