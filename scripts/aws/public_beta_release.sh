@@ -94,6 +94,63 @@ verify_current_iam_contract() {
   rm -f "$plan"
 }
 
+verify_existing_launch_template_authorization() {
+  local launch_template_id launch_template_version subnet_id dry_run_output
+  local -a subnet_ids=()
+  read -r launch_template_id launch_template_version < <(
+    aws ec2 describe-launch-templates \
+      --region "$region" \
+      --filters \
+        "Name=tag:Application,Values=Job Seeker Copilot" \
+        "Name=tag:Environment,Values=public-beta" \
+        "Name=tag:ManagedBy,Values=Terraform" \
+      --query 'sort_by(LaunchTemplates,&CreateTime)[-1].[LaunchTemplateId,LatestVersionNumber]' \
+      --output text
+  )
+
+  # A first-ever foundation has no template to preflight; Terraform creates it
+  # in the same saved apply. Every retry/update must prove the exact EC2 dry-run
+  # authorization that Auto Scaling performs before accepting the template.
+  if [[ -z "${launch_template_id:-}" || "$launch_template_id" == "None" ]]; then
+    echo "Launch-template IAM preflight deferred: no existing public-beta template."
+    return
+  fi
+
+  mapfile -t subnet_ids < <(
+    aws ec2 describe-subnets \
+      --region "$region" \
+      --filters \
+        "Name=tag:Application,Values=Job Seeker Copilot" \
+        "Name=tag:Environment,Values=public-beta" \
+        "Name=tag:ManagedBy,Values=Terraform" \
+        "Name=tag:Name,Values=jsc-public-beta-private-*" \
+      --query 'sort_by(Subnets,&SubnetId)[].SubnetId' \
+      --output json | jq -r '.[]'
+  )
+  (( ${#subnet_ids[@]} > 0 )) || {
+    echo "Launch-template IAM preflight failed: no tagged public-beta private subnet." >&2
+    exit 3
+  }
+
+  for subnet_id in "${subnet_ids[@]}"; do
+    if dry_run_output=$(aws ec2 run-instances \
+      --region "$region" \
+      --launch-template "LaunchTemplateId=$launch_template_id,Version=$launch_template_version" \
+      --subnet-id "$subnet_id" \
+      --count 1 \
+      --dry-run 2>&1); then
+      echo "Launch-template IAM preflight failed: EC2 dry-run unexpectedly returned success." >&2
+      exit 3
+    fi
+    if [[ "$dry_run_output" != *"DryRunOperation"* ]]; then
+      echo "Launch-template IAM preflight failed for $launch_template_id version $launch_template_version in $subnet_id:" >&2
+      echo "$dry_run_output" >&2
+      exit 3
+    fi
+  done
+  echo "Launch-template IAM preflight passed for $launch_template_id version $launch_template_version in every private subnet."
+}
+
 plan_and_apply() {
   local desired=$1
   local public=$2
@@ -333,6 +390,7 @@ case "$action" in
     [[ "$confirmation" == "FOUNDATION public-beta" ]] || {
       echo "Refusing: confirmation must equal 'FOUNDATION public-beta'." >&2; exit 2;
     }
+    verify_existing_launch_template_authorization
     plan_and_apply 0 false foundation
     ;;
   prepare)

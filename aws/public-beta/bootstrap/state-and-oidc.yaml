@@ -1346,6 +1346,7 @@ Resources:
               - cloudwatch:Get*
               - cloudwatch:List*
               - ec2:Describe*
+              - ec2:GetSecurityGroupsForVpc
               - ecr:Describe*
               - ecr:GetLifecyclePolicy
               - ecr:GetRepositoryPolicy
@@ -1819,13 +1820,20 @@ Resources:
                 aws:RequestTag/Application: Job Seeker Copilot
                 aws:RequestTag/Environment: public-beta
                 aws:RequestTag/ManagedBy: Terraform
-          - Sid: CreateOnlyPrivateHostedZoneForRegionalVpc
+          # AWS Cloud Map performs its Route 53 prerequisite authorization at
+          # the CreatePrivateDnsNamespace boundary without forwarding the
+          # route53:VPCs context key. Keep this as the one documented Route 53
+          # create permission required by that tagged namespace operation.
+          - Sid: CreateHostedZoneRequiredByPrivateDnsNamespace
             Effect: Allow
             Action: route53:CreateHostedZone
             Resource: '*'
-            Condition:
-              StringLike:
-                route53:VPCs: !Sub VPCId=vpc-*,VPCRegion=${AWS::Region}
+          - Sid: ReadHostedZoneRequiredByPrivateDnsNamespace
+            Effect: Allow
+            Action:
+              - route53:GetHostedZone
+              - route53:ListHostedZonesByName
+            Resource: '*'
           - Sid: TagServiceDiscoveryOnlyWithReviewedCreateTags
             Effect: Allow
             Action: servicediscovery:TagResource
@@ -1894,8 +1902,6 @@ Resources:
                 ec2:ResourceTag/ManagedBy: Terraform
               ArnLike:
                 ec2:LaunchTemplate: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:launch-template/*
-              Bool:
-                ec2:IsLaunchTemplateResource: 'true'
           - Sid: CreateOnlyTaggedPublicBetaInstances
             Effect: Allow
             Action: ec2:RunInstances
@@ -2173,7 +2179,7 @@ Resources:
             Action:
               - wafv2:CreateWebACL
               - wafv2:UpdateWebACL
-            Resource: !Sub arn:${AWS::Partition}:wafv2:${AWS::Region}:${AWS::AccountId}:regional/managedruleset/AWS/*
+            Resource: !Sub arn:${AWS::Partition}:wafv2:${AWS::Region}:${AWS::AccountId}:regional/managedruleset/*/*
           - Sid: TagOnlyNamedPublicBetaAlarms
             Effect: Allow
             Action: cloudwatch:TagResource
@@ -2216,6 +2222,7 @@ Resources:
             Effect: Allow
             Action:
               - wafv2:AssociateWebACL
+              - wafv2:CreateWebACL
               - wafv2:DeleteRegexPatternSet
               - wafv2:DeleteWebACL
               - wafv2:DisassociateWebACL

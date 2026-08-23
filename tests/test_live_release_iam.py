@@ -212,6 +212,23 @@ class ReleaseScriptOrderingTest(unittest.TestCase):
         self.assertIn("verify_live_release_iam.py", verifier)
         self.assertIn('--backup-contract "$backup_policy_contract"', verifier)
 
+    def test_foundation_preflights_auto_scaling_launch_template_authorization(self) -> None:
+        script = (ROOT / "scripts" / "aws" / "public_beta_release.sh").read_text(encoding="utf-8")
+        preflight = script.split("verify_existing_launch_template_authorization() {", maxsplit=1)[1].split(
+            "\n}", maxsplit=1
+        )[0]
+        self.assertIn("aws ec2 run-instances", preflight)
+        self.assertIn("--dry-run", preflight)
+        self.assertIn("--subnet-id", preflight)
+        self.assertIn("--count 1", preflight)
+        self.assertIn('for subnet_id in "${subnet_ids[@]}"', preflight)
+        self.assertIn('"DryRunOperation"', preflight)
+        foundation = script.split("foundation)", maxsplit=1)[1].split(";;", maxsplit=1)[0]
+        self.assertLess(
+            foundation.index("verify_existing_launch_template_authorization"),
+            foundation.index("plan_and_apply 0 false foundation"),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
