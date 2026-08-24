@@ -81,17 +81,26 @@ SELECT format('REVOKE ALL ON DATABASE %I FROM PUBLIC', :'database') \gexec
 SELECT format('GRANT CONNECT, TEMPORARY ON DATABASE %I TO %I', :'database', :'username') \gexec
 SQL
 
+  $psql_base \
+    --dbname="$database" \
+    --set=username="$username" <<'SQL'
+SELECT format('ALTER SCHEMA public OWNER TO %I', :'username') \gexec
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+SELECT format('GRANT USAGE, CREATE ON SCHEMA public TO %I', :'username') \gexec
+SQL
+
   schema_state="$(PGPASSWORD="$password" PGUSER="$username" PGDATABASE="$database" \
     psql --no-psqlrc --set=ON_ERROR_STOP=1 --quiet --tuples-only --no-align <<'SQL'
-REVOKE CREATE ON SCHEMA public FROM PUBLIC;
-GRANT USAGE, CREATE ON SCHEMA public TO CURRENT_USER;
-SELECT has_database_privilege(current_user, current_database(), 'CONNECT')::text
+SELECT pg_get_userbyid(nspowner)
+  || ':' || has_database_privilege(current_user, current_database(), 'CONNECT')::text
   || ':' || has_database_privilege(current_user, current_database(), 'TEMP')::text
   || ':' || has_schema_privilege(current_user, 'public', 'USAGE')::text
-  || ':' || has_schema_privilege(current_user, 'public', 'CREATE')::text;
+  || ':' || has_schema_privilege(current_user, 'public', 'CREATE')::text
+FROM pg_namespace
+WHERE nspname = 'public';
 SQL
 )"
-  if [ "$schema_state" != "true:true:true:true" ]; then
+  if [ "$schema_state" != "$username:true:true:true:true" ]; then
     echo "database bootstrap schema privilege verification failed for $prefix" >&2
     exit 3
   fi
