@@ -210,7 +210,8 @@ validate_deployed_state_machine_definitions() {
 verify_live_release_iam() {
   local plan=$1
   local allow_rds_monitoring_migration=${2:-false}
-  local plan_json
+  local complete_iam_plan=${3:-$plan}
+  local plan_json complete_iam_plan_json
   local -a migration_arguments=()
   if [[ "$allow_rds_monitoring_migration" == true ]]; then
     migration_arguments+=(--allow-rds-monitoring-migration)
@@ -222,12 +223,24 @@ verify_live_release_iam() {
   validate_deployed_state_machine_definitions
   python3 "$repository_root/scripts/aws/verify_saved_release_plan.py" \
     --plan-json "$plan_json"
+  if [[ "$complete_iam_plan" == "$plan" ]]; then
+    complete_iam_plan_json=$plan_json
+  else
+    complete_iam_plan_json=$(mktemp /tmp/jsc-live-complete-iam-plan.XXXXXX.json)
+    temporary_release_files+=("$complete_iam_plan_json")
+    terraform -chdir="$module" show -json "$complete_iam_plan" >"$complete_iam_plan_json"
+    python3 "$repository_root/scripts/aws/verify_saved_release_plan.py" \
+      --plan-json "$complete_iam_plan_json"
+  fi
   python3 "$repository_root/scripts/aws/verify_live_release_iam.py" \
-    --plan-json "$plan_json" \
+    --plan-json "$complete_iam_plan_json" \
     --backup-contract "$backup_policy_contract" \
     --region "$region" \
     "${migration_arguments[@]}"
   rm -f "$plan_json"
+  if [[ "$complete_iam_plan_json" != "$plan_json" ]]; then
+    rm -f "$complete_iam_plan_json"
+  fi
 }
 
 verify_live_rds_monitoring() {
@@ -374,20 +387,31 @@ targeted_plan_and_apply() {
   local target=$1
   local label=$2
   local desired=${3:-1}
-  local plan
+  local plan complete_iam_plan
   plan=$(mktemp "/tmp/jsc-target-${label}.XXXXXX.tfplan")
-  temporary_release_files+=("$plan")
+  complete_iam_plan=$(mktemp "/tmp/jsc-target-${label}-complete-iam.XXXXXX.tfplan")
+  temporary_release_files+=("$plan" "$complete_iam_plan")
   terraform -chdir="$module" plan "${common_arguments[@]}" \
     -parallelism=1 \
     -target="$target" \
     -var="application_desired_count=$desired" \
     -var=public_entrypoint_enabled=false \
     -out="$plan"
-  verify_live_release_iam "$plan"
+  # Terraform deliberately omits unrelated resources from planned_values for
+  # a targeted plan. Build a separate, never-applied full dark plan so the
+  # live IAM verifier can still compare every reserved PassRole name with the
+  # complete reviewed role/boundary/trust model. The targeted plan remains the
+  # only plan eligible for apply and retains its own state-machine and retained-
+  # resource checks.
+  terraform -chdir="$module" plan "${common_arguments[@]}" \
+    -var="application_desired_count=$desired" \
+    -var=public_entrypoint_enabled=false \
+    -out="$complete_iam_plan"
+  verify_live_release_iam "$plan" false "$complete_iam_plan"
   terraform -chdir="$module" show -no-color "$plan"
   terraform -chdir="$module" apply -input=false "$plan"
   validate_deployed_state_machine_definitions
-  rm -f "$plan"
+  rm -f "$plan" "$complete_iam_plan"
 }
 
 stage_state_machine_prerequisites() {
