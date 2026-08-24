@@ -1980,7 +1980,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
                 "location-gateway": "5acacb705bd8b4870ed33e24315b23c5df244132",
                 "location-service": "61800aef96b10a5e9d8d40503f9975a18c900025",
                 "llm-gateway": "d84427061766244ec10e367fb3a7a6587809612c",
-                "document-store-service": "82e739b0c907a9da9283bee5ff4ce7043635a6d5",
+                "document-store-service": "f781de0087b4dc45eff2828166f576b11a6c5a98",
                 "document-generation-gateway": "e15784c7098d327835e2a7d14dd257c1b95b08bd",
                 "payment-service": "baeec9aa8da1285a2406900c9550773ac3841af7",
                 "payment-gateway": "ab721f1b4377ba250d33b99a1690cb1abd96b864",
