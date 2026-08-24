@@ -1557,6 +1557,8 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         )["services"]["llm-gateway"]["environment"]
 
         self.assertEqual(environment["OPENAI_ENDPOINT"], "https://api.openai.com/v1/chat/completions")
+        self.assertEqual(environment["OPENAI_MODEL"], "gpt-4.1-mini-2025-04-14")
+        self.assertEqual(environment["GENERATION_MODEL_ID"], environment["OPENAI_MODEL"])
         self.assertEqual(environment["OPENAI_DATA_REGION"], "GLOBAL")
         self.assertEqual(
             environment["OPENAI_DATA_CONTROL_MODE"],
