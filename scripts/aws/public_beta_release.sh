@@ -476,9 +476,11 @@ assert_exact_prepared_release() {
 assert_capacity_ready() {
   local capacity
   capacity=$(terraform -chdir="$module" output -json capacity_contract)
-  local expected_nodes task_slots required_cpu required_memory
+  local expected_nodes expected_instance_type task_slots awsvpc_task_limit required_cpu required_memory
   expected_nodes=$(jq -er '.node_count' <<<"$capacity")
+  expected_instance_type=$(jq -er '.instance_type' <<<"$capacity")
   task_slots=$(jq -er '.task_slots' <<<"$capacity")
+  awsvpc_task_limit=$(jq -er '.awsvpc_task_limit' <<<"$capacity")
   required_cpu=$(jq -er '.reserved_cpu_units' <<<"$capacity")
   required_memory=$(jq -er '.reserved_memory_mib' <<<"$capacity")
 
@@ -491,32 +493,43 @@ assert_capacity_ready() {
     echo "Capacity preflight failed: expected exactly $expected_nodes ACTIVE ECS nodes." >&2; exit 3;
   }
 
-  local instance_state remaining_cpu remaining_memory remaining_eni
+  local instance_state remaining_cpu remaining_memory active_tasks remaining_awsvpc_tasks
   instance_state=$(aws ecs describe-container-instances \
     --region "$region" --cluster "$cluster" \
     --container-instances $(jq -r '.containerInstanceArns[]' <<<"$instances") \
     --output json)
-  if ! jq -e '
+  if ! jq -e --arg expected_instance_type "$expected_instance_type" '
     (.failures | length) == 0 and
     all(.containerInstances[];
-      .agentConnected == true and .status == "ACTIVE" and
-      (.versionInfo.agentVersion | type == "string" and length > 0) and
-      any(.attributes[]; .name == "ecs.awsvpc-trunk-id" and (.value | length) > 0)
+      . as $instance |
+      ($instance.attributes
+        | map(select(.name == "ecs.awsvpc-trunk-id" and (.value | length) > 0))
+        | map(.value) | unique) as $trunks |
+      $instance.agentConnected == true and $instance.status == "ACTIVE" and
+      ($instance.versionInfo.agentVersion | type == "string" and length > 0) and
+      any($instance.attributes[];
+        .name == "ecs.instance-type" and .value == $expected_instance_type) and
+      ($trunks | length) == 1 and
+      any($instance.attachments[];
+        .id == $trunks[0] and .type == "ElasticNetworkInterface" and .status == "ATTACHED") and
+      ($instance.runningTasksCount | type == "number") and $instance.runningTasksCount >= 0 and
+      ($instance.pendingTasksCount | type == "number") and $instance.pendingTasksCount >= 0
     )' <<<"$instance_state" >/dev/null; then
-    echo "Capacity preflight failed: ECS agent/awsvpcTrunking registration is incomplete." >&2
+    echo "Capacity preflight failed: ECS agent, exact instance type or awsvpcTrunking attachment is invalid." >&2
     exit 3
   fi
   remaining_cpu=$(jq '[.containerInstances[].remainingResources[] | select(.name == "CPU") | .integerValue] | add // 0' <<<"$instance_state")
   remaining_memory=$(jq '[.containerInstances[].remainingResources[] | select(.name == "MEMORY") | .integerValue] | add // 0' <<<"$instance_state")
-  remaining_eni=$(jq '[.containerInstances[].remainingResources[] | select(.name == "ENI") | .integerValue] | add // 0' <<<"$instance_state")
+  active_tasks=$(jq '[.containerInstances[] | .runningTasksCount + .pendingTasksCount] | add // 0' <<<"$instance_state")
+  remaining_awsvpc_tasks=$((awsvpc_task_limit - active_tasks))
   (( remaining_cpu >= required_cpu )) || {
     echo "Capacity preflight failed: registered ECS CPU is below the release reservation." >&2; exit 3;
   }
   (( remaining_memory >= required_memory )) || {
     echo "Capacity preflight failed: registered ECS memory is below the release reservation." >&2; exit 3;
   }
-  (( remaining_eni >= task_slots )) || {
-    echo "Capacity preflight failed: registered branch-ENI capacity is below the release task count." >&2; exit 3;
+  (( remaining_awsvpc_tasks >= task_slots )) || {
+    echo "Capacity preflight failed: reviewed awsvpcTrunking task capacity is below the release task count." >&2; exit 3;
   }
 
   local available_ips
