@@ -2496,7 +2496,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         backup_source = (ROOT / "aws" / "public-beta" / "backup.tf").read_text(encoding="utf-8")
         expected_versions = {
             "rdsBackup": "v30",
-            "s3Backup": "v4",
+            "s3Backup": "v5",
             "rdsRestore": "v35",
             "s3Restore": "v2",
         }
@@ -2524,6 +2524,20 @@ class PublicBetaAwsContractTest(unittest.TestCase):
 
         backup_actions = boundary_actions["BackupWorkloadBoundary"]
         restore_actions = boundary_actions["BackupRestoreWorkloadBoundary"]
+        bucket_tag_reads = [
+            statement
+            for statement in boundary_statements["BackupWorkloadBoundary"]
+            if "s3:ListTagsForResource" in (
+                statement["Action"]
+                if isinstance(statement["Action"], list)
+                else [statement["Action"]]
+            )
+        ]
+        self.assertEqual(len(bucket_tag_reads), 1)
+        self.assertEqual(
+            bucket_tag_reads[0]["Resource"],
+            "arn:${AWS::Partition}:s3:::jsc-public-beta-documents-${AWS::AccountId}",
+        )
         self.assertNotIn("s3:DeleteObject", backup_actions)
         self.assertTrue(contract["contracts"]["s3Restore"]["precreatedDestinationRequired"])
         self.assertNotIn("s3:CreateBucket", restore_actions)
