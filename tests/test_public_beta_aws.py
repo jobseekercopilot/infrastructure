@@ -1930,7 +1930,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             )},
             {
                 "authentication-service": "369e4bd96957dd22f254ae2c61d7a84744ac8d12",
-                "user-management-gateway": "a5b2e064a8b9e082378a94603467773dd97349e8",
+                "user-management-gateway": "15e6bed692352f92daccc295c3987319e18ef720",
                 "location-gateway": "5acacb705bd8b4870ed33e24315b23c5df244132",
                 "location-service": "61800aef96b10a5e9d8d40503f9975a18c900025",
                 "llm-gateway": "d84427061766244ec10e367fb3a7a6587809612c",
@@ -1953,7 +1953,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
                 "openApiSha256": "8ef5f12a32e836c2046fb163944b62d76cea31e389612408ca6ed1d1ccc42884",
             },
             "userManagementGateway": {
-                "revision": "a5b2e064a8b9e082378a94603467773dd97349e8",
+                "revision": "15e6bed692352f92daccc295c3987319e18ef720",
                 "openApiSha256": "ebb1332f8927cdb69dd659db444627e59c4f5d8f4330e04d95ed17164fb8bcf7",
                 "authSnapshotSha256": "95811cb81b0c32ad2f9c5cc42cd8f85c0385359cdade6c0f9e67e3ed63950dc0",
             },
