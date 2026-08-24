@@ -373,13 +373,14 @@ review_plan_only() {
 targeted_plan_and_apply() {
   local target=$1
   local label=$2
+  local desired=${3:-1}
   local plan
   plan=$(mktemp "/tmp/jsc-target-${label}.XXXXXX.tfplan")
   temporary_release_files+=("$plan")
   terraform -chdir="$module" plan "${common_arguments[@]}" \
     -parallelism=1 \
     -target="$target" \
-    -var=application_desired_count=1 \
+    -var="application_desired_count=$desired" \
     -var=public_entrypoint_enabled=false \
     -out="$plan"
   verify_live_release_iam "$plan"
@@ -387,6 +388,17 @@ targeted_plan_and_apply() {
   terraform -chdir="$module" apply -input=false "$plan"
   validate_deployed_state_machine_definitions
   rm -f "$plan"
+}
+
+stage_state_machine_prerequisites() {
+  # A new release changes the broker task-definition ARN embedded in the
+  # Step Functions definition. Register only that restore-specific task
+  # definition first so the subsequent full dark plan is fully rendered and
+  # can pass the fail-closed AWS schema check. No ECS service is targeted.
+  targeted_plan_and_apply \
+    aws_ecs_task_definition.restore_semantic_broker \
+    restore-semantic-broker \
+    0
 }
 
 write_marker() {
@@ -722,6 +734,7 @@ prepare_restore_source() {
     exit 2
   }
 
+  stage_state_machine_prerequisites
   plan_and_apply 0 false restore-source-dark
   verify_account_email_ses
   "$repository_root/scripts/aws/seed-runtime-secrets.sh" public-beta
@@ -760,6 +773,7 @@ prepare_private_fleet() {
 
   # Maintenance first: stop every app task. This is the intentional lean-node
   # stop-first strategy and prevents unschedulable old+new duplication.
+  stage_state_machine_prerequisites
   plan_and_apply 0 false "${verb,,}-dark"
   verify_account_email_ses
   "$repository_root/scripts/aws/seed-runtime-secrets.sh" public-beta

@@ -485,6 +485,25 @@ validate_state_machine_definitions_from_json "$1" planned
             targeted.index("validate_deployed_state_machine_definitions"),
             targeted.index('terraform -chdir="$module" apply'),
         )
+        self.assertIn('local desired=${3:-1}', targeted)
+        self.assertIn('-var="application_desired_count=$desired"', targeted)
+
+        staging = script.split("stage_state_machine_prerequisites() {", maxsplit=1)[1].split(
+            "\n}", maxsplit=1
+        )[0]
+        self.assertIn("aws_ecs_task_definition.restore_semantic_broker", staging)
+        self.assertIn("restore-semantic-broker", staging)
+        self.assertTrue(staging.rstrip().endswith("0"))
+        self.assertNotIn("aws_ecs_service", staging)
+
+        for function_name in ("prepare_restore_source", "prepare_private_fleet"):
+            preparation = script.split(f"{function_name}() {{", maxsplit=1)[1].split(
+                "\n}", maxsplit=1
+            )[0]
+            self.assertLess(
+                preparation.index("stage_state_machine_prerequisites"),
+                preparation.index("plan_and_apply 0 false"),
+            )
 
     def test_state_machine_schema_helper_fails_closed_on_unknown_or_invalid_json(self) -> None:
         definition = json.dumps({
