@@ -441,7 +441,10 @@ validate_state_machine_definitions_from_json "$1" planned
         script = (ROOT / "scripts" / "aws" / "public_beta_release.sh").read_text(encoding="utf-8")
         verifier = script.split("verify_live_release_iam() {", maxsplit=1)[1].split("\n}", maxsplit=1)[0]
         self.assertIn('terraform -chdir="$module" show -json "$plan"', verifier)
+        self.assertIn('local complete_iam_plan=${3:-$plan}', verifier)
+        self.assertIn('terraform -chdir="$module" show -json "$complete_iam_plan"', verifier)
         self.assertIn("verify_live_release_iam.py", verifier)
+        self.assertIn('--plan-json "$complete_iam_plan_json"', verifier)
         self.assertIn('--backup-contract "$backup_policy_contract"', verifier)
 
     def test_state_machine_definitions_are_schema_checked_by_aws_before_apply(self) -> None:
@@ -487,6 +490,17 @@ validate_state_machine_definitions_from_json "$1" planned
         )
         self.assertIn('local desired=${3:-1}', targeted)
         self.assertIn('-var="application_desired_count=$desired"', targeted)
+        self.assertIn('complete_iam_plan=$(mktemp', targeted)
+        self.assertIn('-out="$complete_iam_plan"', targeted)
+        self.assertIn('verify_live_release_iam "$plan" false "$complete_iam_plan"', targeted)
+        self.assertLess(
+            targeted.index('-out="$complete_iam_plan"'),
+            targeted.index('verify_live_release_iam "$plan" false "$complete_iam_plan"'),
+        )
+        self.assertLess(
+            targeted.index('verify_live_release_iam "$plan" false "$complete_iam_plan"'),
+            targeted.index('terraform -chdir="$module" apply -input=false "$plan"'),
+        )
 
         staging = script.split("stage_state_machine_prerequisites() {", maxsplit=1)[1].split(
             "\n}", maxsplit=1
