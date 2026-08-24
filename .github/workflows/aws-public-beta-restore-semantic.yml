@@ -52,8 +52,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: scripts/aws/verify_github_environment_protection.sh "$GITHUB_REPOSITORY" production-aws-restore "$GITHUB_REPOSITORY_OWNER" "$GITHUB_ACTOR"
       - name: Download exact restore-start evidence
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
+          digest-mismatch: error
           name: public-beta-restore-start-${{ inputs.drill_id }}
           path: ${{ runner.temp }}/restore-start
           github-token: ${{ github.token }}
@@ -174,15 +175,17 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: scripts/aws/verify_github_environment_protection.sh "$GITHUB_REPOSITORY" production-aws-restore-observe "$GITHUB_REPOSITORY_OWNER" "$GITHUB_ACTOR"
       - name: Download exact restore-start evidence
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
+          digest-mismatch: error
           name: public-beta-restore-start-${{ inputs.drill_id }}
           path: ${{ runner.temp }}/restore-start
           github-token: ${{ github.token }}
           run-id: ${{ inputs.restore_start_run_id }}
       - name: Download exact semantic execution binding
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
+          digest-mismatch: error
           name: public-beta-restore-semantic-start-${{ inputs.drill_id }}
           path: ${{ runner.temp }}/semantic-start
           github-token: ${{ github.token }}
@@ -250,15 +253,17 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: scripts/aws/verify_github_environment_protection.sh "$GITHUB_REPOSITORY" production-aws-restore-cleanup "$GITHUB_REPOSITORY_OWNER" "$GITHUB_ACTOR"
       - name: Download exact restore-start evidence
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
+          digest-mismatch: error
           name: public-beta-restore-start-${{ inputs.drill_id }}
           path: ${{ runner.temp }}/restore-start
           github-token: ${{ github.token }}
           run-id: ${{ inputs.restore_start_run_id }}
       - name: Download exact semantic execution binding
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
+          digest-mismatch: error
           name: public-beta-restore-semantic-start-${{ inputs.drill_id }}
           path: ${{ runner.temp }}/semantic-start
           github-token: ${{ github.token }}

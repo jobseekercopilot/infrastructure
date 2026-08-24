@@ -97,8 +97,8 @@ Terraform plan or AWS credit award alone is not launch approval.
       signatures match and are no more than 48 hours old. The preloaded image,
       initial update/reload and subsequent idempotent health pass were exercised;
       signatures remain ephemeral cache data and are never a backup dependency.
-- [ ] The downloaded final release artifact's GitHub attestation, successful
-      build run, manifest digest and workspace-lock digest all match, and its
+- [ ] The downloaded final release artifact's fail-closed GitHub SHA-256,
+      successful build run, manifest digest and workspace-lock digest all match, and its
       provenance says `buildPurpose=release` rather than `restore-candidate`.
       A forward release uses the exact current `main` SHA; a rollback
       additionally proves the historical build SHA is an ancestor and hashes
@@ -271,7 +271,7 @@ Terraform plan or AWS credit award alone is not launch approval.
       republish images. Its `promotedFrom` hash, release ID, Infrastructure
       revision, Document Store revision, OpenAPI hash and image digest still
       match the drill; otherwise the drill was repeated. Only this newly
-      attested release artifact is selected for private prepare and activation.
+      digest-bound release artifact is selected for private prepare and activation.
 - [ ] The complete stateful-path inventory was reviewed: no required durable
       data depends on a container or EC2-host filesystem.
 - [ ] Key/secret rotation owners, account-removal retention, S3 quarantine

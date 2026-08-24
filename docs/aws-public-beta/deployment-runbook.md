@@ -12,7 +12,7 @@ separate reviewed live actions.
 ```text
 not bootstrapped
     -> dark foundation (no application tasks, ALB returns 503)
-    -> attested restore candidate
+    -> digest-verified restore candidate
     -> isolated restore/replay evidence and separate cleanup
     -> evidence-bound exact-candidate release promotion
     -> private prepared fleet (all tasks healthy, ALB still returns 503)
@@ -148,8 +148,8 @@ emits a non-secret immutable manifest. Service CI owns endpoint-level image
 health tests. Placeholder, mutable, unscanned or `develop` manifests fail closed.
 The seven DB images get the same checksum-bound CA bundle in one central derived
 image step; the operator independently verifies the identical checksum. The
-release workflow verifies GitHub attestation, build-run identity, exact `main`
-SHA, artifact checksum, workspace-lock checksum, protected approval checksum,
+release workflow fail-closes on GitHub's immutable artifact SHA-256 and verifies
+build-run identity, exact `main` SHA, workspace-lock checksum, protected approval checksum,
 every locked exported OpenAPI checksum and Client/Landing artifact checksums
 before assuming AWS access.
 The source-build job has no GitHub OIDC permission and rejects AWS credentials.
@@ -231,7 +231,7 @@ controls and `maximumApplicationDesiredCount=1`. It may defer only the isolated
 RDS/S3 restore, semantic replay and checksum-bound restore evidence. Retained
 backup/journal controls, encryption, fixed scaling ceilings, cost protection,
 legal/payment gates, private preparation, smoke tests and emergency darkening
-remain mandatory. Under that active exception the exact attested candidate may
+remain mandatory. Under that active exception the exact digest-verified candidate may
 be promoted without `RESTORE_DRILL_EVIDENCE_B64`; the approval must keep
 `isolatedRestoreReplayVerified=false` and `restoreDrillEvidenceSha256=""` and
 must not claim completed evidence. Complete the drill before expiry, replace
@@ -243,7 +243,7 @@ digests again. An expired exception blocks every subsequent plan or mutation.
    `isolatedRestoreReplayVerified=false` and
    `restoreDrillEvidenceSha256=""`. Manually dispatch `AWS Public Beta Immutable
    Build` with `purpose=restore-candidate`. Record its run and release IDs and
-   verify the manifest attestation plus accompanying provenance; the latter
+   verify the fail-closed artifact SHA-256 plus accompanying provenance; the latter
    must say `buildPurpose=restore-candidate`.
 2. From the same unchanged `main`, dispatch `AWS Public Beta Protected Release`
    in `production-aws` with `action=prepare-restore-source`, the candidate
@@ -385,17 +385,17 @@ digests again. An expired exception blocks every subsequent plan or mutation.
    as `RESTORE_DRILL_EVIDENCE_B64` in build, plan and apply environments. Now
    manually dispatch `AWS Public Beta Immutable Build` with `purpose=release`,
    the same candidate release ID and the candidate build run ID. This path
-   downloads and re-verifies the candidate attestation, changes only the
-   approval/evidence binding and provenance, and emits a newly attested final
+   downloads and re-verifies the candidate artifact SHA-256, changes only the
+   approval/evidence binding and provenance, and emits a newly digest-bound final
    artifact without AWS credentials, image rebuilding or ECR publication. Its
    validator requires the evidence bytes to match the approval hash and the
    exact candidate release ID, Infrastructure revision, Document Store
    revision, OpenAPI SHA-256 and image digest to match the promoted manifest.
    Any mismatch requires a new candidate/drill rather than an edited
-   attestation or bypass.
+   artifact substitution or bypass.
 
 Only the promoted artifact, whose provenance says `buildPurpose=release` and
-whose `promotedFrom` block hashes the attested restore-candidate manifest, may
+whose `promotedFrom` block hashes the digest-verified restore-candidate manifest, may
 continue below. It must contain the image manifest, release metadata and
 digests for every application, ClamAV and release operator, plus the
 deterministic Landing static tar, Landing metadata and exact selected SAM
@@ -413,7 +413,7 @@ the workspace lock, source revisions, RDS bundle evidence or required
 dependency evidence differs from the reviewed inputs.
 
 All images are pushed first so their per-repository scans can run concurrently;
-the publisher then verifies every result before it can emit/attest the candidate
+the publisher then verifies every result before it can emit the digest-bound candidate
 manifest. If candidate publication or scanning fails after an immutable tag was
 pushed, that release ID is failed and must never be reused. Diagnose it and
 create a new candidate release ID; unreferenced candidate/failed images remain
@@ -492,7 +492,7 @@ Document Store revision, OpenAPI hash and image digest still match this final
 manifest. A plan or mutation refuses a missing, unsafe or mismatched evidence
 file; do not substitute the earlier restore-candidate artifact.
 Confirm the Client source/digest and Landing source/static/config/SAM evidence
-still match the signed artifact. This activates only the application stack; the
+still match the digest-bound artifact. This activates only the application stack; the
 Landing artifact remains undeployed until its separate reviewed promotion.
 The activation build SHA must equal current protected `main`. If `main` changed
 after private prepare—even for infrastructure-only work—build and prepare again;
@@ -527,7 +527,7 @@ with a separate `ACTIVATE <previous-release-id>` dispatch. Flyway migrations
 are never automatically reversed; an incompatible schema change needs an
 approved forward fix or documented restore decision.
 
-The workflow verifies the old build run, attestation, release ID, its own
+The workflow verifies the old build run, fail-closed artifact SHA-256, release ID, its own
 historical workspace-lock checksum and ancestry before AWS credentials are
 assumed. If the current Terraform/runtime contract no longer accepts that
 artifact, do not bypass the gate: prepare a reviewed forward-fix release or

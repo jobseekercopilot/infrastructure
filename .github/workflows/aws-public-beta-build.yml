@@ -162,7 +162,6 @@ jobs:
       actions: read
       contents: read
       id-token: write
-      attestations: write
     steps:
       - name: Check out exact main source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -177,8 +176,9 @@ jobs:
         with:
           python-version: '3.12'
       - name: Download checksum-verified prepared image archive
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
+          digest-mismatch: error
           name: public-beta-prepared-${{ needs.prepare.outputs.release_id }}
           path: ${{ runner.temp }}/public-beta-release
       - name: Prepare protected non-secret launch approval
@@ -221,10 +221,6 @@ jobs:
           echo 'AWS_ACCESS_KEY_ID=' >> "$GITHUB_ENV"
           echo 'AWS_SECRET_ACCESS_KEY=' >> "$GITHUB_ENV"
           echo 'AWS_SESSION_TOKEN=' >> "$GITHUB_ENV"
-      - name: Attest the non-secret release manifest
-        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
-        with:
-          subject-path: ${{ runner.temp }}/public-beta-release/image-manifest.json
       - name: Upload immutable release evidence
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
@@ -248,7 +244,6 @@ jobs:
       actions: read
       contents: read
       id-token: write
-      attestations: write
     steps:
       - name: Check out exact main source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -259,9 +254,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: scripts/aws/verify_github_environment_protection.sh "$GITHUB_REPOSITORY" production-build "$GITHUB_REPOSITORY_OWNER" "$GITHUB_ACTOR"
-      - name: Download exact attested restore candidate
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+      - name: Download exact digest-verified restore candidate
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
+          digest-mismatch: error
           name: public-beta-restore-candidate-${{ inputs.release_id }}
           path: ${{ runner.temp }}/public-beta-release
           github-token: ${{ github.token }}
@@ -290,7 +286,6 @@ jobs:
           test "$(jq -r .infrastructureRevision "$PROVENANCE")" = "$GITHUB_SHA"
           test "$(jq -r .workspaceLockSha256 "$PROVENANCE")" = "$(sha256sum config/workspace-lock.json | cut -d' ' -f1)"
           test "$(jq -r .imageManifestSha256 "$PROVENANCE")" = "$(sha256sum "$MANIFEST" | cut -d' ' -f1)"
-          gh attestation verify "$MANIFEST" --repo "$GITHUB_REPOSITORY"
           scripts/aws/verify_frontend_release_artifact.sh \
             "$MANIFEST" "$PROVENANCE" "$LANDING_ARCHIVE" "$LANDING_METADATA" "$LANDING_SAM_TEMPLATE"
       - name: Prepare protected final approval and applicable recovery evidence
@@ -348,10 +343,6 @@ jobs:
           scripts/aws/verify_frontend_release_artifact.sh \
             "$MANIFEST" "$PROVENANCE" "$LANDING_ARCHIVE" "$LANDING_METADATA" "$LANDING_SAM_TEMPLATE"
           chmod 0444 "$MANIFEST" "$PROVENANCE"
-      - name: Attest the approval-bound release manifest
-        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
-        with:
-          subject-path: ${{ runner.temp }}/public-beta-release/image-manifest.json
       - name: Upload immutable release evidence
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
