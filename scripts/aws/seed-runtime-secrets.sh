@@ -10,7 +10,7 @@ if [[ "$environment_name" != "public-beta" || "$region" != "eu-west-2" ]]; then
   exit 2
 fi
 
-for command_name in aws jq openssl mktemp; do
+for command_name in aws base64 cmp jq openssl mktemp; do
   command -v "$command_name" >/dev/null || {
     echo "Missing required command: $command_name" >&2
     exit 2
@@ -84,6 +84,91 @@ ensure_random_key() {
   merge_file_key "$key" "$secure_tmp/$key"
 }
 
+normalize_jwt_key_pair() {
+  local private_encoded="$secure_tmp/jwt-private.original.b64"
+  local public_encoded="$secure_tmp/jwt-public.original.b64"
+  local private_input="$secure_tmp/jwt-private.input"
+  local public_input="$secure_tmp/jwt-public.input"
+  local private_pem="$secure_tmp/jwt-private.normalized.pem"
+  local private_der="$secure_tmp/jwt-private.der"
+  local public_der="$secure_tmp/jwt-public.der"
+  local derived_public_der="$secure_tmp/jwt-public.derived.der"
+  local private_normalized="$secure_tmp/jwt-private.normalized.b64"
+  local public_normalized="$secure_tmp/jwt-public.normalized.b64"
+  local private_bits
+
+  jq -erj '.JWT_PRIVATE_KEY_BASE64 | select(type == "string" and length >= 128)' \
+    "$secure_tmp/core.json" > "$private_encoded" || {
+      echo "Refusing invalid existing core secret field: JWT_PRIVATE_KEY_BASE64" >&2
+      exit 3
+    }
+  jq -erj '.JWT_PUBLIC_KEY_BASE64 | select(type == "string" and length >= 128)' \
+    "$secure_tmp/core.json" > "$public_encoded" || {
+      echo "Refusing invalid existing core secret field: JWT_PUBLIC_KEY_BASE64" >&2
+      exit 3
+    }
+  base64 --decode "$private_encoded" > "$private_input" 2>/dev/null || {
+    echo "Refusing invalid Base64 in JWT_PRIVATE_KEY_BASE64" >&2
+    exit 3
+  }
+  base64 --decode "$public_encoded" > "$public_input" 2>/dev/null || {
+    echo "Refusing invalid Base64 in JWT_PUBLIC_KEY_BASE64" >&2
+    exit 3
+  }
+
+  if ! openssl pkey -inform DER -in "$private_input" \
+    -out "$private_pem" 2>/dev/null; then
+    openssl pkey -in "$private_input" -out "$private_pem" 2>/dev/null || {
+      echo "Refusing a JWT private key that is not convertible DER or PEM" >&2
+      exit 3
+    }
+  fi
+  openssl pkcs8 -topk8 -nocrypt -in "$private_pem" \
+    -outform DER -out "$private_der" 2>/dev/null || {
+      echo "Refusing a JWT private key that cannot be encoded as PKCS#8 DER" >&2
+      exit 3
+    }
+  if ! openssl pkey -pubin -inform DER -in "$public_input" \
+    -outform DER -out "$public_der" 2>/dev/null; then
+    openssl pkey -pubin -in "$public_input" \
+      -outform DER -out "$public_der" 2>/dev/null || {
+        echo "Refusing a JWT public key that is not X.509 DER or convertible PEM" >&2
+        exit 3
+      }
+  fi
+
+  openssl rsa -inform DER -in "$private_der" -check -noout >/dev/null 2>&1 || {
+    echo "Refusing a non-RSA or invalid JWT private key" >&2
+    exit 3
+  }
+  private_bits="$(
+    openssl rsa -inform DER -in "$private_der" -text -noout 2>/dev/null \
+      | sed -n 's/^Private-Key: (\([0-9][0-9]*\) bit.*/\1/p'
+  )"
+  if [[ ! "$private_bits" =~ ^[0-9]+$ ]] || (( private_bits < 2048 )); then
+    echo "Refusing a JWT RSA private key weaker than 2048 bits" >&2
+    exit 3
+  fi
+  openssl pkey -inform DER -in "$private_der" -pubout \
+    -outform DER -out "$derived_public_der" 2>/dev/null || {
+      echo "Refusing an invalid JWT RSA private key" >&2
+      exit 3
+    }
+  cmp -s "$derived_public_der" "$public_der" || {
+    echo "Refusing a mismatched JWT private/public key pair" >&2
+    exit 3
+  }
+
+  base64 -w0 "$private_der" > "$private_normalized"
+  base64 -w0 "$public_der" > "$public_normalized"
+  if ! cmp -s "$private_encoded" "$private_normalized"; then
+    merge_file_key JWT_PRIVATE_KEY_BASE64 "$private_normalized"
+  fi
+  if ! cmp -s "$public_encoded" "$public_normalized"; then
+    merge_file_key JWT_PUBLIC_KEY_BASE64 "$public_normalized"
+  fi
+}
+
 core_secret="$prefix/runtime/core"
 core_changed=false
 if secret_has_value "$core_secret"; then
@@ -109,22 +194,18 @@ if [[ "$private_present" != "$public_present" ]]; then
   echo "Refusing a partial existing JWT key pair in $core_secret" >&2
   exit 3
 fi
-if [[ "$private_present" == true ]]; then
-  for key in JWT_PRIVATE_KEY_BASE64 JWT_PUBLIC_KEY_BASE64; do
-    jq -e --arg key "$key" '.[$key] | type == "string" and length >= 128' \
-      "$secure_tmp/core.json" >/dev/null || {
-        echo "Refusing invalid existing core secret field: $key" >&2
-        exit 3
-      }
-  done
-else
+if [[ "$private_present" != true ]]; then
   openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out "$secure_tmp/jwt-private.pem" 2>/dev/null
-  openssl pkey -in "$secure_tmp/jwt-private.pem" -pubout -out "$secure_tmp/jwt-public.pem" 2>/dev/null
-  base64 -w0 "$secure_tmp/jwt-private.pem" > "$secure_tmp/jwt-private.b64"
-  base64 -w0 "$secure_tmp/jwt-public.pem" > "$secure_tmp/jwt-public.b64"
+  openssl pkcs8 -topk8 -nocrypt -in "$secure_tmp/jwt-private.pem" \
+    -outform DER -out "$secure_tmp/jwt-private.der" 2>/dev/null
+  openssl pkey -in "$secure_tmp/jwt-private.pem" -pubout \
+    -outform DER -out "$secure_tmp/jwt-public.der" 2>/dev/null
+  base64 -w0 "$secure_tmp/jwt-private.der" > "$secure_tmp/jwt-private.b64"
+  base64 -w0 "$secure_tmp/jwt-public.der" > "$secure_tmp/jwt-public.b64"
   merge_file_key JWT_PRIVATE_KEY_BASE64 "$secure_tmp/jwt-private.b64"
   merge_file_key JWT_PUBLIC_KEY_BASE64 "$secure_tmp/jwt-public.b64"
 fi
+normalize_jwt_key_pair
 
 for key in "${token_keys[@]}"; do
   ensure_random_key "$key" 48
