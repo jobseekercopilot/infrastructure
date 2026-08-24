@@ -1809,6 +1809,7 @@ Resources:
               - s3:GetInventoryConfiguration
               - s3:ListBucket
               - s3:ListBucketVersions
+              - s3:ListTagsForResource
               - s3:PutBucketNotification
               - s3:PutInventoryConfiguration
             Resource: !Sub arn:${AWS::Partition}:s3:::jsc-public-beta-documents-${AWS::AccountId}
