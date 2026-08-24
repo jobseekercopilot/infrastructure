@@ -129,6 +129,8 @@ output "capacity_contract" {
     reserved_cpu_units               = local.release_reserved_cpu
     reserved_memory_mib              = local.release_reserved_memory
     task_slots                       = local.release_task_slots
+    awsvpc_tasks_per_instance        = local.instance_capacity[var.instance_type].awsvpc_tasks_per_instance
+    awsvpc_task_limit                = local.instance_capacity[var.instance_type].awsvpc_tasks_per_instance * local.node_count
     steady_state_reserved_cpu_units  = local.steady_state_reserved_cpu
     steady_state_reserved_memory_mib = local.steady_state_reserved_memory
     steady_state_task_slots          = local.steady_state_task_slots

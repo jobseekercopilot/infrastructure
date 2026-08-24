@@ -1414,11 +1414,20 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         self.assertIn('{ containerPath = "/var/log/clamav", size = 64', compute)
         self.assertIn("steady_state_task_slots = length(local.raw_services) + 2", locals_source)
         self.assertIn("release_task_slots = (length(local.raw_services) + 1) * local.deployment_copy_multiplier + 1", locals_source)
+        self.assertIn('"m7i.2xlarge" = { cpu = 8192, memory = 32768, awsvpc_tasks_per_instance = 40 }', locals_source)
+        self.assertIn('"m7i.4xlarge" = { cpu = 16384, memory = 65536, awsvpc_tasks_per_instance = 60 }', locals_source)
         self.assertIn("condition     = local.release_reserved_cpu + local.os_reserved_cpu", locals_source)
         self.assertIn("condition     = local.release_reserved_memory + local.os_reserved_memory", locals_source)
         self.assertIn("filesha256(local.approval_manifest_path)", locals_source)
         self.assertIn("reserved_cpu_units               = local.release_reserved_cpu", outputs)
+        self.assertIn("awsvpc_tasks_per_instance        = local.instance_capacity[var.instance_type].awsvpc_tasks_per_instance", outputs)
+        self.assertIn("awsvpc_task_limit                = local.instance_capacity[var.instance_type].awsvpc_tasks_per_instance * local.node_count", outputs)
         self.assertIn("task_slots=$(jq -er '.task_slots'", release)
+        self.assertIn("awsvpc_task_limit=$(jq -er '.awsvpc_task_limit'", release)
+        self.assertIn('.name == "ecs.instance-type" and .value == $expected_instance_type', release)
+        self.assertIn('.type == "ElasticNetworkInterface" and .status == "ATTACHED"', release)
+        self.assertIn("remaining_awsvpc_tasks=$((awsvpc_task_limit - active_tasks))", release)
+        self.assertNotIn('select(.name == "ENI")', release)
 
     def test_private_service_discovery_is_protected_from_provider_forcenew_drift(self) -> None:
         compute = (ROOT / "aws" / "public-beta" / "compute.tf").read_text(encoding="utf-8")
@@ -1436,6 +1445,28 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         self.assertLess(activate.index("assert_exact_prepared_release"), activate.index("plan_and_apply 1 true activate"))
         self.assertNotIn("  darken)", release)
         self.assertIn('--landing-archive "$landing_archive"', release)
+
+    def test_database_bootstrap_uses_rds_permitted_role_alteration_and_fails_closed(self) -> None:
+        bootstrap = (
+            ROOT / "aws" / "public-beta" / "operator" / "bootstrap-databases.sh"
+        ).read_text(encoding="utf-8")
+        self.assertIn("FROM pg_auth_members m WHERE m.member = r.oid", bootstrap)
+        self.assertIn('"false:false:false:false:false:0"', bootstrap)
+        self.assertIn("privileged role or membership detected", bootstrap)
+        self.assertIn(
+            "ALTER ROLE %I LOGIN PASSWORD %L NOINHERIT CONNECTION LIMIT 14",
+            bootstrap,
+        )
+        alter_role = re.search(r"SELECT format\('ALTER ROLE [^']+'", bootstrap)
+        self.assertIsNotNone(alter_role)
+        for rds_forbidden_attribute in (
+            "NOSUPERUSER",
+            "NOCREATEDB",
+            "NOCREATEROLE",
+            "NOREPLICATION",
+            "NOBYPASSRLS",
+        ):
+            self.assertNotIn(rds_forbidden_attribute, alter_role.group(0))
 
     def test_emergency_darken_is_approval_independent_and_closes_every_public_route_first(self) -> None:
         emergency = (ROOT / "scripts" / "aws" / "emergency_darken.sh").read_text(encoding="utf-8")
@@ -2166,6 +2197,24 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         self.assertIn("s3:GetReplicationConfiguration", discovery_actions)
         self.assertIn("ec2:GetSecurityGroupsForVpc", discovery_actions)
         self.assertNotIn("ec2:Get*", discovery_actions)
+
+        plan_read_policy = next(
+            policy
+            for policy in resources["PlanRole"]["Properties"]["Policies"]
+            if policy["PolicyName"] == "PublicBetaReadOnlyPlan"
+        )
+        plan_read_actions = {
+            action
+            for statement in plan_read_policy["PolicyDocument"]["Statement"]
+            for action in (
+                statement["Action"] if isinstance(statement["Action"], list) else [statement["Action"]]
+            )
+        }
+        self.assertIn("s3:GetAccelerateConfiguration", plan_read_actions)
+        self.assertFalse(
+            any(action.startswith(("s3:Put", "s3:Delete")) for action in plan_read_actions),
+            "the refresh-only plan policy must not gain S3 write permissions",
+        )
 
         compute_statements = resources["ApplyComputePolicy"]["Properties"]["PolicyDocument"]["Statement"]
         compute_by_sid = {statement["Sid"]: statement for statement in compute_statements}

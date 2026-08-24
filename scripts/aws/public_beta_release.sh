@@ -210,7 +210,8 @@ validate_deployed_state_machine_definitions() {
 verify_live_release_iam() {
   local plan=$1
   local allow_rds_monitoring_migration=${2:-false}
-  local plan_json
+  local complete_iam_plan=${3:-$plan}
+  local plan_json complete_iam_plan_json
   local -a migration_arguments=()
   if [[ "$allow_rds_monitoring_migration" == true ]]; then
     migration_arguments+=(--allow-rds-monitoring-migration)
@@ -222,12 +223,24 @@ verify_live_release_iam() {
   validate_deployed_state_machine_definitions
   python3 "$repository_root/scripts/aws/verify_saved_release_plan.py" \
     --plan-json "$plan_json"
+  if [[ "$complete_iam_plan" == "$plan" ]]; then
+    complete_iam_plan_json=$plan_json
+  else
+    complete_iam_plan_json=$(mktemp /tmp/jsc-live-complete-iam-plan.XXXXXX.json)
+    temporary_release_files+=("$complete_iam_plan_json")
+    terraform -chdir="$module" show -json "$complete_iam_plan" >"$complete_iam_plan_json"
+    python3 "$repository_root/scripts/aws/verify_saved_release_plan.py" \
+      --plan-json "$complete_iam_plan_json"
+  fi
   python3 "$repository_root/scripts/aws/verify_live_release_iam.py" \
-    --plan-json "$plan_json" \
+    --plan-json "$complete_iam_plan_json" \
     --backup-contract "$backup_policy_contract" \
     --region "$region" \
     "${migration_arguments[@]}"
   rm -f "$plan_json"
+  if [[ "$complete_iam_plan_json" != "$plan_json" ]]; then
+    rm -f "$complete_iam_plan_json"
+  fi
 }
 
 verify_live_rds_monitoring() {
@@ -373,20 +386,43 @@ review_plan_only() {
 targeted_plan_and_apply() {
   local target=$1
   local label=$2
-  local plan
+  local desired=${3:-1}
+  local plan complete_iam_plan
   plan=$(mktemp "/tmp/jsc-target-${label}.XXXXXX.tfplan")
-  temporary_release_files+=("$plan")
+  complete_iam_plan=$(mktemp "/tmp/jsc-target-${label}-complete-iam.XXXXXX.tfplan")
+  temporary_release_files+=("$plan" "$complete_iam_plan")
   terraform -chdir="$module" plan "${common_arguments[@]}" \
     -parallelism=1 \
     -target="$target" \
-    -var=application_desired_count=1 \
+    -var="application_desired_count=$desired" \
     -var=public_entrypoint_enabled=false \
     -out="$plan"
-  verify_live_release_iam "$plan"
+  # Terraform deliberately omits unrelated resources from planned_values for
+  # a targeted plan. Build a separate, never-applied full dark plan so the
+  # live IAM verifier can still compare every reserved PassRole name with the
+  # complete reviewed role/boundary/trust model. The targeted plan remains the
+  # only plan eligible for apply and retains its own state-machine and retained-
+  # resource checks.
+  terraform -chdir="$module" plan "${common_arguments[@]}" \
+    -var="application_desired_count=$desired" \
+    -var=public_entrypoint_enabled=false \
+    -out="$complete_iam_plan"
+  verify_live_release_iam "$plan" false "$complete_iam_plan"
   terraform -chdir="$module" show -no-color "$plan"
   terraform -chdir="$module" apply -input=false "$plan"
   validate_deployed_state_machine_definitions
-  rm -f "$plan"
+  rm -f "$plan" "$complete_iam_plan"
+}
+
+stage_state_machine_prerequisites() {
+  # A new release changes the broker task-definition ARN embedded in the
+  # Step Functions definition. Register only that restore-specific task
+  # definition first so the subsequent full dark plan is fully rendered and
+  # can pass the fail-closed AWS schema check. No ECS service is targeted.
+  targeted_plan_and_apply \
+    aws_ecs_task_definition.restore_semantic_broker \
+    restore-semantic-broker \
+    0
 }
 
 write_marker() {
@@ -440,9 +476,11 @@ assert_exact_prepared_release() {
 assert_capacity_ready() {
   local capacity
   capacity=$(terraform -chdir="$module" output -json capacity_contract)
-  local expected_nodes task_slots required_cpu required_memory
+  local expected_nodes expected_instance_type task_slots awsvpc_task_limit required_cpu required_memory
   expected_nodes=$(jq -er '.node_count' <<<"$capacity")
+  expected_instance_type=$(jq -er '.instance_type' <<<"$capacity")
   task_slots=$(jq -er '.task_slots' <<<"$capacity")
+  awsvpc_task_limit=$(jq -er '.awsvpc_task_limit' <<<"$capacity")
   required_cpu=$(jq -er '.reserved_cpu_units' <<<"$capacity")
   required_memory=$(jq -er '.reserved_memory_mib' <<<"$capacity")
 
@@ -455,32 +493,43 @@ assert_capacity_ready() {
     echo "Capacity preflight failed: expected exactly $expected_nodes ACTIVE ECS nodes." >&2; exit 3;
   }
 
-  local instance_state remaining_cpu remaining_memory remaining_eni
+  local instance_state remaining_cpu remaining_memory active_tasks remaining_awsvpc_tasks
   instance_state=$(aws ecs describe-container-instances \
     --region "$region" --cluster "$cluster" \
     --container-instances $(jq -r '.containerInstanceArns[]' <<<"$instances") \
     --output json)
-  if ! jq -e '
+  if ! jq -e --arg expected_instance_type "$expected_instance_type" '
     (.failures | length) == 0 and
     all(.containerInstances[];
-      .agentConnected == true and .status == "ACTIVE" and
-      (.versionInfo.agentVersion | type == "string" and length > 0) and
-      any(.attributes[]; .name == "ecs.awsvpc-trunk-id" and (.value | length) > 0)
+      . as $instance |
+      ($instance.attributes
+        | map(select(.name == "ecs.awsvpc-trunk-id" and (.value | length) > 0))
+        | map(.value) | unique) as $trunks |
+      $instance.agentConnected == true and $instance.status == "ACTIVE" and
+      ($instance.versionInfo.agentVersion | type == "string" and length > 0) and
+      any($instance.attributes[];
+        .name == "ecs.instance-type" and .value == $expected_instance_type) and
+      ($trunks | length) == 1 and
+      any($instance.attachments[];
+        .id == $trunks[0] and .type == "ElasticNetworkInterface" and .status == "ATTACHED") and
+      ($instance.runningTasksCount | type == "number") and $instance.runningTasksCount >= 0 and
+      ($instance.pendingTasksCount | type == "number") and $instance.pendingTasksCount >= 0
     )' <<<"$instance_state" >/dev/null; then
-    echo "Capacity preflight failed: ECS agent/awsvpcTrunking registration is incomplete." >&2
+    echo "Capacity preflight failed: ECS agent, exact instance type or awsvpcTrunking attachment is invalid." >&2
     exit 3
   fi
   remaining_cpu=$(jq '[.containerInstances[].remainingResources[] | select(.name == "CPU") | .integerValue] | add // 0' <<<"$instance_state")
   remaining_memory=$(jq '[.containerInstances[].remainingResources[] | select(.name == "MEMORY") | .integerValue] | add // 0' <<<"$instance_state")
-  remaining_eni=$(jq '[.containerInstances[].remainingResources[] | select(.name == "ENI") | .integerValue] | add // 0' <<<"$instance_state")
+  active_tasks=$(jq '[.containerInstances[] | .runningTasksCount + .pendingTasksCount] | add // 0' <<<"$instance_state")
+  remaining_awsvpc_tasks=$((awsvpc_task_limit - active_tasks))
   (( remaining_cpu >= required_cpu )) || {
     echo "Capacity preflight failed: registered ECS CPU is below the release reservation." >&2; exit 3;
   }
   (( remaining_memory >= required_memory )) || {
     echo "Capacity preflight failed: registered ECS memory is below the release reservation." >&2; exit 3;
   }
-  (( remaining_eni >= task_slots )) || {
-    echo "Capacity preflight failed: registered branch-ENI capacity is below the release task count." >&2; exit 3;
+  (( remaining_awsvpc_tasks >= task_slots )) || {
+    echo "Capacity preflight failed: reviewed awsvpcTrunking task capacity is below the release task count." >&2; exit 3;
   }
 
   local available_ips
@@ -722,6 +771,7 @@ prepare_restore_source() {
     exit 2
   }
 
+  stage_state_machine_prerequisites
   plan_and_apply 0 false restore-source-dark
   verify_account_email_ses
   "$repository_root/scripts/aws/seed-runtime-secrets.sh" public-beta
@@ -760,6 +810,7 @@ prepare_private_fleet() {
 
   # Maintenance first: stop every app task. This is the intentional lean-node
   # stop-first strategy and prevents unschedulable old+new duplication.
+  stage_state_machine_prerequisites
   plan_and_apply 0 false "${verb,,}-dark"
   verify_account_email_ses
   "$repository_root/scripts/aws/seed-runtime-secrets.sh" public-beta

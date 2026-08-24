@@ -654,7 +654,7 @@ locals {
 
   instance_capacity = {
     "m7i.2xlarge" = { cpu = 8192, memory = 32768, awsvpc_tasks_per_instance = 40 }
-    "m7i.4xlarge" = { cpu = 16384, memory = 65536, awsvpc_tasks_per_instance = 80 }
+    "m7i.4xlarge" = { cpu = 16384, memory = 65536, awsvpc_tasks_per_instance = 60 }
   }
 
   node_count = var.high_availability ? 2 : 1
