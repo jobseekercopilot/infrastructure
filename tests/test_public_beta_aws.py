@@ -280,7 +280,14 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             self.assertTrue(references)
             self.assertTrue(all(re.fullmatch(r"[0-9a-f]{40}", reference) for reference in references))
         release = (ROOT / ".github" / "workflows" / "aws-public-beta-release.yml").read_text(encoding="utf-8")
-        self.assertIn("gh attestation verify", release)
+        self.assertGreaterEqual(
+            release.count(
+                "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c"
+            ),
+            2,
+        )
+        self.assertGreaterEqual(release.count("digest-mismatch: error"), 2)
+        self.assertNotIn("gh attestation verify", release)
         self.assertIn("workspaceLockSha256", release)
         self.assertIn('git merge-base --is-ancestor "$build_sha" "$GITHUB_SHA"', release)
         self.assertIn('git show "$build_sha:config/workspace-lock.json"', release)

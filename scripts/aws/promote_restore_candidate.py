@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Promote an attested restore candidate without rebuilding any image."""
+"""Promote a digest-verified restore candidate without rebuilding any image."""
 
 from __future__ import annotations
 

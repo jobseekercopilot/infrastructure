@@ -351,7 +351,12 @@ class RestoreDrillContractTest(unittest.TestCase):
         self.assertIn("prepare-restore-source", workflow)
         self.assertIn("environment: production-aws", workflow)
         self.assertIn("public-beta-restore-candidate-", workflow)
-        self.assertIn("gh attestation verify", workflow)
+        self.assertIn(
+            "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
+            workflow,
+        )
+        self.assertIn("digest-mismatch: error", workflow)
+        self.assertNotIn("gh attestation verify", workflow)
         self.assertIn("Upload canary-bound paired-backup evidence", workflow)
         self.assertNotIn("aws backup wait", release)
         self.assertIn("wait_for_paired_backup_jobs", release)

@@ -47,7 +47,6 @@ jobs:
     environment: production-aws-plan
     permissions:
       actions: read
-      attestations: read
       contents: read
       id-token: write
     steps:
@@ -64,13 +63,14 @@ jobs:
           terraform_version: 1.15.8
           terraform_wrapper: false
       - name: Download immutable build evidence
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
+          digest-mismatch: error
           name: public-beta-release-${{ inputs.release_id }}
           path: ${{ runner.temp }}/release-artifact
           github-token: ${{ github.token }}
           run-id: ${{ inputs.build_run_id }}
-      - name: Verify build origin and signed release provenance
+      - name: Verify build origin and digest-bound release provenance
         id: build
         env:
           BUILD_RUN_ID: ${{ inputs.build_run_id }}
@@ -99,7 +99,6 @@ jobs:
           test "$(jq -r .workspaceLockSha256 "$PROVENANCE")" = "$(sha256sum config/workspace-lock.json | cut -d' ' -f1)"
           test "$(jq -r .imageManifestSha256 "$PROVENANCE")" = "$(sha256sum "$MANIFEST" | cut -d' ' -f1)"
           echo "build_sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
-          gh attestation verify "$MANIFEST" --repo "$GITHUB_REPOSITORY"
           scripts/aws/verify_frontend_release_artifact.sh \
             "$MANIFEST" "$PROVENANCE" "$LANDING_ARCHIVE" "$LANDING_METADATA" "$LANDING_SAM_TEMPLATE"
       - name: Prepare protected non-secret release inputs
@@ -176,7 +175,6 @@ jobs:
       cancel-in-progress: false
     permissions:
       actions: read
-      attestations: read
       contents: read
       id-token: write
     steps:
@@ -194,13 +192,14 @@ jobs:
           terraform_wrapper: false
       - name: Download immutable build evidence
         if: inputs.action != 'foundation' && inputs.action != 'darken'
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
+          digest-mismatch: error
           name: ${{ inputs.action == 'prepare-restore-source' && format('public-beta-restore-candidate-{0}', inputs.release_id) || format('public-beta-release-{0}', inputs.release_id) }}
           path: ${{ runner.temp }}/release-artifact
           github-token: ${{ github.token }}
           run-id: ${{ inputs.build_run_id }}
-      - name: Verify build origin and signed release provenance
+      - name: Verify build origin and digest-bound release provenance
         id: build
         if: inputs.action != 'foundation' && inputs.action != 'darken'
         env:
@@ -246,7 +245,6 @@ jobs:
           test "$(jq -r .workspaceLockSha256 "$PROVENANCE")" = "$expected_lock_sha"
           test "$(jq -r .imageManifestSha256 "$PROVENANCE")" = "$(sha256sum "$MANIFEST" | cut -d' ' -f1)"
           echo "build_sha=$build_sha" >> "$GITHUB_OUTPUT"
-          gh attestation verify "$MANIFEST" --repo "$GITHUB_REPOSITORY"
           scripts/aws/verify_frontend_release_artifact.sh \
             "$MANIFEST" "$PROVENANCE" "$LANDING_ARCHIVE" "$LANDING_METADATA" "$LANDING_SAM_TEMPLATE"
       - name: Prepare protected non-secret release inputs

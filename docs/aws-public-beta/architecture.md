@@ -116,8 +116,8 @@ revisions plus the reviewed ClamAV LTS version, and attests:
   adding one reviewed SHA-256-pinned AWS RDS CA bundle, and the independently
   built operator contains the same file, at `/etc/jsc/rds/global-bundle.pem`.
 
-The protected release accepts an artifact only when GitHub attestation,
-immutable artifact checksum, workspace-lock hash, protected launch-approval
+The protected release accepts an artifact only when GitHub's immutable artifact
+SHA-256 passes fail-closed download verification, the workspace-lock hash, protected launch-approval
 hash, Client/Landing evidence, successful build workflow and exact `main`
 infrastructure revision all agree. The build's GitHub App token is
 contents-read-only and limited to the locked repository set.
@@ -127,7 +127,7 @@ has no `id-token: write` permission and explicitly rejects AWS credentials; it
 emits a checksum-bound, one-day prepared Docker archive. The publisher executes
 no repository build code: it verifies/loads that archive, validates Landing and
 legal inputs, and only then assumes the build-only OIDC role to push/scan exact
-images. AWS credentials are cleared before attestation/upload actions.
+images. AWS credentials are cleared before release-evidence upload actions.
 
 Seven bounded Hikari pools use maximum six/minimum one connections with short
 connection/validation timeouts. The shared RDS budget preserves 20 connections

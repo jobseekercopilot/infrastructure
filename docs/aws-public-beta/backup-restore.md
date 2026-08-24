@@ -263,12 +263,12 @@ drill is complete and the approval is replaced by checksum-bound evidence.
     `isolatedRestoreReplayVerified=true`, and supply the same bytes through
     protected `RESTORE_DRILL_EVIDENCE_B64`. Dispatch `AWS Public Beta Immutable
     Build` with `purpose=release`, the same candidate release ID and its build
-    run ID. That account-free path re-verifies the candidate attestation and
+    run ID. That account-free path re-verifies the candidate artifact SHA-256 and
     promotes its exact image/Frontend digests; it does not rebuild or republish
     images. The final validator requires the evidence hash and exact candidate
     release ID, Infrastructure revision, Document Store revision, OpenAPI hash
     and image digest to match. If they differ, repeat the drill. Only the newly
-    attested `buildPurpose=release` promotion artifact may continue to
+    digest-bound `buildPurpose=release` promotion artifact may continue to
     prepare/activate.
 
 Before launch, complete at least one drill and the final evidence-bound release
