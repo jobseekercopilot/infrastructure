@@ -45,7 +45,30 @@ bootstrap_database() {
     --set=password="$password" <<'SQL'
 SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'username', :'password')
 WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'username') \gexec
-SELECT format('ALTER ROLE %I LOGIN PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS CONNECTION LIMIT 14', :'username', :'password') \gexec
+SQL
+
+  role_security_state="$($psql_base \
+    --tuples-only --no-align \
+    --set=username="$username" <<'SQL'
+SELECT r.rolsuper::text
+  || ':' || r.rolcreatedb::text
+  || ':' || r.rolcreaterole::text
+  || ':' || r.rolreplication::text
+  || ':' || r.rolbypassrls::text
+  || ':' || (SELECT count(*)::text FROM pg_auth_members m WHERE m.member = r.oid)
+FROM pg_roles r
+WHERE r.rolname = :'username';
+SQL
+)"
+  if [ "$role_security_state" != "false:false:false:false:false:0" ]; then
+    echo "database bootstrap refused: privileged role or membership detected for $prefix" >&2
+    exit 3
+  fi
+
+  $psql_base \
+    --set=username="$username" \
+    --set=password="$password" <<'SQL'
+SELECT format('ALTER ROLE %I LOGIN PASSWORD %L NOINHERIT CONNECTION LIMIT 14', :'username', :'password') \gexec
 SQL
 
   $psql_base \

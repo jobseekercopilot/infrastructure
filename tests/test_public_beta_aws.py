@@ -1446,6 +1446,28 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         self.assertNotIn("  darken)", release)
         self.assertIn('--landing-archive "$landing_archive"', release)
 
+    def test_database_bootstrap_uses_rds_permitted_role_alteration_and_fails_closed(self) -> None:
+        bootstrap = (
+            ROOT / "aws" / "public-beta" / "operator" / "bootstrap-databases.sh"
+        ).read_text(encoding="utf-8")
+        self.assertIn("FROM pg_auth_members m WHERE m.member = r.oid", bootstrap)
+        self.assertIn('"false:false:false:false:false:0"', bootstrap)
+        self.assertIn("privileged role or membership detected", bootstrap)
+        self.assertIn(
+            "ALTER ROLE %I LOGIN PASSWORD %L NOINHERIT CONNECTION LIMIT 14",
+            bootstrap,
+        )
+        alter_role = re.search(r"SELECT format\('ALTER ROLE [^']+'", bootstrap)
+        self.assertIsNotNone(alter_role)
+        for rds_forbidden_attribute in (
+            "NOSUPERUSER",
+            "NOCREATEDB",
+            "NOCREATEROLE",
+            "NOREPLICATION",
+            "NOBYPASSRLS",
+        ):
+            self.assertNotIn(rds_forbidden_attribute, alter_role.group(0))
+
     def test_emergency_darken_is_approval_independent_and_closes_every_public_route_first(self) -> None:
         emergency = (ROOT / "scripts" / "aws" / "emergency_darken.sh").read_text(encoding="utf-8")
         workflow = (ROOT / ".github" / "workflows" / "aws-public-beta-release.yml").read_text(encoding="utf-8")
