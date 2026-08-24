@@ -1590,6 +1590,16 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         self.assertFalse(approvals["publicLegal"]["reviewed"])
         self.assertEqual(approvals["publicLegal"]["legalEntityType"], "NOT_CONFIGURED")
 
+    def test_user_management_gateway_has_exact_production_browser_origin(self) -> None:
+        environment = json.loads(
+            (ROOT / "aws" / "public-beta" / "config" / "runtime-services.json").read_text(encoding="utf-8")
+        )["services"]["user-management-gateway"]["environment"]
+
+        self.assertEqual(
+            environment["GATEWAY_ALLOWED_ORIGINS"],
+            "https://app.jobseekercopilot.com",
+        )
+
     def test_document_store_journal_is_machine_written_immutable_and_release_gated(self) -> None:
         runtime = json.loads(
             (ROOT / "aws" / "public-beta" / "config" / "runtime-services.json").read_text(encoding="utf-8")
