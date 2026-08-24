@@ -930,6 +930,7 @@ Resources:
                   - rds:ListTagsForResource
                   - route53:Get*
                   - route53:List*
+                  - s3:GetAccelerateConfiguration
                   - s3:GetBucket*
                   - s3:GetEncryptionConfiguration
                   - s3:GetLifecycleConfiguration

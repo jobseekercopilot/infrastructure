@@ -2167,6 +2167,24 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         self.assertIn("ec2:GetSecurityGroupsForVpc", discovery_actions)
         self.assertNotIn("ec2:Get*", discovery_actions)
 
+        plan_read_policy = next(
+            policy
+            for policy in resources["PlanRole"]["Properties"]["Policies"]
+            if policy["PolicyName"] == "PublicBetaReadOnlyPlan"
+        )
+        plan_read_actions = {
+            action
+            for statement in plan_read_policy["PolicyDocument"]["Statement"]
+            for action in (
+                statement["Action"] if isinstance(statement["Action"], list) else [statement["Action"]]
+            )
+        }
+        self.assertIn("s3:GetAccelerateConfiguration", plan_read_actions)
+        self.assertFalse(
+            any(action.startswith(("s3:Put", "s3:Delete")) for action in plan_read_actions),
+            "the refresh-only plan policy must not gain S3 write permissions",
+        )
+
         compute_statements = resources["ApplyComputePolicy"]["Properties"]["PolicyDocument"]["Statement"]
         compute_by_sid = {statement["Sid"]: statement for statement in compute_statements}
         tagged_compute = compute_by_sid["ManageOnlyTaggedComputeResources"]
