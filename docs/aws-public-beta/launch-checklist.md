@@ -140,7 +140,7 @@ Terraform plan or AWS credit award alone is not launch approval.
       it has a separately completed `postcodes_ni` approval.
 - [ ] Authentication contains `d447addae21714f51267c0ab073377c24e3cfe81`
       and OpenAPI SHA-256 `8ef5f12a32e836c2046fb163944b62d76cea31e389612408ca6ed1d1ccc42884`;
-      UMG is exact locked main `a5b2e064a8b9e082378a94603467773dd97349e8`, OpenAPI SHA-256
+      UMG is exact locked main `15e6bed692352f92daccc295c3987319e18ef720`, OpenAPI SHA-256
       `ebb1332f8927cdb69dd659db444627e59c4f5d8f4330e04d95ed17164fb8bcf7`
       and Auth snapshot SHA-256
       `95811cb81b0c32ad2f9c5cc42cd8f85c0385359cdade6c0f9e67e3ed63950dc0`;
