@@ -216,7 +216,7 @@
         "OPENAI_PRIVACY_REVIEWED_ON": "{{openai_privacy_reviewed_on}}",
         "OPENAI_PRIVACY_REVIEW_DUE_ON": "{{openai_privacy_review_due_on}}",
         "OPENAI_MAX_CONCURRENT_CALLS": "8",
-        "GENERATION_MODEL_ID": "gpt-4.1-mini",
+        "GENERATION_MODEL_ID": "gpt-4.1-mini-2025-04-14",
         "GENERATION_MODEL_DEPLOYMENT_VERSION": "gpt-4.1-mini-2025-04-14",
         "GENERATION_PRICING_VERSION": "openai-2026-08-15",
         "GENERATION_INPUT_RATE_MICRO_USD_PER_MILLION_TOKENS": "400000",
