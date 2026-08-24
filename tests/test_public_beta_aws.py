@@ -1467,6 +1467,14 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             "NOBYPASSRLS",
         ):
             self.assertNotIn(rds_forbidden_attribute, alter_role.group(0))
+        self.assertIn("ALTER SCHEMA public OWNER TO %I", bootstrap)
+        self.assertIn("GRANT USAGE, CREATE ON SCHEMA public TO %I", bootstrap)
+        self.assertIn("SELECT pg_get_userbyid(nspowner)", bootstrap)
+        self.assertIn('"$username:true:true:true:true"', bootstrap)
+        app_verification = bootstrap.split('schema_state="', maxsplit=1)[1]
+        self.assertNotIn("ALTER SCHEMA", app_verification)
+        self.assertNotIn("GRANT USAGE", app_verification)
+        self.assertNotIn("REVOKE CREATE", app_verification)
 
     def test_emergency_darken_is_approval_independent_and_closes_every_public_route_first(self) -> None:
         emergency = (ROOT / "scripts" / "aws" / "emergency_darken.sh").read_text(encoding="utf-8")
