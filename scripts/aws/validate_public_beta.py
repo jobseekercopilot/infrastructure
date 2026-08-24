@@ -19,6 +19,7 @@ from urllib.parse import urlsplit
 ROOT = Path(__file__).resolve().parents[2]
 MODULE = ROOT / "aws" / "public-beta"
 ZERO_DIGEST = "sha256:" + "0" * 64
+DOWNLOAD_ARTIFACT_V8 = "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c"
 DOCUMENT_STORE_TASK_ROLE_REVISION = "1183ce5a54ab60999ca37d826ceb16857d5763ff"
 DOCUMENT_STORE_ERASURE_RUNBOOK = "docs/aws-public-beta/document-store-permanent-erasure.md"
 ADZUNA_RUNTIME_HEALTH_REVISION = "594ac33862c6360fe05768905bab0e2cb9ac1898"
@@ -1444,7 +1445,11 @@ def validate_workflow_boundary() -> None:
         require("workflow_dispatch:" in release, "AWS release workflow must be explicitly dispatched")
         require("github.ref == 'refs/heads/main'" in release, "AWS release workflow must fail outside main")
         require("environment: production-aws" in release, "AWS apply must require the protected production environment")
-        require("gh attestation verify" in release, "AWS release workflow must verify signed build provenance")
+        require(
+            release.count(DOWNLOAD_ARTIFACT_V8) >= 2
+            and release.count("digest-mismatch: error") >= 2,
+            "AWS release workflow must fail closed on GitHub artifact SHA-256 mismatch",
+        )
         require('.head_sha <<<"$run_json"' in release, "AWS release workflow must bind the build to the exact main revision")
         require("workspaceLockSha256" in release, "AWS release workflow must bind the build to the workspace lock")
         require(
@@ -1469,6 +1474,12 @@ def validate_workflow_boundary() -> None:
         require("LANDING_RUNTIME_ENV_B64" in build, "Landing build needs a protected, explicit runtime-config input")
         require("LAUNCH_APPROVALS_FILE" in build, "immutable build must bind the protected launch approval manifest")
         require(
+            build.count(DOWNLOAD_ARTIFACT_V8) >= 2
+            and build.count("digest-mismatch: error") >= 2
+            and "attest-build-provenance@" not in build,
+            "private-repository builds must use fail-closed GitHub artifact SHA-256 verification",
+        )
+        require(
             "candidate_build_run_id:" in build
             and "inputs.purpose == 'restore-candidate'" in build
             and build.count("inputs.purpose == 'restore-candidate'") >= 2
@@ -1484,7 +1495,7 @@ def validate_workflow_boundary() -> None:
             and '"buildPurpose": "release"' in promoter
             and '"buildPurpose": "restore-candidate"' in promoter
             and '"promotedFrom"' in promoter,
-            "final release must promote the exact attested candidate digests without AWS access or rebuilding",
+            "final release must promote the exact digest-verified candidate without AWS access or rebuilding",
         )
         require(
             promotion_job.count(".isolatedRestoreReplayVerified == true") >= 2
@@ -1585,8 +1596,12 @@ def validate_workflow_boundary() -> None:
             < cleanup_job.index("configure-aws-credentials@"),
             "restore cleanup must verify its distinct protected environment before OIDC",
         )
-        require("public-beta-restore-candidate-" in restore and "gh attestation verify" in restore,
-                "restore start must consume an attested immutable candidate")
+        require(
+            "public-beta-restore-candidate-" in restore
+            and restore.count(DOWNLOAD_ARTIFACT_V8) >= 5
+            and restore.count("digest-mismatch: error") >= 5,
+            "restore workflows must fail closed on GitHub artifact SHA-256 mismatch",
+        )
         require(
             "public-beta-restore-source-" in restore
             and "validate_restore_source_evidence.py" in restore

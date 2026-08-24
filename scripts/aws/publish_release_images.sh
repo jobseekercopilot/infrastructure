@@ -213,4 +213,4 @@ jq -n \
 "$repository_root/scripts/aws/verify_frontend_release_artifact.sh" \
   "$manifest" "$provenance" "$landing_archive" "$landing_metadata" "$landing_sam"
 chmod 0444 "$manifest" "$provenance" "$landing_metadata" "$landing_archive" "$landing_sam"
-echo "Signed-manifest release evidence ready: $output_directory"
+echo "Digest-bound release evidence ready: $output_directory"

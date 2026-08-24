@@ -76,7 +76,6 @@ jobs:
     environment: production-aws-restore
     permissions:
       actions: read
-      attestations: read
       contents: read
       id-token: write
     steps:
@@ -90,13 +89,14 @@ jobs:
         run: scripts/aws/verify_github_environment_protection.sh "$GITHUB_REPOSITORY" production-aws-restore "$GITHUB_REPOSITORY_OWNER" "$GITHUB_ACTOR"
       - name: Download immutable restore candidate
         if: inputs.action == 'start'
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
+          digest-mismatch: error
           name: public-beta-restore-candidate-${{ inputs.release_id }}
           path: ${{ runner.temp }}/restore-candidate
           github-token: ${{ github.token }}
           run-id: ${{ inputs.candidate_build_run_id }}
-      - name: Verify candidate origin and signed provenance
+      - name: Verify candidate origin and digest-bound provenance
         if: inputs.action == 'start'
         env:
           BUILD_RUN_ID: ${{ inputs.candidate_build_run_id }}
@@ -117,11 +117,11 @@ jobs:
           test "$(jq -r .buildPurpose "$PROVENANCE")" = restore-candidate
           test "$(jq -r .infrastructureRevision "$PROVENANCE")" = "$GITHUB_SHA"
           test "$(jq -r .imageManifestSha256 "$PROVENANCE")" = "$(sha256sum "$MANIFEST" | cut -d' ' -f1)"
-          gh attestation verify "$MANIFEST" --repo "$GITHUB_REPOSITORY"
       - name: Download protected canary-bound source evidence
         if: inputs.action == 'start'
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
+          digest-mismatch: error
           name: public-beta-restore-source-${{ inputs.release_id }}-${{ inputs.source_canary_id }}
           path: ${{ runner.temp }}/restore-source
           github-token: ${{ github.token }}
@@ -154,8 +154,9 @@ jobs:
             --expected-s3-recovery-point "$EXPECTED_S3_RECOVERY_POINT"
       - name: Download exact restore-start evidence
         if: inputs.action == 'observe'
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
+          digest-mismatch: error
           name: public-beta-restore-start-${{ inputs.drill_id }}
           path: ${{ runner.temp }}/restore-start
           github-token: ${{ github.token }}
@@ -238,16 +239,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: scripts/aws/verify_github_environment_protection.sh "$GITHUB_REPOSITORY" production-aws-restore-cleanup "$GITHUB_REPOSITORY_OWNER" "$GITHUB_ACTOR"
       - name: Download exact restore-start evidence
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
+          digest-mismatch: error
           name: public-beta-restore-start-${{ inputs.drill_id }}
           path: ${{ runner.temp }}/restore-start
           github-token: ${{ github.token }}
           run-id: ${{ inputs.restore_start_run_id }}
       - name: Download exact semantic execution binding
         if: inputs.semantic_start_run_id != ''
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
+          digest-mismatch: error
           name: public-beta-restore-semantic-start-${{ inputs.drill_id }}
           path: ${{ runner.temp }}/semantic-start
           github-token: ${{ github.token }}
