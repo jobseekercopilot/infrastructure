@@ -93,6 +93,7 @@
       "port": 8083, "cpu": 128, "memory": 512, "healthPath": "/actuator/health",
       "environment": {
         "AUTHENTICATION_SERVICE_URL": "http://authentication-service.{{namespace}}:8084",
+        "GATEWAY_ALLOWED_ORIGINS": "https://app.jobseekercopilot.com",
         "USER_PROFILE_SERVICE_URL": "http://user-profile-service.{{namespace}}:8085"
       },
       "secrets": {"AUTHENTICATION_SERVICE_TOKEN": "core:AUTH_SERVICE_TOKEN"}
