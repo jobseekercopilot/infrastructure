@@ -186,16 +186,25 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("duplicate object key", result.stderr)
 
-    def test_waf_has_narrow_upload_override_and_full_crs_elsewhere(self) -> None:
+    def test_waf_has_three_exact_post_body_overrides_and_full_crs_elsewhere(self) -> None:
         edge = (ROOT / "aws" / "public-beta" / "edge.tf").read_text(encoding="utf-8")
+        path_set = edge.split(
+            'resource "aws_wafv2_regex_pattern_set" "authenticated_document_uploads" {',
+            maxsplit=1,
+        )[1].split('resource "aws_wafv2_web_acl" "app" {', maxsplit=1)[0]
         self.assertEqual(edge.count("AWSManagedRulesCommonRuleSet"), 2)
         self.assertEqual(edge.count('vendor_name = "AWS"'), 3)
         self.assertNotIn("ip_set_reference_statement", edge)
         self.assertNotIn("rule_group_reference_statement", edge)
-        self.assertIn('name = "SizeRestrictions_BODY"', edge)
+        self.assertEqual(edge.count('name = "SizeRestrictions_BODY"'), 1)
         self.assertIn("action_to_use {", edge)
-        self.assertIn("document-uploads$", edge)
-        self.assertIn("replace$", edge)
+        self.assertEqual(path_set.count("regular_expression {"), 3)
+        for exact_path in (
+            '^/api/v1/document-generation/applications/[0-9a-fA-F-]{36}/document-uploads$',
+            '^/api/v1/document-generation/applications/[0-9a-fA-F-]{36}/replace$',
+            '^/api/jobs/saved$',
+        ):
+            self.assertIn(f'regex_string = "{exact_path}"', path_set)
         self.assertEqual(edge.count('search_string         = "POST"'), 2)
 
     def test_dark_target_group_associations_are_non_ingress_and_ordered(self) -> None:

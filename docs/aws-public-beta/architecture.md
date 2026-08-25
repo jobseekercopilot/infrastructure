@@ -152,9 +152,14 @@ backup/noncurrent recovery window.
 
 The HTTPS listener returns a fixed `503` until an exact release has both DB
 bootstrap and private-preflight SSM attestations. WAF applies the full AWS
-Common Rule Set everywhere. Only two exact authenticated multipart paths get a
-`Count` override for `SizeRestrictions_BODY`; all other CRS rules remain active
-and the BFF/application retain their 10/25 MiB and content validation.
+Common Rule Set everywhere. Only three exact authenticated `POST` paths get a
+`Count` override for `SizeRestrictions_BODY`: the UUID-scoped
+`/api/v1/document-generation/applications/<UUID>/document-uploads` and
+`/api/v1/document-generation/applications/<UUID>/replace` paths, plus
+`/api/jobs/saved`. All other CRS rules remain active. The document paths retain
+their BFF/application 10/25 MiB and content validation; saved jobs retain
+authentication, CSRF enforcement, the BFF 64 KiB request limit and schema
+validation.
 
 RDS, S3, secrets, EBS, backups and ECS Exec use encryption. Documents are
 versioned and backed up. The one reviewed `securityLogRetentionDays` value is
