@@ -412,6 +412,33 @@ def validate_runtime(catalog: dict[str, Any], runtime: dict[str, Any]) -> set[st
         "Northern Ireland/BT postcode lookup must default disabled until its licence gate is verified",
     )
 
+    expected_jwt_consumers = {
+        "application-tracker-service",
+        "document-generation-gateway",
+        "document-store-service",
+        "job-finder-gateway",
+        "job-service",
+        "reporting-gateway",
+        "user-profile-service",
+    }
+    qualified_jwks_uri = "http://authentication-service.{{namespace}}:8084/.well-known/jwks.json"
+    actual_jwt_consumers = {
+        name
+        for name, service in services.items()
+        if "AUTH_JWKS_URI" in service["environment"]
+    }
+    require(
+        actual_jwt_consumers == expected_jwt_consumers,
+        "JWT consumer set must exactly match the reviewed public-beta services",
+    )
+    require(
+        all(
+            services[name]["environment"].get("AUTH_JWKS_URI") == qualified_jwks_uri
+            for name in expected_jwt_consumers
+        ),
+        "JWT consumers must use the namespace-qualified Authentication JWKS URI",
+    )
+
     authentication = services["authentication-service"]
     require("PAYMENT_SERVICE_URL" in authentication["environment"], "Authentication account lifecycle requires PAYMENT_SERVICE_URL")
     require("STRIPE_GATEWAY_URL" not in authentication["environment"], "Authentication must not bypass Payment for Stripe lifecycle work")
