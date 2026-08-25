@@ -17,7 +17,7 @@
     "jsearchRuntimeHealth": "79677c6586207f5aa30b9c6d0720f5ed2cfe728a",
     "frontendArtifacts": {
       "client": {
-        "revision": "49393eeb6847cba671ae1b482538f439056dfd84",
+        "revision": "079cfbf93d7434f444afa79e8c894051e10e2aa9",
         "artifactContractSha256": "801fab5beb7ea81798677086ef00a94759294a1e85915f74da843632de2c6f75",
         "packaging": "OCI_SSR_BFF"
       },

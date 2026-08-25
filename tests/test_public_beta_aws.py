@@ -2009,7 +2009,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
                 "payment-gateway": "ab721f1b4377ba250d33b99a1690cb1abd96b864",
                 "stripe-gateway": "18a831025c916b209ff0e9038b608a53b7efd452",
                 "system-data-service": "2b2bd1fdb87036baf3186c88b854b39cef2abc96",
-                "job-seeker-copilot-client": "49393eeb6847cba671ae1b482538f439056dfd84",
+                "job-seeker-copilot-client": "079cfbf93d7434f444afa79e8c894051e10e2aa9",
                 "e2e": "16f586b80ea3bd822f9931fffdb75d523d5541b1",
             },
         )
@@ -2060,7 +2060,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         self.assertFalse(images["capabilities"]["frontendArtifactsVerified"])
         self.assertEqual(images["dependencyEvidence"]["frontendArtifacts"], {
             "client": {
-                "revision": "49393eeb6847cba671ae1b482538f439056dfd84",
+                "revision": "079cfbf93d7434f444afa79e8c894051e10e2aa9",
                 "artifactContractSha256": "801fab5beb7ea81798677086ef00a94759294a1e85915f74da843632de2c6f75",
                 "packaging": "OCI_SSR_BFF",
             },
@@ -2111,6 +2111,69 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         self.assertEqual(expected_consumers, actual_consumers)
         for name in expected_consumers:
             self.assertEqual(qualified_uri, runtime[name]["environment"]["AUTH_JWKS_URI"])
+
+    def test_real_provider_deadlines_cover_the_bounded_jsearch_request(self) -> None:
+        runtime = json.loads(
+            (ROOT / "aws" / "public-beta" / "config" / "runtime-services.json").read_text(encoding="utf-8")
+        )["services"]
+        job_service = runtime["job-service"]["environment"]
+        job_finder = runtime["job-finder-gateway"]["environment"]
+        client = runtime["job-seeker-copilot-client"]["environment"]
+
+        provider_timeout = int(job_service["JOB_SEARCH_PROVIDER_TIMEOUT_MS"])
+        matching_timeout = int(job_service["JOB_SEARCH_MATCHING_TIMEOUT_MS"])
+        request_timeout = int(job_service["JOB_SEARCH_REQUEST_TIMEOUT_MS"])
+        finder_response_timeout = int(job_finder["JOB_FINDER_RESPONSE_TIMEOUT_MS"])
+        finder_deadline = int(job_finder["JOB_FINDER_REQUEST_DEADLINE_MS"])
+        bff_timeout = int(client["BFF_DOWNSTREAM_TIMEOUT_MS"])
+
+        self.assertEqual("1", job_service["JSEARCH_MAX_CURSOR_PAGES"])
+        self.assertEqual(15_000, provider_timeout)
+        self.assertEqual(3_000, matching_timeout)
+        self.assertEqual(20_000, request_timeout)
+        self.assertGreaterEqual(request_timeout, provider_timeout + matching_timeout)
+        self.assertEqual(23_000, finder_response_timeout)
+        self.assertEqual(finder_response_timeout, finder_deadline)
+        self.assertGreater(finder_deadline, request_timeout)
+        self.assertEqual(25_000, bff_timeout)
+        self.assertGreater(bff_timeout, finder_deadline)
+
+    def test_apprenticeship_response_buffer_covers_a_full_detail_page(self) -> None:
+        runtime = json.loads(
+            (ROOT / "aws" / "public-beta" / "config" / "runtime-services.json").read_text(encoding="utf-8")
+        )["services"]
+        apprenticeships = runtime["apprenticeships-gateway"]["environment"]
+
+        self.assertEqual("100", apprenticeships["APPRENTICESHIPS_SYNC_PAGE_SIZE"])
+        self.assertEqual(
+            2 * 1024 * 1024,
+            int(apprenticeships["APPRENTICESHIPS_MAX_IN_MEMORY_RESPONSE_BYTES"]),
+        )
+
+    def test_public_beta_hotfix_sources_are_pinned_to_protected_main(self) -> None:
+        workspace_lock = json.loads(
+            (ROOT / "config" / "workspace-lock.json").read_text(encoding="utf-8")
+        )
+        revisions = {
+            entry["name"]: entry["revision"]
+            for entry in workspace_lock["repositories"]
+        }
+
+        self.assertEqual(
+            {
+                "apprenticeships-gateway": "bdc1d3eeee51c4aef537e017a24391f3198a9a5d",
+                "job-service": "df9be9cc7ca37dead32e377ba8b9521beb8977c3",
+                "job-seeker-copilot-client": "079cfbf93d7434f444afa79e8c894051e10e2aa9",
+            },
+            {
+                name: revisions[name]
+                for name in (
+                    "apprenticeships-gateway",
+                    "job-service",
+                    "job-seeker-copilot-client",
+                )
+            },
+        )
 
     def test_manual_bootstrap_template_is_syntactically_complete(self) -> None:
         class CloudFormationLoader(yaml.SafeLoader):
