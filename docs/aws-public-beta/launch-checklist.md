@@ -32,7 +32,7 @@ Terraform plan or AWS credit award alone is not launch approval.
       `4d8d09a79018c3f281cfead84348d14ed84be851`, Location Gateway
       `86b2805c8430ede14a53a7320b87f0eeb2797b17`, LLM Gateway
       `d84427061766244ec10e367fb3a7a6587809612c` and Client
-      `5e923c815e585e433573f50ba0395e71302785ca`.
+      `72936c0b76df0d616a110ed77c481d55eebaa5c8`.
 - [ ] The release ID/build run/image manifest and reviewer are recorded.
 - [ ] The pinned Client/Landing source revisions and artifact-contract checksums
       are ancestors of protected `main`; the protected build replaced only the

@@ -1989,7 +1989,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
                 "e2e",
             )},
             {
-                "authentication-service": "369e4bd96957dd22f254ae2c61d7a84744ac8d12",
+                "authentication-service": "cf0ccd69c9b30bd6a5bbc79f10b079b37da8ede2",
                 "user-management-gateway": "15e6bed692352f92daccc295c3987319e18ef720",
                 "location-gateway": "5acacb705bd8b4870ed33e24315b23c5df244132",
                 "location-service": "61800aef96b10a5e9d8d40503f9975a18c900025",
@@ -2000,7 +2000,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
                 "payment-gateway": "ab721f1b4377ba250d33b99a1690cb1abd96b864",
                 "stripe-gateway": "18a831025c916b209ff0e9038b608a53b7efd452",
                 "system-data-service": "2b2bd1fdb87036baf3186c88b854b39cef2abc96",
-                "job-seeker-copilot-client": "5e923c815e585e433573f50ba0395e71302785ca",
+                "job-seeker-copilot-client": "72936c0b76df0d616a110ed77c481d55eebaa5c8",
                 "e2e": "9eaf0d3330f9593554a6197ccd934d0e0f255626",
             },
         )
@@ -2051,7 +2051,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         self.assertFalse(images["capabilities"]["frontendArtifactsVerified"])
         self.assertEqual(images["dependencyEvidence"]["frontendArtifacts"], {
             "client": {
-                "revision": "5e923c815e585e433573f50ba0395e71302785ca",
+                "revision": "72936c0b76df0d616a110ed77c481d55eebaa5c8",
                 "artifactContractSha256": "801fab5beb7ea81798677086ef00a94759294a1e85915f74da843632de2c6f75",
                 "packaging": "OCI_SSR_BFF",
             },

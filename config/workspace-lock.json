@@ -3,7 +3,7 @@
   "catalogSchemaVersion": 2,
   "generatedFrom": "declared Job Seeker Copilot repository branches",
   "repositories": [
-    {"name": "authentication-service", "branch": "main", "revision": "369e4bd96957dd22f254ae2c61d7a84744ac8d12"},
+    {"name": "authentication-service", "branch": "main", "revision": "cf0ccd69c9b30bd6a5bbc79f10b079b37da8ede2"},
     {"name": "user-profile-service", "branch": "main", "revision": "7fe9ab7f845e098136f0afceb128fc8859a94872"},
     {"name": "user-management-gateway", "branch": "main", "revision": "15e6bed692352f92daccc295c3987319e18ef720"},
     {"name": "postcode-io-gateway", "branch": "main", "revision": "fa473e001aecbcdb4858fddcb7fd309e95b5b15b"},
@@ -13,10 +13,10 @@
     {"name": "reed-gateway", "branch": "main", "revision": "5aa8753d95558129d356cd31d099b6ba44f54d4c"},
     {"name": "adzuna-gateway", "branch": "main", "revision": "fafb6db30ca6dc7a0e7ffb3b43ad25a41cfc5238"},
     {"name": "jsearch-gateway", "branch": "main", "revision": "46f51025e600193070727e8f44a4955812a09c16"},
-    {"name": "nhs-jobs-gateway", "branch": "main", "revision": "8a3072c9fefb092ef46ee4b0b65d9391bfb0d88e"},
+    {"name": "nhs-jobs-gateway", "branch": "main", "revision": "932805485d7ebe38b088118561126230dc7a54eb"},
     {"name": "apprenticeships-gateway", "branch": "main", "revision": "d2e26acca64c2412a53010ba72e7a89e46fe3b86"},
     {"name": "system-data-service", "branch": "main", "revision": "2b2bd1fdb87036baf3186c88b854b39cef2abc96"},
-    {"name": "job-service", "branch": "main", "revision": "b76c003308056d857b20510a707d8dcfa8f67e82"},
+    {"name": "job-service", "branch": "main", "revision": "7fbf7edd562763c6ac05f8f8585fa6a82bf6a292"},
     {"name": "job-matching-service", "branch": "main", "revision": "d31f0526ffab360726423ee83079e8c663b6c5fa"},
     {"name": "job-finder-gateway", "branch": "main", "revision": "fe746dea30c8d8b36f209fae918241a21b934451"},
     {"name": "llm-gateway", "branch": "main", "revision": "d84427061766244ec10e367fb3a7a6587809612c"},
@@ -30,7 +30,7 @@
     {"name": "payment-service", "branch": "main", "revision": "baeec9aa8da1285a2406900c9550773ac3841af7"},
     {"name": "stripe-gateway", "branch": "main", "revision": "18a831025c916b209ff0e9038b608a53b7efd452"},
     {"name": "payment-gateway", "branch": "main", "revision": "ab721f1b4377ba250d33b99a1690cb1abd96b864"},
-    {"name": "job-seeker-copilot-client", "branch": "main", "revision": "5e923c815e585e433573f50ba0395e71302785ca"},
+    {"name": "job-seeker-copilot-client", "branch": "main", "revision": "72936c0b76df0d616a110ed77c481d55eebaa5c8"},
     {"name": "e2e", "branch": "main", "revision": "9eaf0d3330f9593554a6197ccd934d0e0f255626"}
   ]
 }
