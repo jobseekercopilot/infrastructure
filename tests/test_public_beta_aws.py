@@ -1682,6 +1682,8 @@ class PublicBetaAwsContractTest(unittest.TestCase):
 
         preflight = (ROOT / "aws" / "public-beta" / "operator" / "preflight.sh").read_text(encoding="utf-8")
         self.assertIn('document-permanent-erasure-readiness.v3', preflight)
+        self.assertIn(".recoveryDays == 30", preflight)
+        self.assertNotIn(".recoveryDays == 35", preflight)
         for pending_count in (
             "recoveryJournalWritePending", "recoveryJournalEvidenceMissing",
             "liveErasureReconciliationPending", "restoreJournalReadPending",
