@@ -24,6 +24,7 @@ class ApprovedProviderSecretSeedingTests(unittest.TestCase):
             "ADZUNA_APP_ID": "adzuna-id-for-test",
             "ADZUNA_APP_KEY": "adzuna-key-for-test",
             "JSEARCH_API_KEY": "jsearch-value-for-test",
+            "APPRENTICESHIPS_API_KEY": "apprenticeships-value-for-test",
         }
         path = directory / ".secrets.env"
         path.write_text(
@@ -47,6 +48,9 @@ class ApprovedProviderSecretSeedingTests(unittest.TestCase):
                     "app_key": values["ADZUNA_APP_KEY"],
                 },
                 "jsearch": {"api_key": values["JSEARCH_API_KEY"]},
+                "apprenticeships": {
+                    "api_key": values["APPRENTICESHIPS_API_KEY"]
+                },
             },
             payloads,
         )
@@ -87,6 +91,9 @@ class ApprovedProviderSecretSeedingTests(unittest.TestCase):
                             "app_key": values["ADZUNA_APP_KEY"],
                         },
                         "jsearch": {"api_key": values["JSEARCH_API_KEY"]},
+                        "apprenticeships": {
+                            "api_key": values["APPRENTICESHIPS_API_KEY"]
+                        },
                     }[provider]
                     return subprocess.CompletedProcess(
                         command, 0, json.dumps(payload), ""
@@ -101,15 +108,15 @@ class ApprovedProviderSecretSeedingTests(unittest.TestCase):
         for value in values.values():
             self.assertNotIn(value, flattened_arguments)
         self.assertEqual(
-            3,
+            4,
             sum(command[0] == str(put_script) for command in commands),
         )
         self.assertEqual(
-            3,
+            4,
             sum("list-secret-version-ids" in command for command in commands),
         )
         self.assertEqual(
-            3,
+            4,
             sum("get-secret-value" in command for command in commands),
         )
 
@@ -118,6 +125,13 @@ class ApprovedProviderSecretSeedingTests(unittest.TestCase):
 
         self.assertIn("workflow_dispatch:", workflow)
         self.assertIn("github.ref == 'refs/heads/main'", workflow)
+        self.assertIn("CONFIRMATION: ${{ inputs.confirmation }}", workflow)
+        self.assertIn(
+            'run: test "$CONFIRMATION" = '
+            "'SEED APPROVED JOB PROVIDER SECRETS public-beta'",
+            workflow,
+        )
+        self.assertNotIn("run: ${{ inputs.confirmation }}", workflow)
         self.assertIn("environment: production-aws", workflow)
         self.assertIn("group: jsc-public-beta-aws-mutation", workflow)
         self.assertIn("actions: read", workflow)
@@ -140,9 +154,17 @@ class ApprovedProviderSecretSeedingTests(unittest.TestCase):
             "ADZUNA_APP_ID",
             "ADZUNA_APP_KEY",
             "JSEARCH_API_KEY",
+            "APPRENTICESHIPS_API_KEY",
         ):
             self.assertIn(f"${{{{ secrets.{name} }}}}", workflow)
             self.assertNotIn(f'echo "${name}"', workflow)
+        self.assertNotIn("set -x", workflow)
+        self.assertIn(
+            'secret_file="${RUNNER_TEMP}/approved-job-provider-secrets.env"',
+            workflow,
+        )
+        self.assertIn("chmod 0600 \"$secret_file\"", workflow)
+        self.assertIn("trap cleanup EXIT HUP INT TERM", workflow)
 
 
 if __name__ == "__main__":
