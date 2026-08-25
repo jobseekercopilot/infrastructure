@@ -28,7 +28,7 @@
     {"name": "reporting-service", "branch": "main", "revision": "6786cd1a5c9dfc6635408295f41bbbf07a36da54"},
     {"name": "reporting-gateway", "branch": "main", "revision": "46c05d8a6ffa2c7b5b203f13bb5f5a01dc4a6825"},
     {"name": "payment-service", "branch": "main", "revision": "baeec9aa8da1285a2406900c9550773ac3841af7"},
-    {"name": "stripe-gateway", "branch": "main", "revision": "18a831025c916b209ff0e9038b608a53b7efd452"},
+    {"name": "stripe-gateway", "branch": "main", "revision": "f861fc4088f3986417ea5401748b7516f8521769"},
     {"name": "payment-gateway", "branch": "main", "revision": "ab721f1b4377ba250d33b99a1690cb1abd96b864"},
     {"name": "job-seeker-copilot-client", "branch": "main", "revision": "079cfbf93d7434f444afa79e8c894051e10e2aa9"},
     {"name": "e2e", "branch": "main", "revision": "16f586b80ea3bd822f9931fffdb75d523d5541b1"}
