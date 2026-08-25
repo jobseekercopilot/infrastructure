@@ -429,6 +429,28 @@ that integration is approved. Do not enable it yet. Core tokens, JWT keys and
 seven database-user passwords are generated/idempotently preserved by the
 protected release operator; values are never returned in workflow output.
 
+For the initial approved Reed, Adzuna and JSearch activation, use the bounded
+`AWS Public Beta Provider Secret Seeding` workflow. Temporarily add exactly
+`REED_API_KEY`, `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` and `JSEARCH_API_KEY` as
+`production-aws` environment secrets, dispatch the workflow from exact `main`
+with confirmation `SEED APPROVED JOB PROVIDER SECRETS public-beta`, and remove
+the four GitHub environment secrets after the successful run. The workflow
+uses the protected OIDC apply role, shares the global AWS-mutation lock, stores
+only the three exact integration-secret schemas and verifies a unique
+`AWSCURRENT` version and schema without printing values. It does not enable a
+provider: the separately reviewed approval manifest and protected tfvars must
+still enable the same three integrations through an immutable release.
+
+The same operation can be validated locally, without making AWS calls, from
+the workspace owner-only store:
+
+```bash
+scripts/aws/seed-approved-job-provider-secrets.py \
+  --secrets-env-file ../config/.secrets.env \
+  --confirmation 'SEED APPROVED JOB PROVIDER SECRETS public-beta' \
+  --validate-only
+```
+
 For Stripe, store only the live runtime secret/restricted key and live endpoint
 signing secret in `jsc-public-beta/integration/stripe`. Record the safe,
 permanent Product and Price identifiers in `integrations.stripe.liveStripeCatalog`
