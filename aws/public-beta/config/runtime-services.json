@@ -146,7 +146,8 @@
         "APPRENTICESHIPS_API_VERSION": "2",
         "APPRENTICESHIPS_SYNC_PAGE_SIZE": "100",
         "APPRENTICESHIPS_SYNC_MAX_PAGES": "10",
-        "APPRENTICESHIPS_SYNC_DELAY_MS": "900000"
+        "APPRENTICESHIPS_SYNC_DELAY_MS": "900000",
+        "APPRENTICESHIPS_MAX_IN_MEMORY_RESPONSE_BYTES": "2097152"
       },
       "secrets": {"APPRENTICESHIPS_API_KEY": "integration/apprenticeships:api_key"}
     },
@@ -173,8 +174,11 @@
         "JSEARCH_ENABLED": "{{jsearch_enabled}}",
         "NHS_JOBS_ENABLED": "{{nhs_jobs_enabled}}",
         "APPRENTICESHIPS_ENABLED": "{{apprenticeships_enabled}}",
-        "JSEARCH_MAX_CURSOR_PAGES": "2",
-        "JOB_SEARCH_PROVIDER_PAGE_SIZE": "50"
+        "JSEARCH_MAX_CURSOR_PAGES": "1",
+        "JOB_SEARCH_PROVIDER_PAGE_SIZE": "50",
+        "JOB_SEARCH_REQUEST_TIMEOUT_MS": "20000",
+        "JOB_SEARCH_PROVIDER_TIMEOUT_MS": "15000",
+        "JOB_SEARCH_MATCHING_TIMEOUT_MS": "3000"
       },
       "secrets": {"JOB_SERVICE_DATABASE_PASSWORD": "database/job_service:password"}
     },
@@ -199,7 +203,9 @@
         "USER_MANAGEMENT_GATEWAY_URL": "http://user-management-gateway.{{namespace}}:8083",
         "USER_PROFILE_SERVICE_URL": "http://user-profile-service.{{namespace}}:8085",
         "APPLICATION_TRACKER_SERVICE_URL": "http://application-tracker-service.{{namespace}}:8088",
-        "DOCUMENT_STORE_SERVICE_URL": "http://document-store-service.{{namespace}}:8089"
+        "DOCUMENT_STORE_SERVICE_URL": "http://document-store-service.{{namespace}}:8089",
+        "JOB_FINDER_RESPONSE_TIMEOUT_MS": "23000",
+        "JOB_FINDER_REQUEST_DEADLINE_MS": "23000"
       },
       "secrets": {}
     },
@@ -481,6 +487,7 @@
         "BFF_TRUSTED_PROXY_HOPS": "1",
         "BFF_PASSWORD_RESET_RATE_WINDOW_MS": "900000",
         "BFF_PASSWORD_RESET_RATE_MAXIMUM": "5",
+        "BFF_DOWNSTREAM_TIMEOUT_MS": "25000",
         "LOCATION_GATEWAY_URL": "http://location-gateway.{{namespace}}:8081",
         "USER_MANAGEMENT_GATEWAY_URL": "http://user-management-gateway.{{namespace}}:8083",
         "JOB_FINDER_GATEWAY_URL": "http://job-finder-gateway.{{namespace}}:8080",

@@ -2112,6 +2112,44 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         for name in expected_consumers:
             self.assertEqual(qualified_uri, runtime[name]["environment"]["AUTH_JWKS_URI"])
 
+    def test_real_provider_deadlines_cover_the_bounded_jsearch_request(self) -> None:
+        runtime = json.loads(
+            (ROOT / "aws" / "public-beta" / "config" / "runtime-services.json").read_text(encoding="utf-8")
+        )["services"]
+        job_service = runtime["job-service"]["environment"]
+        job_finder = runtime["job-finder-gateway"]["environment"]
+        client = runtime["job-seeker-copilot-client"]["environment"]
+
+        provider_timeout = int(job_service["JOB_SEARCH_PROVIDER_TIMEOUT_MS"])
+        matching_timeout = int(job_service["JOB_SEARCH_MATCHING_TIMEOUT_MS"])
+        request_timeout = int(job_service["JOB_SEARCH_REQUEST_TIMEOUT_MS"])
+        finder_response_timeout = int(job_finder["JOB_FINDER_RESPONSE_TIMEOUT_MS"])
+        finder_deadline = int(job_finder["JOB_FINDER_REQUEST_DEADLINE_MS"])
+        bff_timeout = int(client["BFF_DOWNSTREAM_TIMEOUT_MS"])
+
+        self.assertEqual("1", job_service["JSEARCH_MAX_CURSOR_PAGES"])
+        self.assertEqual(15_000, provider_timeout)
+        self.assertEqual(3_000, matching_timeout)
+        self.assertEqual(20_000, request_timeout)
+        self.assertGreaterEqual(request_timeout, provider_timeout + matching_timeout)
+        self.assertEqual(23_000, finder_response_timeout)
+        self.assertEqual(finder_response_timeout, finder_deadline)
+        self.assertGreater(finder_deadline, request_timeout)
+        self.assertEqual(25_000, bff_timeout)
+        self.assertGreater(bff_timeout, finder_deadline)
+
+    def test_apprenticeship_response_buffer_covers_a_full_detail_page(self) -> None:
+        runtime = json.loads(
+            (ROOT / "aws" / "public-beta" / "config" / "runtime-services.json").read_text(encoding="utf-8")
+        )["services"]
+        apprenticeships = runtime["apprenticeships-gateway"]["environment"]
+
+        self.assertEqual("100", apprenticeships["APPRENTICESHIPS_SYNC_PAGE_SIZE"])
+        self.assertEqual(
+            2 * 1024 * 1024,
+            int(apprenticeships["APPRENTICESHIPS_MAX_IN_MEMORY_RESPONSE_BYTES"]),
+        )
+
     def test_manual_bootstrap_template_is_syntactically_complete(self) -> None:
         class CloudFormationLoader(yaml.SafeLoader):
             pass
