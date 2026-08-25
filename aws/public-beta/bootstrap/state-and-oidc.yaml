@@ -1616,7 +1616,6 @@ Resources:
             Condition:
               StringEquals:
                 ses:FromAddress: accounts@jobseekercopilot.com
-                ses:ApiVersion: '2010-12-01'
               Bool:
                 aws:SecureTransport: 'true'
           - Sid: FoundationDataKey

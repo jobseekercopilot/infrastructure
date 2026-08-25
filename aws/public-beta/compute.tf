@@ -633,12 +633,6 @@ data "aws_iam_policy_document" "account_email" {
     }
 
     condition {
-      test     = "StringEquals"
-      variable = "ses:ApiVersion"
-      values   = ["2010-12-01"]
-    }
-
-    condition {
       test     = "Bool"
       variable = "aws:SecureTransport"
       values   = ["true"]
