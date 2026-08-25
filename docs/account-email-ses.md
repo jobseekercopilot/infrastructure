@@ -27,16 +27,21 @@ configuration set.
 ## Runtime and authorization contract
 
 Both `local-ses` and hosted `ses` use AWS SDK for Java 2.x
-`software.amazon.awssdk.services.ses.SesClient` and the SES `2010-12-01`
-`SendEmail` API. Hosted credentials come only from the ECS task-role chain.
+`software.amazon.awssdk.services.ses.SesClient` and its `SendEmail` operation.
+Hosted credentials come only from the ECS task-role chain.
 The role and its permissions boundary allow only:
 
 - `ses:SendEmail` (never raw or bulk email);
 - the verified `jobseekercopilot.com` identity and exact
   `JobSeekerCopilotAccountEmails` configuration set;
 - the exact `accounts@jobseekercopilot.com` From address;
-- SES API version `2010-12-01`; and
 - secure transport.
+
+The send grant deliberately does not add a `ses:ApiVersion` condition. AWS's
+IAM condition uses SES API-generation values rather than the SDK service-model
+date, and binding it to `2010-12-01` denied the hosted request before SES could
+accept it. The exact action, identity, configuration set, From address and
+secure-transport constraints retain the intended least-privilege boundary.
 
 The inline grant is attached only when `enabled_integrations.account_email` is
 true. Creating the configuration/event resources does not attach credentials,

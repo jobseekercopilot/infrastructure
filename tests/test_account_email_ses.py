@@ -58,8 +58,7 @@ class AccountEmailSesTemplateTest(unittest.TestCase):
         )[0]
         self.assertIn('actions = ["ses:SendEmail"]', policy)
         self.assertIn('variable = "ses:FromAddress"', policy)
-        self.assertIn('variable = "ses:ApiVersion"', policy)
-        self.assertIn('values   = ["2010-12-01"]', policy)
+        self.assertNotIn('variable = "ses:ApiVersion"', policy)
         self.assertIn('variable = "aws:SecureTransport"', policy)
         self.assertIn('role   = aws_iam_role.task["authentication-service"].id', policy)
         self.assertIn('count = var.enabled_integrations.account_email ? 1 : 0', policy)
@@ -84,7 +83,6 @@ class AccountEmailSesTemplateTest(unittest.TestCase):
             {
                 "StringEquals": {
                     "ses:FromAddress": "accounts@jobseekercopilot.com",
-                    "ses:ApiVersion": "2010-12-01",
                 },
                 "Bool": {"aws:SecureTransport": "true"},
             },
