@@ -116,7 +116,7 @@ jq -e \
     .enabled == true and .ready == true and .status == "READY" and
     .policyVersion == $retention and
     .backupRetentionPolicyVersion == $backup and
-    .recoveryDays == 35 and
+    .recoveryDays == 30 and
     .maximumBackupRetentionDays == 35 and
     .backupExpiryEvidenceRequired == true and
     .recoveryJournalWritePending == 0 and
