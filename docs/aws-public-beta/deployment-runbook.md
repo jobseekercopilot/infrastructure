@@ -117,7 +117,7 @@ Complete the [launch checklist](launch-checklist.md). In particular:
   fixture token/signing secret enters a production task or public OpenAPI;
 - update `config/workspace-lock.json` to the tested release revisions,
   including LLM Gateway `d84427061766244ec10e367fb3a7a6587809612c`
-  and Client `49393eeb6847cba671ae1b482538f439056dfd84`;
+  and Client `079cfbf93d7434f444afa79e8c894051e10e2aa9`;
 - prove the pinned Client/Landing revisions and artifact-contract SHA-256 values
   are ancestors of protected `main`. The protected build replaces the generated
   Landing static/runtime-config/SAM `PENDING` hashes. Client remains one SSR/BFF
