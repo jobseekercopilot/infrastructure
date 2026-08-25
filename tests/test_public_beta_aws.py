@@ -2009,7 +2009,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
                 "payment-gateway": "ab721f1b4377ba250d33b99a1690cb1abd96b864",
                 "stripe-gateway": "18a831025c916b209ff0e9038b608a53b7efd452",
                 "system-data-service": "2b2bd1fdb87036baf3186c88b854b39cef2abc96",
-                "job-seeker-copilot-client": "49393eeb6847cba671ae1b482538f439056dfd84",
+                "job-seeker-copilot-client": "079cfbf93d7434f444afa79e8c894051e10e2aa9",
                 "e2e": "16f586b80ea3bd822f9931fffdb75d523d5541b1",
             },
         )
@@ -2060,7 +2060,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         self.assertFalse(images["capabilities"]["frontendArtifactsVerified"])
         self.assertEqual(images["dependencyEvidence"]["frontendArtifacts"], {
             "client": {
-                "revision": "49393eeb6847cba671ae1b482538f439056dfd84",
+                "revision": "079cfbf93d7434f444afa79e8c894051e10e2aa9",
                 "artifactContractSha256": "801fab5beb7ea81798677086ef00a94759294a1e85915f74da843632de2c6f75",
                 "packaging": "OCI_SSR_BFF",
             },
@@ -2148,6 +2148,31 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         self.assertEqual(
             2 * 1024 * 1024,
             int(apprenticeships["APPRENTICESHIPS_MAX_IN_MEMORY_RESPONSE_BYTES"]),
+        )
+
+    def test_public_beta_hotfix_sources_are_pinned_to_protected_main(self) -> None:
+        workspace_lock = json.loads(
+            (ROOT / "config" / "workspace-lock.json").read_text(encoding="utf-8")
+        )
+        revisions = {
+            entry["name"]: entry["revision"]
+            for entry in workspace_lock["repositories"]
+        }
+
+        self.assertEqual(
+            {
+                "apprenticeships-gateway": "bdc1d3eeee51c4aef537e017a24391f3198a9a5d",
+                "job-service": "df9be9cc7ca37dead32e377ba8b9521beb8977c3",
+                "job-seeker-copilot-client": "079cfbf93d7434f444afa79e8c894051e10e2aa9",
+            },
+            {
+                name: revisions[name]
+                for name in (
+                    "apprenticeships-gateway",
+                    "job-service",
+                    "job-seeker-copilot-client",
+                )
+            },
         )
 
     def test_manual_bootstrap_template_is_syntactically_complete(self) -> None:
