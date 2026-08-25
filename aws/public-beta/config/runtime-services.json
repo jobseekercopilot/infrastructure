@@ -161,6 +161,7 @@
         "JOB_SERVICE_DATABASE_ENCRYPTION_KEY_REFERENCE": "{{kms_key_arn}}",
         "JOB_SERVICE_DATABASE_BACKUP_ENCRYPTION_ENABLED": "true",
         "JOB_SERVICE_DATABASE_BACKUP_KEY_REFERENCE": "{{kms_key_arn}}",
+        "AUTH_JWKS_URI": "http://authentication-service.{{namespace}}:8084/.well-known/jwks.json",
         "REED_GATEWAY_URL": "http://reed-gateway.{{namespace}}:8087",
         "ADZUNA_GATEWAY_URL": "http://adzuna-gateway.{{namespace}}:8101",
         "JSEARCH_GATEWAY_URL": "http://jsearch-gateway.{{namespace}}:8102",

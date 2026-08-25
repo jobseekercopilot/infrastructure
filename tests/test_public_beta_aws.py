@@ -2080,6 +2080,29 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             self.assertEqual(runtime[receiver]["secrets"][token], binding)
         self.assertNotIn("STRIPE_GATEWAY_URL", runtime["authentication-service"]["environment"])
 
+    def test_jwt_consumers_use_namespace_qualified_authentication_jwks(self) -> None:
+        runtime = json.loads(
+            (ROOT / "aws" / "public-beta" / "config" / "runtime-services.json").read_text(encoding="utf-8")
+        )["services"]
+        expected_consumers = {
+            "application-tracker-service",
+            "document-generation-gateway",
+            "document-store-service",
+            "job-finder-gateway",
+            "job-service",
+            "reporting-gateway",
+            "user-profile-service",
+        }
+        qualified_uri = "http://authentication-service.{{namespace}}:8084/.well-known/jwks.json"
+        actual_consumers = {
+            name
+            for name, service in runtime.items()
+            if "AUTH_JWKS_URI" in service["environment"]
+        }
+        self.assertEqual(expected_consumers, actual_consumers)
+        for name in expected_consumers:
+            self.assertEqual(qualified_uri, runtime[name]["environment"]["AUTH_JWKS_URI"])
+
     def test_manual_bootstrap_template_is_syntactically_complete(self) -> None:
         class CloudFormationLoader(yaml.SafeLoader):
             pass
