@@ -485,7 +485,8 @@ Service behavior.
 Review an `action=plan` dispatch for desired count `1` and public entrypoint
 `true`. Verify the exact release ID is both the database-bootstrap and
 preflight SSM marker, targets are healthy, alarms are `OK`, backups succeeded,
-provider/payment/email approvals remain current and the WAF upload tests pass.
+provider/payment/email approvals remain current and the WAF three-path
+body-size-exception tests pass.
 Confirm provenance says `buildPurpose=release`, the supplied restore evidence
 matches the SHA-256 in the protected launch approval, and its candidate-bound
 Document Store revision, OpenAPI hash and image digest still match this final

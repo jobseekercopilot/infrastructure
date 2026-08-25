@@ -193,9 +193,13 @@ Terraform plan or AWS credit award alone is not launch approval.
       preflight and its exact release marker succeeded.
 - [ ] Per-service security-group dependency rules and ALB-only public ingress
       were reviewed; ECS Exec is off unless separately approved.
-- [ ] WAF tests prove ordinary CRS protection remains active and only the two
-      exact authenticated upload paths count `SizeRestrictions_BODY`; the BFF
-      still enforces authentication, content type and 10/25 MiB limits.
+- [ ] WAF tests prove ordinary CRS protection remains active and only the three
+      exact authenticated `POST` paths count `SizeRestrictions_BODY`:
+      `/api/v1/document-generation/applications/<UUID>/document-uploads`,
+      `/api/v1/document-generation/applications/<UUID>/replace` and
+      `/api/jobs/saved`. The document paths retain BFF authentication, content
+      type and 10/25 MiB limits; saved jobs retain authentication, CSRF
+      enforcement, the BFF 64 KiB request limit and schema validation.
 - [ ] The live default versions and documents of all four attached AWS Backup
       managed policies match the reviewed
       `aws-backup-managed-policy-contract.json`; any AWS-side policy revision

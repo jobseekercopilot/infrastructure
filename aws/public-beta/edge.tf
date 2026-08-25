@@ -275,6 +275,9 @@ resource "aws_route53_record" "app" {
 }
 
 resource "aws_wafv2_regex_pattern_set" "authenticated_document_uploads" {
+  # Keep the existing Terraform address and AWS name stable. In addition to the
+  # two document uploads, this set carries the exact authenticated saved-job
+  # POST whose reviewed 64 KiB BFF limit exceeds WAF's inspected-body limit.
   name  = "${local.name_prefix}-authenticated-document-uploads"
   scope = "REGIONAL"
 
@@ -284,6 +287,10 @@ resource "aws_wafv2_regex_pattern_set" "authenticated_document_uploads" {
 
   regular_expression {
     regex_string = "^/api/v1/document-generation/applications/[0-9a-fA-F-]{36}/replace$"
+  }
+
+  regular_expression {
+    regex_string = "^/api/jobs/saved$"
   }
 
   tags = { Purpose = "narrow-waf-body-size-exception" }

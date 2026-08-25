@@ -1313,8 +1313,8 @@ def validate_source_guards() -> None:
         'referenced_security_group_id = aws_security_group.clamav.id': "Document Store to isolated scanner egress",
         'memory = 4096': "reviewed ClamAV native-memory ceiling",
         '172800': "ClamAV signature freshness task health",
-        'SizeRestrictions_BODY': "narrow WAF upload-body override",
-        'authenticated_document_uploads': "exact WAF upload paths",
+        'SizeRestrictions_BODY': "narrow WAF large-body POST override",
+        'authenticated_document_uploads': "exact WAF large-body POST paths",
         'threshold           = 100': "RDS connection reserve alarm",
         'default     = 750': "$750 monthly alert budget",
         'aws_backup_selection': "RDS/S3 backup selection",
@@ -1450,12 +1450,32 @@ def validate_source_guards() -> None:
     )
 
     edge = (MODULE / "edge.tf").read_text(encoding="utf-8")
-    for suffix in ("document-uploads$", "replace$"):
-        require(suffix in edge, f"WAF exception missing exact authenticated upload path ending {suffix}")
+    waf_path_set = edge.split(
+        'resource "aws_wafv2_regex_pattern_set" "authenticated_document_uploads" {',
+        maxsplit=1,
+    )[1].split('resource "aws_wafv2_web_acl" "app" {', maxsplit=1)[0]
+    exact_waf_paths = (
+        '^/api/v1/document-generation/applications/[0-9a-fA-F-]{36}/document-uploads$',
+        '^/api/v1/document-generation/applications/[0-9a-fA-F-]{36}/replace$',
+        '^/api/jobs/saved$',
+    )
+    require(
+        waf_path_set.count("regular_expression {") == len(exact_waf_paths),
+        "WAF exception must contain exactly the three reviewed authenticated POST paths",
+    )
+    for exact_path in exact_waf_paths:
+        require(
+            f'regex_string = "{exact_path}"' in waf_path_set,
+            f"WAF exception missing exact authenticated POST path {exact_path}",
+        )
     require(edge.count("AWSManagedRulesCommonRuleSet") == 2, "WAF must apply CRS separately to upload/non-upload traffic")
     require(
+        edge.count('search_string         = "POST"') == 2,
+        "WAF body-size exception must remain scoped to POST requests in both CRS branches",
+    )
+    require(
         re.search(r'name\s*=\s*"SizeRestrictions_BODY"[\s\S]*?action_to_use\s*\{\s*count\s*\{\}', edge) is not None,
-        "WAF must override only upload body-size rule",
+        "WAF must override only the large-body POST body-size rule",
     )
 
 
