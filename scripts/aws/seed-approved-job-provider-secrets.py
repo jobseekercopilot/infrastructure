@@ -23,6 +23,7 @@ PROVIDER_FIELDS = {
         "app_key": "ADZUNA_APP_KEY",
     },
     "jsearch": {"api_key": "JSEARCH_API_KEY"},
+    "apprenticeships": {"api_key": "APPRENTICESHIPS_API_KEY"},
 }
 Runner = Callable[..., subprocess.CompletedProcess[str]]
 
@@ -163,8 +164,8 @@ def main() -> int:
         provider_payloads(args.secrets_env_file)
         if args.validate_only:
             print(
-                "Approved provider secret input is valid for Reed, Adzuna and JSearch. "
-                "Values were not printed."
+                "Approved provider secret input is valid for Reed, Adzuna, JSearch "
+                "and Apprenticeships. Values were not printed."
             )
             return 0
         seed_and_verify(
@@ -176,8 +177,8 @@ def main() -> int:
         return 1
 
     print(
-        "Stored and schema-verified AWSCURRENT credentials for Reed, Adzuna and "
-        "JSearch. Values were not printed."
+        "Stored and schema-verified AWSCURRENT credentials for Reed, Adzuna, "
+        "JSearch and Apprenticeships. Values were not printed."
     )
     return 0
 
