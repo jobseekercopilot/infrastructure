@@ -2007,7 +2007,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
                 "document-generation-gateway": "e15784c7098d327835e2a7d14dd257c1b95b08bd",
                 "payment-service": "baeec9aa8da1285a2406900c9550773ac3841af7",
                 "payment-gateway": "ab721f1b4377ba250d33b99a1690cb1abd96b864",
-                "stripe-gateway": "18a831025c916b209ff0e9038b608a53b7efd452",
+                "stripe-gateway": "f861fc4088f3986417ea5401748b7516f8521769",
                 "system-data-service": "2b2bd1fdb87036baf3186c88b854b39cef2abc96",
                 "job-seeker-copilot-client": "079cfbf93d7434f444afa79e8c894051e10e2aa9",
                 "e2e": "16f586b80ea3bd822f9931fffdb75d523d5541b1",
@@ -2163,6 +2163,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
             {
                 "apprenticeships-gateway": "bdc1d3eeee51c4aef537e017a24391f3198a9a5d",
                 "job-service": "df9be9cc7ca37dead32e377ba8b9521beb8977c3",
+                "stripe-gateway": "f861fc4088f3986417ea5401748b7516f8521769",
                 "job-seeker-copilot-client": "079cfbf93d7434f444afa79e8c894051e10e2aa9",
             },
             {
@@ -2170,6 +2171,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
                 for name in (
                     "apprenticeships-gateway",
                     "job-service",
+                    "stripe-gateway",
                     "job-seeker-copilot-client",
                 )
             },
