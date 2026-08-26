@@ -11,7 +11,7 @@
     {"name": "location-service", "branch": "main", "revision": "61800aef96b10a5e9d8d40503f9975a18c900025"},
     {"name": "google-maps-gateway", "branch": "main", "revision": "0b2e96ca4121f660b14744f771c8cef84aca7186"},
     {"name": "reed-gateway", "branch": "main", "revision": "5aa8753d95558129d356cd31d099b6ba44f54d4c"},
-    {"name": "adzuna-gateway", "branch": "main", "revision": "fafb6db30ca6dc7a0e7ffb3b43ad25a41cfc5238"},
+    {"name": "adzuna-gateway", "branch": "main", "revision": "d02b1ff90176822ccca49f14ca56204c96310647"},
     {"name": "jsearch-gateway", "branch": "main", "revision": "46f51025e600193070727e8f44a4955812a09c16"},
     {"name": "nhs-jobs-gateway", "branch": "main", "revision": "932805485d7ebe38b088118561126230dc7a54eb"},
     {"name": "apprenticeships-gateway", "branch": "main", "revision": "bdc1d3eeee51c4aef537e017a24391f3198a9a5d"},
