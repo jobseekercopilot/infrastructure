@@ -4,7 +4,10 @@ FROM ${POSTGRES_IMAGE}
 ARG RDS_CA_BUNDLE_URL
 ARG RDS_CA_BUNDLE_SHA256
 
-RUN apk add --no-cache aws-cli ca-certificates curl jq
+RUN apk add --no-cache --upgrade \
+    libcrypto3=3.5.8-r0 \
+    libssl3=3.5.8-r0 \
+    aws-cli ca-certificates curl jq
 
 RUN test -n "${RDS_CA_BUNDLE_URL}" \
     && test -n "${RDS_CA_BUNDLE_SHA256}" \

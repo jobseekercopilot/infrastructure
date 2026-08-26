@@ -1045,6 +1045,18 @@ RUN apk add --no-cache --upgrade \\
             remainder = dockerfile.removeprefix(expected_prefix)
             self.assertNotRegex(remainder, r"\b(?:apk|apt-get)\b", service)
 
+    def test_release_operator_pins_fixed_alpine_openssl_libraries(self) -> None:
+        dockerfile = (ROOT / "aws" / "public-beta" / "operator" / "Dockerfile").read_text(encoding="utf-8")
+        fixed_install = """RUN apk add --no-cache --upgrade \\
+    libcrypto3=3.5.8-r0 \\
+    libssl3=3.5.8-r0 \\
+    aws-cli ca-certificates curl jq"""
+        self.assertEqual(dockerfile.count("apk add"), 1)
+        self.assertIn(fixed_install, dockerfile)
+        self.assertNotIn("3.5.7-r0", dockerfile)
+        self.assertEqual(dockerfile.count("libcrypto3=3.5.8-r0"), 1)
+        self.assertEqual(dockerfile.count("libssl3=3.5.8-r0"), 1)
+
     def test_landing_static_tar_is_deterministic_and_rejects_links(self) -> None:
         spec = importlib.util.spec_from_file_location("build_landing_artifact", LANDING_BUILDER)
         self.assertIsNotNone(spec)
