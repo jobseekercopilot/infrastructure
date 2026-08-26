@@ -2009,7 +2009,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
                 "payment-gateway": "ab721f1b4377ba250d33b99a1690cb1abd96b864",
                 "stripe-gateway": "f861fc4088f3986417ea5401748b7516f8521769",
                 "system-data-service": "2b2bd1fdb87036baf3186c88b854b39cef2abc96",
-                "job-seeker-copilot-client": "079cfbf93d7434f444afa79e8c894051e10e2aa9",
+                "job-seeker-copilot-client": "3d995aa1a903a0d952a3d3466d7d257bc2bed133",
                 "e2e": "16f586b80ea3bd822f9931fffdb75d523d5541b1",
             },
         )
@@ -2060,7 +2060,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         self.assertFalse(images["capabilities"]["frontendArtifactsVerified"])
         self.assertEqual(images["dependencyEvidence"]["frontendArtifacts"], {
             "client": {
-                "revision": "079cfbf93d7434f444afa79e8c894051e10e2aa9",
+                "revision": "3d995aa1a903a0d952a3d3466d7d257bc2bed133",
                 "artifactContractSha256": "801fab5beb7ea81798677086ef00a94759294a1e85915f74da843632de2c6f75",
                 "packaging": "OCI_SSR_BFF",
             },
@@ -2164,7 +2164,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
                 "apprenticeships-gateway": "bdc1d3eeee51c4aef537e017a24391f3198a9a5d",
                 "job-service": "df9be9cc7ca37dead32e377ba8b9521beb8977c3",
                 "stripe-gateway": "f861fc4088f3986417ea5401748b7516f8521769",
-                "job-seeker-copilot-client": "079cfbf93d7434f444afa79e8c894051e10e2aa9",
+                "job-seeker-copilot-client": "3d995aa1a903a0d952a3d3466d7d257bc2bed133",
             },
             {
                 name: revisions[name]
