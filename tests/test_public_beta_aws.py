@@ -1013,15 +1013,22 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         self.assertNotIn("id-token: write", prepare_job)
         self.assertLess(build.index("Build and verify release artifacts without AWS credentials"), build.index("Configure build-only AWS role"))
 
-    def test_release_runtime_dockerfiles_exclude_known_vulnerable_alpine_base(self) -> None:
+    def test_release_runtime_dockerfiles_pin_fixed_alpine_openssl_packages(self) -> None:
         vulnerable_base = (
             "eclipse-temurin:17-jre-alpine@"
             "sha256:02320dd4ce20e243dfb915c686089cf9315c763084fafbb12d5c9993aee18b57"
         )
-        reviewed_base = (
+        pinned_base = (
             "eclipse-temurin:17-jre-alpine@"
             "sha256:90b7615cb81e3a75f69124fb480e48981c7d56dbc9f32c614d789d3a1c3e32fe"
         )
+        expected_prefix = f"""FROM {pinned_base}
+# Refresh the pinned runtime's OpenSSL packages to the CVE-2026-14456 fixed build.
+RUN apk add --no-cache --upgrade \\
+    libcrypto3=3.5.8-r0 \\
+    libssl3=3.5.8-r0 \\
+    openssl=3.5.8-r0
+"""
         for service in (
             "adzuna-gateway",
             "document-generation-gateway",
@@ -1030,9 +1037,13 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         ):
             dockerfile = (ROOT / "docker" / f"{service}.runtime.Dockerfile").read_text(encoding="utf-8")
             self.assertNotIn(vulnerable_base, dockerfile, service)
-            self.assertIn(reviewed_base, dockerfile, service)
-            self.assertNotIn("apk add", dockerfile, service)
-            self.assertNotIn("apt-get install", dockerfile, service)
+            self.assertTrue(dockerfile.startswith(expected_prefix), service)
+            self.assertEqual(dockerfile.count("FROM "), 1, service)
+            self.assertNotIn("3.5.7-r0", dockerfile, service)
+            for package in ("libcrypto3", "libssl3", "openssl"):
+                self.assertEqual(dockerfile.count(f"{package}=3.5.8-r0"), 1, service)
+            remainder = dockerfile.removeprefix(expected_prefix)
+            self.assertNotRegex(remainder, r"\b(?:apk|apt-get)\b", service)
 
     def test_landing_static_tar_is_deterministic_and_rejects_links(self) -> None:
         spec = importlib.util.spec_from_file_location("build_landing_artifact", LANDING_BUILDER)
@@ -1998,17 +2009,17 @@ class PublicBetaAwsContractTest(unittest.TestCase):
                 "e2e",
             )},
             {
-                "authentication-service": "cf0ccd69c9b30bd6a5bbc79f10b079b37da8ede2",
-                "user-management-gateway": "15e6bed692352f92daccc295c3987319e18ef720",
-                "location-gateway": "5acacb705bd8b4870ed33e24315b23c5df244132",
-                "location-service": "61800aef96b10a5e9d8d40503f9975a18c900025",
-                "llm-gateway": "d84427061766244ec10e367fb3a7a6587809612c",
-                "document-store-service": "f781de0087b4dc45eff2828166f576b11a6c5a98",
+                "authentication-service": "a3ca5efed33a379f748d82b5e70949e5aa765b41",
+                "user-management-gateway": "121d77471b0ba72f3cf08cb662dc2500c9fb4289",
+                "location-gateway": "63e3f07bf6efb2d2f067e98bc6d6e16ea03cd809",
+                "location-service": "70fda950c6dc794571d4c34a568f49f6f6992b4c",
+                "llm-gateway": "1efee28560fb685871b0069d8d21a4851f69f6d0",
+                "document-store-service": "30f2ab6c94db2ab4e6d53e584a8ab3d162eef63f",
                 "document-generation-gateway": "e15784c7098d327835e2a7d14dd257c1b95b08bd",
-                "payment-service": "baeec9aa8da1285a2406900c9550773ac3841af7",
-                "payment-gateway": "ab721f1b4377ba250d33b99a1690cb1abd96b864",
-                "stripe-gateway": "f861fc4088f3986417ea5401748b7516f8521769",
-                "system-data-service": "2b2bd1fdb87036baf3186c88b854b39cef2abc96",
+                "payment-service": "d4858f4af367062cf62c1eb142209f4236c38e95",
+                "payment-gateway": "7c7ef4774739f0818f375a08e3b68f1d3a3c6d72",
+                "stripe-gateway": "9d991b6c1111d06073f0f40d9fb5d2430a103983",
+                "system-data-service": "f6b28693dbb174e0317a5e3396c831e13134c21e",
                 "job-seeker-copilot-client": "5f4aca3aa6528a883506a8a5dc31566187c5e3ae",
                 "e2e": "16f586b80ea3bd822f9931fffdb75d523d5541b1",
             },
@@ -2161,9 +2172,9 @@ class PublicBetaAwsContractTest(unittest.TestCase):
 
         self.assertEqual(
             {
-                "apprenticeships-gateway": "bdc1d3eeee51c4aef537e017a24391f3198a9a5d",
-                "job-service": "df9be9cc7ca37dead32e377ba8b9521beb8977c3",
-                "stripe-gateway": "f861fc4088f3986417ea5401748b7516f8521769",
+                "apprenticeships-gateway": "23344e50f2688f2148dc3d478440a705c7d822f1",
+                "job-service": "c38f84efa65005af5c1f387c9b98d2e58426d1e0",
+                "stripe-gateway": "9d991b6c1111d06073f0f40d9fb5d2430a103983",
                 "job-seeker-copilot-client": "5f4aca3aa6528a883506a8a5dc31566187c5e3ae",
             },
             {
