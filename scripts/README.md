@@ -56,6 +56,26 @@ three-file Compose model for capacity tooling compatibility.
 - Application Tracker retains its isolated H2 E2E state.
 - Normal E2E gateway mode is `FIXTURE`.
 
+## Independent-service deployment pilot
+
+The production-disabled pilot replaces only one allowlisted service in the
+complete fixture Compose project with a locally present immutable image. It
+records before/after identities, requires unaffected containers to remain
+unchanged and healthy, runs a caller smoke, and restores the prior image
+automatically on failure.
+
+```bash
+python3 -m scripts.deployment.service_pilot \
+  deploy-service reporting-gateway sha256:<64-lowercase-hex>
+python3 -m scripts.deployment.service_pilot \
+  rollback-service reporting-gateway sha256:<prior-image-id>
+```
+
+It has no AWS or production command path and rejects remote Docker endpoints.
+See
+[`docs/independent-service-pilot-runbook.md`](../docs/independent-service-pilot-runbook.md)
+for prerequisites, evidence and rollout limits.
+
 Normal stop preserves the selected project's state. To permanently reset only
 one disposable local/E2E project's named volumes, require both flags:
 
@@ -151,6 +171,7 @@ own project directories.
 - `clients/`: OpenAPI export, generated client generation, installation, and conformance checks.
 - `clients/config/`: generated-client dependency and conformance configuration.
 - `data/`: dataset generation, dataset inspection, and environment reset/seed/verify commands.
+- `deployment/`: production-disabled independent-service deployment proving tools.
 - `demo/`: fixture and demo-readiness checks.
 - `docker/`: Docker stack orchestration helpers.
 - `git/`: GitHub Project and repository workflow helpers.

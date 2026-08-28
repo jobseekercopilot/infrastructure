@@ -1,0 +1,7 @@
+# This override is consumed only by scripts.deployment.service_pilot. It has no
+# production/AWS integration and deliberately contains only reviewed pilot
+# services. The operator also enforces this allowlist before invoking Compose.
+services:
+  reporting-gateway:
+    image: ${JSC_PILOT_REPORTING_GATEWAY_IMAGE:?Supply an immutable reporting-gateway image digest}
+    pull_policy: never

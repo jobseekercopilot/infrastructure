@@ -1,0 +1,111 @@
+name: Product improvement backlog
+description: Capture a concrete, evidenced opportunity discovered outside current delivery scope.
+title: "[Backlog] "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Search existing issues, the Product Project, and completed work before creating this item. Capture the opportunity; do not implement it inside an unrelated task.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or opportunity
+      description: State the specific current problem and desired outcome.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence and affected files or components
+      description: Link source, test, audit or user-experience evidence and name the affected components.
+    validations:
+      required: true
+  - type: textarea
+    id: benefit
+    attributes:
+      label: User or engineering benefit
+    validations:
+      required: true
+  - type: textarea
+    id: approach
+    attributes:
+      label: Proposed approach
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      placeholder: "- [ ] …"
+    validations:
+      required: true
+  - type: input
+    id: owner
+    attributes:
+      label: Owning repository or component
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: Source Epic or task
+      description: Link the work that exposed this opportunity and the continuous-improvement parent.
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+  - type: dropdown
+    id: effort
+    attributes:
+      label: Estimated effort
+      options: [S, M, L, XL]
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Suggested priority
+      options: [P0, P1, P2, P3]
+    validations:
+      required: true
+  - type: dropdown
+    id: quick_win
+    attributes:
+      label: Quick win
+      options: ['No', 'Yes']
+    validations:
+      required: true
+  - type: dropdown
+    id: beta_readiness
+    attributes:
+      label: Affects beta readiness
+      options: ['No', 'Yes']
+    validations:
+      required: true
+  - type: dropdown
+    id: beta_blocker
+    attributes:
+      label: Beta blocker
+      description: Choose Yes only when evidence proves beta cannot safely or meaningfully proceed.
+      options: ['False', 'True']
+    validations:
+      required: true
+  - type: textarea
+    id: risks
+    attributes:
+      label: Risks and important constraints
+    validations:
+      required: true
+  - type: checkboxes
+    id: discipline
+    attributes:
+      label: Scope discipline
+      options:
+        - label: I searched for duplicates and will add this item to the Product Project with Status Backlog and the matching Workstream, Service, Type, Priority, Effort and beta-blocker values.
+          required: true
+        - label: I will not implement this work inside the unrelated task that exposed it.
+          required: true

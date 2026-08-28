@@ -31,6 +31,7 @@ jobs:
           python3 -m json.tool config/runtime-environment.schema.json >/dev/null
           python3 -m json.tool config/release-policy.json >/dev/null
           python3 -m json.tool config/release-evidence.schema.json >/dev/null
+          python3 -m json.tool config/non-production-service-pilot.json >/dev/null
           python3 -m json.tool aws/public-beta/config/runtime-services.json >/dev/null
           python3 -m json.tool aws/public-beta/config/image-manifest.json >/dev/null
           python3 -m json.tool aws/public-beta/config/launch-approvals.json >/dev/null
@@ -85,6 +86,7 @@ jobs:
       DATA_ACQUISITION_ADZUNA_ENABLED: "true"
       DATA_ACQUISITION_JSEARCH_ENABLED: "true"
       DATA_ACQUISITION_REED_ENABLED: "true"
+      JSC_PILOT_REPORTING_GATEWAY_IMAGE: sha256:0000000000000000000000000000000000000000000000000000000000000000
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - name: Validate Compose model
@@ -111,6 +113,7 @@ jobs:
           python3 scripts/security/generate_profile_env.py --profile live-provider --output .env.live
           python3 scripts/security/generate_profile_env.py --profile data-acquisition --output .env.data-acquisition
           docker compose --env-file .env -f docker-compose.yml config --quiet
+          docker compose --env-file .env -f docker-compose.yml -f docker-compose.service-pilot.yml config --quiet
           docker compose --env-file .env.e2e -f docker-compose.yml -f docker-compose.e2e.yml -f docker-compose.low-memory.yml config --quiet
           docker compose --env-file .env.live --env-file .env.ci-runtime -f docker-compose.yml -f docker-compose.live.yml config --quiet
           docker compose --env-file .env.data-acquisition --env-file .env.ci-runtime -f docker-compose.data-acquisition.yml --profile "*" config --quiet

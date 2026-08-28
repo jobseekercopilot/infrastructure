@@ -1,0 +1,104 @@
+name: Bug
+description: Record reproducible product or engineering breakage.
+title: "[Bug] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not paste passwords, tokens, cookies, payment details, private CV/application content, or unredacted production logs.
+  - type: textarea
+    id: happened
+    attributes:
+      label: What happened?
+      description: Describe the observable problem and its user impact.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What should have happened?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Go to …
+        2. Select …
+        3. Observe …
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - Frontend
+        - Authentication
+        - User Profile
+        - Jobs
+        - Matching
+        - Application Tracker
+        - Documents
+        - CV / Cover Letter
+        - Payments
+        - Reporting
+        - Location
+        - Infrastructure
+        - Documentation
+        - Public Testing
+        - Promotion
+        - Cross-cutting / Unknown
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or build
+      description: Use the displayed release/build identifier when known.
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshot or log, if safe
+      description: Redact personal data and secrets. Explain when evidence cannot safely be attached.
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: Reported impact only. During triage map Critical/High/Medium/Low to Project Priority P0/P1/P2/P3 unless evidence supports a different priority.
+      options:
+        - Critical — unsafe, data/security risk, or core path unavailable
+        - High — major path blocked with no reasonable workaround
+        - Medium — material degradation with a workaround
+        - Low — limited impact or cosmetic defect
+    validations:
+      required: true
+  - type: dropdown
+    id: source
+    attributes:
+      label: Source
+      options:
+        - Public Tester
+        - Danny
+        - Bernard
+        - Production
+        - Automated Test
+        - Technical Debt
+        - Internal
+    validations:
+      required: true
+  - type: input
+    id: feedback_reference
+    attributes:
+      label: Originating feedback reference
+      description: Required for a public-tester Bug when an intake reference exists.
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Fix and regression acceptance criteria
+      description: Include the regression evidence needed to close this Bug.
+    validations:
+      required: true

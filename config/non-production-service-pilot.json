@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "environment": "NON_PRODUCTION_COMPOSE_PILOT",
+  "profile": "full-fixture",
+  "composeOverride": "docker-compose.service-pilot.yml",
+  "services": {
+    "reporting-gateway": {
+      "imageEnvironmentVariable": "JSC_PILOT_REPORTING_GATEWAY_IMAGE",
+      "port": 8095,
+      "healthPath": "/actuator/health",
+      "smokeCaller": "job-seeker-copilot-client"
+    }
+  }
+}
