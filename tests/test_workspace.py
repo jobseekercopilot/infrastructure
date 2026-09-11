@@ -97,7 +97,7 @@ class CatalogTests(unittest.TestCase):
             "os.environ",
             {
                 "PATH": "/safe/tool/path",
-                "OPENAI_API_KEY": "must-not-leak",
+                "AWS_ACCESS_KEY_ID": "must-not-leak",
                 "AUTH_SERVICE_TOKEN": "must-not-override-generated-value",
             },
             clear=True,
@@ -105,7 +105,7 @@ class CatalogTests(unittest.TestCase):
             environment = controlled_environment()
 
         self.assertEqual(environment["PATH"], "/safe/tool/path")
-        self.assertNotIn("OPENAI_API_KEY", environment)
+        self.assertNotIn("AWS_ACCESS_KEY_ID", environment)
         self.assertNotIn("AUTH_SERVICE_TOKEN", environment)
 
     def test_runtime_image_context_uses_current_workspace_artifact(self) -> None:
@@ -178,28 +178,27 @@ class CatalogTests(unittest.TestCase):
             real_providers.secret_providers,
             ("REED", "ADZUNA", "JSEARCH", "APPRENTICESHIPS"),
         )
-        real_openai = catalog.profile("real-providers")
-        self.assertEqual(real_openai.environment_file, expected_real_environment)
-        self.assertEqual(environment_path(real_openai), expected_real_environment)
+        real_bedrock = catalog.profile("real-providers")
+        self.assertEqual(real_bedrock.environment_file, expected_real_environment)
+        self.assertEqual(environment_path(real_bedrock), expected_real_environment)
         self.assertEqual(
-            real_openai.compose_files,
+            real_bedrock.compose_files,
             (
                 "docker-compose.yml",
                 "docker-compose.real-job-providers.yml",
-                "docker-compose.real-openai.yml",
+                "docker-compose.real-bedrock.yml",
                 "docker-compose.real-google-maps.yml",
                 "docker-compose.low-memory.yml",
             ),
         )
-        self.assertEqual(real_openai.compose_parallel_limit, 1)
+        self.assertEqual(real_bedrock.compose_parallel_limit, 1)
         self.assertEqual(
-            real_openai.secret_providers,
+            real_bedrock.secret_providers,
             (
                 "REED",
                 "ADZUNA",
                 "JSEARCH",
                 "APPRENTICESHIPS",
-                "OPENAI",
                 "GOOGLE",
             ),
         )
@@ -230,7 +229,7 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(e2e.compose_parallel_limit, 1)
         self.assertEqual(e2e.environment_profile, "e2e")
         self.assertEqual(e2e.frontend_url, "http://localhost:3100")
-        command = compose_command(real_openai, expected_real_environment, "ps")
+        command = compose_command(real_bedrock, expected_real_environment, "ps")
         self.assertEqual(
             command,
             [
@@ -249,7 +248,7 @@ class CatalogTests(unittest.TestCase):
                 "-f",
                 "docker-compose.real-job-providers.yml",
                 "-f",
-                "docker-compose.real-openai.yml",
+                "docker-compose.real-bedrock.yml",
                 "-f",
                 "docker-compose.real-google-maps.yml",
                 "-f",
@@ -289,28 +288,26 @@ class CatalogTests(unittest.TestCase):
                 set(configuration["networks"]),
                 {"job-seeker-network", "provider-egress-network"},
             )
-        openai_overlay = yaml.safe_load(
+        bedrock_overlay = yaml.safe_load(
             (WORKSPACE_ROOT / "infrastructure"
-             / "docker-compose.real-openai.yml").read_text()
+             / "docker-compose.real-bedrock.yml").read_text()
         )
         self.assertEqual(
-            openai_overlay["services"]["llm-gateway"]["environment"][
+            bedrock_overlay["services"]["llm-gateway"]["environment"][
                 "EXTERNAL_PROVIDER_MODE"
             ],
-            "LIVE",
+            "BEDROCK",
         )
         self.assertEqual(
-            openai_overlay["services"]["job-seeker-copilot-client"][
+            bedrock_overlay["services"]["job-seeker-copilot-client"][
                 "environment"
             ]["DOCUMENT_GENERATION_MODE"],
             "REAL_LLM",
         )
-        self.assertEqual(
-            {
-                secret["target"]
-                for secret in openai_overlay["services"]["llm-gateway"]["secrets"]
-            },
-            {"OPENAI_API_KEY"},
+        # Bedrock authenticates with the AWS credential chain, so the LLM
+        # gateway mounts no owned provider secret in this overlay.
+        self.assertNotIn(
+            "secrets", bedrock_overlay["services"]["llm-gateway"]
         )
         google_overlay = yaml.safe_load(
             (WORKSPACE_ROOT / "infrastructure"
@@ -473,7 +470,7 @@ class CatalogTests(unittest.TestCase):
                 / "docker-compose.real-job-providers.yml",
                 WORKSPACE_ROOT
                 / "infrastructure"
-                / "docker-compose.real-openai.yml",
+                / "docker-compose.real-bedrock.yml",
                 WORKSPACE_ROOT
                 / "infrastructure"
                 / "docker-compose.real-google-maps.yml",

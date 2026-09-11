@@ -102,7 +102,6 @@ class RenderedModeIsolationTests(unittest.TestCase):
             "ADZUNA_APP_KEY": "synthetic-adzuna-credential",
             "JSEARCH_API_KEY": "synthetic-jsearch-credential",
             "APPRENTICESHIPS_API_KEY": "synthetic-apprenticeships-credential",
-            "OPENAI_API_KEY": "synthetic-openai-credential-with-enough-characters",
             "GOOGLE_MAPS_API_KEY": "synthetic-google-maps-credential",
         }
         cls.real_providers_secrets = directory / "real-providers-secrets.env"
@@ -110,22 +109,17 @@ class RenderedModeIsolationTests(unittest.TestCase):
             cls.real_providers_secrets,
             {
                 **cls.real_provider_credentials,
-                "OPENAI_ENDPOINT": "https://api.openai.com/v1/chat/completions",
-                "OPENAI_DATA_REGION": "GLOBAL",
-                "OPENAI_DATA_CONTROL_MODE": (
-                    "STANDARD_30_DAY_ABUSE_MONITORING"
+                "BEDROCK_MODEL_ID": (
+                    "eu.anthropic.claude-3-5-sonnet-20240620-v1:0"
                 ),
-                "OPENAI_DATA_SHARING_MODE": "DISABLED",
-                "OPENAI_PRIVACY_DECISION_ID": "privacy-decision/test",
-                "OPENAI_PRIVACY_OWNER": "Test owner",
-                "OPENAI_PRIVACY_REVIEW_ON": "2026-10-25",
+                "BEDROCK_REGION": "eu-west-2",
             },
         )
         cls.models["real-providers"] = compose_model(
             cls.real_providers_env,
             [
                 Path("docker-compose.real-job-providers.yml"),
-                Path("docker-compose.real-openai.yml"),
+                Path("docker-compose.real-bedrock.yml"),
                 Path("docker-compose.real-google-maps.yml"),
                 Path("docker-compose.low-memory.yml"),
             ],
@@ -520,7 +514,7 @@ class RenderedModeIsolationTests(unittest.TestCase):
             )
         self.assertEqual(
             services["llm-gateway"]["environment"]["EXTERNAL_PROVIDER_MODE"],
-            "LIVE",
+            "BEDROCK",
         )
         self.assertEqual(
             services["llm-gateway"]["environment"][
@@ -529,7 +523,7 @@ class RenderedModeIsolationTests(unittest.TestCase):
             "1",
         )
         self.assertEqual(
-            services["llm-gateway"]["environment"]["OPENAI_CALL_TIMEOUT_MS"],
+            services["llm-gateway"]["environment"]["BEDROCK_CALL_TIMEOUT_MS"],
             "360000",
         )
         document_generation = services["document-generation-gateway"][
@@ -598,7 +592,6 @@ class RenderedModeIsolationTests(unittest.TestCase):
             "apprenticeships-gateway": {
                 "apprenticeships_api_key": "APPRENTICESHIPS_API_KEY"
             },
-            "llm-gateway": {"openai_api_key": "OPENAI_API_KEY"},
             "google-maps-gateway": {
                 "google_maps_api_key": "GOOGLE_MAPS_API_KEY"
             },
@@ -627,7 +620,7 @@ class RenderedModeIsolationTests(unittest.TestCase):
         for credential in self.real_provider_credentials.values():
             self.assertNotIn(credential, rendered)
 
-    def test_combined_real_providers_cannot_resolve_openai_as_disabled(
+    def test_combined_real_providers_cannot_resolve_llm_gateway_as_disabled(
         self,
     ) -> None:
         model = self.model("real-providers")
@@ -636,7 +629,7 @@ class RenderedModeIsolationTests(unittest.TestCase):
         ] = "DISABLED"
         with self.assertRaisesRegex(
             ValueError,
-            "llm-gateway:EXTERNAL_PROVIDER_MODE must be LIVE",
+            "llm-gateway:EXTERNAL_PROVIDER_MODE must be BEDROCK",
         ):
             validate_model(model, "real-providers")
 
@@ -644,7 +637,7 @@ class RenderedModeIsolationTests(unittest.TestCase):
             self.real_providers_env,
             [
                 Path("docker-compose.real-job-providers.yml"),
-                Path("docker-compose.real-openai.yml"),
+                Path("docker-compose.real-bedrock.yml"),
                 Path("docker-compose.real-google-maps.yml"),
                 Path("docker-compose.live.yml"),
                 Path("docker-compose.low-memory.yml"),
@@ -688,13 +681,6 @@ class RenderedModeIsolationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "SPRING_CONFIG_IMPORT"):
             validate_model(model, "real-providers")
 
-        model = self.model("real-providers")
-        model["services"]["llm-gateway"]["environment"][
-            "OPENAI_API_KEY"
-        ] = "must-not-be-an-environment-value"
-        with self.assertRaisesRegex(ValueError, "mounted as an owned secret"):
-            validate_model(model, "real-providers")
-
     def test_combined_validator_output_never_contains_provider_values(
         self,
     ) -> None:
@@ -712,7 +698,7 @@ class RenderedModeIsolationTests(unittest.TestCase):
                 "--overlay",
                 "docker-compose.real-job-providers.yml",
                 "--overlay",
-                "docker-compose.real-openai.yml",
+                "docker-compose.real-bedrock.yml",
                 "--overlay",
                 "docker-compose.real-google-maps.yml",
                 "--overlay",
@@ -814,6 +800,7 @@ class RenderedModeIsolationTests(unittest.TestCase):
         for service, variable, value in (
             ("reed-gateway", "REED_API_KEY", "credential"),
             ("llm-gateway", "OPENAI_API_KEY", "credential"),
+            ("llm-gateway", "AWS_ACCESS_KEY_ID", "AKIAEXAMPLE"),
             ("stripe-gateway", "STRIPE_SECRET_KEY", "credential"),
             ("llm-gateway", "LLM_MOCK_MODE", "false"),
         ):

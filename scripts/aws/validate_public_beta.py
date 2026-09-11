@@ -44,7 +44,7 @@ STRIPE_GATEWAY_V2_OPENAPI_SHA256 = "9fff5cff738ab51c24be85e989dcb6b9fe01bd239728
 SYSTEM_DATA_PAYMENT_FIXTURE_REVISION = "ca4bafeafbfe41b25a8507f6f08d97490ef71a28"
 E2E_PAYMENT_FIXTURE_REVISION = "1541d92f34a3068bb160e1638834a06af6a60796"
 INFRASTRUCTURE_PAYMENT_FIXTURE_REVISION = "412566a750ead55740e0b2b4b81cebe29d3e0ad9"
-CLIENT_RELEASE_REVISION = "3092e46157105a3d8702221c53623184f276a896"
+CLIENT_RELEASE_REVISION = "273e825f7d52e507c1b537fd0cc5e0dc1131679d"
 CLIENT_ARTIFACT_CONTRACT_SHA256 = "801fab5beb7ea81798677086ef00a94759294a1e85915f74da843632de2c6f75"
 LANDING_RELEASE_REVISION = "743e42475319330be70e4d6d8f47000f913626f9"
 LANDING_ARTIFACT_CONTRACT_SHA256 = "9682372ef2d909de3b2b49c6d0fed232565b61e1b1fe0ac666ace58bfdb0804f"
@@ -921,7 +921,7 @@ def validate_approvals(approvals: dict[str, Any], release: bool) -> None:
     require(isinstance(integrations, dict), "launch approvals must contain integrations")
     expected = {
         "postcodes_gb", "postcodes_ni", "reed", "adzuna", "jsearch", "nhs_jobs",
-        "apprenticeships", "google_maps", "openai", "stripe", "account_email",
+        "apprenticeships", "google_maps", "bedrock", "stripe", "account_email",
     }
     require(set(integrations) == expected, "launch approval manifest integration set differs from Terraform switches")
     common = {
@@ -990,14 +990,18 @@ def validate_approvals(approvals: dict[str, Any], release: bool) -> None:
     else:
         require(google["googleBillingQuotasVerified"] is False, "unapproved Google Maps cannot attest billing quotas")
 
-    openai = integrations["openai"]
-    openai_fields = {"privacyPolicyVersion", "privacyDecisionId", "privacyOwner", "privacyReviewedOn"}
-    require(openai_fields.issubset(openai), "OpenAI approval needs privacy decision provenance")
-    if release and openai["approved"]:
-        for field, minimum in (("privacyPolicyVersion", 3), ("privacyDecisionId", 8), ("privacyOwner", 3)):
-            require_substantive(openai[field], f"integrations.openai.{field}", minimum)
-        privacy_reviewed = parse_release_date(openai["privacyReviewedOn"], "integrations.openai.privacyReviewedOn")
-        require(privacy_reviewed <= reviewed_at.date(), "OpenAI privacy review follows reviewedAt provenance")
+    bedrock = integrations["bedrock"]
+    bedrock_fields = {"modelId", "awsRegion", "dataProcessingOwner", "dataProcessingReviewedOn"}
+    require(bedrock_fields.issubset(bedrock), "Bedrock approval needs model, region and data-processing provenance")
+    if release and bedrock["approved"]:
+        for field, minimum in (("modelId", 3), ("dataProcessingOwner", 3)):
+            require_substantive(bedrock[field], f"integrations.bedrock.{field}", minimum)
+        require(
+            bool(re.fullmatch(r"[a-z]{2}-[a-z]+-[0-9]", bedrock["awsRegion"])),
+            "Bedrock approval requires a valid AWS region, for example eu-west-2",
+        )
+        data_reviewed = parse_release_date(bedrock["dataProcessingReviewedOn"], "integrations.bedrock.dataProcessingReviewedOn")
+        require(data_reviewed <= reviewed_at.date(), "Bedrock data-processing review follows reviewedAt provenance")
     payment_fields = {
         "paymentReadinessStatus", "refundRunbookReference", "reconciliationRunbookReference",
         "checkoutEnabled", "checkoutReleaseAuthorised", "providerLiveModeExpected",

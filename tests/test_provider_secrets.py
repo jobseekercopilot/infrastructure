@@ -69,11 +69,11 @@ class ProviderSecretStoreTests(unittest.TestCase):
 
         self.assertEqual([], findings)
 
-    def test_openai_validation_requires_the_complete_live_decision(self) -> None:
+    def test_bedrock_validation_requires_model_and_region(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             store = Path(directory) / ".secrets.env"
             store.write_text(
-                "OPENAI_API_KEY=not-a-real-secret\n",
+                "BEDROCK_MODEL_ID=eu.anthropic.claude-3-5-sonnet-20240620-v1:0\n",
                 encoding="utf-8",
             )
             store.chmod(0o600)
@@ -81,12 +81,10 @@ class ProviderSecretStoreTests(unittest.TestCase):
                 "scripts.security.provider_secrets.SECRET_FILE",
                 store,
             ):
-                failures = validate_store(("OPENAI",), store)
+                failures = validate_store(("BEDROCK",), store)
 
-        self.assertNotIn("OPENAI_ORGANIZATION_ID is MISSING", failures)
-        self.assertNotIn("OPENAI_PROJECT_ID is MISSING", failures)
-        self.assertIn("OPENAI_PRIVACY_DECISION_ID is MISSING", failures)
-        self.assertNotIn("not-a-real-secret", "\n".join(failures))
+        self.assertNotIn("BEDROCK_MODEL_ID is MISSING", failures)
+        self.assertIn("BEDROCK_REGION is MISSING", failures)
 
     def test_google_validation_requires_only_the_gateway_key(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

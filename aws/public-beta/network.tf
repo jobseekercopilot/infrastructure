@@ -22,7 +22,7 @@ locals {
     var.enabled_integrations.jsearch ? "jsearch-gateway" : "",
     var.enabled_integrations.nhs_jobs ? "nhs-jobs-gateway" : "",
     var.enabled_integrations.apprenticeships ? "apprenticeships-gateway" : "",
-    var.enabled_integrations.openai ? "llm-gateway" : "",
+    var.enabled_integrations.bedrock ? "llm-gateway" : "",
     var.enabled_integrations.stripe ? "stripe-gateway" : "",
     var.enabled_integrations.account_email ? "authentication-service" : "",
   ]))

@@ -1410,17 +1410,17 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         with self.assertRaisesRegex(module.ContractError, "billingQuotaEvidenceReference"):
             module.validate_approvals(google_placeholder, True)
 
-        openai_placeholder = copy.deepcopy(approvals)
-        openai = approve_common(openai_placeholder, "openai")
-        openai.update({
-            "privacyPolicyVersion": "privacy-2026-08-15",
-            "privacyDecisionId": "privacy-decision-record-15",
-            "privacyOwner": "Data protection owner",
-            "privacyReviewedOn": today.isoformat(),
+        bedrock_placeholder = copy.deepcopy(approvals)
+        bedrock = approve_common(bedrock_placeholder, "bedrock")
+        bedrock.update({
+            "modelId": "eu.anthropic.claude-3-5-sonnet-20240620-v1:0",
+            "awsRegion": "eu-west-2",
+            "dataProcessingOwner": "Data protection owner",
+            "dataProcessingReviewedOn": today.isoformat(),
         })
-        openai["privacyDecisionId"] = "TBD"
-        with self.assertRaisesRegex(module.ContractError, "privacyDecisionId"):
-            module.validate_approvals(openai_placeholder, True)
+        bedrock["modelId"] = "TBD"
+        with self.assertRaisesRegex(module.ContractError, "modelId"):
+            module.validate_approvals(bedrock_placeholder, True)
 
         stripe_placeholder = copy.deepcopy(approvals)
         live_stripe = approve_common(stripe_placeholder, "stripe")
@@ -1488,7 +1488,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
                 "payment-gateway": "c2c53e7faaea61f169e04663893a3a692d2e8135",
                 "stripe-gateway": "7d2cc958bc06ea05234868b3b34e943e68bc9785",
                 "system-data-service": "99e0e5984c7b68199a178df707804e0d7f0aeb18",
-                "job-seeker-copilot-client": "3092e46157105a3d8702221c53623184f276a896",
+                "job-seeker-copilot-client": "273e825f7d52e507c1b537fd0cc5e0dc1131679d",
                 "e2e": "caec5576b016c0c34c36900f1a733bc60a4126c4",
             },
         )
@@ -1539,7 +1539,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         self.assertFalse(images["capabilities"]["frontendArtifactsVerified"])
         self.assertEqual(images["dependencyEvidence"]["frontendArtifacts"], {
             "client": {
-                "revision": "3092e46157105a3d8702221c53623184f276a896",
+                "revision": "273e825f7d52e507c1b537fd0cc5e0dc1131679d",
                 "artifactContractSha256": "801fab5beb7ea81798677086ef00a94759294a1e85915f74da843632de2c6f75",
                 "packaging": "OCI_SSR_BFF",
             },

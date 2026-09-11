@@ -204,24 +204,17 @@
     "llm-gateway": {
       "port": 8090, "cpu": 256, "memory": 768, "healthPath": "/actuator/health",
       "environment": {
-        "EXTERNAL_PROVIDER_MODE": "{{openai_mode}}",
-        "OPENAI_MODEL": "gpt-4.1-mini-2025-04-14",
-        "OPENAI_ENDPOINT": "https://api.openai.com/v1/chat/completions",
-        "OPENAI_DATA_REGION": "EU",
-        "OPENAI_DATA_CONTROL_MODE": "ZERO_DATA_RETENTION",
-        "OPENAI_DATA_SHARING_MODE": "DISABLED",
-        "OPENAI_PRIVACY_POLICY_VERSION": "{{openai_privacy_policy_version}}",
-        "OPENAI_PRIVACY_DECISION_ID": "{{openai_privacy_decision_id}}",
-        "OPENAI_PRIVACY_OWNER": "{{openai_privacy_owner}}",
-        "OPENAI_PRIVACY_REVIEW_ON": "{{openai_privacy_reviewed_on}}",
-        "OPENAI_MAX_CONCURRENT_CALLS": "8",
-        "GENERATION_MODEL_ID": "gpt-4.1-mini",
-        "GENERATION_MODEL_DEPLOYMENT_VERSION": "gpt-4.1-mini-2025-04-14",
-        "GENERATION_PRICING_VERSION": "openai-2026-08-15",
-        "GENERATION_INPUT_RATE_MICRO_USD_PER_MILLION_TOKENS": "400000",
-        "GENERATION_OUTPUT_RATE_MICRO_USD_PER_MILLION_TOKENS": "1600000"
+        "EXTERNAL_PROVIDER_MODE": "{{bedrock_mode}}",
+        "BEDROCK_MODEL_ID": "eu.anthropic.claude-3-5-sonnet-20240620-v1:0",
+        "BEDROCK_REGION": "{{region}}",
+        "BEDROCK_MAX_CONCURRENT_CALLS": "8",
+        "GENERATION_MODEL_ID": "eu.anthropic.claude-3-5-sonnet-20240620-v1:0",
+        "GENERATION_MODEL_DEPLOYMENT_VERSION": "document-generation-bedrock-claude-3-5-sonnet-20240620",
+        "GENERATION_PRICING_VERSION": "bedrock-2026-09-11",
+        "GENERATION_INPUT_RATE_MICRO_USD_PER_MILLION_TOKENS": "3000000",
+        "GENERATION_OUTPUT_RATE_MICRO_USD_PER_MILLION_TOKENS": "15000000"
       },
-      "secrets": {"OPENAI_API_KEY": "integration/openai:api_key"}
+      "secrets": {}
     },
     "document-store-service": {
       "port": 8089, "cpu": 256, "memory": 1024, "healthPath": "/actuator/health",

@@ -189,9 +189,9 @@
       "responsibility": "Typed provider-neutral model transport, admission bounds, timeout policy, usage and cost evidence.",
       "ownedState": "Stateless circuit/admission state.",
       "inbound": ["CV/Cover Letter Service"],
-      "outbound": ["OpenAI API", "System Data Service in fixture mode"],
+      "outbound": ["AWS Bedrock Runtime", "System Data Service in fixture mode"],
       "contract": "LLM Gateway OpenAPI 2.0",
-      "external": ["OpenAI"],
+      "external": ["AWS Bedrock"],
       "noteworthy": "Bounded retries apply only to classified safe failures and retain stable operation identity/audit fields."
     },
     {

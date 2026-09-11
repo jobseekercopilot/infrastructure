@@ -100,11 +100,11 @@
       "services": "all-runtime"
     },
     "real-providers": {
-      "description": "The complete private-beta application with real job providers, Postcodes.io, Google Maps and real OpenAI document generation while Stripe remains fixture-backed.",
+      "description": "The complete private-beta application with real job providers, Postcodes.io, Google Maps and real AWS Bedrock document generation while Stripe remains fixture-backed.",
       "composeFiles": [
         "docker-compose.yml",
         "docker-compose.real-job-providers.yml",
-        "docker-compose.real-openai.yml",
+        "docker-compose.real-bedrock.yml",
         "docker-compose.real-google-maps.yml",
         "docker-compose.low-memory.yml"
       ],
@@ -113,7 +113,7 @@
       "environmentProfile": "local",
       "environmentFile": ".env.real-job-providers",
       "secretEnvironmentFile": "config/.secrets.env",
-      "secretProviders": ["REED", "ADZUNA", "JSEARCH", "APPRENTICESHIPS", "OPENAI", "GOOGLE"],
+      "secretProviders": ["REED", "ADZUNA", "JSEARCH", "APPRENTICESHIPS", "GOOGLE"],
       "frontendUrl": "http://localhost:3000",
       "services": "all-runtime"
     }

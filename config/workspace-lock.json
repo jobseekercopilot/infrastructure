@@ -19,7 +19,7 @@
     {"name": "job-service", "branch": "develop", "revision": "cbf9cf0282b2ca62dac1b51011cced04a2ae820b"},
     {"name": "job-matching-service", "branch": "develop", "revision": "b18a3f242a38934f4bf06ec47f53acbf807698b5"},
     {"name": "job-finder-gateway", "branch": "develop", "revision": "1995d547ebd1bdb0e4bf16b29752efa1852d6930"},
-    {"name": "llm-gateway", "branch": "develop", "revision": "b9556960e415ba43f6518f5505de71187146cba1"},
+    {"name": "llm-gateway", "branch": "develop", "revision": "38f17ff943f7ce0dda71a821dab8877538d0da4a"},
     {"name": "document-store-service", "branch": "develop", "revision": "1c548f44ad140b51fc53df64f25b7cab10563dee"},
     {"name": "document-export-service", "branch": "develop", "revision": "844dec04888d381bc3f117081167f07a0e563ee2"},
     {"name": "application-tracker-service", "branch": "develop", "revision": "839a47f26df661ca28ee46f98e58434f43222453"},
@@ -30,7 +30,7 @@
     {"name": "payment-service", "branch": "develop", "revision": "4caa12969f058b96f02ebce10ce2f562039cac0c"},
     {"name": "stripe-gateway", "branch": "develop", "revision": "7d2cc958bc06ea05234868b3b34e943e68bc9785"},
     {"name": "payment-gateway", "branch": "develop", "revision": "c2c53e7faaea61f169e04663893a3a692d2e8135"},
-    {"name": "job-seeker-copilot-client", "branch": "develop", "revision": "3092e46157105a3d8702221c53623184f276a896"},
+    {"name": "job-seeker-copilot-client", "branch": "develop", "revision": "273e825f7d52e507c1b537fd0cc5e0dc1131679d"},
     {"name": "e2e", "branch": "develop", "revision": "caec5576b016c0c34c36900f1a733bc60a4126c4"}
   ]
 }
