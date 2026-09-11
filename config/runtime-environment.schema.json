@@ -385,7 +385,7 @@
       "classification": "secret",
       "profiles": ["live-provider"]
     },
-    {"name": "BEDROCK_MODEL_ID", "owner": "LLM Gateway", "consumers": ["llm-gateway"], "classification": "configuration", "profiles": ["live-provider"], "example": "eu.anthropic.claude-3-5-sonnet-20240620-v1:0"},
+    {"name": "BEDROCK_MODEL_ID", "owner": "LLM Gateway", "consumers": ["llm-gateway"], "classification": "configuration", "profiles": ["live-provider"], "example": "anthropic.claude-3-7-sonnet-20250219-v1:0"},
     {"name": "BEDROCK_REGION", "owner": "LLM Gateway", "consumers": ["llm-gateway"], "classification": "configuration", "profiles": ["live-provider"], "example": "eu-west-2"},
     {"name": "AWS_ACCESS_KEY_ID", "owner": "LLM Gateway", "consumers": ["llm-gateway"], "classification": "secret", "profiles": ["live-provider"], "example": "AKIAEXAMPLE"},
     {"name": "AWS_SECRET_ACCESS_KEY", "owner": "LLM Gateway", "consumers": ["llm-gateway"], "classification": "secret", "profiles": ["live-provider"]},

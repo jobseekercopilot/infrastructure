@@ -73,7 +73,7 @@ class ProviderSecretStoreTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             store = Path(directory) / ".secrets.env"
             store.write_text(
-                "BEDROCK_MODEL_ID=eu.anthropic.claude-3-5-sonnet-20240620-v1:0\n",
+                "BEDROCK_MODEL_ID=anthropic.claude-3-7-sonnet-20250219-v1:0\n",
                 encoding="utf-8",
             )
             store.chmod(0o600)

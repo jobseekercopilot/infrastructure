@@ -6,7 +6,7 @@ services:
       BEDROCK_MODEL_ID: ${BEDROCK_MODEL_ID:?Declare the reviewed Bedrock model or inference-profile id in config/.secrets.env}
       BEDROCK_REGION: ${BEDROCK_REGION:?Declare the AWS region hosting Bedrock in config/.secrets.env}
       GENERATION_MODEL_ID: ${BEDROCK_MODEL_ID}
-      GENERATION_MODEL_DEPLOYMENT_VERSION: document-generation-bedrock-claude-3-5-sonnet-20240620
+      GENERATION_MODEL_DEPLOYMENT_VERSION: document-generation-bedrock-claude-3-7-sonnet-20250219
       GENERATION_PRICING_VERSION: bedrock-standard-2026-09-11
       GENERATION_INPUT_RATE_MICRO_USD_PER_MILLION_TOKENS: "3000000"
       GENERATION_OUTPUT_RATE_MICRO_USD_PER_MILLION_TOKENS: "15000000"

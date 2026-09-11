@@ -205,11 +205,11 @@
       "port": 8090, "cpu": 256, "memory": 768, "healthPath": "/actuator/health",
       "environment": {
         "EXTERNAL_PROVIDER_MODE": "{{bedrock_mode}}",
-        "BEDROCK_MODEL_ID": "eu.anthropic.claude-3-5-sonnet-20240620-v1:0",
+        "BEDROCK_MODEL_ID": "anthropic.claude-3-7-sonnet-20250219-v1:0",
         "BEDROCK_REGION": "{{region}}",
         "BEDROCK_MAX_CONCURRENT_CALLS": "8",
-        "GENERATION_MODEL_ID": "eu.anthropic.claude-3-5-sonnet-20240620-v1:0",
-        "GENERATION_MODEL_DEPLOYMENT_VERSION": "document-generation-bedrock-claude-3-5-sonnet-20240620",
+        "GENERATION_MODEL_ID": "anthropic.claude-3-7-sonnet-20250219-v1:0",
+        "GENERATION_MODEL_DEPLOYMENT_VERSION": "document-generation-bedrock-claude-3-7-sonnet-20250219",
         "GENERATION_PRICING_VERSION": "bedrock-2026-09-11",
         "GENERATION_INPUT_RATE_MICRO_USD_PER_MILLION_TOKENS": "3000000",
         "GENERATION_OUTPUT_RATE_MICRO_USD_PER_MILLION_TOKENS": "15000000"

@@ -110,7 +110,7 @@ class RenderedModeIsolationTests(unittest.TestCase):
             {
                 **cls.real_provider_credentials,
                 "BEDROCK_MODEL_ID": (
-                    "eu.anthropic.claude-3-5-sonnet-20240620-v1:0"
+                    "anthropic.claude-3-7-sonnet-20250219-v1:0"
                 ),
                 "BEDROCK_REGION": "eu-west-2",
             },

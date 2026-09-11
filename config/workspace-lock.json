@@ -19,7 +19,7 @@
     {"name": "job-service", "branch": "develop", "revision": "cbf9cf0282b2ca62dac1b51011cced04a2ae820b"},
     {"name": "job-matching-service", "branch": "develop", "revision": "b18a3f242a38934f4bf06ec47f53acbf807698b5"},
     {"name": "job-finder-gateway", "branch": "develop", "revision": "1995d547ebd1bdb0e4bf16b29752efa1852d6930"},
-    {"name": "llm-gateway", "branch": "develop", "revision": "38f17ff943f7ce0dda71a821dab8877538d0da4a"},
+    {"name": "llm-gateway", "branch": "develop", "revision": "1e1a52017d828d868f49425618def85f3efecbf1"},
     {"name": "document-store-service", "branch": "develop", "revision": "1c548f44ad140b51fc53df64f25b7cab10563dee"},
     {"name": "document-export-service", "branch": "develop", "revision": "844dec04888d381bc3f117081167f07a0e563ee2"},
     {"name": "application-tracker-service", "branch": "develop", "revision": "839a47f26df661ca28ee46f98e58434f43222453"},

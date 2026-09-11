@@ -1413,7 +1413,7 @@ class PublicBetaAwsContractTest(unittest.TestCase):
         bedrock_placeholder = copy.deepcopy(approvals)
         bedrock = approve_common(bedrock_placeholder, "bedrock")
         bedrock.update({
-            "modelId": "eu.anthropic.claude-3-5-sonnet-20240620-v1:0",
+            "modelId": "anthropic.claude-3-7-sonnet-20250219-v1:0",
             "awsRegion": "eu-west-2",
             "dataProcessingOwner": "Data protection owner",
             "dataProcessingReviewedOn": today.isoformat(),
