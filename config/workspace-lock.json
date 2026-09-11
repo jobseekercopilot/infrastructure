@@ -14,7 +14,7 @@
     {"name": "adzuna-gateway", "branch": "main", "revision": "d02b1ff90176822ccca49f14ca56204c96310647"},
     {"name": "jsearch-gateway", "branch": "main", "revision": "5fd34524193c904a5df7eef05eb30319f3994add"},
     {"name": "nhs-jobs-gateway", "branch": "main", "revision": "064cb29d4e792839eb6897ddc5bdae98c9276243"},
-    {"name": "apprenticeships-gateway", "branch": "main", "revision": "23344e50f2688f2148dc3d478440a705c7d822f1"},
+    {"name": "apprenticeships-gateway", "branch": "main", "revision": "841c5093c48fdd514302a9edde08f112ca061050"},
     {"name": "system-data-service", "branch": "main", "revision": "f6b28693dbb174e0317a5e3396c831e13134c21e"},
     {"name": "job-service", "branch": "main", "revision": "c38f84efa65005af5c1f387c9b98d2e58426d1e0"},
     {"name": "job-matching-service", "branch": "main", "revision": "4a7f1fc6eac1d97a949c2f1085e1fde4c43ba932"},
