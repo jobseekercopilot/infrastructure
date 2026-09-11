@@ -587,7 +587,7 @@ enabled independently after their own reviews. Google Maps has a separate GCP
 project/quota/budget gate and is not required for hosting. It cannot be enabled
 until `googleBillingQuotasVerified=true` names exact billable quota IDs and
 limits, records 50/75/90/100% GCP budget alerts and assigns an emergency-disable
-owner/runbook. Those alerts are not a hard cap. Stripe, OpenAI and
+owner/runbook. Those alerts are not a hard cap. Stripe, AWS Bedrock and
 SES each have additional readiness metadata. A secret alone never unlocks any
 of them.
 

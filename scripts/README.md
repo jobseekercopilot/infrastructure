@@ -100,7 +100,7 @@ python3 -m scripts.data.purge_acquisition \
 The former live LLM capture command is disabled. A future cost-bounded,
 quarantined replacement is tracked in
 [BACKLOG-LLM-02](https://github.com/jobseekercopilot/infrastructure/issues/29).
-No normal stack or acquisition command can inject an OpenAI credential or
+No normal stack or acquisition command can inject AWS Bedrock credentials or
 create paid AI content. See
 [`docs/MODE_ISOLATION.md`](../docs/MODE_ISOLATION.md).
 

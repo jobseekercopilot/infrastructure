@@ -181,7 +181,7 @@ variable "enabled_integrations" {
     nhs_jobs        = bool
     apprenticeships = bool
     google_maps     = bool
-    openai          = bool
+    bedrock         = bool
     stripe          = bool
     account_email   = bool
   })
@@ -194,7 +194,7 @@ variable "enabled_integrations" {
     nhs_jobs        = false
     apprenticeships = false
     google_maps     = false
-    openai          = false
+    bedrock         = false
     stripe          = false
     account_email   = false
   }

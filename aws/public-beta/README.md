@@ -44,7 +44,7 @@ Important boundaries:
   operator scripts seed core/database values and external values are supplied
   independently after commercial/legal approval.
 - Credentials do not imply provider approval. Reed, Adzuna, JSearch, Google,
-  OpenAI, Stripe and Northern Ireland postcode use have additional manifest
+  AWS Bedrock, Stripe and Northern Ireland postcode use have additional manifest
   gates. NHS Jobs and DfE apprenticeships may be approved independently.
 - Google additionally needs a true external billing-quota attestation with
   exact quota IDs/limits, 50/75/90/100% alerts and an emergency-disable owner;

@@ -648,6 +648,32 @@ resource "aws_iam_role_policy" "account_email" {
   policy = data.aws_iam_policy_document.account_email.json
 }
 
+data "aws_iam_policy_document" "llm_gateway_bedrock" {
+  statement {
+    sid    = "InvokeBedrockGenerationModels"
+    effect = "Allow"
+    actions = [
+      "bedrock:InvokeModel",
+      "bedrock:InvokeModelWithResponseStream",
+    ]
+    # Scope to foundation models and inference profiles in the deployment
+    # region. The document generation client uses the Converse API, which is
+    # authorised by bedrock:InvokeModel.
+    resources = [
+      "arn:aws:bedrock:${var.aws_region}::foundation-model/*",
+      "arn:aws:bedrock:${var.aws_region}:${var.aws_account_id}:inference-profile/*",
+    ]
+  }
+}
+
+resource "aws_iam_role_policy" "llm_gateway_bedrock" {
+  count = var.enabled_integrations.bedrock ? 1 : 0
+
+  name   = "bedrock-model-generation"
+  role   = aws_iam_role.task["llm-gateway"].id
+  policy = data.aws_iam_policy_document.llm_gateway_bedrock.json
+}
+
 data "aws_iam_policy_document" "ecs_exec" {
   statement {
     actions = [

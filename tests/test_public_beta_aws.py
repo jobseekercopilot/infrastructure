@@ -1580,28 +1580,28 @@ RUN apk add --no-cache --upgrade \\
         self.assertEqual(approvals["gcpBudgetAlertThresholdPercents"], [50, 75, 90, 100])
         self.assertEqual(runtime["google-maps-gateway"]["environment"]["GOOGLE_MAPS_ENABLED"], "{{google_enabled}}")
 
-    def test_openai_runtime_contract_matches_available_account_evidence(self) -> None:
+    def test_bedrock_runtime_contract_matches_available_account_evidence(self) -> None:
         approvals = json.loads(
             (ROOT / "aws" / "public-beta" / "config" / "launch-approvals.json").read_text(encoding="utf-8")
-        )["integrations"]["openai"]
+        )["integrations"]["bedrock"]
         environment = json.loads(
             (ROOT / "aws" / "public-beta" / "config" / "runtime-services.json").read_text(encoding="utf-8")
         )["services"]["llm-gateway"]["environment"]
 
-        self.assertEqual(environment["OPENAI_ENDPOINT"], "https://api.openai.com/v1/chat/completions")
-        self.assertEqual(environment["OPENAI_MODEL"], "gpt-4.1-mini-2025-04-14")
-        self.assertEqual(environment["GENERATION_MODEL_ID"], environment["OPENAI_MODEL"])
-        self.assertEqual(environment["OPENAI_DATA_REGION"], "GLOBAL")
+        self.assertEqual(environment["EXTERNAL_PROVIDER_MODE"], "{{bedrock_mode}}")
+        self.assertEqual(environment["BEDROCK_MODEL_ID"], "anthropic.claude-3-7-sonnet-20250219-v1:0")
+        self.assertEqual(environment["BEDROCK_REGION"], "{{region}}")
+        self.assertEqual(environment["GENERATION_MODEL_ID"], environment["BEDROCK_MODEL_ID"])
         self.assertEqual(
-            environment["OPENAI_DATA_CONTROL_MODE"],
-            "STANDARD_30_DAY_ABUSE_MONITORING",
+            environment["GENERATION_MODEL_DEPLOYMENT_VERSION"],
+            "document-generation-bedrock-claude-3-7-sonnet-20250219",
         )
-        self.assertEqual(environment["OPENAI_DATA_SHARING_MODE"], "DISABLED")
-        self.assertEqual(environment["OPENAI_PRIVACY_REVIEWED_ON"], "{{openai_privacy_reviewed_on}}")
-        self.assertEqual(environment["OPENAI_PRIVACY_REVIEW_DUE_ON"], "{{openai_privacy_review_due_on}}")
-        self.assertNotIn("OPENAI_PRIVACY_REVIEW_ON", environment)
-        self.assertIn("privacyReviewedOn", approvals)
-        self.assertIn("privacyReviewDueOn", approvals)
+        for forbidden in ("OPENAI_ENDPOINT", "OPENAI_MODEL", "OPENAI_API_KEY"):
+            self.assertNotIn(forbidden, environment)
+        self.assertIn("modelId", approvals)
+        self.assertIn("awsRegion", approvals)
+        self.assertIn("dataProcessingOwner", approvals)
+        self.assertIn("dataProcessingReviewedOn", approvals)
 
     def test_client_and_registration_legal_contracts_fail_closed(self) -> None:
         runtime = json.loads(
@@ -1919,39 +1919,29 @@ RUN apk add --no-cache --upgrade \\
         with self.assertRaisesRegex(module.ContractError, "billingQuotaEvidenceReference"):
             module.validate_approvals(google_placeholder, True)
 
-        openai_placeholder = copy.deepcopy(approvals)
-        openai = approve_common(openai_placeholder, "openai")
-        openai.update({
-            "privacyPolicyVersion": "openai-api-data-controls-2026-08-23",
-            "privacyDecisionId": "privacy-decision-record-15",
-            "privacyOwner": "Data protection owner",
-            "privacyReviewedOn": today.isoformat(),
-            "privacyReviewDueOn": (today + module.datetime.timedelta(days=90)).isoformat(),
+        bedrock_placeholder = copy.deepcopy(approvals)
+        bedrock = approve_common(bedrock_placeholder, "bedrock")
+        bedrock.update({
+            "modelId": "anthropic.claude-3-7-sonnet-20250219-v1:0",
+            "awsRegion": "eu-west-2",
+            "dataProcessingOwner": "Data protection owner",
+            "dataProcessingReviewedOn": today.isoformat(),
         })
-        overdue_openai = copy.deepcopy(openai_placeholder)
-        overdue_openai["integrations"]["openai"]["privacyReviewDueOn"] = (
-            today - module.datetime.timedelta(days=1)
+        future_reviewed_bedrock = copy.deepcopy(bedrock_placeholder)
+        future_reviewed_bedrock["integrations"]["bedrock"]["dataProcessingReviewedOn"] = (
+            today + module.datetime.timedelta(days=1)
         ).isoformat()
-        with self.assertRaisesRegex(module.ContractError, "already overdue"):
-            module.validate_approvals(overdue_openai, True)
+        with self.assertRaisesRegex(module.ContractError, "follows reviewedAt provenance"):
+            module.validate_approvals(future_reviewed_bedrock, True)
 
-        distant_openai = copy.deepcopy(openai_placeholder)
-        distant_openai["integrations"]["openai"]["privacyReviewDueOn"] = (
-            today + module.datetime.timedelta(days=94)
-        ).isoformat()
-        with self.assertRaisesRegex(module.ContractError, "within 93 days"):
-            module.validate_approvals(distant_openai, True)
+        bad_region_bedrock = copy.deepcopy(bedrock_placeholder)
+        bad_region_bedrock["integrations"]["bedrock"]["awsRegion"] = "not-a-region"
+        with self.assertRaisesRegex(module.ContractError, "valid AWS region"):
+            module.validate_approvals(bad_region_bedrock, True)
 
-        stale_policy_openai = copy.deepcopy(openai_placeholder)
-        stale_policy_openai["integrations"]["openai"]["privacyPolicyVersion"] = (
-            "openai-api-data-controls-2026-07-25"
-        )
-        with self.assertRaisesRegex(module.ContractError, "current reviewed privacy policy version"):
-            module.validate_approvals(stale_policy_openai, True)
-
-        openai["privacyDecisionId"] = "TBD"
-        with self.assertRaisesRegex(module.ContractError, "privacyDecisionId"):
-            module.validate_approvals(openai_placeholder, True)
+        bedrock["modelId"] = "TBD"
+        with self.assertRaisesRegex(module.ContractError, "modelId"):
+            module.validate_approvals(bedrock_placeholder, True)
 
         stripe_placeholder = copy.deepcopy(approvals)
         live_stripe = approve_common(stripe_placeholder, "stripe")

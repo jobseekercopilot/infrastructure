@@ -15,7 +15,7 @@ payment/LLM provider mode that can incur external activity unexpectedly.
 | `full-local-ses` | Same provider boundary as `full-fixture`; account email uses the production SES adapter against LocalStack | Same as full fixture | Dedicated project/volumes; LocalStack mail is ephemeral |
 | `google-maps-smoke` | Google Places/Routes may be LIVE; every other external provider remains fixture-backed | Disabled | Dedicated `job-seeker-copilot-google-maps` state; bounded live validation only |
 | `real-job-providers` | Reed, Adzuna, JSearch, NHS Jobs, Find an apprenticeship and Postcodes.io may be LIVE; LLM and Stripe remain `FIXTURE`; Google remains disabled | Disabled | Dedicated `job-seeker-copilot-real-jobs` persistent volumes; not production evidence |
-| `real-providers` | The same real jobs plus OpenAI and Google Maps LIVE; Stripe remains `FIXTURE` | Disabled | Reuses the persistent manual project intentionally; stop without deleting volumes |
+| `real-providers` | The same real jobs plus AWS Bedrock and Google Maps LIVE; Stripe remains `FIXTURE` | Disabled | Reuses the persistent manual project intentionally; stop without deleting volumes |
 | `data-acquisition` | Only explicitly approved job-provider gateway profiles start | System Data is a non-web `live-acquisition` command; normal environment management and fixtures are disabled | Separate quarantined project/network removed after each run |
 
 Fixture and E2E use an internal-only application network and do not inject live
@@ -37,7 +37,7 @@ publishes no host port, and uploaded document bytes never traverse the
 signature-update network. Rendered-model tests enforce both memberships.
 
 `real-job-providers` deliberately means live **job-provider** integration only.
-`real-providers` separately opts into paid OpenAI and Google calls. Neither
+`real-providers` separately opts into paid AWS Bedrock and Google calls. Neither
 profile enables real Stripe. Production/AWS configuration remains a separate
 deployment workstream and is not inferred from local evidence.
 
@@ -141,6 +141,6 @@ The former `capture_llm_fixtures` helper is fail-closed because it could make
 paid calls and write responses directly into a runtime dataset. The governed
 replacement is tracked in
 [BACKLOG-LLM-02](https://github.com/jobseekercopilot/infrastructure/issues/29).
-Fixture, E2E, job-only live-provider and acquisition modes cannot inject an
-OpenAI credential or start an LLM LIVE adapter. Only the explicit
-`real-providers` overlay can enable it.
+Fixture, E2E, job-only live-provider and acquisition modes cannot inject AWS
+credentials or start an LLM live adapter. Only the explicit `real-providers`
+overlay can enable AWS Bedrock generation.
