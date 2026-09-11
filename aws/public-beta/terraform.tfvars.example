@@ -30,7 +30,7 @@ enabled_integrations = {
   nhs_jobs        = false
   apprenticeships = false
   google_maps     = false
-  openai          = false
+  bedrock         = false
   stripe          = false
   account_email   = false
 }

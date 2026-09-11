@@ -32,7 +32,7 @@ Terraform plan or AWS credit award alone is not launch approval.
       `4d8d09a79018c3f281cfead84348d14ed84be851`, Location Gateway
       `86b2805c8430ede14a53a7320b87f0eeb2797b17`, LLM Gateway
       `d84427061766244ec10e367fb3a7a6587809612c` and Client
-      `5f4aca3aa6528a883506a8a5dc31566187c5e3ae`.
+      `848f188422e5b021179db98625601b8080288534`.
 - [ ] The release ID/build run/image manifest and reviewer are recorded.
 - [ ] The pinned Client/Landing source revisions and artifact-contract checksums
       are ancestors of protected `main`; the protected build replaced only the
@@ -297,10 +297,11 @@ Terraform plan or AWS credit award alone is not launch approval.
 - [ ] At least one useful job provider is approved. Reed, Adzuna and JSearch
       remain disabled without written commercial display/cache/quota approval;
       NHS Jobs and DfE apprenticeships have independent decisions.
-- [ ] OpenAI has a current model/pricing decision, a reviewed `GLOBAL` /
-      `STANDARD_30_DAY_ABUSE_MONITORING` privacy-control record with data
-      sharing disabled, separate completed/due review dates, owner,
-      cost/request ceilings and secret; no user data is sent until it passes.
+- [ ] AWS Bedrock has a current model/pricing decision: a reviewed `modelId`
+      available in `eu-west-2` (`anthropic.claude-3-7-sonnet-20250219-v1:0`),
+      `awsRegion`, data-processing owner and review date, cost/request ceilings,
+      and enabled foundation-model access. Bedrock authenticates via the task
+      IAM role (no static secret); no user data is sent until it passes.
 - [ ] Google Maps remains disabled unless a named GCP project, separate program/
       billing decision, exact per-SKU quota IDs and daily limits, attribution/
       privacy decision and `googleBillingQuotasVerified=true` evidence are all
@@ -335,7 +336,7 @@ Terraform plan or AWS credit award alone is not launch approval.
 - [ ] The latest eu-west-2 estimate supports the approximately USD 560 baseline;
       the USD 750 alert threshold is approved and understood not to be a cap.
 - [ ] AWS Budgets thresholds and Cost Anomaly Detection are active; Google,
-      OpenAI, Stripe and job-provider cost/quota controls are separately owned.
+      AWS Bedrock, Stripe and job-provider cost/quota controls are separately owned.
 - [ ] Landing SAM ownership, Route 53/SES shared contracts and application CTA
       timing follow [landing integration](landing-integration.md).
 - [ ] Landing hosting/SAM promotion has its own reviewer and evidence record;

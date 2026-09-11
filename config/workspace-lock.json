@@ -19,7 +19,7 @@
     {"name": "job-service", "branch": "main", "revision": "c38f84efa65005af5c1f387c9b98d2e58426d1e0"},
     {"name": "job-matching-service", "branch": "main", "revision": "4a7f1fc6eac1d97a949c2f1085e1fde4c43ba932"},
     {"name": "job-finder-gateway", "branch": "main", "revision": "a3e2b3ed0849d0fbdfaa874bf99ee72690fda59c"},
-    {"name": "llm-gateway", "branch": "main", "revision": "1efee28560fb685871b0069d8d21a4851f69f6d0"},
+    {"name": "llm-gateway", "branch": "main", "revision": "bd8e5cc9f25c4f07b5407669d2564104be17396e"},
     {"name": "document-store-service", "branch": "main", "revision": "30f2ab6c94db2ab4e6d53e584a8ab3d162eef63f"},
     {"name": "document-export-service", "branch": "main", "revision": "38db469543ff613e76fa145a9f358d20bfa832a9"},
     {"name": "application-tracker-service", "branch": "main", "revision": "495a8df8e6adb59ed2027c5d422861d1b68a3625"},
@@ -30,7 +30,7 @@
     {"name": "payment-service", "branch": "main", "revision": "d4858f4af367062cf62c1eb142209f4236c38e95"},
     {"name": "stripe-gateway", "branch": "main", "revision": "9d991b6c1111d06073f0f40d9fb5d2430a103983"},
     {"name": "payment-gateway", "branch": "main", "revision": "7c7ef4774739f0818f375a08e3b68f1d3a3c6d72"},
-    {"name": "job-seeker-copilot-client", "branch": "main", "revision": "5f4aca3aa6528a883506a8a5dc31566187c5e3ae"},
+    {"name": "job-seeker-copilot-client", "branch": "main", "revision": "848f188422e5b021179db98625601b8080288534"},
     {"name": "e2e", "branch": "main", "revision": "16f586b80ea3bd822f9931fffdb75d523d5541b1"}
   ]
 }

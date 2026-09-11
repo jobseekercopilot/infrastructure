@@ -93,7 +93,7 @@ jq \
        | .value.scanStatus="PASSED"
        | .value.revision=(
            if .key == "clamav" then "1.4.5"
-           elif .key == "job-seeker-copilot-client" then "5f4aca3aa6528a883506a8a5dc31566187c5e3ae"
+           elif .key == "job-seeker-copilot-client" then "848f188422e5b021179db98625601b8080288534"
            else $sourceRevision
            end
          )
@@ -221,19 +221,18 @@ jq \
        monthlyRequestLimit:1000,
        monthlyCostCeilingGbp:0
      }
-   | .integrations.openai += {
+   | .integrations.bedrock += {
        approved:true,
-       approvalReference:"offline-activation/openai-approval",
+       approvalReference:"offline-activation/bedrock-approval",
        approvedBy:"Account-free release validator",
        termsReviewedOn:$reviewDate,
        expiresOn:"2099-12-31",
        monthlyRequestLimit:1000,
        monthlyCostCeilingGbp:50,
-       privacyPolicyVersion:"openai-api-data-controls-2026-08-23",
-       privacyDecisionId:"offline-activation/openai-privacy-decision",
-       privacyOwner:"Account-free release validator",
-       privacyReviewedOn:$reviewDate,
-       privacyReviewDueOn:$reviewDueDate
+       modelId:"anthropic.claude-3-7-sonnet-20250219-v1:0",
+       awsRegion:"eu-west-2",
+       dataProcessingOwner:"Account-free release validator",
+       dataProcessingReviewedOn:$reviewDate
      }
    | .integrations.account_email += {
        approved:true,
@@ -314,7 +313,7 @@ jq -n '{enabled_integrations:{
   nhs_jobs:true,
   apprenticeships:false,
   google_maps:false,
-  openai:true,
+  bedrock:true,
   stripe:true,
   account_email:true
 },

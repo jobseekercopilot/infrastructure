@@ -39,7 +39,6 @@ locals {
     "jsearch",
     "apprenticeships",
     "google_maps",
-    "openai",
     "stripe",
   ])
 
@@ -90,19 +89,15 @@ locals {
     !can(regex(local.release_placeholder_pattern, trimspace(try(local.approval_manifest.integrations.google_maps.emergencyDisableRunbookReference, ""))))
   )
 
-  openai_approval_complete = !var.enabled_integrations.openai || (
-    local.approval_complete.openai &&
-    try(local.approval_manifest.integrations.openai.privacyPolicyVersion, "") == "openai-api-data-controls-2026-08-23" &&
-    length(trimspace(try(local.approval_manifest.integrations.openai.privacyDecisionId, ""))) >= 8 &&
-    !can(regex(local.release_placeholder_pattern, trimspace(try(local.approval_manifest.integrations.openai.privacyDecisionId, "")))) &&
-    length(trimspace(try(local.approval_manifest.integrations.openai.privacyOwner, ""))) >= 3 &&
-    !can(regex(local.release_placeholder_pattern, trimspace(try(local.approval_manifest.integrations.openai.privacyOwner, "")))) &&
-    can(regex("^20[0-9]{2}-[0-9]{2}-[0-9]{2}$", try(local.approval_manifest.integrations.openai.privacyReviewedOn, ""))) &&
-    try(timecmp("${local.approval_manifest.integrations.openai.privacyReviewedOn}T00:00:00Z", plantimestamp()) <= 0, false) &&
-    can(regex("^20[0-9]{2}-[0-9]{2}-[0-9]{2}$", try(local.approval_manifest.integrations.openai.privacyReviewDueOn, ""))) &&
-    try(timecmp("${local.approval_manifest.integrations.openai.privacyReviewDueOn}T23:59:59Z", plantimestamp()) >= 0, false) &&
-    try(timecmp("${local.approval_manifest.integrations.openai.privacyReviewDueOn}T00:00:00Z", "${local.approval_manifest.integrations.openai.privacyReviewedOn}T00:00:00Z") > 0, false) &&
-    try(timecmp("${local.approval_manifest.integrations.openai.privacyReviewDueOn}T00:00:00Z", timeadd("${local.approval_manifest.integrations.openai.privacyReviewedOn}T00:00:00Z", "2232h")) <= 0, false)
+  bedrock_approval_complete = !var.enabled_integrations.bedrock || (
+    local.approval_complete.bedrock &&
+    length(trimspace(try(local.approval_manifest.integrations.bedrock.modelId, ""))) >= 3 &&
+    !can(regex(local.release_placeholder_pattern, trimspace(try(local.approval_manifest.integrations.bedrock.modelId, "")))) &&
+    can(regex("^[a-z]{2}-[a-z]+-[0-9]$", try(local.approval_manifest.integrations.bedrock.awsRegion, ""))) &&
+    length(trimspace(try(local.approval_manifest.integrations.bedrock.dataProcessingOwner, ""))) >= 3 &&
+    !can(regex(local.release_placeholder_pattern, trimspace(try(local.approval_manifest.integrations.bedrock.dataProcessingOwner, "")))) &&
+    can(regex("^20[0-9]{2}-[0-9]{2}-[0-9]{2}$", try(local.approval_manifest.integrations.bedrock.dataProcessingReviewedOn, ""))) &&
+    try(timecmp("${local.approval_manifest.integrations.bedrock.dataProcessingReviewedOn}T00:00:00Z", plantimestamp()) <= 0, false)
   )
 
   public_legal_contract           = local.approval_manifest.publicLegal
@@ -348,14 +343,9 @@ locals {
     "{{jsearch_enabled}}"               = tostring(var.enabled_integrations.jsearch)
     "{{nhs_jobs_enabled}}"              = tostring(var.enabled_integrations.nhs_jobs)
     "{{apprenticeships_enabled}}"       = tostring(var.enabled_integrations.apprenticeships)
-    "{{openai_mode}}"                   = var.enabled_integrations.openai ? "LIVE" : "DISABLED"
+    "{{bedrock_mode}}"                  = var.enabled_integrations.bedrock ? "BEDROCK" : "DISABLED"
     "{{job_search_mode}}"               = local.any_job_provider_enabled ? "REAL_PROVIDERS" : "REQUIRED_VALIDATION"
-    "{{document_generation_mode}}"      = var.enabled_integrations.openai ? "REAL_LLM" : "REQUIRED_VALIDATION"
-    "{{openai_privacy_policy_version}}" = try(local.approval_manifest.integrations.openai.privacyPolicyVersion, "")
-    "{{openai_privacy_decision_id}}"    = try(local.approval_manifest.integrations.openai.privacyDecisionId, "")
-    "{{openai_privacy_owner}}"          = try(local.approval_manifest.integrations.openai.privacyOwner, "")
-    "{{openai_privacy_reviewed_on}}"    = try(local.approval_manifest.integrations.openai.privacyReviewedOn, "")
-    "{{openai_privacy_review_due_on}}"  = try(local.approval_manifest.integrations.openai.privacyReviewDueOn, "")
+    "{{document_generation_mode}}"      = var.enabled_integrations.bedrock ? "REAL_LLM" : "REQUIRED_VALIDATION"
   }
 
   payment_commercial_environment = {
@@ -421,7 +411,7 @@ locals {
         SPRING_DATASOURCE_HIKARI_MAX_LIFETIME       = "1500000"
       } : {},
       {
-        for key, value in service.environment : key => replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(
+        for key, value in service.environment : key => replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(
           value,
           "{{namespace}}", local.substitution_values["{{namespace}}"]),
           "{{db_endpoint}}", local.substitution_values["{{db_endpoint}}"]),
@@ -440,14 +430,9 @@ locals {
           "{{jsearch_enabled}}", local.substitution_values["{{jsearch_enabled}}"]),
           "{{nhs_jobs_enabled}}", local.substitution_values["{{nhs_jobs_enabled}}"]),
           "{{apprenticeships_enabled}}", local.substitution_values["{{apprenticeships_enabled}}"]),
-          "{{openai_mode}}", local.substitution_values["{{openai_mode}}"]),
+          "{{bedrock_mode}}", local.substitution_values["{{bedrock_mode}}"]),
           "{{job_search_mode}}", local.substitution_values["{{job_search_mode}}"]),
-          "{{document_generation_mode}}", local.substitution_values["{{document_generation_mode}}"]),
-          "{{openai_privacy_policy_version}}", local.substitution_values["{{openai_privacy_policy_version}}"]),
-          "{{openai_privacy_decision_id}}", local.substitution_values["{{openai_privacy_decision_id}}"]),
-          "{{openai_privacy_owner}}", local.substitution_values["{{openai_privacy_owner}}"]),
-          "{{openai_privacy_reviewed_on}}", local.substitution_values["{{openai_privacy_reviewed_on}}"]),
-          "{{openai_privacy_review_due_on}}", local.substitution_values["{{openai_privacy_review_due_on}}"]
+          "{{document_generation_mode}}", local.substitution_values["{{document_generation_mode}}"]
         )
       },
       name == "payment-service" ? local.payment_commercial_environment : {},
@@ -536,7 +521,7 @@ locals {
   zero_digest          = "sha256:${join("", [for _ in range(64) : "0"])}"
 
   frontend_release_ready = (
-    try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.revision, "") == "5f4aca3aa6528a883506a8a5dc31566187c5e3ae" &&
+    try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.revision, "") == "848f188422e5b021179db98625601b8080288534" &&
     try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.artifactContractSha256, "") == "801fab5beb7ea81798677086ef00a94759294a1e85915f74da843632de2c6f75" &&
     try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.packaging, "") == "OCI_SSR_BFF" &&
     try(local.image_manifest.images["job-seeker-copilot-client"].revision, "") == try(local.image_manifest.dependencyEvidence.frontendArtifacts.client.revision, "") &&
@@ -791,8 +776,8 @@ resource "terraform_data" "release_contract" {
     }
 
     precondition {
-      condition     = local.openai_approval_complete
-      error_message = "OpenAI also requires the reviewed privacy policy, decision, owner and review date."
+      condition     = local.bedrock_approval_complete
+      error_message = "AWS Bedrock also requires the reviewed model id, AWS region, data-processing owner and review date."
     }
 
     precondition {
@@ -897,12 +882,12 @@ resource "terraform_data" "release_contract" {
           var.alarm_email != "" &&
           local.any_job_provider_enabled &&
           var.enabled_integrations.postcodes_gb &&
-          var.enabled_integrations.openai &&
+          var.enabled_integrations.bedrock &&
           var.enabled_integrations.stripe &&
           var.enabled_integrations.account_email
         )
       )
-      error_message = "Public activation requires one healthy private fleet, DNS/TLS, real AMI, alarms, postcode/job/OpenAI/Stripe/account-email approvals and release images."
+      error_message = "Public activation requires one healthy private fleet, DNS/TLS, real AMI, alarms, postcode/job/Bedrock/Stripe/account-email approvals and release images."
     }
 
     precondition {

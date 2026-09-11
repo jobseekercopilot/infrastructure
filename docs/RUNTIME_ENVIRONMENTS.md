@@ -143,7 +143,7 @@ The quarantine is diagnostic storage, not a document family or a substitute
 for Document Store. Its encrypted artifacts expire after 24 hours, have fixed
 count and size limits, and are excluded from backup and export. The service can
 replay only its local deterministic validation and rendering stages; replay
-does not invoke OpenAI, reserve credits, or persist a CV or cover letter.
+does not invoke AWS Bedrock, reserve credits, or persist a CV or cover letter.
 
 Production must replace the local volume and environment-injected secrets with
 approved private encrypted storage, a managed encryption key, a managed

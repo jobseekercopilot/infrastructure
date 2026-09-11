@@ -169,7 +169,7 @@ credit expiry/service exclusions after reading the award terms.
 
 Use the award notice and a fresh AWS Pricing Calculator export to complete this
 table. The current expected scenario is a **forecast**, not a commitment or
-invoice. Do not allocate Google Maps, OpenAI, Stripe fees, job-provider fees,
+invoice. Do not allocate Google Maps, AWS Bedrock, Stripe fees, job-provider fees,
 tax or FX to AWS credits unless the actual award terms explicitly make an item
 eligible.
 
