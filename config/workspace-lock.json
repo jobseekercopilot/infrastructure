@@ -5,7 +5,7 @@
   "repositories": [
     {"name": "authentication-service", "branch": "main", "revision": "9366ada79afd2590ca28e836feb2f0331d0786b1"},
     {"name": "user-profile-service", "branch": "main", "revision": "d378d350e3b8bb8e1f9dddd58422b6d1013d6f10"},
-    {"name": "user-management-gateway", "branch": "main", "revision": "d64faf74ff7f58347f8c330b63037f5899ea7c9c"},
+    {"name": "user-management-gateway", "branch": "main", "revision": "e062116f13de0a1c73ac95ce040ce3a2eff4c572"},
     {"name": "postcode-io-gateway", "branch": "main", "revision": "b1cad28d5aac14fca6e574a086f762574045dcd5"},
     {"name": "location-gateway", "branch": "main", "revision": "b8d0358c400bc9052b7c1fdf13624b41ff1d6589"},
     {"name": "location-service", "branch": "main", "revision": "b64a38aa2f4dfb76ecc0d844345f152de7f1a8bf"},

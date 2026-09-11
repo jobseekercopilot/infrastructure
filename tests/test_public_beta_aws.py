@@ -2012,7 +2012,7 @@ RUN apk add --no-cache --upgrade \\
             )},
             {
                 "authentication-service": "9366ada79afd2590ca28e836feb2f0331d0786b1",
-                "user-management-gateway": "d64faf74ff7f58347f8c330b63037f5899ea7c9c",
+                "user-management-gateway": "e062116f13de0a1c73ac95ce040ce3a2eff4c572",
                 "location-gateway": "b8d0358c400bc9052b7c1fdf13624b41ff1d6589",
                 "location-service": "b64a38aa2f4dfb76ecc0d844345f152de7f1a8bf",
                 "llm-gateway": "d625809d87ddcf09ae9b0aa4a2360c47c6523ae6",
