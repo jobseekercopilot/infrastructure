@@ -2036,7 +2036,7 @@ RUN apk add --no-cache --upgrade \\
             },
             "userManagementGateway": {
                 "revision": "15e6bed692352f92daccc295c3987319e18ef720",
-                "openApiSha256": "ebb1332f8927cdb69dd659db444627e59c4f5d8f4330e04d95ed17164fb8bcf7",
+                "openApiSha256": "dde3349e015f2cd7ef7bf9bc810681bebe98fca1ed1510005aa0b1a8b0e6d08e",
                 "authSnapshotSha256": "95811cb81b0c32ad2f9c5cc42cd8f85c0385359cdade6c0f9e67e3ed63950dc0",
             },
             "documentGenerationGateway": {
@@ -2174,7 +2174,7 @@ RUN apk add --no-cache --upgrade \\
 
         self.assertEqual(
             {
-                "apprenticeships-gateway": "23344e50f2688f2148dc3d478440a705c7d822f1",
+                "apprenticeships-gateway": "841c5093c48fdd514302a9edde08f112ca061050",
                 "job-service": "c38f84efa65005af5c1f387c9b98d2e58426d1e0",
                 "stripe-gateway": "9d991b6c1111d06073f0f40d9fb5d2430a103983",
                 "job-seeker-copilot-client": "848f188422e5b021179db98625601b8080288534",

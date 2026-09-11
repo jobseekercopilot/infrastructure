@@ -578,7 +578,7 @@ locals {
       }
       userManagementGateway = {
         revision           = "15e6bed692352f92daccc295c3987319e18ef720"
-        openApiSha256      = "ebb1332f8927cdb69dd659db444627e59c4f5d8f4330e04d95ed17164fb8bcf7"
+        openApiSha256      = "dde3349e015f2cd7ef7bf9bc810681bebe98fca1ed1510005aa0b1a8b0e6d08e"
         authSnapshotSha256 = "95811cb81b0c32ad2f9c5cc42cd8f85c0385359cdade6c0f9e67e3ed63950dc0"
       }
       documentGenerationGateway = {
