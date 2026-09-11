@@ -326,26 +326,26 @@ locals {
   )
 
   substitution_values = {
-    "{{namespace}}"                     = local.namespace_name
-    "{{db_endpoint}}"                   = aws_db_instance.postgres.address
-    "{{region}}"                        = var.aws_region
-    "{{application_base_url}}"          = var.application_base_url
-    "{{account_email_sender}}"          = var.account_email_sender
-    "{{account_email_mode}}"            = var.enabled_integrations.account_email ? "ses" : "fixture"
-    "{{ses_configuration_set}}"         = var.ses_configuration_set
-    "{{document_bucket}}"               = aws_s3_bucket.documents.bucket
-    "{{kms_key_arn}}"                   = var.foundation_data_kms_key_arn
-    "{{google_enabled}}"                = tostring(var.enabled_integrations.google_maps)
-    "{{google_maximum_sessions}}"       = tostring(var.google_maximum_sessions)
-    "{{google_maximum_destinations}}"   = tostring(var.google_maximum_destinations)
-    "{{reed_enabled}}"                  = tostring(var.enabled_integrations.reed)
-    "{{adzuna_enabled}}"                = tostring(var.enabled_integrations.adzuna)
-    "{{jsearch_enabled}}"               = tostring(var.enabled_integrations.jsearch)
-    "{{nhs_jobs_enabled}}"              = tostring(var.enabled_integrations.nhs_jobs)
-    "{{apprenticeships_enabled}}"       = tostring(var.enabled_integrations.apprenticeships)
-    "{{bedrock_mode}}"                  = var.enabled_integrations.bedrock ? "BEDROCK" : "DISABLED"
-    "{{job_search_mode}}"               = local.any_job_provider_enabled ? "REAL_PROVIDERS" : "REQUIRED_VALIDATION"
-    "{{document_generation_mode}}"      = var.enabled_integrations.bedrock ? "REAL_LLM" : "REQUIRED_VALIDATION"
+    "{{namespace}}"                   = local.namespace_name
+    "{{db_endpoint}}"                 = aws_db_instance.postgres.address
+    "{{region}}"                      = var.aws_region
+    "{{application_base_url}}"        = var.application_base_url
+    "{{account_email_sender}}"        = var.account_email_sender
+    "{{account_email_mode}}"          = var.enabled_integrations.account_email ? "ses" : "fixture"
+    "{{ses_configuration_set}}"       = var.ses_configuration_set
+    "{{document_bucket}}"             = aws_s3_bucket.documents.bucket
+    "{{kms_key_arn}}"                 = var.foundation_data_kms_key_arn
+    "{{google_enabled}}"              = tostring(var.enabled_integrations.google_maps)
+    "{{google_maximum_sessions}}"     = tostring(var.google_maximum_sessions)
+    "{{google_maximum_destinations}}" = tostring(var.google_maximum_destinations)
+    "{{reed_enabled}}"                = tostring(var.enabled_integrations.reed)
+    "{{adzuna_enabled}}"              = tostring(var.enabled_integrations.adzuna)
+    "{{jsearch_enabled}}"             = tostring(var.enabled_integrations.jsearch)
+    "{{nhs_jobs_enabled}}"            = tostring(var.enabled_integrations.nhs_jobs)
+    "{{apprenticeships_enabled}}"     = tostring(var.enabled_integrations.apprenticeships)
+    "{{bedrock_mode}}"                = var.enabled_integrations.bedrock ? "BEDROCK" : "DISABLED"
+    "{{job_search_mode}}"             = local.any_job_provider_enabled ? "REAL_PROVIDERS" : "REQUIRED_VALIDATION"
+    "{{document_generation_mode}}"    = var.enabled_integrations.bedrock ? "REAL_LLM" : "REQUIRED_VALIDATION"
   }
 
   payment_commercial_environment = {
@@ -578,7 +578,7 @@ locals {
       }
       userManagementGateway = {
         revision           = "15e6bed692352f92daccc295c3987319e18ef720"
-        openApiSha256      = "ebb1332f8927cdb69dd659db444627e59c4f5d8f4330e04d95ed17164fb8bcf7"
+        openApiSha256      = "dde3349e015f2cd7ef7bf9bc810681bebe98fca1ed1510005aa0b1a8b0e6d08e"
         authSnapshotSha256 = "95811cb81b0c32ad2f9c5cc42cd8f85c0385359cdade6c0f9e67e3ed63950dc0"
       }
       documentGenerationGateway = {

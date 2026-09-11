@@ -95,7 +95,7 @@ Complete the [launch checklist](launch-checklist.md). In particular:
   `d447addae21714f51267c0ab073377c24e3cfe81` and OpenAPI SHA-256
   `8ef5f12a32e836c2046fb163944b62d76cea31e389612408ca6ed1d1ccc42884`,
   while UMG export/lifecycle evidence is exact locked main `15e6bed692352f92daccc295c3987319e18ef720`
-  with OpenAPI SHA-256 `ebb1332f8927cdb69dd659db444627e59c4f5d8f4330e04d95ed17164fb8bcf7`
+  with OpenAPI SHA-256 `dde3349e015f2cd7ef7bf9bc810681bebe98fca1ed1510005aa0b1a8b0e6d08e`
   and Auth snapshot SHA-256
   `95811cb81b0c32ad2f9c5cc42cd8f85c0385359cdade6c0f9e67e3ed63950dc0`.
   The final payment chain is Document Generation Gateway
