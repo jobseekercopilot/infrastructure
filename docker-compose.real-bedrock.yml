@@ -1,0 +1,41 @@
+services:
+  llm-gateway:
+    environment:
+      EXTERNAL_PROVIDER_MODE: BEDROCK
+      SPRING_CONFIG_IMPORT: optional:configtree:/run/secrets/
+      BEDROCK_MODEL_ID: ${BEDROCK_MODEL_ID:?Declare the reviewed Bedrock model or inference-profile id in config/.secrets.env}
+      BEDROCK_REGION: ${BEDROCK_REGION:?Declare the AWS region hosting Bedrock in config/.secrets.env}
+      GENERATION_MODEL_ID: ${BEDROCK_MODEL_ID}
+      GENERATION_MODEL_DEPLOYMENT_VERSION: document-generation-bedrock-claude-3-7-sonnet-20250219
+      GENERATION_PRICING_VERSION: bedrock-standard-2026-09-11
+      GENERATION_INPUT_RATE_MICRO_USD_PER_MILLION_TOKENS: "3000000"
+      GENERATION_OUTPUT_RATE_MICRO_USD_PER_MILLION_TOKENS: "15000000"
+      CV_COVER_LETTER_GENERATION_MAX_OUTPUT_TOKENS: "8192"
+      GENERATION_MAX_AUTOMATIC_PROVIDER_RETRIES: "1"
+      GENERATION_PROVIDER_RETRY_DELAY_MILLIS: "1000"
+      BEDROCK_CALL_TIMEOUT_MS: "360000"
+      # Bedrock authenticates via the ambient AWS credential chain (task IAM role,
+      # AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY, or AWS SSO) granted under AWS
+      # Activate. No static API key secret is mounted for the provider.
+      AWS_REGION: ${BEDROCK_REGION}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
+    networks:
+      - job-seeker-network
+      - provider-egress-network
+
+  cv-cover-letter-service:
+    environment:
+      LLM_MAX_TOKENS: "8192"
+
+  document-generation-gateway:
+    environment:
+      DOCUMENT_GENERATION_OPERATION_LEASE: PT7M
+      DOCUMENT_GENERATION_READ_TIMEOUT: PT6M30S
+      GENERATION_OUTCOME_RECONCILIATION_INTERVAL: PT2S
+      GENERATION_OUTCOME_RECONCILIATION_MAX_ATTEMPTS: "30"
+
+  job-seeker-copilot-client:
+    environment:
+      DOCUMENT_GENERATION_MODE: REAL_LLM

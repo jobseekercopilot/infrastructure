@@ -77,7 +77,6 @@ REAL_PROVIDER_SECRET_BINDINGS = {
     "apprenticeships-gateway": {
         "apprenticeships_api_key": "APPRENTICESHIPS_API_KEY"
     },
-    "llm-gateway": {"openai_api_key": "OPENAI_API_KEY"},
 }
 ENVIRONMENT_DATA_SERVICES = (
     "authentication-service",
@@ -169,10 +168,11 @@ def require_no_live_credentials(model: dict) -> None:
                 f"stripe-gateway:{variable} must not be injected into a fixture runtime"
             )
     llm_environment = environment(model, "llm-gateway")
-    if llm_environment.get("OPENAI_API_KEY"):
-        raise ValueError(
-            "llm-gateway:OPENAI_API_KEY must not be injected into a fixture runtime"
-        )
+    for variable in ("OPENAI_API_KEY", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"):
+        if llm_environment.get(variable):
+            raise ValueError(
+                f"llm-gateway:{variable} must not be injected into a fixture runtime"
+            )
     if "LLM_MOCK_MODE" in llm_environment:
         raise ValueError("llm-gateway must not receive the obsolete LLM_MOCK_MODE")
 
@@ -300,6 +300,9 @@ def validate_real_provider_secret_bindings(model: dict) -> None:
     expected_egress = set(REAL_PROVIDER_SECRET_BINDINGS) | {
         "nhs-jobs-gateway",
         "postcode-io-gateway",
+        # The LLM gateway reaches AWS Bedrock over the provider egress network
+        # but authenticates with the task IAM role, so it owns no mounted secret.
+        "llm-gateway",
     }
     if actual_egress != expected_egress:
         raise ValueError(
@@ -426,7 +429,7 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
                         f"{service}:{variable} is required for live-provider mode"
                     )
         for service, variable in (
-            ("llm-gateway", "OPENAI_API_KEY"),
+            ("llm-gateway", "AWS_ACCESS_KEY_ID"),
             ("stripe-gateway", "STRIPE_SECRET_KEY"),
             ("stripe-gateway", "STRIPE_WEBHOOK_SECRET"),
         ):
@@ -437,7 +440,7 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
     elif real_providers:
         for service in JOB_PROVIDER_GATEWAYS:
             require_value(model, service, "EXTERNAL_PROVIDER_MODE", "LIVE")
-        require_value(model, "llm-gateway", "EXTERNAL_PROVIDER_MODE", "LIVE")
+        require_value(model, "llm-gateway", "EXTERNAL_PROVIDER_MODE", "BEDROCK")
         require_value(model, "stripe-gateway", "EXTERNAL_PROVIDER_MODE", "FIXTURE")
         require_value(
             model,
@@ -464,6 +467,15 @@ def validate_runtime_modes(model: dict, profile: str) -> None:
             "REAL_LLM",
         )
         validate_real_provider_secret_bindings(model)
+        # The LLM gateway authenticates to Bedrock with the task IAM role rather
+        # than a mounted secret, but must still import the secret configtree so
+        # any injected credentials fail closed rather than land in the environment.
+        require_value(
+            model,
+            "llm-gateway",
+            "SPRING_CONFIG_IMPORT",
+            "optional:configtree:/run/secrets/",
+        )
         stripe = environment(model, "stripe-gateway")
         for variable in ("STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"):
             if stripe.get(variable):
@@ -1437,7 +1449,7 @@ def main() -> int:
     if args.profile == "real-providers":
         expected = (
             (ROOT / "docker-compose.real-job-providers.yml").resolve(),
-            (ROOT / "docker-compose.real-openai.yml").resolve(),
+            (ROOT / "docker-compose.real-bedrock.yml").resolve(),
             (ROOT / "docker-compose.real-google-maps.yml").resolve(),
             (ROOT / "docker-compose.low-memory.yml").resolve(),
         )
@@ -1446,7 +1458,7 @@ def main() -> int:
             parser.error(
                 "real-providers requires overlays in exact order: "
                 "docker-compose.real-job-providers.yml then "
-                "docker-compose.real-openai.yml then "
+                "docker-compose.real-bedrock.yml then "
                 "docker-compose.real-google-maps.yml then "
                 "docker-compose.low-memory.yml"
             )

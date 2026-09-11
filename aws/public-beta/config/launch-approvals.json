@@ -159,7 +159,7 @@
       "emergencyDisableOwner": "",
       "emergencyDisableRunbookReference": ""
     },
-    "openai": {
+    "bedrock": {
       "approved": false,
       "approvalReference": "",
       "approvedBy": "",
@@ -167,12 +167,11 @@
       "expiresOn": "",
       "monthlyRequestLimit": 0,
       "monthlyCostCeilingGbp": 0,
-      "attributionRequirement": "Privacy decision, data region/control mode and current model pricing reviewed",
-      "privacyPolicyVersion": "",
-      "privacyDecisionId": "",
-      "privacyOwner": "",
-      "privacyReviewedOn": "",
-      "privacyReviewDueOn": ""
+      "attributionRequirement": "Bedrock model, UK AWS region, in-region data processing and current model pricing reviewed",
+      "modelId": "",
+      "awsRegion": "",
+      "dataProcessingOwner": "",
+      "dataProcessingReviewedOn": ""
     },
     "stripe": {
       "approved": false,

@@ -67,9 +67,9 @@ fast-forward to a newly reviewed lock.
   ephemeral LocalStack SES.
 - `real-job-providers`: the full application with Reed, Adzuna, JSearch,
   NHS Jobs, Find an apprenticeship and the Postcodes.io location authority
-  live while OpenAI and Stripe remain fixture-backed.
+  live while AWS Bedrock and Stripe remain fixture-backed.
 - `real-providers`: the same full application with all five job providers and
-  Postcodes.io, OpenAI and Google Maps live while Stripe and payments remain
+  Postcodes.io, AWS Bedrock and Google Maps live while Stripe and payments remain
   fixture-backed.
 
 ```bash
@@ -98,7 +98,7 @@ Both real-provider profiles reuse the owner-only
 from the workspace-root `config/.secrets.env`, which must have mode `0600`.
 The lifecycle applies `docker-compose.yml`, then
 `docker-compose.real-job-providers.yml`, then—only for `real-providers`—
-`docker-compose.real-openai.yml`, `docker-compose.real-google-maps.yml` and
+`docker-compose.real-bedrock.yml`, `docker-compose.real-google-maps.yml` and
 `docker-compose.low-memory.yml`. The
 combined profile uses one Compose operation at a time and checked-in runtime
 memory ceilings; it does not require a temporary resource overlay. Never append

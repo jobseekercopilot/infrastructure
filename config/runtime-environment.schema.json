@@ -4,19 +4,19 @@
   "profileRequirements": {
     "local": {
       "required": ["JWT_PRIVATE_KEY_BASE64", "JWT_PUBLIC_KEY_BASE64", "AUTH_DB_PASSWORD", "USER_PROFILE_DATABASE_PASSWORD", "JOB_SERVICE_DATABASE_PASSWORD", "DOCUMENT_GENERATION_DATABASE_PASSWORD", "DOCUMENT_STORE_DATABASE_PASSWORD", "APPLICATION_TRACKER_DATABASE_PASSWORD", "PAYMENT_DATABASE_PASSWORD", "AUTH_SERVICE_TOKEN", "ENVIRONMENT_DATA_TOKEN", "SYSTEM_DATA_INTERNAL_CALLER_KEY", "APPLICATION_TRACKER_PRODUCER_TOKEN", "APPLICATION_TRACKER_READER_TOKEN", "REPORTING_GATEWAY_SERVICE_TOKEN", "DOCUMENT_STORE_PRODUCER_TOKEN", "DOCUMENT_STORE_READER_TOKEN", "DOCUMENT_STORE_RETENTION_ADMIN_TOKEN", "DOCUMENT_EXPORT_GATEWAY_TOKEN", "CV_COVER_LETTER_GATEWAY_TOKEN", "CV_COVER_LETTER_TO_PAYMENT_SERVICE_TOKEN", "REJECTED_GENERATION_OPERATOR_TOKEN", "REJECTED_GENERATION_QUARANTINE_KEY_BASE64", "DOCUMENT_GENERATION_GATEWAY_TO_PAYMENT_SERVICE_TOKEN", "BFF_TO_PAYMENT_GATEWAY_TOKEN", "PAYMENT_GATEWAY_TO_PAYMENT_SERVICE_TOKEN", "PAYMENT_GATEWAY_TO_STRIPE_GATEWAY_TOKEN", "STRIPE_GATEWAY_TO_PAYMENT_SERVICE_TOKEN", "PAYMENT_SERVICE_TO_STRIPE_GATEWAY_LIFECYCLE_TOKEN", "ACCOUNT_LIFECYCLE_TO_PAYMENT_SERVICE_TOKEN"],
-      "forbidden": ["REED_API_KEY", "ADZUNA_APP_ID", "ADZUNA_APP_KEY", "JSEARCH_API_KEY", "APPRENTICESHIPS_API_KEY", "OPENAI_API_KEY", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"]
+      "forbidden": ["REED_API_KEY", "ADZUNA_APP_ID", "ADZUNA_APP_KEY", "JSEARCH_API_KEY", "APPRENTICESHIPS_API_KEY", "AWS_ACCESS_KEY_ID", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"]
     },
     "e2e": {
       "required": ["JWT_PRIVATE_KEY_BASE64", "JWT_PUBLIC_KEY_BASE64", "AUTH_DB_PASSWORD", "USER_PROFILE_DATABASE_PASSWORD", "JOB_SERVICE_DATABASE_PASSWORD", "DOCUMENT_GENERATION_DATABASE_PASSWORD", "DOCUMENT_STORE_DATABASE_PASSWORD", "APPLICATION_TRACKER_DATABASE_PASSWORD", "PAYMENT_DATABASE_PASSWORD", "AUTH_SERVICE_TOKEN", "ENVIRONMENT_DATA_TOKEN", "SYSTEM_DATA_INTERNAL_CALLER_KEY", "APPLICATION_TRACKER_PRODUCER_TOKEN", "APPLICATION_TRACKER_READER_TOKEN", "REPORTING_GATEWAY_SERVICE_TOKEN", "DOCUMENT_STORE_PRODUCER_TOKEN", "DOCUMENT_STORE_READER_TOKEN", "DOCUMENT_STORE_RETENTION_ADMIN_TOKEN", "DOCUMENT_EXPORT_GATEWAY_TOKEN", "CV_COVER_LETTER_GATEWAY_TOKEN", "CV_COVER_LETTER_TO_PAYMENT_SERVICE_TOKEN", "REJECTED_GENERATION_OPERATOR_TOKEN", "REJECTED_GENERATION_QUARANTINE_KEY_BASE64", "DOCUMENT_GENERATION_GATEWAY_TO_PAYMENT_SERVICE_TOKEN", "BFF_TO_PAYMENT_GATEWAY_TOKEN", "PAYMENT_GATEWAY_TO_PAYMENT_SERVICE_TOKEN", "PAYMENT_GATEWAY_TO_STRIPE_GATEWAY_TOKEN", "STRIPE_GATEWAY_TO_PAYMENT_SERVICE_TOKEN", "PAYMENT_SERVICE_TO_STRIPE_GATEWAY_LIFECYCLE_TOKEN", "ACCOUNT_LIFECYCLE_TO_PAYMENT_SERVICE_TOKEN"],
-      "forbidden": ["REED_API_KEY", "ADZUNA_APP_ID", "ADZUNA_APP_KEY", "JSEARCH_API_KEY", "APPRENTICESHIPS_API_KEY", "OPENAI_API_KEY", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"]
+      "forbidden": ["REED_API_KEY", "ADZUNA_APP_ID", "ADZUNA_APP_KEY", "JSEARCH_API_KEY", "APPRENTICESHIPS_API_KEY", "AWS_ACCESS_KEY_ID", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"]
     },
     "live-provider": {
       "required": ["REED_API_KEY", "ADZUNA_APP_ID", "ADZUNA_APP_KEY", "JSEARCH_API_KEY", "APPRENTICESHIPS_API_KEY"],
-      "forbidden": ["OPENAI_API_KEY", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"]
+      "forbidden": ["AWS_ACCESS_KEY_ID", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"]
     },
     "data-acquisition": {
       "required": ["DATA_ACQUISITION_RUN_ID", "DATA_ACQUISITION_CONFIRMATION", "DATA_ACQUISITION_TERMS_APPROVAL_REFERENCE", "DATA_ACQUISITION_PROVENANCE_REVIEWER", "DATA_ACQUISITION_APPROVED_PROVIDERS"],
-      "forbidden": ["OPENAI_API_KEY", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"]
+      "forbidden": ["AWS_ACCESS_KEY_ID", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"]
     }
   },
   "variables": [
@@ -385,17 +385,11 @@
       "classification": "secret",
       "profiles": ["live-provider"]
     },
-    {"name": "OPENAI_API_KEY", "owner": "LLM Gateway", "consumers": ["llm-gateway"], "classification": "secret", "profiles": ["live-provider"]},
-    {"name": "OPENAI_ENDPOINT", "owner": "LLM Gateway", "consumers": ["llm-gateway"], "classification": "configuration", "profiles": ["live-provider"], "example": "https://api.openai.com/v1/chat/completions"},
-    {"name": "OPENAI_ORGANIZATION_ID", "owner": "LLM Gateway", "consumers": ["llm-gateway"], "classification": "sensitive-configuration", "profiles": ["live-provider"], "example": "org-example"},
-    {"name": "OPENAI_PROJECT_ID", "owner": "LLM Gateway", "consumers": ["llm-gateway"], "classification": "sensitive-configuration", "profiles": ["live-provider"], "example": "proj_example"},
-    {"name": "OPENAI_DATA_REGION", "owner": "LLM Gateway", "consumers": ["llm-gateway"], "classification": "privacy-configuration", "profiles": ["live-provider"], "example": "GLOBAL"},
-    {"name": "OPENAI_DATA_CONTROL_MODE", "owner": "LLM Gateway", "consumers": ["llm-gateway"], "classification": "privacy-configuration", "profiles": ["live-provider"], "example": "STANDARD_30_DAY_ABUSE_MONITORING"},
-    {"name": "OPENAI_DATA_SHARING_MODE", "owner": "LLM Gateway", "consumers": ["llm-gateway"], "classification": "privacy-configuration", "profiles": ["live-provider"], "example": "DISABLED"},
-    {"name": "OPENAI_PRIVACY_DECISION_ID", "owner": "LLM Gateway", "consumers": ["llm-gateway"], "classification": "privacy-configuration", "profiles": ["live-provider"], "example": "privacy-decision/llm-live"},
-    {"name": "OPENAI_PRIVACY_OWNER", "owner": "LLM Gateway", "consumers": ["llm-gateway"], "classification": "privacy-configuration", "profiles": ["live-provider"], "example": "Named privacy owner"},
-    {"name": "OPENAI_PRIVACY_REVIEWED_ON", "owner": "LLM Gateway", "consumers": ["llm-gateway"], "classification": "privacy-configuration", "profiles": ["live-provider"], "example": "2026-08-23"},
-    {"name": "OPENAI_PRIVACY_REVIEW_DUE_ON", "owner": "LLM Gateway", "consumers": ["llm-gateway"], "classification": "privacy-configuration", "profiles": ["live-provider"], "example": "2026-11-23"},
+    {"name": "BEDROCK_MODEL_ID", "owner": "LLM Gateway", "consumers": ["llm-gateway"], "classification": "configuration", "profiles": ["live-provider"], "example": "anthropic.claude-3-7-sonnet-20250219-v1:0"},
+    {"name": "BEDROCK_REGION", "owner": "LLM Gateway", "consumers": ["llm-gateway"], "classification": "configuration", "profiles": ["live-provider"], "example": "eu-west-2"},
+    {"name": "AWS_ACCESS_KEY_ID", "owner": "LLM Gateway", "consumers": ["llm-gateway"], "classification": "secret", "profiles": ["live-provider"], "example": "AKIAEXAMPLE"},
+    {"name": "AWS_SECRET_ACCESS_KEY", "owner": "LLM Gateway", "consumers": ["llm-gateway"], "classification": "secret", "profiles": ["live-provider"]},
+    {"name": "AWS_SESSION_TOKEN", "owner": "LLM Gateway", "consumers": ["llm-gateway"], "classification": "secret", "profiles": ["live-provider"]},
     {"name": "STRIPE_SECRET_KEY", "owner": "Stripe Gateway", "consumers": ["stripe-gateway"], "classification": "secret", "profiles": []},
     {"name": "STRIPE_WEBHOOK_SECRET", "owner": "Stripe Gateway", "consumers": ["stripe-gateway"], "classification": "secret", "profiles": []},
     {"name": "STRIPE_PRICE_STARTER", "owner": "Stripe Gateway", "consumers": ["stripe-gateway"], "classification": "configuration", "profiles": []},

@@ -22,10 +22,10 @@ update path and only fast-forwards clean expected branches.
 - `full-local-ses`: the complete fixture runtime with account email delivered
   to pinned local SES.
 - `real-job-providers`: the complete runtime with Reed, Adzuna, JSearch, NHS
-  Jobs, Find an apprenticeship and Postcodes.io live; OpenAI and Stripe remain
+  Jobs, Find an apprenticeship and Postcodes.io live; AWS Bedrock and Stripe remain
   fixture-backed.
 - `real-providers`: the complete runtime with all five job providers and
-  Postcodes.io, OpenAI and Google Maps live; Stripe and payments remain
+  Postcodes.io, AWS Bedrock and Google Maps live; Stripe and payments remain
   fixture-backed.
 
 The two real-provider profiles share the owner-only
@@ -35,13 +35,13 @@ credentials are resolved separately from the workspace-root
 credential values.
 
 For `real-providers`, the only supported Compose order is base, real job
-providers, real OpenAI, real Google Maps, then the reviewed low-memory runtime
+providers, real Bedrock, real Google Maps, then the reviewed low-memory runtime
 limits:
 
 ```text
 docker-compose.yml
 docker-compose.real-job-providers.yml
-docker-compose.real-openai.yml
+docker-compose.real-bedrock.yml
 docker-compose.real-google-maps.yml
 docker-compose.low-memory.yml
 ```
