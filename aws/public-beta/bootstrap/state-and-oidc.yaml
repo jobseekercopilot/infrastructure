@@ -1618,6 +1618,10 @@ Resources:
                 ses:FromAddress: accounts@jobseekercopilot.com
               Bool:
                 aws:SecureTransport: 'true'
+          - Sid: InvokeBedrockModels
+            Effect: Allow
+            Action: bedrock:InvokeModel
+            Resource: !Sub arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/*
           - Sid: FoundationDataKey
             Effect: Allow
             Action:
