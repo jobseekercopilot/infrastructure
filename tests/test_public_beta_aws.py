@@ -1054,10 +1054,13 @@ RUN apk add --no-cache --upgrade \\
         fixed_install = """RUN apk add --no-cache --upgrade \\
     libcrypto3=3.5.8-r0 \\
     libssl3=3.5.8-r0 \\
+    expat=2.8.4-r0 \\
     aws-cli ca-certificates curl jq"""
         self.assertEqual(dockerfile.count("apk add"), 1)
         self.assertIn(fixed_install, dockerfile)
         self.assertNotIn("3.5.7-r0", dockerfile)
+        self.assertNotIn("2.8.3-r0", dockerfile)
+        self.assertEqual(dockerfile.count("expat=2.8.4-r0"), 1)
         self.assertEqual(dockerfile.count("libcrypto3=3.5.8-r0"), 1)
         self.assertEqual(dockerfile.count("libssl3=3.5.8-r0"), 1)
 
