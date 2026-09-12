@@ -7,6 +7,7 @@ ARG RDS_CA_BUNDLE_SHA256
 RUN apk add --no-cache --upgrade \
     libcrypto3=3.5.8-r0 \
     libssl3=3.5.8-r0 \
+    expat=2.8.4-r0 \
     aws-cli ca-certificates curl jq
 
 RUN test -n "${RDS_CA_BUNDLE_URL}" \
