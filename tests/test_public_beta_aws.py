@@ -2627,7 +2627,7 @@ RUN apk add --no-cache --upgrade \\
         expected_versions = {
             "rdsBackup": "v30",
             "s3Backup": "v5",
-            "rdsRestore": "v35",
+            "rdsRestore": "v36",
             "s3Restore": "v2",
         }
         for name, entry in contract["contracts"].items():

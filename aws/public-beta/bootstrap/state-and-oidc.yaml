@@ -1864,7 +1864,7 @@ Resources:
             Effect: Allow
             Action:
               - rds:AddTagsToResource
-              # Required by AWSBackupServiceRolePolicyForRestores v35. This is
+              # Required by AWSBackupServiceRolePolicyForRestores v36. This is
               # still limited by the boundary to the isolated drill prefix;
               # human cleanup remains separately protected below.
               - rds:DeleteDBInstance

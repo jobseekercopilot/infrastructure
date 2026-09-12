@@ -91,7 +91,7 @@
     "rdsRestore": {
       "boundary": "BackupRestoreWorkloadBoundary",
       "policyArn": "arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForRestores",
-      "reviewedDefaultVersion": "v35",
+      "reviewedDefaultVersion": "v36",
       "officialReference": "https://docs.aws.amazon.com/aws-managed-policy/latest/reference/AWSBackupServiceRolePolicyForRestores.html",
       "requiredSids": [
         "RDSPermissions",
