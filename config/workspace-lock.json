@@ -23,7 +23,7 @@
     {"name": "document-store-service", "branch": "main", "revision": "9de6ea8ad26483c105e1bee3095a98acd3672a36"},
     {"name": "document-export-service", "branch": "main", "revision": "0a11f931544f53313ccb3af06ec9a277684ffaec"},
     {"name": "application-tracker-service", "branch": "main", "revision": "e8895333497154cfad7edbe4f1ca778cff378fa0"},
-    {"name": "cv-cover-letter-service", "branch": "main", "revision": "da611cb6424c5d538548d5ede3c9d2683300e33a"},
+    {"name": "cv-cover-letter-service", "branch": "main", "revision": "cd9919164ee28da9001e309298d8274445b1b048"},
     {"name": "document-generation-gateway", "branch": "main", "revision": "5c6d57039bb8c8b64b42b943369304d103df0e79"},
     {"name": "reporting-service", "branch": "main", "revision": "a7c338beffba4d8269b95b6f1cc302cca0d43c4f"},
     {"name": "reporting-gateway", "branch": "main", "revision": "b385719348f60090ae72dc06fda241763c4bb123"},
