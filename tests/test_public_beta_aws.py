@@ -2025,7 +2025,7 @@ RUN apk add --no-cache --upgrade \\
                 "location-service": "b64a38aa2f4dfb76ecc0d844345f152de7f1a8bf",
                 "llm-gateway": "80394317d75da1435e6f200e9218fede73089d54",
                 "document-store-service": "9de6ea8ad26483c105e1bee3095a98acd3672a36",
-                "document-generation-gateway": "5c6d57039bb8c8b64b42b943369304d103df0e79",
+                "document-generation-gateway": "845ae949e914ec5fdb5d7075ddd0a4a9b9062207",
                 "payment-service": "03068d659724588876b1636553377a86c79ccdd5",
                 "payment-gateway": "d25c9bc6e73a44db14a042ddd240e641ad0c5864",
                 "stripe-gateway": "a4918cb4a607c6ba0e006b62c625f47df362bcec",
