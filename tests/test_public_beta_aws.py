@@ -2023,14 +2023,14 @@ RUN apk add --no-cache --upgrade \\
                 "user-management-gateway": "e062116f13de0a1c73ac95ce040ce3a2eff4c572",
                 "location-gateway": "b8d0358c400bc9052b7c1fdf13624b41ff1d6589",
                 "location-service": "b64a38aa2f4dfb76ecc0d844345f152de7f1a8bf",
-                "llm-gateway": "80394317d75da1435e6f200e9218fede73089d54",
+                "llm-gateway": "f41db5da4a37cc359b8c958e65d2812139a02749",
                 "document-store-service": "9de6ea8ad26483c105e1bee3095a98acd3672a36",
                 "document-generation-gateway": "845ae949e914ec5fdb5d7075ddd0a4a9b9062207",
                 "payment-service": "03068d659724588876b1636553377a86c79ccdd5",
                 "payment-gateway": "d25c9bc6e73a44db14a042ddd240e641ad0c5864",
                 "stripe-gateway": "a4918cb4a607c6ba0e006b62c625f47df362bcec",
                 "system-data-service": "f6b28693dbb174e0317a5e3396c831e13134c21e",
-                "job-seeker-copilot-client": "848f188422e5b021179db98625601b8080288534",
+                "job-seeker-copilot-client": "6181da733842c78db73f7abfce998e14f42da5a4",
                 "e2e": "16f586b80ea3bd822f9931fffdb75d523d5541b1",
             },
         )
@@ -2081,7 +2081,7 @@ RUN apk add --no-cache --upgrade \\
         self.assertFalse(images["capabilities"]["frontendArtifactsVerified"])
         self.assertEqual(images["dependencyEvidence"]["frontendArtifacts"], {
             "client": {
-                "revision": "848f188422e5b021179db98625601b8080288534",
+                "revision": "6181da733842c78db73f7abfce998e14f42da5a4",
                 "artifactContractSha256": "801fab5beb7ea81798677086ef00a94759294a1e85915f74da843632de2c6f75",
                 "packaging": "OCI_SSR_BFF",
             },
@@ -2185,7 +2185,7 @@ RUN apk add --no-cache --upgrade \\
                 "apprenticeships-gateway": "78a633a702bd2380ae59acc1343daa8323ffbead",
                 "job-service": "fe806538b13ca324e676820674196ad2388c49ea",
                 "stripe-gateway": "a4918cb4a607c6ba0e006b62c625f47df362bcec",
-                "job-seeker-copilot-client": "848f188422e5b021179db98625601b8080288534",
+                "job-seeker-copilot-client": "6181da733842c78db73f7abfce998e14f42da5a4",
             },
             {
                 name: revisions[name]
