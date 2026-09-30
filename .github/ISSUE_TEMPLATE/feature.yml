@@ -1,0 +1,48 @@
+name: Feature
+description: Define a coherent user or operational outcome and its child work.
+title: "[Feature] "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: User problem
+      description: Who is affected, what are they trying to do, and why is the current experience insufficient?
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: Describe the result without prescribing unnecessary implementation detail.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      placeholder: "- [ ] …"
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies and constraints
+      description: Link blockers, contracts, security/privacy decisions and production constraints.
+  - type: dropdown
+    id: release
+    attributes:
+      label: Release target
+      options:
+        - Live / v1.0
+        - v1.1
+        - Post-v1.1
+        - Future
+    validations:
+      required: true
+  - type: textarea
+    id: child_work
+    attributes:
+      label: Expected child work
+      description: List only the Stories, Research or Bugs needed to deliver the outcome.

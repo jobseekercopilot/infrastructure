@@ -1,0 +1,68 @@
+name: Promotion story or task
+description: Plan measurable promotion and public-testing work.
+title: "[Story] Promotion: "
+labels:
+  - enhancement
+  - promotion
+body:
+  - type: input
+    id: parent
+    attributes:
+      label: Parent Feature
+      placeholder: "For v1.1: https://github.com/jobseekercopilot/infrastructure/issues/306"
+      description: Link the correct release Feature; for v1.1 use #306, then add this issue as its native sub-issue.
+    validations:
+      required: true
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objective
+      description: What public-testing or promotion outcome should this work produce?
+    validations:
+      required: true
+  - type: input
+    id: audience
+    attributes:
+      label: Audience
+    validations:
+      required: true
+  - type: input
+    id: channel
+    attributes:
+      label: Channel
+      description: Name the exact channel or partner route.
+    validations:
+      required: true
+  - type: textarea
+    id: action
+    attributes:
+      label: Action
+    validations:
+      required: true
+  - type: textarea
+    id: asset
+    attributes:
+      label: Asset required
+      description: Link an approved message, screenshot, demo, documentation page or release note.
+  - type: input
+    id: measure
+    attributes:
+      label: Success measure
+      description: Use a small outcome measure such as engaged testers or completed reports, not vanity reach alone.
+    validations:
+      required: true
+  - type: textarea
+    id: consent
+    attributes:
+      label: Consent, privacy and brand constraints
+      description: Record testimonial/image consent and any claim/evidence limits.
+  - type: dropdown
+    id: release
+    attributes:
+      label: Release target
+      options:
+        - v1.1
+        - Post-v1.1
+        - Future
+    validations:
+      required: true

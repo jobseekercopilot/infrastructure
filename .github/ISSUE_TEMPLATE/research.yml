@@ -1,0 +1,49 @@
+name: Research
+description: Reach an evidence-backed decision before implementation.
+title: "[Research] "
+labels:
+  - architecture
+body:
+  - type: input
+    id: parent
+    attributes:
+      label: Parent Feature or source task
+    validations:
+      required: true
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: State one decision that this Research must resolve.
+    validations:
+      required: true
+  - type: textarea
+    id: importance
+    attributes:
+      label: Why it matters
+      description: Explain the user, engineering, security, cost or operating impact.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence required
+      description: Identify source, runtime, test, user or provider evidence needed.
+    validations:
+      required: true
+  - type: textarea
+    id: options
+    attributes:
+      label: Options to compare
+    validations:
+      required: true
+  - type: textarea
+    id: recommendation
+    attributes:
+      label: Recommendation and important trade-offs (complete before closing)
+      description: Leave blank when opening the Research; update this section with the evidence-backed decision before closure.
+  - type: textarea
+    id: resulting_work
+    attributes:
+      label: Resulting implementation work
+      description: List the smallest follow-on Stories/Bugs; do not implement them inside the Research issue.
